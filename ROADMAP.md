@@ -1,25 +1,30 @@
-# PKM Email Processor - Product Roadmap
+# Scapin - Product Roadmap
 
-**Last Updated**: 2025-12-30
-**Version**: 2.1.0
-**Current Phase**: Phase 2 (80% Complete) → Finalizing Interactive Menu System
+**Last Updated**: 2025-12-31
+**Version**: 1.0.0-alpha (continuing from PKM v3.1.0)
+**Current Phase**: Phase 0.6 (Valet Module Refactoring)
 
 ---
 
 ## 📊 Executive Summary
 
-**Status**: ✅ **Production Ready** - 70% Overall Complete
+**Status**: ✅ **Production Ready Core** - Transitioning to Intelligent Assistant
 
-- **Test Coverage**: 485 tests, 92% coverage, 100% pass rate
+- **Test Coverage**: 525 tests, 92% coverage, 100% pass rate
 - **Code Quality**: 10/10
-- **Active Development**: Phase 2 finalization
-- **Next Milestone**: Complete Phase 2, begin Phase 3 (Q1 2026)
+- **Repository**: https://github.com/johanlb/scapin
+- **Previous Identity**: PKM System (archived at https://github.com/johanlb/pkm-system)
 
-**Core Vision**: Transform email overload into organized knowledge with AI-powered classification and intelligent review workflow.
+**Vision**: Transform from email processor into a complete **intelligent personal assistant** with:
+- 🎭 **Valet-themed architecture** - Inspired by Molière's resourceful valet
+- 🧠 **Cognitive reasoning** - Multi-pass iterative reasoning (not one-shot AI)
+- 🌐 **Modern interfaces** - Web app + Mobile PWA (in addition to CLI)
+- 📚 **Knowledge management** - Your personal knowledge base with semantic search
+- 🔄 **Multi-modal inputs** - Emails, files, questions, calendar, documents
 
 ---
 
-## ✅ Completed Phases
+## ✅ Completed Phases (Inherited from PKM)
 
 ### Phase 0: Foundations (100% Complete) ✅
 
@@ -42,9 +47,6 @@
 - [x] Pre-commit hooks (black, ruff, mypy)
 - [x] Development tooling (Makefile)
 
-#### Key Achievement
-Production-grade foundation avec architecture propre et testable.
-
 ---
 
 ### Phase 1: Email Processing (100% Complete) ✅
@@ -60,23 +62,20 @@ Production-grade foundation avec architecture propre et testable.
 - [x] Batch processing with parallelization
 - [x] Rate limiting and retry logic
 - [x] Comprehensive error management system:
-  - [x] ErrorManager (thread-safe singleton with LRU cache)
-  - [x] ErrorStore (SQLite persistence with context managers)
-  - [x] RecoveryEngine (exponential backoff, timeout protection)
+  - ErrorManager (thread-safe singleton with LRU cache)
+  - ErrorStore (SQLite persistence with context managers)
+  - RecoveryEngine (exponential backoff, timeout protection)
 - [x] Thread-safe operations with double-check locking
 - [x] Context sanitization for JSON serializability
 - [x] Timeout protection (no infinite hangs)
 - [x] LRU cache for memory optimization
 - [x] Comprehensive test suite
 
-#### Key Achievement
-Production-ready email processing pipeline with robust error handling and automatic recovery.
-
 ---
 
 ### Phase 1.5: Event System & Display Manager (100% Complete) ✅
 
-**Duration**: Week 5 (December 30, 2025)
+**Duration**: Week 5
 **Status**: ✅ Production Ready
 **Tests**: 44 tests (19 events + 18 display + 7 integration), 100% pass rate
 
@@ -85,57 +84,37 @@ Production-ready email processing pipeline with robust error handling and automa
 - [x] Thread-safe event system with double-check locking
 - [x] ProcessingEvent with 17 event types
 - [x] DisplayManager with Rich rendering:
-  - [x] Action icons: 📦 Archive, 🗑️ Delete, ✅ Task, 📚 Reference, ↩️ Reply
-  - [x] Category icons: 💼 Work, 👤 Personal, 💰 Finance, 🎨 Art, 📰 Newsletter
-  - [x] Confidence bars: ████ 95% (green) to ██░░ 55% (orange)
-  - [x] Content previews (80 chars max)
-  - [x] Progress tracking (Email 1/10, 2/10...)
+  - Action icons: 📦 Archive, 🗑️ Delete, ✅ Task, 📚 Reference, ↩️ Reply
+  - Category icons: 💼 Work, 👤 Personal, 💰 Finance, 🎨 Art, 📰 Newsletter
+  - Confidence bars: ████ 95% (green) to ██░░ 55% (orange)
+  - Content previews (80 chars max)
+  - Progress tracking (Email 1/10, 2/10...)
 - [x] Sequential display of parallel processing
 - [x] Logger display mode (hide console logs during processing)
-- [x] Real email testing with auto-execute and manual modes
-- [x] Complete test suite
-
-#### Architecture
-```
-Backend (Parallel)              Frontend (Sequential)
-──────────────────              ─────────────────────
-EmailProcessor                  DisplayManager
-  ↓ emit(event)                   ↓ subscribe(events)
-EventBus ─────────────────────────→ Render Events
-  ↓                                 ↓
-Async Processing                Beautiful Sequential UX
-```
-
-#### Key Achievement
-Event-driven UX séparant backend (parallel) et frontend (séquentiel) pour une expérience utilisateur fluide.
 
 ---
 
 ### Phase 1.6: Health Monitoring System (100% Complete) ✅
 
-**Duration**: Week 5 (December 30, 2025)
+**Duration**: Week 5
 **Status**: ✅ Production Ready
 **Tests**: 31 tests, 100% pass rate, 100% coverage
 
 #### Deliverables
 - [x] Health check system with 4 services:
-  - [x] IMAP health check (connectivity, authentication)
-  - [x] AI API health check (Anthropic API, with ModelSelector)
-  - [x] Disk space health check (data directory monitoring)
-  - [x] Queue health check (review queue size tracking)
+  - IMAP health check (connectivity, authentication)
+  - AI API health check (Anthropic API, with ModelSelector)
+  - Disk space health check (data directory monitoring)
+  - Queue health check (review queue size tracking)
 - [x] ServiceStatus enum (healthy, degraded, unhealthy, unknown)
 - [x] HealthCheckService singleton with caching (60s TTL)
 - [x] CLI commands (health, stats, config, settings)
-- [x] Complete test suite with mocked dependencies
-
-#### Key Achievement
-Monitoring système complet permettant de détecter et diagnostiquer les problèmes avant qu'ils n'impactent l'utilisateur.
 
 ---
 
 ### Phase 1.7: AI Model Selector (100% Complete) ✅
 
-**Duration**: December 30, 2025
+**Duration**: Week 5
 **Status**: ✅ Production Ready
 **Tests**: 25 tests, 100% pass rate
 
@@ -144,30 +123,16 @@ Monitoring système complet permettant de détecter et diagnostiquer les problè
 - [x] ModelTier enum (HAIKU, SONNET, OPUS)
 - [x] Dynamic model discovery via Anthropic API
 - [x] Automatic selection of latest model per tier
-- [x] Multi-level fallback strategy:
-  - Preferred tier → Fallback tiers → Static model list → Hardcoded fallback
+- [x] Multi-level fallback strategy
 - [x] Static fallback models ordered newest to oldest
-- [x] Integration with health checks (uses Haiku for speed/cost)
-- [x] Complete test suite (25 tests)
-
-#### Use Cases
-- **Haiku**: Health checks, simple tasks, high-volume operations
-- **Sonnet**: Email processing, balanced cost/performance
-- **Opus**: Complex analysis, critical decisions
-
-#### Key Achievement
-Future-proof model selection qui s'adapte automatiquement aux nouveaux modèles Claude (4.5, 5, etc.).
+- [x] Integration with health checks
 
 ---
 
-## 🚧 Current Phase
+### Phase 2: Interactive Menu System (80% Complete) ✅
 
-### Phase 2: Interactive Menu System (80% Complete) 🚧
-
-**Status**: 🚧 In Progress
-**Estimated Completion**: January 2026 (2-3 weeks remaining)
-**Priority**: 🔴 HIGH
-**Tests**: 100+ tests (menu, review, queue storage)
+**Status**: 🚧 Near Complete
+**Tests**: 108 tests (menu, review, queue storage)
 
 #### Completed ✅
 - [x] **Interactive Menu** (questionary navigation)
@@ -177,7 +142,7 @@ Future-proof model selection qui s'adapte automatiquement aux nouveaux modèles 
   - Custom styling
 - [x] **Multi-Account Support**
   - EmailAccountConfig (Pydantic model)
-  - Multi-account configuration (.env format with EMAIL__ACCOUNTS__0__)
+  - Multi-account configuration (.env format)
   - MultiAccountProcessor for sequential processing
   - Account selection UI (checkbox for batch)
   - Per-account statistics
@@ -188,61 +153,64 @@ Future-proof model selection qui s'adapte automatiquement aux nouveaux modèles 
   - Queue management CLI (list, stats, clear)
   - Tracking of AI corrections for learning
 - [x] **CLI Integration**
-  - `python pkm.py menu` command
-  - `python pkm.py` launches menu by default
+  - `python scapin.py menu` command
+  - `python scapin.py` launches menu by default
   - Full backward compatibility
-- [x] **Tests**
-  - test_interactive_menu.py (18 tests)
-  - test_interactive_review_mode.py (24 tests)
-  - test_queue_storage.py (60 tests)
 
 #### Remaining Tasks
 - [ ] **Config Migration Script** (90% complete)
-  - Automatic detection of legacy .env format
-  - Migration to EMAIL__ACCOUNTS__0__ format
-  - Backup creation (.env.backup)
-  - Validation of migrated config
-
 - [ ] **Integration Tests** (20% complete)
-  - End-to-end multi-account flow testing
-  - Menu navigation integration tests
-  - Review queue integration with email processing
-
 - [ ] **User Documentation** (30% complete)
-  - Interactive menu user guide
-  - Multi-account setup guide
-  - Review queue workflow documentation
-  - Screenshots and examples
 
-#### Files
-**Implemented**:
-- `src/cli/menu.py` (489 lines) ✅
-- `src/cli/review_mode.py` (654 lines) ✅
-- `src/core/multi_account_processor.py` (304 lines) ✅
-- `src/integrations/storage/queue_storage.py` (436 lines) ✅
-- Tests: `test_interactive_menu.py`, `test_interactive_review_mode.py`, `test_queue_storage.py` ✅
+---
 
-**To Create**:
-- `scripts/migrate_config.py` (migration script)
-- `tests/integration/test_menu_navigation.py`
-- `tests/integration/test_multi_account_flow.py`
-- `docs/USER_GUIDE_MENU.md`
+## 🚧 Current Phase
 
-#### Success Metrics
-- ✅ Menu navigation fluide avec flèches
-- ✅ Zéro logs JSON visibles pendant traitement
-- ✅ Affichage séquentiel clair avec icônes
-- ✅ Support 2+ comptes avec séparation visuelle
-- ✅ Mode review utilisable et intuitif
-- ✅ Compatibilité CLI 100% maintenue
-- [ ] Tests coverage > 90% (currently ~85% for Phase 2 components)
-- [ ] Documentation complète utilisateur
+### Phase 0.6: Valet Module Refactoring (0% - Q1 2026)
+
+**Status**: 📋 Planned
+**Duration**: 2-3 weeks
+**Priority**: 🟡 MEDIUM
+**Complexity**: 🟡 MEDIUM
+
+#### Objectives
+Refactor module structure to reflect Scapin's valet-themed architecture.
+
+#### Module Mapping
+
+| Current Path | New Path | Valet Name | Purpose |
+|-------------|----------|------------|---------|
+| `src/ai/` | `src/sancho/` | Sancho Panza | Wisdom & Reasoning (Don Quixote's wise squire) |
+| `src/core/email_processor.py` | `src/trivelin/processor.py` | Trivelin | Triage & Classification (Marivaux's clever valet) |
+| `src/core/multi_account_processor.py` | `src/figaro/orchestrator.py` | Figaro | Orchestration (The Barber of Seville) |
+| `src/cli/` | `src/jeeves/` | Jeeves | Service & API Layer (Wodehouse's perfect butler) |
+| New | `src/planchet/` | Planchet | Planning & Scheduling (D'Artagnan's resourceful servant) |
+| New | `src/sganarelle/` | Sganarelle | Learning & Adaptation (Molière's recurring character) |
+| New | `src/passepartout/` | Passepartout | Navigation & Search (Around the World in 80 Days) |
+
+**Note**: `src/core/` remains for shared infrastructure (events, config, state, etc.)
+
+#### Deliverables
+- [ ] Create new valet-themed module directories
+- [ ] Move and refactor existing code to new structure
+- [ ] Update all import paths throughout codebase
+- [ ] Automated migration script for users
+- [ ] Update documentation with new architecture
+- [ ] Verify all 525 tests still pass
+- [ ] Create architecture diagram with valet names
+
+#### Success Criteria
+- ✅ All modules follow valet theme
+- ✅ Clear separation of concerns
+- ✅ Zero breaking changes for users
+- ✅ All tests pass
+- ✅ Documentation updated
 
 ---
 
 ## 📅 Future Phases
 
-### Phase 0.5: Cognitive Architecture Foundation (NEW - Q1 2026)
+### Phase 0.5: Cognitive Architecture Foundation (CRITICAL - Q1 2026)
 
 **Status**: 🏗️ Design Complete - Ready for Implementation
 **Duration**: 4-5 weeks
@@ -251,11 +219,9 @@ Future-proof model selection qui s'adapte automatiquement aux nouveaux modèles 
 
 #### Vision
 
-Transform PKM from email processor into **true cognitive assistant** with genuine reasoning capabilities.
+Transform Scapin from email processor into **true cognitive assistant** with genuine reasoning capabilities.
 
 **Core Model**: `Event → Perception → Reasoning (iterative) → Planning → Action → Learning`
-
-See **[ARCHITECTURE.md](ARCHITECTURE.md)** for complete specification.
 
 #### Key Design Decisions
 
@@ -269,18 +235,18 @@ See **[ARCHITECTURE.md](ARCHITECTURE.md)** for complete specification.
 
 #### Architecture Components
 
-1. **Perception Layer**
+1. **Perception Layer** (→ `src/trivelin/perception.py`)
    - Universal event normalization
    - Entity extraction
    - Multi-source support (email, files, questions, documents)
 
-2. **Working Memory** (Central Hub)
+2. **Working Memory** (→ `src/core/memory/working_memory.py`)
    - Short-term understanding accumulator
    - Reasoning trace across passes
    - Confidence tracking
    - Continuity detection
 
-3. **Reasoning Engine** (Iterative)
+3. **Reasoning Engine** (→ `src/sancho/reasoning_engine.py`)
    - **Pass 1**: Initial Analysis (~60-70% confidence)
    - **Pass 2**: Context Enrichment from PKM (~75-85% confidence)
    - **Pass 3**: Deep Multi-Step Reasoning (~85-92% confidence)
@@ -288,25 +254,25 @@ See **[ARCHITECTURE.md](ARCHITECTURE.md)** for complete specification.
    - **Pass 5**: User Clarification if needed (~95-99% confidence)
    - Stops when confidence >= 95% OR max iterations
 
-4. **Long-Term Memory (PKM)** - Bidirectional
+4. **Long-Term Memory (PKM)** (→ `src/passepartout/pkm_manager.py`)
    - **READ**: Semantic search (embeddings), entity/relationship queries
    - **WRITE**: Note creation/update, entity management, Git commits
    - Technology: Markdown + YAML + sentence-transformers + FAISS + Git
 
-5. **Planning & Decision Engine**
+5. **Planning & Decision Engine** (→ `src/planchet/planning_engine.py`)
    - Action candidate generation
    - Outcome simulation
    - Risk assessment
    - Dependency resolution (DAG)
    - Approval strategy (auto/review/manual)
 
-6. **Action Execution Layer**
+6. **Action Execution Layer** (→ `src/core/actions/`)
    - Transaction-based execution
    - Parallel execution where possible
    - Rollback on failure
    - Error handling
 
-7. **Learning & Memory Update**
+7. **Learning & Memory Update** (→ `src/sganarelle/learning_engine.py`)
    - PKM enrichment (new notes, entities, relationships)
    - Provider accuracy tracking
    - Confidence calibration
@@ -344,19 +310,19 @@ Total: ~18s for high-quality, context-aware decision
 
 #### Implementation Roadmap (5 Weeks)
 
-**Week 1: Core Infrastructure**
+**Week 1**: Core Infrastructure
 - Universal Event Model
 - Working Memory
 - Continuity detection
 - Tests
 
-**Week 2: Reasoning Engine**
+**Week 2**: Reasoning Engine
 - Iterative loop (5 passes)
 - Confidence tracking
 - Convergence detection
 - Tests
 
-**Week 3: Context & Memory**
+**Week 3**: Context & Memory
 - PKM semantic search (embeddings)
 - Entity/relationship queries
 - PKM write operations
@@ -364,7 +330,7 @@ Total: ~18s for high-quality, context-aware decision
 - Vector store (FAISS)
 - Tests
 
-**Week 4: Planning & Execution**
+**Week 4**: Planning & Execution
 - Planning engine
 - Action framework (base class + implementations)
 - DAG-based execution
@@ -372,7 +338,7 @@ Total: ~18s for high-quality, context-aware decision
 - Rollback mechanism
 - Tests
 
-**Week 5: Learning & Integration**
+**Week 5**: Learning & Integration
 - Learning engine
 - Feedback processing
 - End-to-end integration
@@ -384,15 +350,15 @@ Total: ~18s for high-quality, context-aware decision
 **Code**:
 - `src/core/events/` - Universal events & normalizers
 - `src/core/memory/` - Working memory + continuity
-- `src/core/reasoning/` - 5-pass reasoning engine
-- `src/core/context/` - PKM context queries
-- `src/core/planning/` - Planning & risk assessment
+- `src/sancho/reasoning_engine.py` - 5-pass reasoning
+- `src/passepartout/context_queries.py` - PKM context retrieval
+- `src/planchet/planning_engine.py` - Planning & risk assessment
 - `src/core/actions/` - Action framework
-- `src/core/learning/` - Learning engine
-- `src/knowledge/` - PKM manager with embeddings
+- `src/sganarelle/learning_engine.py` - Learning engine
+- `src/passepartout/pkm_manager.py` - PKM with embeddings
 
 **Documentation**:
-- ✅ `ARCHITECTURE.md` - Complete specification
+- ✅ `ARCHITECTURE.md` - Complete specification (inherited from PKM)
 - API documentation
 - Usage examples
 - Reasoning flow diagrams
@@ -419,248 +385,241 @@ Total: ~18s for high-quality, context-aware decision
 - **Enables**: ALL future phases (foundation for everything)
 - **Integrates with**: Phase 2.5 (multi-provider used in Pass 4)
 
-#### Impact on Existing Roadmap
-
-**Phase 2** → Becomes UI for review queue + event source
-**Phase 2.5** → Integrates into Pass 4 (consensus)
-**Phase 3** → Becomes Long-Term Memory (PKM)
-**Phase 4.5** → Integrates into Planning Engine
-**Phase 2.7+** → New event sources using this architecture
-
-**This is the foundation that makes PKM a true cognitive assistant.**
+**This is the foundation that makes Scapin a true cognitive assistant.**
 
 ---
 
-### Phase 2.5: Multi-Provider AI System (Planned - Q1 2026)
+### Phase 0.7: Jeeves API Layer (NEW - Q1 2026)
 
-**Status**: 📋 Planned (Critical for Production)
+**Status**: 📋 Planned
+**Duration**: 3-4 weeks
+**Priority**: 🟡 MEDIUM
+**Complexity**: 🟡 MEDIUM
+
+#### Objectives
+Build FastAPI-based REST API to enable web and mobile interfaces.
+
+#### Deliverables
+- [ ] **FastAPI Application** (`src/jeeves/api/`)
+  - RESTful API design
+  - OpenAPI/Swagger documentation
+  - JWT authentication
+  - CORS support for web clients
+
+- [ ] **Core Endpoints**
+  - `POST /api/process/email` - Process emails
+  - `GET /api/queue` - Get review queue
+  - `POST /api/queue/{id}/approve` - Approve queued item
+  - `POST /api/queue/{id}/modify` - Modify and execute
+  - `GET /api/health` - System health
+  - `GET /api/stats` - Processing statistics
+  - `POST /api/reasoning/query` - Ask questions
+  - `GET /api/notes` - List PKM notes
+  - `GET /api/notes/{id}` - Get specific note
+
+- [ ] **WebSocket Support**
+  - Real-time processing events
+  - Live updates during email processing
+  - Notification system
+
+- [ ] **Security**
+  - API key authentication
+  - Rate limiting
+  - Input validation
+  - HTTPS only (production)
+
+#### Technology Stack
+- FastAPI (Python async web framework)
+- Pydantic (request/response validation)
+- uvicorn (ASGI server)
+- WebSockets (real-time updates)
+
+#### Success Criteria
+- ✅ All CRUD operations available via API
+- ✅ Real-time updates via WebSocket
+- ✅ < 100ms API response time (non-processing endpoints)
+- ✅ Comprehensive API documentation
+- ✅ 90%+ test coverage
+
+#### Dependencies
+- Phase 0.5 complete (cognitive architecture)
+- Phase 2 complete (review queue)
+
+---
+
+### Phase 0.8: Web UI (NEW - Q1-Q2 2026)
+
+**Status**: 📋 Planned
+**Duration**: 6-8 weeks
+**Priority**: 🔴 HIGH
+**Complexity**: 🔴 HIGH
+
+#### Objectives
+Build modern web application for daily Scapin usage.
+
+#### Deliverables
+- [ ] **Frontend Application** (SvelteKit)
+  - Modern, responsive UI
+  - Real-time updates
+  - Email processing interface
+  - Review queue management
+  - PKM note browser
+  - Statistics dashboard
+  - Settings management
+
+- [ ] **Core Views**
+  - `/dashboard` - Overview with stats
+  - `/process` - Email processing interface
+  - `/queue` - Review queue with approve/modify/reject
+  - `/notes` - PKM knowledge base browser
+  - `/search` - Semantic search interface
+  - `/settings` - Account and AI configuration
+  - `/health` - System health monitoring
+
+- [ ] **Real-Time Features**
+  - Live processing status
+  - WebSocket-based updates
+  - Progress bars and notifications
+  - Confidence visualizations
+
+- [ ] **Interactive Reasoning**
+  - View reasoning trace (all 5 passes)
+  - Understand AI decisions
+  - Provide feedback
+  - Modify and re-run
+
+#### Technology Stack
+- **Frontend**: SvelteKit (modern, fast, simple)
+- **Styling**: TailwindCSS (utility-first CSS)
+- **Charts**: Chart.js or D3.js
+- **Icons**: Lucide or Heroicons
+- **State**: Svelte stores + API client
+- **Build**: Vite (fast dev server)
+
+#### Design Principles
+- **Clean & Minimal**: Focus on content, not chrome
+- **Fast**: < 2s page load, instant interactions
+- **Accessible**: WCAG 2.1 AA compliant
+- **Responsive**: Mobile-first design
+
+#### Success Criteria
+- ✅ All CLI features available in web UI
+- ✅ < 2s initial page load
+- ✅ Real-time updates work smoothly
+- ✅ Works on desktop, tablet, mobile
+- ✅ User satisfaction: "better than CLI"
+
+#### Dependencies
+- Phase 0.7 complete (Jeeves API)
+- Phase 0.5 complete (cognitive architecture)
+
+---
+
+### Phase 0.9: Mobile PWA (NEW - Q2 2026)
+
+**Status**: 📋 Planned
+**Duration**: 3-4 weeks
+**Priority**: 🟡 MEDIUM
+**Complexity**: 🟢 LOW
+
+#### Objectives
+Convert web UI into Progressive Web App for mobile use.
+
+#### Deliverables
+- [ ] **PWA Infrastructure**
+  - Service Worker for offline support
+  - App manifest (icons, colors, name)
+  - Install prompts
+  - Push notifications
+  - Background sync
+
+- [ ] **Mobile Optimizations**
+  - Touch-friendly UI
+  - Mobile navigation patterns
+  - Offline queue management
+  - Quick actions (process, review)
+  - Native share integration
+
+- [ ] **Notifications**
+  - New emails ready for review
+  - Processing complete
+  - Review queue items
+  - System alerts
+
+#### Technology Stack
+- Workbox (service worker toolkit)
+- Web Push API
+- Background Sync API
+- Storage API (offline data)
+
+#### Success Criteria
+- ✅ Works offline (read-only)
+- ✅ Install as app on iOS/Android
+- ✅ Push notifications functional
+- ✅ < 3s load on 3G
+- ✅ Lighthouse PWA score > 90
+
+#### Dependencies
+- Phase 0.8 complete (Web UI)
+
+---
+
+### Phase 2.5: Multi-Provider AI System (Q2 2026)
+
+**Status**: 📋 Planned
 **Duration**: 4-5 weeks
 **Priority**: 🔴 HIGH
 **Complexity**: 🔴 HIGH
 
 #### Objectives
-Transform PKM from Claude-only to a multi-provider AI system with intelligent consensus mechanism and provider-specific model selection.
-
-#### Context
-**Current State**: System only supports Claude (Anthropic)
-- Config has `openai_api_key` and `mistral_api_key` fields (unused)
-- AIRouter hardcoded to Claude only
-- ModelSelector only works with Claude models
-
-**Goal**: Support multiple AI providers with intelligent routing, consensus, and fallback strategies.
+Support multiple AI providers with intelligent consensus mechanism.
 
 #### Deliverables
-
-##### 1. Multi-Provider Architecture
 - [ ] **Provider Abstraction Layer**
-  - Abstract base class `AIProvider` with standard interface
-  - Implementations: `ClaudeProvider`, `OpenAIProvider`, `MistralProvider`, `GeminiProvider`
-  - Common interface: `analyze_email()`, `get_available_models()`, `health_check()`
-  - Provider-specific error handling and retry logic
+  - `ClaudeProvider` (existing) ✅
+  - `OpenAIProvider` (GPT-4o, GPT-4-turbo)
+  - `MistralProvider` (Mistral Large/Medium/Small)
+  - `GeminiProvider` (Gemini 2.0 Flash, Gemini 1.5 Pro)
 
-- [ ] **Provider Registry**
-  - `ProviderRegistry` singleton to manage available providers
-  - Auto-discovery of configured providers (based on API keys)
-  - Priority ordering (preferred provider first)
-  - Enable/disable providers at runtime
-
-- [ ] **Enhanced AIRouter**
-  - Refactor `AIRouter` to use provider abstraction
-  - Provider selection logic (default, fallback, consensus mode)
-  - Load balancing across providers (round-robin, least-cost)
-  - Provider health monitoring and automatic failover
-
-##### 2. Intelligent Model Selection per Provider
-- [ ] **Universal ModelSelector**
-  - Extend `ModelSelector` to support all providers (not just Claude)
-  - `ClaudeModelSelector` (existing) ✅
-  - `OpenAIModelSelector` (GPT-4o, GPT-4-turbo, GPT-3.5-turbo)
-  - `MistralModelSelector` (Mistral Large, Mistral Medium, Mistral Small)
-  - `GeminiModelSelector` (Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash)
-
-- [ ] **Tier Mapping**
-  - Universal tier system (FAST, BALANCED, POWERFUL)
-  - Provider-specific mapping:
-    - FAST: Claude Haiku, GPT-4o-mini, Mistral Small, Gemini Flash
-    - BALANCED: Claude Sonnet, GPT-4o, Mistral Medium, Gemini Pro
-    - POWERFUL: Claude Opus, GPT-4-turbo, Mistral Large, Gemini 2.0 Flash
-
-- [ ] **Dynamic Model Discovery**
-  - API-based model discovery for each provider (like Claude)
-  - Automatic selection of latest model per tier
-  - Fallback to static model lists when API unavailable
-  - Caching with TTL (1 hour)
-
-##### 3. AI Consensus Mechanism (Low-Confidence Resolution)
 - [ ] **Consensus Engine**
-  - `ConsensusEngine` class for multi-provider decision making
-  - Trigger: confidence < threshold (default: 75%)
-  - Query 2-3 providers for same email
-  - Aggregate responses and confidence scores
-  - Decision logic:
-    - **Strong Consensus** (2+ agree): Execute agreed action
-    - **Weak Consensus** (split decision): Use weighted average by provider reliability
-    - **No Consensus** (all different): Escalate to review queue
+  - Trigger when confidence < 75%
+  - Query 2-3 providers
+  - Aggregate responses
+  - Weighted consensus based on provider accuracy
 
-- [ ] **Consensus Configuration**
-  - `AI__CONSENSUS__ENABLED` (default: true in auto mode)
-  - `AI__CONSENSUS__THRESHOLD` (default: 75%)
-  - `AI__CONSENSUS__MIN_PROVIDERS` (default: 2)
-  - `AI__CONSENSUS__MAX_PROVIDERS` (default: 3)
-  - `AI__CONSENSUS__TIMEOUT` (default: 30s)
+- [ ] **Intelligent Routing**
+  - Use cheapest provider for simple tasks
+  - Consensus for uncertain decisions
+  - Automatic failover
+  - Cost tracking and optimization
 
-- [ ] **Provider Weighting**
-  - Track accuracy per provider (based on user corrections)
-  - Dynamic weighting: more accurate providers get higher weight
-  - Cost consideration: prefer cheaper provider if equal accuracy
-  - Performance tracking (speed, reliability)
-
-##### 4. Fallback & Escalation Strategy
-- [ ] **Multi-Level Fallback**
-  ```
-  1. Primary Provider (Claude Sonnet)
-     ↓ (if fails)
-  2. Secondary Provider (OpenAI GPT-4o)
-     ↓ (if fails)
-  3. Tertiary Provider (Mistral Large)
-     ↓ (if all fail)
-  4. Escalate to Review Queue
-  ```
-
-- [ ] **Auto Mode Enhanced Logic**
-  ```
-  IF confidence >= 90%:
-      Execute immediately (single provider)
-  ELSE IF 75% <= confidence < 90%:
-      Consensus mode (2-3 providers)
-      IF consensus reached:
-          Execute with averaged decision
-      ELSE:
-          Queue for review
-  ELSE (confidence < 75%):
-      Queue for review immediately
-  ```
-
-##### 5. Cost Optimization
-- [ ] **Provider Cost Tracking**
-  - Track cost per provider (tokens, API calls)
-  - Cost per email processed
-  - Monthly budget tracking
-  - Alert when approaching budget limits
-
-- [ ] **Smart Provider Selection**
-  - Use cheapest provider for simple tasks (Haiku tier)
-  - Use consensus only when needed (avoid unnecessary costs)
-  - Configurable cost vs. accuracy trade-off
-  - Provider cost ranking (updated monthly)
-
-##### 6. Configuration & UI
-- [ ] **Extended Configuration**
+- [ ] **Configuration**
   ```bash
-  # Provider API Keys
-  AI__ANTHROPIC_API_KEY=sk-ant-...
-  AI__OPENAI_API_KEY=sk-...
-  AI__MISTRAL_API_KEY=...
-  AI__GOOGLE_API_KEY=...  # For Gemini
-
-  # Provider Priority (comma-separated)
   AI__PROVIDER_PRIORITY=anthropic,openai,mistral,google
-
-  # Consensus Settings
   AI__CONSENSUS__ENABLED=true
   AI__CONSENSUS__THRESHOLD=75
-  AI__CONSENSUS__MIN_PROVIDERS=2
-
-  # Cost Limits
   AI__MONTHLY_BUDGET_USD=100
-  AI__COST_ALERT_THRESHOLD=80
   ```
-
-- [ ] **Menu Integration**
-  - Settings → AI Providers
-  - View enabled providers and health status
-  - Configure consensus settings
-  - View cost tracking and usage stats
-
-##### 7. Testing & Documentation
-- [ ] **Comprehensive Tests**
-  - `test_provider_abstraction.py` - Base provider interface
-  - `test_openai_provider.py` - OpenAI implementation
-  - `test_mistral_provider.py` - Mistral implementation
-  - `test_gemini_provider.py` - Gemini implementation
-  - `test_provider_registry.py` - Registry and discovery
-  - `test_consensus_engine.py` - Consensus logic (30+ tests)
-  - `test_multi_provider_router.py` - Enhanced AIRouter
-  - `test_model_selector_universal.py` - All providers
-  - Integration tests with mock providers
-
-- [ ] **Documentation**
-  - Multi-provider setup guide
-  - Consensus mechanism explained
-  - Cost optimization best practices
-  - Provider comparison matrix
-  - Troubleshooting guide
-
-#### Architecture Diagram
-
-```
-EmailProcessor
-      ↓
-  AIRouter (Enhanced)
-      ↓
-  ┌─────────────────────────────────┐
-  │     Provider Registry           │
-  │  (Auto-discover from API keys)  │
-  └─────────────────────────────────┘
-      ↓
-  ┌──────────┬──────────┬──────────┬──────────┐
-  │  Claude  │  OpenAI  │ Mistral  │  Gemini  │
-  │ Provider │ Provider │ Provider │ Provider │
-  └──────────┴──────────┴──────────┴──────────┘
-      ↓           ↓          ↓          ↓
-  ModelSelector per Provider (latest models)
-      ↓
-  ┌─────────────────────────────────┐
-  │      Consensus Engine           │
-  │  (when confidence < threshold)  │
-  │                                 │
-  │  - Query 2-3 providers          │
-  │  - Aggregate responses          │
-  │  - Decide or escalate           │
-  └─────────────────────────────────┘
-      ↓
-  Decision (Execute or Queue)
-```
-
-#### Success Metrics
-- Support for 4 AI providers (Claude, OpenAI, Mistral, Gemini) ✓
-- Model selection works for all providers ✓
-- Consensus improves accuracy by 10%+ ✓
-- Automatic failover works (< 5s latency) ✓
-- Cost tracking accurate within 5% ✓
-- 90%+ test coverage ✓
-- Zero vendor lock-in ✓
 
 #### Benefits
 - **Resilience**: No single point of failure
-- **Accuracy**: Consensus mechanism reduces errors
-- **Cost Optimization**: Choose cheapest provider for task
-- **Future-Proof**: Easy to add new providers (Cohere, Anthropic v3, etc.)
-- **Performance**: Load balancing across providers
-- **Flexibility**: User can prefer specific provider
+- **Accuracy**: Consensus reduces errors by 10%+
+- **Cost Optimization**: Choose cheapest for task
+- **Future-Proof**: Easy to add new providers
+
+#### Success Metrics
+- Support for 4 AI providers ✓
+- Consensus improves accuracy by 10%+ ✓
+- Automatic failover < 5s latency ✓
+- Cost tracking accurate within 5% ✓
+- 90%+ test coverage ✓
 
 #### Dependencies
-- Phase 2 complete (Interactive Menu, Review Queue)
-- API keys for multiple providers
-
-#### Estimated Cost Impact
-- Development: 4-5 weeks
-- Testing: Multiple API keys needed (~$50-100 for testing)
-- Ongoing: Depends on provider mix (could reduce costs by 20-30% with smart routing)
+- Phase 0.5 complete (integrates into Pass 4 of reasoning)
 
 ---
 
-### Phase 3: Knowledge System (Planned - Q1 2026)
+### Phase 3: Knowledge System (Q2 2026)
 
 **Status**: 📋 Planned
 **Duration**: 4-6 weeks
@@ -671,7 +630,7 @@ EmailProcessor
 Build knowledge management system with Markdown notes, Git version control, and entity extraction.
 
 #### Deliverables
-- [ ] **NoteManager** (Markdown CRUD)
+- [ ] **NoteManager** (`src/passepartout/note_manager.py`)
   - Create, read, update, delete notes
   - YAML frontmatter support
   - Auto-linking between notes
@@ -684,10 +643,10 @@ Build knowledge management system with Markdown notes, Git version control, and 
   - Conflict resolution
   - Branch management
 
-- [ ] **Context Engine**
+- [ ] **Context Engine** (`src/passepartout/context_engine.py`)
   - Recent notes retrieval for AI context
   - Relevant context suggestions
-  - Smart search with embeddings
+  - Smart search with embeddings (FAISS)
   - Context window management
 
 - [ ] **Entity Extraction**
@@ -696,22 +655,31 @@ Build knowledge management system with Markdown notes, Git version control, and 
   - Entity linking to notes
   - Relationship tracking
 
+#### Technology Stack
+- Markdown files with YAML frontmatter
+- Git for version control
+- sentence-transformers for embeddings
+- FAISS for vector search
+- NetworkX for relationship graph (Phase 5)
+
 #### Success Criteria
 - 100+ notes managed
 - Sub-second search
 - Zero data loss
 - Git history preserved
+- Semantic search accuracy > 85%
 
 #### Dependencies
+- Phase 0.5 complete (cognitive architecture uses PKM)
 - Phase 2 complete
 
 ---
 
-### Phase 4: Review System with FSRS (Planned - Q2 2026)
+### Phase 4: Review System with FSRS (Q2-Q3 2026)
 
 **Status**: 📋 Planned
 **Duration**: 3-4 weeks
-**Priority**: 🟡 MEDIUM
+**Priority**: 🟢 LOW
 **Complexity**: 🔴 HIGH
 
 #### Objectives
@@ -732,7 +700,7 @@ Implement spaced repetition system for knowledge review using FSRS algorithm.
 
 - [ ] **Review Agent**
   - Daily review prompts
-  - Interactive review UI
+  - Interactive review UI (web + CLI)
   - Progress visualization
   - Streak tracking
 
@@ -740,13 +708,15 @@ Implement spaced repetition system for knowledge review using FSRS algorithm.
 - 90%+ retention rate
 - Daily review < 10 minutes
 - Adaptive scheduling works
+- User engagement: daily usage
 
 #### Dependencies
 - Phase 3 complete (NoteManager)
+- Phase 0.8 complete (Web UI for review interface)
 
 ---
 
-### Phase 5: Property Graph (Planned - Q2 2026)
+### Phase 5: Property Graph (Q3 2026)
 
 **Status**: 📋 Planned
 **Duration**: 3-4 weeks
@@ -773,19 +743,21 @@ Build property graph for knowledge relationships using NetworkX.
   - Automatic relationship detection
   - Smart recommendations
   - Link validation
-  - Graph visualization (Graphviz, D3.js)
+  - Graph visualization (D3.js for web UI)
 
 #### Success Criteria
 - 1000+ nodes and edges
 - Sub-second graph queries
 - Useful link suggestions
+- Beautiful graph visualization
 
 #### Dependencies
 - Phase 3 complete (NoteManager, entities)
+- Phase 0.8 complete (Web UI for visualization)
 
 ---
 
-### Phase 6: Integrations (Partial - Q3 2026)
+### Phase 6: Integrations (Q3 2026)
 
 **Status**: 🔶 Partial (30% - OmniFocus only)
 **Duration**: 4-5 weeks remaining
@@ -818,11 +790,12 @@ Build property graph for knowledge relationships using NetworkX.
   - Availability checking
 
 #### Dependencies
-- Phase 2 complete (for OmniFocus full integration)
+- Phase 2 complete
+- Phase 0.5 complete (cognitive architecture for smart extraction)
 
 ---
 
-### Phase 7: Bidirectional Sync (Planned - Q3 2026)
+### Phase 7: Bidirectional Sync (Q3-Q4 2026)
 
 **Status**: 📋 Planned
 **Duration**: 5-6 weeks
@@ -855,6 +828,7 @@ Enable bidirectional sync between Markdown notes and Apple Notes.
 - Zero data loss
 - < 5s sync latency
 - Conflict resolution works
+- Background daemon stable
 
 #### Dependencies
 - Phase 3 complete (NoteManager, Git)
@@ -863,22 +837,26 @@ Enable bidirectional sync between Markdown notes and Apple Notes.
 
 ## 📈 Overall Progress
 
-### Progress by Phase
+### Phased Roadmap Overview
 
 ```
 Phase 0:   ████████████████████ 100% ✅ Foundations
-Phase 0.5: ░░░░░░░░░░░░░░░░░░░░   0% 🏗️ Cognitive Architecture (Design Complete)
 Phase 1:   ████████████████████ 100% ✅ Email Processing
 Phase 1.5: ████████████████████ 100% ✅ Event & Display
 Phase 1.6: ████████████████████ 100% ✅ Health Monitoring
 Phase 1.7: ████████████████████ 100% ✅ AI Model Selector
 Phase 2:   ████████████████░░░░  80% 🚧 Interactive Menu
-Phase 2.5: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Multi-Provider AI (Planned)
-Phase 3:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Knowledge/Context (Planned)
-Phase 4:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 FSRS (Planned)
-Phase 5:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Property Graph (Planned)
-Phase 6:   ██████░░░░░░░░░░░░░░  30% 📋 Integrations (Partial)
-Phase 7:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Bidirectional Sync (Planned)
+Phase 0.6: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Valet Refactor (NEW)
+Phase 0.5: ░░░░░░░░░░░░░░░░░░░░   0% 🏗️ Cognitive Arch (CRITICAL)
+Phase 0.7: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Jeeves API (NEW)
+Phase 0.8: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Web UI (NEW)
+Phase 0.9: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Mobile PWA (NEW)
+Phase 2.5: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Multi-Provider AI
+Phase 3:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Knowledge System
+Phase 4:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 FSRS Review
+Phase 5:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Property Graph
+Phase 6:   ██████░░░░░░░░░░░░░░  30% 📋 Integrations
+Phase 7:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Bidirectional Sync
 
 Overall:   ██████████████░░░░░░  70% 🚀
 ```
@@ -893,24 +871,17 @@ Overall:   ██████████████░░░░░░  70% �
 | Phase 1.6 | 31 | 100% | 100% | ✅ |
 | Phase 1.7 | 25 | 100% | 100% | ✅ |
 | Phase 2 | 108 | 85%+ | 100% | 🚧 |
-| **Total** | **485** | **92%** | **100%** | **✅** |
-
-### Lines of Code
-
-| Component | Lines | Files | Status |
-|-----------|-------|-------|--------|
-| Source Code | ~6,500 | 38 | ✅ Production |
-| Tests | ~8,000 | 24 | ✅ Comprehensive |
-| Documentation | ~3,000 | 5 | ✅ Complete |
-| **Total** | **~17,500** | **67** | **✅** |
+| Phase 0.5 | TBD (100+) | 90%+ | - | 📋 |
+| Phase 0.7-0.9 | TBD (150+) | 90%+ | - | 📋 |
+| **Total** | **525** | **92%** | **100%** | **✅** |
 
 ---
 
 ## 🎯 Success Metrics
 
-### Phase 0-2 (Achieved) ✅
+### Completed (Phase 0-2) ✅
 - ✅ 10/10 code quality
-- ✅ 485 tests, 92% coverage, 100% pass rate
+- ✅ 525 tests, 92% coverage, 100% pass rate
 - ✅ Zero critical bugs
 - ✅ Production-ready email processing
 - ✅ Beautiful event-driven UX
@@ -920,30 +891,53 @@ Overall:   ██████████████░░░░░░  70% �
 - ✅ Health monitoring complete
 - ✅ AI model selection intelligent
 
-### Phase 2 Complete (Target)
-- Interactive menu with smooth navigation ✅
-- Multi-account support for 2+ accounts ✅
-- Review queue with 90%+ approval rate ✅
-- User satisfaction: "much better than CLI" (pending user testing)
-- End-to-end integration tests ⏳
-- Complete user documentation ⏳
+### Phase 0.5 Targets (Cognitive Architecture)
+- Reasoning time: 10-20s average
+- Confidence convergence: >90% of cases
+- Accuracy improvement: +15% vs current
+- Zero infinite loops
+- 100+ unit tests, 90%+ coverage
 
-### Phase 3+ (Future Targets)
-- Knowledge graph with 100+ notes
+### Phase 0.7-0.9 Targets (UI Layers)
+- API response time: < 100ms
+- Web UI page load: < 2s
+- PWA Lighthouse score: > 90
+- Mobile install rate: > 50% of web users
+- User satisfaction: "better than CLI"
+
+### Long-Term (All Phases)
+- Knowledge graph: 1000+ notes
 - Spaced repetition retention: 90%+
-- Integration satisfaction: "seamless"
 - Zero data loss
-- Sub-second performance
+- Sub-second search performance
 
 ---
 
-## 🔗 Resources
+## 🚀 Development Priorities
 
-- **GitHub Repository**: https://github.com/johanlb/pkm-system
-- **Documentation**: `README.md`, `MISSING_TESTS.md`
-- **Code Quality Report**: Archive (10/10 achieved)
-- **Interactive Menu Plan**: `.claude/plans/abstract-puzzling-axolotl.md`
-- **Development History**: `archive/` (85 files archived)
+### Q1 2026 (Next 3 Months)
+1. **Complete Phase 2** (Interactive Menu) - 2-3 weeks
+2. **Phase 0.6** (Valet Refactoring) - 2-3 weeks
+3. **Phase 0.5** (Cognitive Architecture) - 4-5 weeks ⭐ CRITICAL
+4. **Begin Phase 0.7** (Jeeves API) - Start if time permits
+
+### Q2 2026
+1. **Complete Phase 0.7** (Jeeves API)
+2. **Phase 0.8** (Web UI) - 6-8 weeks
+3. **Phase 0.9** (Mobile PWA) - 3-4 weeks
+4. **Phase 2.5** (Multi-Provider AI)
+5. **Begin Phase 3** (Knowledge System)
+
+### Q3 2026
+1. **Complete Phase 3** (Knowledge System)
+2. **Phase 4** (FSRS Review)
+3. **Phase 5** (Property Graph)
+4. **Phase 6** (Complete Integrations)
+
+### Q4 2026
+1. **Phase 7** (Bidirectional Sync)
+2. **Polish & Performance Optimization**
+3. **Public Beta Release**
 
 ---
 
@@ -956,76 +950,49 @@ Overall:   ██████████████░░░░░░  70% �
 4. **Event-Driven**: Decouple backend from frontend
 5. **Progressive Enhancement**: Each phase builds on previous
 
-### Technical Decisions
-- **Rich** for beautiful terminal UI
-- **Pydantic** for config and data validation
-- **SQLite** for persistence (errors, queue)
-- **EventBus** for backend/frontend decoupling
-- **Questionary** for interactive menus
-- **Threading** for parallel processing
-- **NetworkX** for knowledge graph (future)
+### Architectural Principles
+1. **Valet Theme**: All modules follow the resourceful assistant metaphor
+2. **Separation of Concerns**: Clear module boundaries
+3. **API-First**: Jeeves API enables all interfaces
+4. **Cognitive Core**: Phase 0.5 is the intelligence foundation
+5. **Multi-Interface**: CLI + Web + Mobile (not CLI-only)
 
-### Testing Strategy
-- Unit tests for all modules (20 files)
-- Integration tests for workflows (4 files)
-- 90%+ coverage requirement
-- 100% pass rate mandatory
-- Real email testing in safe environment
-
----
-
-## 🚀 Next Steps
-
-### Immediate (This Week)
-1. ✅ Audit all phases for accurate progress
-2. ✅ Clean repository (85 files archived)
-3. ✅ Add test_model_selector.py
-4. ✅ Update README.md and ROADMAP.md
-5. ⏳ Run full test suite
-6. ⏳ Commit and push all changes
-
-### Short Term (Next 2-3 Weeks)
-1. Complete Phase 2 remaining 20%:
-   - Config migration script
-   - Integration tests (multi-account, menu)
-   - User documentation
-2. User testing of interactive menu
-3. Bug fixes and polish
-4. Phase 2 release
-
-### Medium Term (Q1 2026)
-1. **Begin Phase 2.5 (Multi-Provider AI System)** - PRIORITY
-   - Implement provider abstraction layer
-   - Add OpenAI, Mistral, Gemini support
-   - Build consensus engine
-   - Provider-specific model selection
-2. Complete Phase 2.5 testing and documentation
-3. Begin Phase 3 (Knowledge System)
-4. Implement NoteManager with Git integration
+### Technical Stack
+- **Backend**: Python 3.11+, FastAPI, Pydantic
+- **Frontend**: SvelteKit, TailwindCSS, TypeScript
+- **AI**: Claude (Anthropic), GPT-4o (OpenAI), Mistral, Gemini
+- **Storage**: SQLite, Markdown+Git, FAISS
+- **Testing**: pytest, 90%+ coverage
+- **Deployment**: Docker, cloud-ready
 
 ---
 
-## 📊 Repository Status
+## 🔗 Resources
 
-### Repository Cleaned ✅
-- **Archived**: 85 files (39 scripts + 46 docs)
-- **Root Directory**: Clean (only official files)
-- **Documentation**: Current and accurate
-
-### Test Status ✅
-- **Total Tests**: 485
-- **Pass Rate**: 100%
-- **Coverage**: 92%
-- **Missing**: 3 test files (migration script tests, integration tests)
-
-### Documentation Status ✅
-- **README.md**: ✅ Updated (comprehensive)
-- **ROADMAP.md**: ✅ Updated (this file)
-- **MISSING_TESTS.md**: ✅ Created (test gap analysis)
-- **archive/README.md**: ✅ Created (explains archived files)
+- **GitHub Repository**: https://github.com/johanlb/scapin
+- **Previous Repository**: https://github.com/johanlb/pkm-system (archived)
+- **Documentation**: `README.md`, `ARCHITECTURE.md`, `MIGRATION.md`
+- **Interactive Menu Plan**: `.claude/plans/abstract-puzzling-axolotl.md`
 
 ---
 
-**Status**: Phase 2 at 80% → Finalizing → Phase 2.5 (Multi-Provider AI) Next (Q1 2026)
-**Quality**: 10/10 Production Ready 🚀
-**Tests**: 505 tests, 92% coverage, 100% pass ✅
+## 📊 Version History
+
+- **v1.0.0-alpha** (2025-12-31): Repository migration from PKM to Scapin
+  - Renamed from "PKM System" to "Scapin"
+  - Established valet-themed architecture vision
+  - Planned UI phases (Web + PWA)
+  - Migrated 88 files and 6 open issues
+
+- **v3.1.0** (2025-12-30): Final PKM version
+  - Completed cognitive architecture design
+  - 525 tests, 92% coverage
+  - Production-ready email processing
+  - Interactive menu system (80% complete)
+
+---
+
+**Status**: Phase 2 near complete → Phase 0.6 (Valet Refactor) → Phase 0.5 (Cognitive Architecture) ⭐
+**Quality**: 10/10 Production Ready Core 🚀
+**Tests**: 525 tests, 92% coverage, 100% pass ✅
+**Next Milestone**: Complete Phase 2, refactor to valet structure, implement cognitive architecture
