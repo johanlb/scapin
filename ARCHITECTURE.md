@@ -1,8 +1,10 @@
-# PKM System - Cognitive Architecture
+# Scapin - Cognitive Architecture
 
-**Version**: 3.0.0
-**Date**: 2025-12-30
+**Version**: 1.0.0-alpha (continuing from PKM v3.1.0)
+**Date**: 2025-12-31
 **Status**: 🏗️ Design Phase - Foundation for Future Development
+
+> Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
 
 ---
 
@@ -24,7 +26,7 @@
 **From**: Email processor with AI classification
 **To**: Personal AI Assistant with genuine cognitive capabilities
 
-The PKM system is evolving from a specialized email tool into a **universal personal assistant** that:
+Scapin is evolving from a specialized email tool into a **universal personal assistant** that:
 - Processes diverse inputs (emails, files, questions, documents)
 - Reasons about them with full context awareness
 - Makes intelligent decisions through iterative multi-step reasoning
@@ -43,9 +45,25 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 
 **Key**: This is NOT a linear pipeline. It's an **iterative cognitive loop** with:
 - Working memory (short-term understanding)
-- Long-term memory (PKM knowledge base)
+- Long-term memory (knowledge base)
 - Multi-pass reasoning until confidence threshold met
 - Continuous learning and adaptation
+
+---
+
+## 🎭 The Valet Team - Module Architecture
+
+Scapin's architecture follows a valet-themed design, where each module represents a skilled servant with specific expertise:
+
+| Module | Valet | Origin | Responsibility |
+|--------|-------|--------|----------------|
+| **Trivelin** | Triage & Classification | Marivaux's *L'Île des esclaves* | Perception layer - sorts and classifies events |
+| **Sancho** | Wisdom & Reasoning | Cervantes' *Don Quixote* | Multi-pass reasoning engine - the wise counselor |
+| **Planchet** | Planning & Scheduling | Dumas' *The Three Musketeers* | Planning engine - D'Artagnan's resourceful servant |
+| **Figaro** | Orchestration | Beaumarchais' *The Barber of Seville* | Action execution - the master of coordination |
+| **Sganarelle** | Learning & Adaptation | Molière's recurring character | Learning engine - adapts from experience |
+| **Passepartout** | Navigation & Search | Verne's *Around the World in 80 Days* | Knowledge management - finds anything |
+| **Jeeves** | Service & API | Wodehouse's stories | API layer - the perfect butler interface |
 
 ---
 
@@ -69,7 +87,7 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 - Each pass refines understanding
 
 ### 3. Context-Aware Intelligence 🧠
-**Decision**: Semantic search with embeddings for PKM context retrieval.
+**Decision**: Semantic search with embeddings for knowledge base context retrieval.
 
 **Rationale**:
 - Keywords miss semantic relationships
@@ -108,7 +126,8 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                  PERCEPTION LAYER                           │
+│              TRIVELIN - PERCEPTION LAYER                    │
+│  (Triage & Classification - Marivaux's clever valet)       │
 │  • Event normalization                                      │
 │  • Initial classification                                   │
 │  • Entity extraction                                        │
@@ -120,7 +139,7 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 │  ┌───────────────────────────────────────────────────┐     │
 │  │ Short-Term Understanding:                         │     │
 │  │ • Current event state                             │     │
-│  │ • Retrieved context (from PKM)                    │     │
+│  │ • Retrieved context (from Knowledge Base)         │     │
 │  │ • Reasoning trace (all passes)                    │     │
 │  │ • Hypotheses & inferences                         │     │
 │  │ • Confidence scores per hypothesis                │     │
@@ -130,7 +149,8 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 └─────────────────────────────────────────────────────────────┘
               ↓ ↑ ↓ ↑ ↓ ↑  (BIDIRECTIONAL)
 ┌─────────────────────────────────────────────────────────────┐
-│            REASONING ENGINE (Iterative Loop)                │
+│   SANCHO - REASONING ENGINE (Iterative Loop)               │
+│   (Wisdom & Reasoning - Don Quixote's wise squire)         │
 │  ┌───────────────────────────────────────────────────┐     │
 │  │ LOOP (max 5 iterations):                          │     │
 │  │                                                    │     │
@@ -142,7 +162,7 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 │  │                                                    │     │
 │  │ IF confidence < 95%:                              │     │
 │  │   Pass 2: Context Enrichment                      │     │
-│  │     • Query PKM with entities (semantic search)   │     │
+│  │     • Query Passepartout (semantic search)        │     │
 │  │     • Retrieve related notes                      │     │
 │  │     • Understand relationships                    │     │
 │  │     • Re-analyze with context                     │     │
@@ -179,7 +199,8 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│    LONG-TERM MEMORY (PKM) - Bidirectional                  │
+│ PASSEPARTOUT - LONG-TERM MEMORY - Bidirectional            │
+│ (Navigation & Search - Verne's resourceful traveler)       │
 │  ┌─────────────┐         ┌─────────────┐                   │
 │  │   READ      │         │   WRITE     │                   │
 │  │ • Notes     │         │ • New notes │                   │
@@ -191,7 +212,8 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│           PLANNING & DECISION ENGINE                        │
+│    PLANCHET - PLANNING & DECISION ENGINE                    │
+│    (Planning & Scheduling - D'Artagnan's servant)           │
 │  1. Generate Action Candidates                              │
 │     • Based on understanding + context                      │
 │     • Multiple possible action plans                        │
@@ -221,7 +243,8 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              ACTION EXECUTION LAYER                         │
+│         FIGARO - ACTION EXECUTION LAYER                     │
+│         (Orchestration - The Barber of Seville)             │
 │  • Execute actions in dependency order                      │
 │  • Transaction support (atomic operations)                  │
 │  • Rollback on failure                                      │
@@ -232,8 +255,9 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│        LEARNING & MEMORY UPDATE LAYER                       │
-│  1. Update PKM (Long-Term Memory)                           │
+│   SGANARELLE - LEARNING & MEMORY UPDATE LAYER               │
+│   (Learning & Adaptation - Molière's recurring character)   │
+│  1. Update Knowledge Base (via Passepartout)                │
 │     • Create/update notes with new information              │
 │     • Add entities (people, projects, concepts)             │
 │     • Create relationships (links)                          │
@@ -268,8 +292,10 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 
 ## 🔧 Component Specifications
 
-### 1. Perception Layer
+### 1. Trivelin - Perception Layer
 
+**Valet**: Trivelin (from Marivaux's *L'Île des esclaves*) - The clever valet who excels at sorting and classification
+**Module**: `src/trivelin/`
 **Purpose**: Normalize diverse inputs into universal format.
 
 **Interface**:
@@ -366,8 +392,10 @@ class WorkingMemory:
 
 ---
 
-### 3. Reasoning Engine
+### 3. Sancho - Reasoning Engine
 
+**Valet**: Sancho Panza (from Cervantes' *Don Quixote*) - The wise and practical squire who provides sound counsel
+**Module**: `src/sancho/`
 **Purpose**: Iterative multi-pass reasoning until confident.
 
 **Algorithm**:
@@ -476,13 +504,15 @@ class ReasoningEngine:
 
 ---
 
-### 4. Long-Term Memory (PKM)
+### 4. Passepartout - Long-Term Memory
 
+**Valet**: Passepartout (from Verne's *Around the World in 80 Days*) - The resourceful valet who can find his way anywhere
+**Module**: `src/passepartout/`
 **Purpose**: Bidirectional knowledge base (Read + Write).
 
 **Interface**:
 ```python
-class PKMMemory:
+class PassepartoutMemory:
     """Long-term knowledge storage"""
 
     # READ operations
@@ -592,8 +622,10 @@ Marie sent the preliminary Q2 budget spreadsheet...
 
 ---
 
-### 5. Planning & Decision Engine
+### 5. Planchet - Planning & Decision Engine
 
+**Valet**: Planchet (from Dumas' *The Three Musketeers*) - D'Artagnan's resourceful servant, skilled at planning and timing
+**Module**: `src/planchet/`
 **Purpose**: Convert understanding into executable action plan.
 
 **Interface**:
@@ -676,8 +708,10 @@ def _determine_mode(self, actions, risks):
 
 ---
 
-### 6. Action Execution Layer
+### 6. Figaro - Action Execution Layer
 
+**Valet**: Figaro (from Beaumarchais' *The Barber of Seville*) - The master of orchestration and coordination
+**Module**: `src/figaro/`
 **Purpose**: Execute actions with transaction support.
 
 **Interface**:
@@ -773,8 +807,8 @@ class CreateTaskAction(Action):
     """Create OmniFocus task"""
     pass
 
-class UpdatePKMNoteAction(Action):
-    """Create/update PKM note"""
+class UpdateNoteAction(Action):
+    """Create/update knowledge base note (via Passepartout)"""
     pass
 
 class PrepareEmailReplyAction(Action):
@@ -796,8 +830,10 @@ class SendNotificationAction(Action):
 
 ---
 
-### 7. Learning & Memory Update Layer
+### 7. Sganarelle - Learning & Memory Update Layer
 
+**Valet**: Sganarelle (from Molière's plays) - The recurring character who learns and adapts through experience
+**Module**: `src/sganarelle/`
 **Purpose**: Continuous improvement through feedback.
 
 **Interface**:
@@ -822,8 +858,8 @@ class LearningEngine:
         5. Statistical patterns
         """
 
-        # 1. Update PKM
-        pkm_updates = self._update_pkm(
+        # 1. Update Knowledge Base
+        kb_updates = self._update_knowledge_base(
             event,
             reasoning_trace,
             actions
@@ -858,7 +894,7 @@ class LearningEngine:
         )
 
         return LearningResult(
-            pkm_updates=pkm_updates,
+            knowledge_updates=kb_updates,
             model_improvements=self.improvements
         )
 ```
@@ -945,7 +981,7 @@ PASS 1: Initial Analysis (~3s)
 ─────────────────────────────────────────────────────
 
 PASS 2: Context Enrichment (~4s)
-├─ PKM Query: "Marie Dupont" + "budget" + "Q2"
+├─ Passepartout Query: "Marie Dupont" + "budget" + "Q2"
 ├─ Retrieved Context:
 │   • Entity: Marie Dupont (Accountant, Company XYZ)
 │   • Note: "Q2 Budget Planning" (created last week)
@@ -1049,7 +1085,7 @@ PLANNING:
 │      )
 │      Dependencies: [SaveAttachmentAction]
 │
-│   3. UpdatePKMNoteAction(
+│   3. UpdateNoteAction(
 │        note_id="note_q2_budget_planning",
 │        updates={
 │          "status": "spreadsheet received",
@@ -1092,7 +1128,7 @@ PLANNING:
 EXECUTION:
 ├─ [Level 0 - Parallel]
 │   ├─ SaveAttachmentAction → Success (0.2s)
-│   ├─ UpdatePKMNoteAction → Success (0.3s)
+│   ├─ UpdateNoteAction → Success (0.3s)
 │   └─ PrepareEmailReplyAction → Success (0.5s)
 │
 ├─ [Level 1]
@@ -1106,7 +1142,7 @@ EXECUTION:
 ─────────────────────────────────────────────────────
 
 LEARNING:
-├─ PKM Updates:
+├─ Knowledge Base Updates (via Sganarelle):
 │   • Note "Q2 Budget Planning" updated
 │   • New attachment reference added
 │   • Timeline entry: "Spreadsheet received Dec 30"
@@ -1143,7 +1179,7 @@ RESULT: ✅ Success - Email fully processed, all actions completed
 | 2 | **95% confidence threshold** | Quality-first approach, accept longer processing | ✅ Approved |
 | 3 | **Embeddings for semantic search** | Best context retrieval quality | ✅ Approved |
 | 4 | **Hybrid continuity detection** | Auto-detect conversation threads | ✅ Approved |
-| 5 | **Bidirectional PKM** | Enable learning and knowledge growth | ✅ Approved |
+| 5 | **Bidirectional Knowledge Base** | Enable learning and knowledge growth | ✅ Approved |
 | 6 | **Multi-provider consensus (Pass 4)** | Improve accuracy for uncertain cases | ✅ Approved |
 | 7 | **Git for PKM version control** | Safety + auditability | ✅ Approved |
 | 8 | **Transaction-based execution** | Atomic operations with rollback | ✅ Approved |
@@ -1155,7 +1191,7 @@ RESULT: ✅ Success - Email fully processed, all actions completed
 | **Embeddings** | sentence-transformers (all-MiniLM-L6-v2) | Fast, good quality, local |
 | **Vector DB** | FAISS (initial) → ChromaDB (scale) | FAISS for simplicity, ChromaDB when needed |
 | **AI Providers** | Claude (primary), GPT-4o (consensus), Mistral, Gemini | Multi-provider flexibility |
-| **PKM Storage** | Markdown + YAML frontmatter | Human-readable, Git-friendly |
+| **Knowledge Storage** | Markdown + YAML frontmatter | Human-readable, Git-friendly |
 | **Version Control** | Git | Industry standard, reliable |
 | **Graph** | NetworkX | Python-native, flexible |
 | **Actions** | Plugin-based (ABC classes) | Extensibility |
@@ -1208,16 +1244,19 @@ RESULT: ✅ Success - Email fully processed, all actions completed
 
 **Files to Create**:
 ```
-src/core/events/
+src/trivelin/                 # Perception & Triage
 ├── __init__.py
-├── universal_event.py
-├── event_sources.py
 ├── perception.py
 └── normalizers/
     ├── __init__.py
     ├── email_normalizer.py
     ├── file_normalizer.py
     └── question_normalizer.py
+
+src/core/events/              # Shared event infrastructure
+├── __init__.py
+├── universal_event.py
+└── event_sources.py
 
 src/core/memory/
 ├── __init__.py
@@ -1246,7 +1285,7 @@ src/core/memory/
 
 **Files to Create**:
 ```
-src/core/reasoning/
+src/sancho/                   # Reasoning & Wisdom
 ├── __init__.py
 ├── reasoning_engine.py
 ├── passes/
@@ -1286,20 +1325,15 @@ src/core/reasoning/
 
 **Files to Create**:
 ```
-src/core/context/
+src/passepartout/             # Navigation & Search
 ├── __init__.py
-├── context_engine.py
-├── pkm_query.py
-├── entity_extractor.py
-└── embeddings.py
-
-src/knowledge/
-├── __init__.py
-├── pkm_manager.py
-├── note.py
-├── entity.py
-├── relationship.py
-└── vector_store.py
+├── knowledge_manager.py      # Main interface
+├── context_engine.py         # Context retrieval for Sancho
+├── note_manager.py           # Note CRUD operations
+├── entity_manager.py         # Entity management
+├── relationship_manager.py   # Relationship tracking
+├── embeddings.py             # Vector embeddings
+└── vector_store.py           # FAISS/ChromaDB integration
 ```
 
 #### Week 4: Planning & Execution
@@ -1330,23 +1364,24 @@ src/knowledge/
 
 **Files to Create**:
 ```
-src/core/planning/
+src/planchet/                 # Planning & Scheduling
 ├── __init__.py
 ├── planning_engine.py
 ├── risk_assessment.py
 ├── dependency_resolver.py
 └── simulation.py
 
-src/core/actions/
+src/figaro/                   # Orchestration & Execution
 ├── __init__.py
-├── base.py
-├── registry.py
-├── orchestrator.py
-└── implementations/
+├── orchestrator.py           # Main execution coordinator
+├── action_executor.py        # DAG-based execution
+└── actions/                  # Action implementations
     ├── __init__.py
+    ├── base.py
+    ├── registry.py
     ├── contacts.py
     ├── tasks.py
-    ├── pkm.py
+    ├── notes.py
     ├── email.py
     └── calendar.py
 ```
@@ -1378,7 +1413,7 @@ src/core/actions/
 
 **Files to Create**:
 ```
-src/core/learning/
+src/sganarelle/               # Learning & Adaptation
 ├── __init__.py
 ├── learning_engine.py
 ├── feedback_processor.py
@@ -1386,7 +1421,7 @@ src/core/learning/
 └── pattern_learner.py
 
 src/core/
-└── cognitive_assistant.py  # Main orchestrator
+└── scapin.py                 # Main cognitive assistant orchestrator
 ```
 
 #### Success Criteria
@@ -1403,12 +1438,27 @@ src/core/
 
 ### Integration with Existing Phases
 
-**Phase 2** (Interactive Menu) → Becomes event source + UI for review
-**Phase 2.5** (Multi-Provider AI) → Used in Pass 4 (Validation & Consensus)
-**Phase 3** (Knowledge System) → Becomes Long-Term Memory (PKM)
-**Phase 4.5** (Rules Engine) → Integrates into Planning Engine
-**Phase 2.7** (File Events) → New event source using cognitive architecture
-**Phase 2.8** (Question Events) → New event source using cognitive architecture
+**Phase 2** (Interactive Menu) → Event source + UI for review (via Jeeves)
+**Phase 0.7** (Jeeves API) → Web/Mobile interface to cognitive architecture
+**Phase 2.5** (Multi-Provider AI) → Used in Sancho's Pass 4 (Validation & Consensus)
+**Phase 3** (Knowledge System) → Implemented by Passepartout
+**Phase 6** (Integrations) → Additional actions for Figaro to orchestrate
+
+### Valet Module Integration Map
+
+```
+Jeeves (API Layer)
+    ↓
+Trivelin (Perception) → Working Memory ← Passepartout (Knowledge)
+    ↓                         ↓
+Sancho (Reasoning) ←──────────┘
+    ↓
+Planchet (Planning)
+    ↓
+Figaro (Execution)
+    ↓
+Sganarelle (Learning) → Passepartout (Knowledge Update)
+```
 
 ---
 
@@ -1478,7 +1528,7 @@ on Dec 30. She confirmed the revenue target of $500K and
 15% cost reduction. The deadline for your review is Jan 15."
 ```
 
-**Architecture Support**: Question events already designed for this.
+**Architecture Support**: Question events already designed for this. Jeeves API (Phase 0.7) will provide the conversational interface.
 
 ---
 
@@ -1528,7 +1578,7 @@ Learning:
 
 ## 📞 Questions & Discussion
 
-**This architecture represents a major evolution**. It transforms PKM from a specialized tool into a true cognitive assistant.
+**This architecture represents a major evolution**. It transforms Scapin from a specialized tool into a true cognitive assistant with a team of skilled "valets" working in concert.
 
 **Key Questions for Ongoing Discussion**:
 1. Performance tuning: Adjust thresholds based on real usage?
@@ -1540,7 +1590,25 @@ Learning:
 
 ---
 
+## 🎭 Summary: The Valet Team at Work
+
+When an event arrives (email, file, question), here's how Scapin's team responds:
+
+1. **Trivelin** receives the event and performs initial triage
+2. **Sancho** reasons about it iteratively, consulting **Passepartout** for context
+3. **Planchet** devises an action plan based on Sancho's understanding
+4. **Figaro** orchestrates the execution of actions in proper order
+5. **Sganarelle** learns from the outcome, updating **Passepartout's** knowledge
+6. **Jeeves** provides the elegant API interface for web/mobile clients
+
+Each valet excels at their specialty, working together like a well-trained household staff.
+
+---
+
 **Status**: 🏗️ Design Complete - Ready for Implementation
-**Next Step**: Begin Phase 0.5 Week 1 - Core Infrastructure
-**Owner**: Development Team
-**Last Updated**: 2025-12-30
+**Repository**: https://github.com/johanlb/scapin
+**Version**: 1.0.0-alpha (continuing from PKM v3.1.0)
+**Next Step**: Begin Phase 0.5 Week 2 - Sancho Reasoning Engine
+**Last Updated**: 2025-12-31
+
+🎭 *"The valet who can do anything is worth more than the master who can do nothing."* - Molière
