@@ -30,72 +30,110 @@ Scapin is not just an email processor or a task manager. It's a **cognitive pers
 
 ## ✨ What Scapin Does
 
-### Current Capabilities
+### Current Capabilities (v1.0.0-alpha)
 
-- ✅ **Intelligent Email Processing** - AI-powered classification with multi-provider consensus
-- ✅ **Multi-Account Support** - Handle multiple email accounts seamlessly
-- ✅ **Interactive Review** - Validate AI decisions with elegant UI
-- ✅ **Task Creation** - Auto-create OmniFocus tasks from emails
-- ✅ **Knowledge Base** - Build and query your personal knowledge graph
-- ✅ **Decision Learning** - Improves from corrections and feedback
-- ✅ **Health Monitoring** - System-wide health checks and error recovery
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Intelligent Email Processing** | ✅ Production | AI-powered classification, multi-account support, batch processing |
+| **Interactive Menu System** | ✅ Production | Arrow-key navigation, account selection, review queue management |
+| **Multi-Account Email** | ✅ Production | Handle unlimited email accounts with per-account configs |
+| **Review Queue** | ✅ Production | Approve/modify/reject AI decisions with rich UI |
+| **Task Integration** | ✅ Production | Auto-create OmniFocus tasks via MCP |
+| **Event System** | ✅ Production | Thread-safe pub/sub with 17 event types |
+| **Health Monitoring** | ✅ Production | IMAP, AI API, disk, queue health checks |
+| **Error Recovery** | ✅ Production | Exponential backoff, timeout protection, LRU cache |
+| **Decision Tracking** | ✅ Production | SQLite-based error store with context |
+| **Cognitive Architecture** | 🏗️ 20% Complete | Universal events, working memory (Week 1 done) |
+
+**Test Coverage**: 525 tests, 92% coverage, 100% pass rate
+**Code Quality**: 10/10
 
 ### Cognitive Architecture (Phase 0.5 - In Progress)
 
-Scapin uses a sophisticated cognitive loop:
+Scapin uses a sophisticated **iterative cognitive loop** - not one-shot AI, but true multi-step reasoning:
 
 ```
-Event → Perception → Reasoning (iterative) → Planning → Action → Learning
-         ↑                                                        ↓
-         └────────────────── Feedback Loop ──────────────────────┘
+Event → Trivelin → Sancho ↔ Passepartout → Planchet → Figaro → Sganarelle
+                     ↑                                             ↓
+                     └─────────── Learning Feedback ──────────────┘
 ```
 
-**Multi-Pass Reasoning**:
-1. **Initial Analysis** (~70% confidence) - Quick understanding
-2. **Context Enrichment** (~80% confidence) - Retrieve relevant knowledge
-3. **Deep Reasoning** (~90% confidence) - Multi-step inference
-4. **Validation** (~95% confidence) - Multi-provider consensus
-5. **User Clarification** (~99% confidence) - Ask when uncertain
+**Sancho's Multi-Pass Reasoning** (up to 5 iterations):
+
+| Pass | Process | Confidence Target | Time |
+|------|---------|------------------|------|
+| **1. Initial Analysis** | Understand the event | ~60-70% | 2-3s |
+| **2. Context Enrichment** | Query Passepartout for relevant knowledge | ~75-85% | 3-5s |
+| **3. Deep Reasoning** | Multi-step inference, "if X then Y" chains | ~85-92% | 2-4s |
+| **4. Validation** | Multi-provider consensus (Claude + GPT-4o) | ~90-96% | 3-5s |
+| **5. User Clarification** | Ask user when still uncertain | ~95-99% | async |
+
+**Stops when**: Confidence ≥ 95% OR max iterations reached
+
+**Total time**: 10-20 seconds for high-quality, context-aware decisions
+
+**Example**: Email from accountant with spreadsheet
+- Pass 1: "Email from Marie with attachment" (65%)
+- Pass 2: Passepartout finds "Marie = Accountant, Q2 Budget project" (82%)
+- Pass 3: Infers deadline from notes, plans actions (89%)
+- Pass 4: GPT-4o validates, suggests folder location (94.5%)
+- Pass 5: Asks user "Flag as priority?" → User: "No" (97%)
+- Result: 5 actions executed perfectly (save file, create task, update note, draft reply, archive)
 
 ---
 
 ## 🎪 Architecture - The Valet Team
 
-Scapin delegates to specialized "valets", each expert in their domain:
+Scapin is built around a **valet-themed architecture** where specialized modules work together like a well-trained household staff. Each "valet" excels at their specific duty:
 
+### The Valet Roster
+
+| Valet | Literary Origin | Module | Specialty |
+|-------|----------------|--------|-----------|
+| **Trivelin** | Marivaux's *L'Île des esclaves* | `src/trivelin/` | 🔍 **Triage & Classification** - Receives and sorts all incoming events |
+| **Sancho** | Cervantes' *Don Quixote* | `src/sancho/` | 🧠 **Wisdom & Reasoning** - Multi-pass iterative thinking |
+| **Passepartout** | Verne's *Around the World in 80 Days* | `src/passepartout/` | 🧭 **Navigation & Search** - Finds anything in your knowledge base |
+| **Planchet** | Dumas' *The Three Musketeers* | `src/planchet/` | 📅 **Planning & Scheduling** - Devises action plans |
+| **Figaro** | Beaumarchais' *The Barber of Seville* | `src/figaro/` | 🎼 **Orchestration** - Executes actions in perfect coordination |
+| **Sganarelle** | Molière's plays | `src/sganarelle/` | 📚 **Learning & Adaptation** - Improves from experience |
+| **Jeeves** | Wodehouse's stories | `src/jeeves/` | 🎩 **Service & API** - The perfect butler interface |
+
+### How They Work Together
+
+When an event arrives (email, file, question), here's the workflow:
+
+```
+1. TRIVELIN receives and triages the event
+        ↓
+2. SANCHO reasons about it (5 passes if needed)
+        ↓ ← consults → PASSEPARTOUT (knowledge base)
+        ↓
+3. PLANCHET creates an action plan
+        ↓
+4. FIGARO orchestrates the execution
+        ↓
+5. SGANARELLE learns from the outcome → updates PASSEPARTOUT
+        ↑
+6. JEEVES provides the API for web/mobile clients
+```
+
+**Directory Structure**:
 ```
 scapin/
-├── trivelin/        # 🔍 Triage & Classification
-│   └── Sorts and categorizes incoming information
-│
-├── planchet/        # 📅 Planning & Scheduling
-│   └── Creates action plans and manages timing
-│
-├── sancho/          # 🧠 Wisdom & Reasoning
-│   └── Deep thinking, multi-step inference, consensus
-│
-├── sganarelle/      # 📚 Learning & Adaptation
-│   └── Learns from mistakes, improves over time
-│
-├── figaro/          # 🎼 Orchestration
-│   └── Coordinates workflows and action execution
-│
-├── jeeves/          # 🎩 Service & API Layer
-│   └── RESTful API, WebSockets, authentication
-│
-└── passepartout/    # 🧭 Navigation & Search
-    └── Semantic search across knowledge base
+├── src/
+│   ├── trivelin/        # Perception & triage
+│   ├── sancho/          # Reasoning engine (5-pass iterative)
+│   ├── passepartout/    # Knowledge base (Markdown + Git + FAISS)
+│   ├── planchet/        # Planning & decision engine
+│   ├── figaro/          # Action orchestration (DAG execution)
+│   ├── sganarelle/      # Learning & feedback processing
+│   ├── jeeves/          # API layer (FastAPI + WebSockets)
+│   └── core/            # Shared infrastructure (events, config, state)
+├── tests/               # 525 tests, 92% coverage
+└── docs/                # Architecture, API, guides
 ```
 
-Named after famous valets:
-- **Scapin** - Molière's resourceful valet
-- **Trivelin** - Marivaux's clever servant
-- **Planchet** - D'Artagnan's faithful companion
-- **Sancho Panza** - Don Quixote's wise advisor
-- **Sganarelle** - Molière's learning servant
-- **Figaro** - The barber who orchestrates everything
-- **Jeeves** - P.G. Wodehouse's perfect butler
-- **Passepartout** - Phileas Fogg's resourceful valet
+**The Scapin Philosophy**: Like a valet who knows your preferences, anticipates your needs, and learns from experience - except this one reasons with AI, manages your knowledge graph, and never sleeps.
 
 ---
 
@@ -144,10 +182,19 @@ python3 scapin.py chat        # Chat with Scapin (coming soon)
 
 ## 📚 Documentation
 
-- **[Architecture](ARCHITECTURE.md)** - Cognitive system design
-- **[Breaking Changes](BREAKING_CHANGES.md)** - Migration guides
-- **[API Reference](docs/api/README.md)** - Complete API documentation
-- **[Roadmap](ROADMAP.md)** - Development plans
+| Document | Description |
+|----------|-------------|
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Complete cognitive architecture - how the valet team works |
+| **[ROADMAP.md](ROADMAP.md)** | Development phases, priorities, timelines (Q1-Q4 2026) |
+| **[MIGRATION.md](MIGRATION.md)** | Migrating from PKM System to Scapin |
+| **[BREAKING_CHANGES.md](BREAKING_CHANGES.md)** | API changes and migration guides |
+| **[docs/api/](docs/api/)** | API reference documentation |
+
+**Key Concepts**:
+- **Valet Architecture**: How Trivelin, Sancho, Passepartout, etc. work together
+- **Multi-Pass Reasoning**: Why Scapin takes 10-20s but makes better decisions
+- **Cognitive Loop**: Event → Perception → Reasoning → Planning → Action → Learning
+- **Knowledge Base**: Markdown + Git + FAISS for your personal knowledge graph
 
 ---
 
@@ -171,41 +218,70 @@ python3 scapin.py chat        # Chat with Scapin (coming soon)
 - [x] Multi-account UI
 - [x] Configuration management
 
-### 🏗️ Phase 0.5: Cognitive Architecture (In Progress - 20% Week 1)
-- [x] Universal event model (immutable)
-- [x] Working memory
-- [x] Continuity detection
-- [ ] Reasoning engine (multi-pass)
-- [ ] Context engine (semantic search)
-- [ ] Planning engine
-- [ ] Learning engine
+### 🏗️ Phase 0.5: Cognitive Architecture (In Progress - 20% Complete)
+**Valet Modules**: Trivelin, Sancho, Passepartout, Planchet, Figaro, Sganarelle
+
+- [x] **Week 1** (Complete): Universal events, working memory, continuity detection
+- [ ] **Week 2**: Sancho reasoning engine (5-pass iterative loop)
+- [ ] **Week 3**: Passepartout knowledge base (embeddings + FAISS)
+- [ ] **Week 4**: Planchet planning + Figaro execution (DAG-based)
+- [ ] **Week 5**: Sganarelle learning engine + end-to-end integration
+
+**Goal**: Transform from email processor into true cognitive assistant
+
+### 📅 Phase 0.6: Valet Module Refactoring (Q1 2026)
+**Goal**: Refactor codebase to match valet architecture
+- [ ] Move `src/ai/` → `src/sancho/`
+- [ ] Move email processor → `src/trivelin/`
+- [ ] Move multi-account → `src/figaro/`
+- [ ] Update all imports and tests (zero breaking changes for users)
 
 ### 📅 Phase 0.7: Jeeves - API Layer (Q1 2026)
-- [ ] FastAPI backend
-- [ ] REST endpoints
-- [ ] WebSockets real-time
-- [ ] Authentication (JWT)
-- [ ] OpenAPI documentation
+**Valet**: Jeeves (the perfect butler interface)
+- [ ] FastAPI REST API (async)
+- [ ] WebSocket support (real-time events)
+- [ ] JWT authentication + rate limiting
+- [ ] OpenAPI/Swagger documentation
+- [ ] Endpoints: `/api/process`, `/api/queue`, `/api/notes`, `/api/health`
 
-### 📅 Phase 0.8: Web Interface (Q1 2026)
-- [ ] Modern web UI (Svelte/SvelteKit)
-- [ ] Dashboard
-- [ ] Chat interface
-- [ ] Review queue UI
+### 📅 Phase 0.8: Web Interface (Q1-Q2 2026)
+**Frontend**: SvelteKit + TailwindCSS
+- [ ] Modern responsive UI (< 2s page load)
+- [ ] Dashboard with statistics
+- [ ] Interactive review queue
+- [ ] Reasoning trace viewer (see all 5 passes)
+- [ ] Knowledge base browser
 - [ ] Settings management
 
-### 📅 Phase 0.9: Mobile PWA (Q1 2026)
-- [ ] Progressive Web App
-- [ ] Responsive mobile design
-- [ ] Offline support
+### 📅 Phase 0.9: Mobile PWA (Q2 2026)
+**Platform**: Progressive Web App
+- [ ] Install on iOS/Android
+- [ ] Offline support (service workers)
 - [ ] Push notifications
-- [ ] Install as native app
+- [ ] Native share integration
+- [ ] Lighthouse PWA score > 90
 
-### 📅 Phase 1.0: Scapin v1.0 (Q2 2026) 🎭
-- [ ] Production-ready web + mobile
-- [ ] Complete documentation
-- [ ] Onboarding flow
-- [ ] Public release
+### 📅 Phase 2.5: Multi-Provider AI (Q2 2026)
+- [ ] OpenAI (GPT-4o, GPT-4-turbo)
+- [ ] Mistral (Large, Medium, Small)
+- [ ] Google (Gemini 2.0 Flash, 1.5 Pro)
+- [ ] Consensus engine for uncertain decisions
+- [ ] Cost tracking and optimization
+
+### 📅 Phase 3: Knowledge System (Q2 2026)
+**Valet**: Passepartout (full implementation)
+- [ ] Markdown notes with Git version control
+- [ ] Semantic search (sentence-transformers + FAISS)
+- [ ] Entity extraction and linking
+- [ ] Relationship graph (NetworkX)
+- [ ] Context engine for Sancho
+
+### 📅 Phase 1.0: Scapin v1.0 (Q3 2026) 🎭
+- [ ] Production-ready CLI + Web + Mobile
+- [ ] Complete cognitive architecture
+- [ ] Multi-provider AI consensus
+- [ ] Knowledge graph with 1000+ notes
+- [ ] Public beta release
 
 ---
 
@@ -229,31 +305,52 @@ pytest tests/ --cov=src --cov-report=html
 
 ## 🎨 Technology Stack
 
-**Core**:
-- Python 3.9+
-- Pydantic (data validation)
-- Typer + Rich (CLI)
+### Backend (Python)
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Language** | Python 3.11+ | Core runtime |
+| **Validation** | Pydantic Settings | Type-safe configuration |
+| **CLI** | Typer + Rich | Beautiful command-line interface |
+| **Testing** | pytest | 525 tests, 92% coverage |
+| **Events** | Custom EventBus | Thread-safe pub/sub (Phase 1.5) |
 
-**AI**:
-- Claude (Anthropic) - Primary reasoning
-- GPT-4o (OpenAI) - Consensus validation
-- Sentence Transformers - Embeddings
+### AI & Intelligence
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Primary AI** | Claude (Anthropic) | Sonnet 4.5 for reasoning |
+| **Consensus** | GPT-4o (OpenAI) | Validation in Pass 4 |
+| **Future** | Mistral, Gemini | Multi-provider support |
+| **Embeddings** | sentence-transformers | Semantic search (all-MiniLM-L6-v2) |
+| **Vector DB** | FAISS → ChromaDB | Fast similarity search |
 
-**Storage**:
-- Markdown + Git (knowledge base)
-- FAISS/ChromaDB (vector search)
-- SQLite (decision tracking)
+### Knowledge & Storage
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Notes** | Markdown + YAML | Human-readable knowledge base |
+| **Versioning** | Git | Automatic commits, full history |
+| **Decisions** | SQLite | Error tracking, state management |
+| **Graph** | NetworkX | Relationship mapping (Phase 5) |
 
-**Integrations**:
-- IMAP (email)
-- OmniFocus (tasks via MCP)
-- macOS Keychain (credentials)
+### Integrations
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Email** | IMAP | Multi-account email processing |
+| **Tasks** | OmniFocus MCP | Task creation and management |
+| **Credentials** | macOS Keychain | Secure credential storage |
+| **Apple Contacts** | Planned | Contact enrichment |
+| **Calendar** | Planned | Event extraction |
 
-**Future (Web UI)**:
-- FastAPI (backend API)
-- Svelte/SvelteKit (frontend)
-- WebSockets (real-time)
-- PWA (mobile)
+### Web & API (Planned)
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **API Backend** | FastAPI | Async REST + WebSockets (Jeeves) |
+| **Frontend** | SvelteKit | Modern web UI (Phase 0.8) |
+| **Styling** | TailwindCSS | Utility-first CSS |
+| **Mobile** | PWA | Progressive Web App (Phase 0.9) |
+| **Auth** | JWT | Secure authentication |
+| **Build** | Vite | Fast development server |
+
+**Design Philosophy**: Fast, type-safe, tested, production-ready
 
 ---
 
@@ -277,15 +374,25 @@ MIT License - See LICENSE file for details
 
 ## 🙏 Acknowledgments
 
-Inspired by:
-- **Molière** - For Scapin and the valet tradition
-- **Cognitive Architectures** - ACT-R, SOAR, CLARION
-- **AI Reasoning** - ReAct, Chain-of-Thought, Tree of Thoughts
-- **PKM Community** - Building a Second Brain, Zettelkasten
+### Literary Inspiration
+- **Molière** - Scapin, Sganarelle (*Les Fourberies de Scapin*, *Dom Juan*)
+- **Marivaux** - Trivelin (*L'Île des esclaves*)
+- **Cervantes** - Sancho Panza (*Don Quixote*)
+- **Dumas** - Planchet (*The Three Musketeers*)
+- **Beaumarchais** - Figaro (*The Barber of Seville*)
+- **Wodehouse** - Jeeves (*My Man Jeeves*)
+- **Verne** - Passepartout (*Around the World in 80 Days*)
 
-Technology:
-- **Anthropic** - Claude AI
-- **OpenAI** - GPT models
+### Technical Inspiration
+- **Cognitive Architectures** - ACT-R, SOAR, CLARION
+- **AI Reasoning** - ReAct (Yao et al.), Chain-of-Thought (Wei et al.), Tree of Thoughts
+- **Decision Making** - OODA Loop (Boyd), Recognition-Primed Decision (Klein)
+- **PKM Community** - Building a Second Brain (Forte), Zettelkasten Method
+
+### Technology
+- **Anthropic** - Claude AI (Sonnet 4.5, Opus 4.5)
+- **OpenAI** - GPT-4o, GPT-4-turbo
+- **sentence-transformers** - Semantic embeddings
 - **FSRS** - Spaced repetition algorithm
 
 ---
@@ -297,16 +404,32 @@ GitHub: [@johanlb](https://github.com/johanlb)
 
 ---
 
-**🎭 Built with intelligence and elegance - Your personal Scapin awaits.**
-
 ---
 
 ## 🔄 Migration from PKM System
 
-If you're coming from the previous `pkm-system` repository:
+If you're coming from the previous **pkm-system** repository:
 
-1. The cognitive architecture is the same
-2. Module names have changed (see Architecture section)
-3. See [MIGRATION.md](MIGRATION.md) for detailed guide
+| Aspect | PKM System | Scapin |
+|--------|-----------|--------|
+| **Identity** | Email processor | Cognitive personal assistant |
+| **Modules** | Generic (`src/ai/`, `src/core/`) | Valet-themed (`src/sancho/`, `src/trivelin/`) |
+| **Version** | v3.1.0 (final) | v1.0.0-alpha (continuing) |
+| **Repository** | [Archived](https://github.com/johanlb/pkm-system) | [Active](https://github.com/johanlb/scapin) |
+| **Architecture** | ✅ Same cognitive design | ✅ Inherited + enhanced |
+| **Data** | ✅ 100% compatible | ✅ Just copy `.env` and `data/` |
+| **Tests** | 525 tests, 92% coverage | ✅ All passing |
 
-The `pkm-system` repository is now archived. All future development happens here in `scapin`.
+**Migration Steps**:
+1. Clone Scapin: `git clone https://github.com/johanlb/scapin.git`
+2. Copy config: `cp ../pkm-system/.env .`
+3. Copy data: `cp -r ../pkm-system/data .` (optional)
+4. Run: `python3 scapin.py`
+
+See **[MIGRATION.md](MIGRATION.md)** for complete details.
+
+---
+
+**🎭 Built with intelligence and elegance - Your personal Scapin awaits.**
+
+*"The valet who can do anything is worth more than the master who can do nothing."* - Molière
