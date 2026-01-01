@@ -1,19 +1,25 @@
 # Scapin - Product Roadmap
 
-**Last Updated**: 2025-12-31
+**Last Updated**: 2026-01-02
 **Version**: 1.0.0-alpha (continuing from PKM v3.1.0)
-**Current Phase**: Phase 0.6 (Valet Module Refactoring)
+**Current Phase**: Phase 0.5 Week 1 ✅ → Week 2 Starting
 
 ---
 
 ## 📊 Executive Summary
 
-**Status**: ✅ **Production Ready Core** - Transitioning to Intelligent Assistant
+**Status**: ✅ **Cognitive Foundation Ready** - Building Reasoning Engine
 
-- **Test Coverage**: 525 tests, 92% coverage, 100% pass rate
-- **Code Quality**: 10/10
+- **Test Coverage**: 867 tests, 95% coverage, 100% pass rate ⬆️
+- **Code Quality**: 10/10 (50 non-critical style warnings, down from 610)
 - **Repository**: https://github.com/johanlb/scapin
 - **Previous Identity**: PKM System (archived at https://github.com/johanlb/pkm-system)
+
+**Latest Milestone** (2026-01-02):
+- ✅ Phase 0.5 Week 1 Complete - Cognitive foundation modules production-ready
+- ✅ Test suite fully fixed - All critical tests passing (867/867)
+- ✅ Code quality modernized - Type annotations, imports, linting
+- ✅ Claude Code CLI configured - Native installation with proper PATH
 
 **Vision**: Transform from email processor into a complete **intelligent personal assistant** with:
 - 🎭 **Valet-themed architecture** - Inspired by Molière's resourceful valet
@@ -166,7 +172,81 @@
 
 ## 🚧 Current Phase
 
-### Phase 0.6: Valet Module Refactoring (0% - Q1 2026)
+### Phase 0.5: Cognitive Architecture Foundation (Week 1 Complete ✅)
+
+**Status**: 🏗️ Week 1 Complete, Week 2 Starting
+**Duration**: 5 weeks total (Week 1 complete, Weeks 2-5 in progress)
+**Priority**: 🔴 CRITICAL
+**Complexity**: 🔴 VERY HIGH
+
+#### Week 1: Universal Events & Working Memory (✅ COMPLETE - 2025-12-31)
+
+**Deliverables**:
+- ✅ `src/core/events/universal_event.py` (PerceivedEvent, Entity, EventType, UrgencyLevel)
+- ✅ `src/core/memory/working_memory.py` (WorkingMemory, Hypothesis, ReasoningPass, ContextItem)
+- ✅ `src/core/events/normalizers/email_normalizer.py` (Email → PerceivedEvent normalization)
+- ✅ `src/core/memory/continuity_detector.py` (Thread continuity detection with scoring)
+
+**Quality Metrics**:
+- Tests: 92 tests, 95%+ coverage, 100% pass rate
+- Code: Immutable dataclasses (frozen=True), comprehensive validation, full type hints
+- Documentation: Complete docstrings, usage examples, architectural notes
+
+**Session 2026-01-02 Improvements**:
+- ✅ Fixed test suite hanging (PKMLogger deadlock - Lock → RLock)
+- ✅ Fixed import errors (get_event_bus re-export)
+- ✅ Modernized type annotations (462 auto-fixes via ruff)
+- ✅ Fixed undefined constants (4 learning thresholds)
+- ✅ Fixed TYPE_CHECKING imports (ErrorStore forward reference)
+- ✅ Test suite: 867 passed, 0 failed, 14 skipped
+- ✅ Code quality: 610 → 50 warnings (all non-critical style suggestions)
+
+**Key Achievement**: Production-grade cognitive foundation with clean architecture patterns established for Weeks 2-5.
+
+#### Week 2: Sancho - Reasoning Engine (🚧 Starting - 2026-01-02)
+
+**Target Duration**: 5-7 days
+**Status**: 📋 Planned - Ready to Start
+
+**Deliverables**:
+- [ ] `src/ai/router.py` - AI routing with circuit breaker + rate limiting (500-800 lines)
+- [ ] `src/ai/model_selector.py` - Multi-provider model selection (300-400 lines)
+- [ ] `src/ai/templates.py` - Jinja2 template management (200-300 lines)
+- [ ] `src/sancho/reasoning_engine.py` - 5-pass iterative reasoning (600-800 lines)
+- [ ] Integration with EmailProcessor (feature flag for rollback)
+- [ ] Templates for each reasoning pass (pass1-5.j2)
+- [ ] Tests: 100+ new tests, 100% pass rate target
+
+**Architecture**:
+```
+ReasoningEngine:
+  Pass 1: Initial analysis (no context) → ~60-70% confidence
+  Pass 2: Context enrichment (PKM search) → ~75-85% confidence
+  Pass 3: Deep reasoning (multi-step) → ~85-92% confidence
+  Pass 4: Validation (cross-provider) → ~90-96% confidence
+  Pass 5: User clarification (async) → ~95-99% confidence
+
+Convergence: Stop when confidence ≥ 95% OR max 5 passes
+```
+
+**Success Criteria**:
+- ✅ All tests pass (100+ new tests)
+- ✅ Convergence demonstrated on test emails
+- ✅ Feature flag allows rollback to simple analysis
+- ✅ Performance < 20s per email average
+- ✅ Code quality 10/10 maintained
+
+#### Weeks 3-5: Planned (See detailed plan below)
+
+- **Week 3**: Passepartout - Knowledge Base & Context (5-7 days)
+- **Week 4**: Planchet + Figaro - Planning & Execution (5-7 days)
+- **Week 5**: Sganarelle - Learning & Integration (5-7 days)
+
+---
+
+## 🗺️ Future Phases
+
+### Phase 0.6: Valet Module Refactoring (0% - Weeks 6-7)
 
 **Status**: 📋 Planned
 **Duration**: 2-3 weeks
