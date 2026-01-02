@@ -10,26 +10,23 @@ Defines contracts for all major system components:
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-from datetime import datetime
 from pathlib import Path
+from typing import Any, Optional
 
 from src.core.schemas import (
-    EmailMetadata,
-    EmailContent,
-    EmailAnalysis,
-    ProcessedEmail,
-    EmailAction,
+    ConversationContext,
     DecisionRecord,
+    EmailAction,
+    EmailAnalysis,
+    EmailContent,
+    EmailMetadata,
+    FSRSCard,
+    HealthCheck,
     KnowledgeEntry,
     KnowledgeQuery,
-    FSRSCard,
-    FSRSReview,
+    ProcessedEmail,
     ReviewGrade,
-    ConversationContext,
-    HealthCheck,
 )
-
 
 # ============================================================================
 # EMAIL CLIENT INTERFACE
@@ -72,7 +69,7 @@ class IEmailClient(ABC):
         pass
 
     @abstractmethod
-    def list_folders(self) -> List[str]:
+    def list_folders(self) -> list[str]:
         """
         List all available folders
 
@@ -83,8 +80,8 @@ class IEmailClient(ABC):
 
     @abstractmethod
     def search(
-        self, criteria: List[str], folder: Optional[str] = None
-    ) -> List[int]:
+        self, criteria: list[str], folder: Optional[str] = None
+    ) -> list[int]:
         """
         Search for emails matching criteria
 
@@ -99,8 +96,8 @@ class IEmailClient(ABC):
 
     @abstractmethod
     def fetch_metadata(
-        self, message_ids: List[int], folder: Optional[str] = None
-    ) -> List[EmailMetadata]:
+        self, message_ids: list[int], folder: Optional[str] = None
+    ) -> list[EmailMetadata]:
         """
         Fetch email metadata (headers only)
 
@@ -167,7 +164,7 @@ class IEmailClient(ABC):
 
     @abstractmethod
     def add_flags(
-        self, message_ids: List[int], flags: List[str], folder: Optional[str] = None
+        self, message_ids: list[int], flags: list[str], folder: Optional[str] = None
     ) -> None:
         """
         Add flags to emails
@@ -229,7 +226,7 @@ class IAIRouter(ABC):
 
     @abstractmethod
     def analyze_conversation(
-        self, emails: List[ProcessedEmail]
+        self, emails: list[ProcessedEmail]
     ) -> EmailAnalysis:
         """
         Analyze email thread/conversation
@@ -313,7 +310,7 @@ class IStorage(ABC):
         limit: Optional[int] = None,
         reviewed_only: bool = False,
         unreviewed_only: bool = False,
-    ) -> List[DecisionRecord]:
+    ) -> list[DecisionRecord]:
         """
         Load decision history
 
@@ -341,7 +338,7 @@ class IStorage(ABC):
         pass
 
     @abstractmethod
-    def load_queue(self) -> List[Dict[str, Any]]:
+    def load_queue(self) -> list[dict[str, Any]]:
         """
         Load processing queue
 
@@ -356,7 +353,7 @@ class IStorage(ABC):
         pass
 
     @abstractmethod
-    def save_session_stats(self, stats: Dict[str, Any]) -> None:
+    def save_session_stats(self, stats: dict[str, Any]) -> None:
         """
         Save session statistics
 
@@ -366,7 +363,7 @@ class IStorage(ABC):
         pass
 
     @abstractmethod
-    def load_session_stats(self) -> Optional[Dict[str, Any]]:
+    def load_session_stats(self) -> Optional[dict[str, Any]]:
         """
         Load last session statistics
 
@@ -418,7 +415,7 @@ class IKnowledgeBase(ABC):
         pass
 
     @abstractmethod
-    def search(self, query: KnowledgeQuery) -> List[KnowledgeEntry]:
+    def search(self, query: KnowledgeQuery) -> list[KnowledgeEntry]:
         """
         Search knowledge base
 
@@ -454,7 +451,7 @@ class IKnowledgeBase(ABC):
         pass
 
     @abstractmethod
-    def sync_with_notes(self) -> Dict[str, Any]:
+    def sync_with_notes(self) -> dict[str, Any]:
         """
         Sync knowledge base with Apple Notes
 
@@ -494,7 +491,7 @@ class IReviewSystem(ABC):
         pass
 
     @abstractmethod
-    def get_due_cards(self, limit: int = 20) -> List[FSRSCard]:
+    def get_due_cards(self, limit: int = 20) -> list[FSRSCard]:
         """
         Get cards due for review
 
@@ -524,7 +521,7 @@ class IReviewSystem(ABC):
         pass
 
     @abstractmethod
-    def get_card_stats(self, card_id: str) -> Dict[str, Any]:
+    def get_card_stats(self, card_id: str) -> dict[str, Any]:
         """
         Get card statistics
 
@@ -537,7 +534,7 @@ class IReviewSystem(ABC):
         pass
 
     @abstractmethod
-    def get_review_stats(self, days: int = 30) -> Dict[str, Any]:
+    def get_review_stats(self, days: int = 30) -> dict[str, Any]:
         """
         Get review statistics for period
 
@@ -568,7 +565,7 @@ class IEmailProcessor(ABC):
         limit: Optional[int] = None,
         auto_mode: bool = False,
         confidence_threshold: int = 90,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process emails in inbox
 
@@ -635,7 +632,7 @@ class IEmailProcessor(ABC):
         pass
 
     @abstractmethod
-    def process_queue(self) -> Dict[str, Any]:
+    def process_queue(self) -> dict[str, Any]:
         """
         Process low-confidence queue (interactive)
 
@@ -645,7 +642,7 @@ class IEmailProcessor(ABC):
         pass
 
     @abstractmethod
-    def health_check(self) -> Dict[str, HealthCheck]:
+    def health_check(self) -> dict[str, HealthCheck]:
         """
         Check health of all system components
 

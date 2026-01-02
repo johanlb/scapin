@@ -211,14 +211,12 @@ class Pattern:
             True if pattern conditions match
         """
         # Check event type
-        if "event_type" in self.conditions:
-            if event.event_type.value != self.conditions["event_type"]:
-                return False
+        if "event_type" in self.conditions and event.event_type.value != self.conditions["event_type"]:
+            return False
 
         # Check urgency
-        if "min_urgency" in self.conditions:
-            if event.urgency.value < self.conditions["min_urgency"]:
-                return False
+        if "min_urgency" in self.conditions and event.urgency.value < self.conditions["min_urgency"]:
+            return False
 
         # Check entity presence
         if "required_entities" in self.conditions:

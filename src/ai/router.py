@@ -4,18 +4,16 @@ AI Router
 Routes AI requests to appropriate models with rate limiting and retry logic.
 """
 
-import time
 import json
-from typing import Optional, Dict, Any, List
-from enum import Enum
 import threading
-from datetime import datetime, timedelta
+import time
 from collections import deque
+from enum import Enum
+from typing import Any, Optional
 
-from src.core.schemas import EmailMetadata, EmailContent, EmailAnalysis
 from src.core.config_manager import AIConfig
+from src.core.schemas import EmailAnalysis, EmailContent, EmailMetadata
 from src.monitoring.logger import get_logger
-from src.utils import now_utc
 
 logger = get_logger("ai_router")
 
@@ -107,7 +105,7 @@ class CircuitBreaker:
 
             return result
 
-        except Exception as e:
+        except Exception:
             # Failure - increment counter and potentially open circuit
             with self._lock:
                 self.failure_count += 1
@@ -189,7 +187,7 @@ class RateLimiter:
             # Wait before retrying
             time.sleep(0.1)
 
-    def get_current_usage(self) -> Dict[str, Any]:
+    def get_current_usage(self) -> dict[str, Any]:
         """
         Get current rate limiter usage
 
@@ -376,7 +374,7 @@ class AIRouter:
 
             # SELECTIVE RETRY LOGIC: Different strategies for different error types
 
-            except self.anthropic.RateLimitError as e:
+            except self.anthropic.RateLimitError:
                 # RETRIABLE: Rate limit - wait and retry with backoff
                 self._record_error_metric("RateLimitError")
 
@@ -881,7 +879,7 @@ class AIRouter:
                 "rate_limit_status": self.rate_limiter.get_current_usage()
             }
 
-    def get_rate_limit_status(self) -> Dict[str, Any]:
+    def get_rate_limit_status(self) -> dict[str, Any]:
         """
         Get current rate limit status
 

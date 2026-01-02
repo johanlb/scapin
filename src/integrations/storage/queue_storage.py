@@ -28,13 +28,12 @@ Usage:
 """
 
 import json
+import threading
 import uuid
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-import threading
+from typing import Any, Optional
 
-from src.core.schemas import EmailMetadata, EmailAnalysis
+from src.core.schemas import EmailAnalysis, EmailMetadata
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
 
@@ -61,7 +60,7 @@ class QueueStorage:
         # Thread lock for file operations
         self._lock = threading.Lock()
 
-        logger.info(f"QueueStorage initialized", extra={"queue_dir": str(self.queue_dir)})
+        logger.info("QueueStorage initialized", extra={"queue_dir": str(self.queue_dir)})
 
     def save_item(
         self,
@@ -119,12 +118,11 @@ class QueueStorage:
         # Write to file (thread-safe)
         file_path = self.queue_dir / f"{item_id}.json"
 
-        with self._lock:
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(item, f, indent=2, ensure_ascii=False)
+        with self._lock, open(file_path, "w", encoding="utf-8") as f:
+            json.dump(item, f, indent=2, ensure_ascii=False)
 
         logger.info(
-            f"Email queued for review",
+            "Email queued for review",
             extra={
                 "item_id": item_id,
                 "subject": metadata.subject,
@@ -137,7 +135,7 @@ class QueueStorage:
 
     def load_queue(
         self, account_id: Optional[str] = None, status: str = "pending"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Load all queued items
 
@@ -160,7 +158,7 @@ class QueueStorage:
         with self._lock:
             for file_path in self.queue_dir.glob("*.json"):
                 try:
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         item = json.load(f)
 
                     # Apply filters
@@ -188,7 +186,7 @@ class QueueStorage:
 
         return items
 
-    def get_item(self, item_id: str) -> Optional[Dict[str, Any]]:
+    def get_item(self, item_id: str) -> Optional[dict[str, Any]]:
         """
         Get single queue item by ID
 
@@ -204,14 +202,13 @@ class QueueStorage:
             return None
 
         try:
-            with self._lock:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+            with self._lock, open(file_path, encoding="utf-8") as f:
+                return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load queue item {item_id}: {e}")
             return None
 
-    def update_item(self, item_id: str, updates: Dict[str, Any]) -> bool:
+    def update_item(self, item_id: str, updates: dict[str, Any]) -> bool:
         """
         Update queue item
 
@@ -239,7 +236,7 @@ class QueueStorage:
         try:
             with self._lock:
                 # Load existing item
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     item = json.load(f)
 
                 # Apply updates
@@ -249,7 +246,7 @@ class QueueStorage:
                 with open(file_path, "w", encoding="utf-8") as f:
                     json.dump(item, f, indent=2, ensure_ascii=False)
 
-            logger.info(f"Queue item updated", extra={"item_id": item_id, "updates": list(updates.keys())})
+            logger.info("Queue item updated", extra={"item_id": item_id, "updates": list(updates.keys())})
             return True
 
         except Exception as e:
@@ -280,7 +277,7 @@ class QueueStorage:
             with self._lock:
                 file_path.unlink()
 
-            logger.info(f"Queue item removed", extra={"item_id": item_id})
+            logger.info("Queue item removed", extra={"item_id": item_id})
             return True
 
         except Exception as e:
@@ -321,7 +318,7 @@ class QueueStorage:
             for file_path in list(self.queue_dir.glob("*.json")):
                 try:
                     # Read item to check filters
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         item = json.load(f)
 
                     # Apply filters
@@ -340,7 +337,7 @@ class QueueStorage:
                     continue
 
         logger.warning(
-            f"Queue cleared",
+            "Queue cleared",
             extra={
                 "deleted_count": deleted_count,
                 "account_id": account_id,
@@ -350,7 +347,7 @@ class QueueStorage:
 
         return deleted_count
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get queue statistics
 
@@ -369,7 +366,7 @@ class QueueStorage:
         with self._lock:
             for file_path in self.queue_dir.glob("*.json"):
                 try:
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         item = json.load(f)
                     all_items.append(item)
                 except Exception:

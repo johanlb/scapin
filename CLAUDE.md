@@ -163,7 +163,7 @@ Feedback via prochain journaling → Amélioration système
 ### Qualité du Code
 
 **Score** : 10/10
-**Ruff** : 50 warnings non-critiques
+**Ruff** : 0 warning (code parfait)
 
 ---
 
@@ -359,6 +359,30 @@ python scapin.py review
 | **Docstrings** | Complètes | Classes, méthodes, modules |
 | **Ruff/Linting** | 0 warning | Code parfait, pas de compromis |
 | **Thread-safety** | Vérifiée | Surtout singletons et caches |
+
+**Ruff (Linting)** :
+```bash
+# Vérifier le code
+.venv/bin/ruff check src/
+
+# Auto-fix les erreurs simples
+.venv/bin/ruff check src/ --fix
+
+# Règles principales activées (voir pyproject.toml) :
+# - E/W : Erreurs de style PEP8
+# - F : Erreurs PyFlakes (imports inutilisés, variables non définies)
+# - I : Import sorting (isort)
+# - UP : Modernisation Python (type hints PEP 585)
+# - B : Bug patterns (flake8-bugbear)
+# - SIM : Simplifications de code
+# - ARG : Arguments inutilisés
+```
+
+Conventions ruff :
+- Arguments intentionnellement inutilisés : préfixer avec `_` (ex: `_frame`)
+- Exceptions chaînées : `raise Exception(...) from e` ou `from None`
+- Importer pour type checking : `from typing import TYPE_CHECKING`
+- Simplifier conditions : retourner directement au lieu de `if x: return True; return False`
 
 **Tests** :
 - Tests unitaires pour chaque module

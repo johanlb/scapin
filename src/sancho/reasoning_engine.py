@@ -21,18 +21,17 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from src.ai.router import AIModel, AIRouter
 from src.ai.templates import TemplateManager, get_template_manager
 from src.core.events import PerceivedEvent
 from src.core.memory.working_memory import (
     Hypothesis,
-    WorkingMemory,
     ReasoningPass,
+    WorkingMemory,
 )
-from src.core.schemas import EmailAnalysis, EmailAction, EmailCategory
-from src.utils import now_utc
+from src.core.schemas import EmailAction, EmailAnalysis, EmailCategory
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +54,16 @@ class ReasoningResult:
     """
     working_memory: WorkingMemory
     final_analysis: Optional[EmailAnalysis]  # Email-specific for now
-    reasoning_trace: List[ReasoningPass]
+    reasoning_trace: list[ReasoningPass]
     confidence: float
     passes_executed: int
     total_duration_seconds: float
     converged: bool  # True if reached confidence threshold
 
     # Additional insights
-    key_factors: List[str] = field(default_factory=list)
-    uncertainties: List[str] = field(default_factory=list)
-    questions_for_user: List[Dict[str, Any]] = field(default_factory=list)
+    key_factors: list[str] = field(default_factory=list)
+    uncertainties: list[str] = field(default_factory=list)
+    questions_for_user: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ============================================================================
@@ -561,19 +560,19 @@ class ReasoningEngine:
     # RESPONSE PARSING
     # ========================================================================
 
-    def _parse_pass1_response(self, response: str) -> Optional[Dict[str, Any]]:
+    def _parse_pass1_response(self, response: str) -> Optional[dict[str, Any]]:
         """Parse Pass 1 JSON response"""
         return self._extract_json(response)
 
-    def _parse_pass3_response(self, response: str) -> Optional[Dict[str, Any]]:
+    def _parse_pass3_response(self, response: str) -> Optional[dict[str, Any]]:
         """Parse Pass 3 JSON response"""
         return self._extract_json(response)
 
-    def _parse_pass5_response(self, response: str) -> Optional[Dict[str, Any]]:
+    def _parse_pass5_response(self, response: str) -> Optional[dict[str, Any]]:
         """Parse Pass 5 JSON response"""
         return self._extract_json(response)
 
-    def _extract_json(self, text: str) -> Optional[Dict[str, Any]]:
+    def _extract_json(self, text: str) -> Optional[dict[str, Any]]:
         """Extract and parse JSON from AI response"""
         try:
             # Try to find JSON in response
@@ -668,7 +667,7 @@ class ReasoningEngine:
             logger.error(f"Failed to extract final analysis: {e}", exc_info=True)
             return None
 
-    def _extract_user_questions(self, wm: WorkingMemory) -> List[Dict[str, Any]]:
+    def _extract_user_questions(self, wm: WorkingMemory) -> list[dict[str, Any]]:
         """Extract formatted user questions from working memory"""
         # For now, just return open questions as simple dicts
         return [

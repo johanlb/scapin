@@ -10,8 +10,8 @@ Design: Event-Driven, Source-Agnostic
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Any
 from enum import Enum
+from typing import Any, Optional
 
 from src.utils import now_utc
 
@@ -86,7 +86,7 @@ class Entity:
     type: str  # person, organization, date, location, topic, project, etc.
     value: str  # The actual entity value
     confidence: float  # 0.0-1.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate entity"""
@@ -149,33 +149,33 @@ class PerceivedEvent:
     urgency: UrgencyLevel
 
     # Extracted Information
-    entities: List[Entity]
-    topics: List[str]  # Main subjects/themes
-    keywords: List[str]  # Important terms
+    entities: list[Entity]
+    topics: list[str]  # Main subjects/themes
+    keywords: list[str]  # Important terms
 
     # Participants (for communication events)
     from_person: str
-    to_people: List[str]  # Recipients
-    cc_people: List[str]  # CC'd people
+    to_people: list[str]  # Recipients
+    cc_people: list[str]  # CC'd people
 
     # Context Links
     thread_id: Optional[str]  # Conversation/thread identifier
-    references: List[str]  # Related event IDs
+    references: list[str]  # Related event IDs
     in_reply_to: Optional[str]  # If this is a reply
 
     # Attachments & Resources
     has_attachments: bool
     attachment_count: int
-    attachment_types: List[str]
-    urls: List[str]
+    attachment_types: list[str]
+    urls: list[str]
 
     # Source-Specific Data
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
     # Quality Metrics
     perception_confidence: float  # How confident is the perception
     needs_clarification: bool  # If true, should ask user
-    clarification_questions: List[str]
+    clarification_questions: list[str]
 
     # === OPTIONAL FIELDS (with defaults) ===
     perceived_at: datetime = field(default_factory=now_utc)  # When we processed it
@@ -268,7 +268,7 @@ class PerceivedEvent:
                 f"Each attachment must have a corresponding type."
             )
 
-    def get_entities_by_type(self, entity_type: str) -> List[Entity]:
+    def get_entities_by_type(self, entity_type: str) -> list[Entity]:
         """Get all entities of a specific type"""
         return [e for e in self.entities if e.type == entity_type]
 
@@ -287,7 +287,7 @@ class PerceivedEvent:
         """Check if this event requires urgent attention"""
         return self.urgency in (UrgencyLevel.CRITICAL, UrgencyLevel.HIGH)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "event_id": self.event_id,

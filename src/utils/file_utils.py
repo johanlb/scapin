@@ -5,10 +5,10 @@ Helper functions for file operations.
 """
 
 import hashlib
+import shutil
 import tempfile
 from pathlib import Path
-from typing import List, Optional
-import shutil
+from typing import Optional
 
 
 def ensure_dir(path: Path) -> Path:
@@ -106,7 +106,7 @@ def atomic_write(file_path: Path, content: str, encoding: str = "utf-8") -> bool
         tmp_path.replace(file_path)
         return True
 
-    except (PermissionError, OSError) as e:
+    except (PermissionError, OSError):
         # Clean up temp file if it exists
         if 'tmp_path' in locals():
             tmp_path.unlink(missing_ok=True)
@@ -117,7 +117,7 @@ def list_files(
     directory: Path,
     pattern: str = "*",
     recursive: bool = False
-) -> List[Path]:
+) -> list[Path]:
     """
     List files in directory matching pattern
 

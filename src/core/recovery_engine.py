@@ -26,15 +26,15 @@ Usage:
 """
 
 import time
-from typing import Optional, Any
+from typing import Any, Optional
+
 from src.core.error_manager import (
-    SystemError,
     ErrorCategory,
-    RecoveryStrategy,
+    SystemError,
     get_error_manager,
 )
 from src.monitoring.logger import get_logger
-from src.utils.timeout import timeout_context, TimeoutError
+from src.utils.timeout import TimeoutError, timeout_context
 
 logger = get_logger("recovery_engine")
 
@@ -248,11 +248,11 @@ class RecoveryEngine:
                     reconnect_fn(error)
 
                 logger.debug(
-                    f"Reconnect completed within timeout",
+                    "Reconnect completed within timeout",
                     extra={"error_id": error.id, "timeout": timeout_val}
                 )
 
-            except TimeoutError as e:
+            except TimeoutError:
                 logger.error(
                     f"Reconnect timed out after {timeout_val}s",
                     extra={"error_id": error.id, "timeout": timeout_val}
@@ -304,7 +304,7 @@ class RecoveryEngine:
             error: SystemError with IMAP context
         """
         logger.info(
-            f"IMAP reconnection will be attempted on next operation",
+            "IMAP reconnection will be attempted on next operation",
             extra={
                 "error_id": error.id,
                 "host": error.context.get("host"),

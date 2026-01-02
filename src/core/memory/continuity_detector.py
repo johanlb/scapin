@@ -15,9 +15,8 @@ Design Philosophy:
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set
 from difflib import SequenceMatcher
+from typing import Optional
 
 from src.core.events import PerceivedEvent
 
@@ -78,7 +77,7 @@ class ContinuityDetector:
         continuity_threshold: float = DEFAULT_CONTINUITY_THRESHOLD,
         max_time_gap_hours: float = DEFAULT_MAX_TIME_GAP_HOURS,
         quick_reply_hours: float = DEFAULT_QUICK_REPLY_HOURS,
-        weights: Optional[Dict[str, float]] = None
+        weights: Optional[dict[str, float]] = None
     ):
         """
         Initialize continuity detector
@@ -106,7 +105,7 @@ class ContinuityDetector:
     def detect_continuity(
         self,
         current_event: PerceivedEvent,
-        previous_events: List[PerceivedEvent]
+        previous_events: list[PerceivedEvent]
     ) -> ContinuityScore:
         """
         Detect if current event continues from previous events
@@ -251,7 +250,7 @@ class ContinuityDetector:
 
         return len(intersection) / len(union)
 
-    def _get_participants(self, event: PerceivedEvent) -> Set[str]:
+    def _get_participants(self, event: PerceivedEvent) -> set[str]:
         """Get all participants (from, to, cc) from event"""
         participants = set()
 
@@ -372,9 +371,9 @@ class ContinuityDetector:
     def find_conversation_chain(
         self,
         current_event: PerceivedEvent,
-        all_events: List[PerceivedEvent],
+        all_events: list[PerceivedEvent],
         max_depth: int = 10
-    ) -> List[PerceivedEvent]:
+    ) -> list[PerceivedEvent]:
         """
         Find all events that are part of same conversation
 
@@ -405,10 +404,9 @@ class ContinuityDetector:
 
                 # Check continuity
                 score = self.detect_continuity(current, [event])
-                if score.is_continuous:
-                    # Take most recent continuous event
-                    if previous_continuous is None or event.occurred_at > previous_continuous.occurred_at:
-                        previous_continuous = event
+                # Take most recent continuous event
+                if score.is_continuous and (previous_continuous is None or event.occurred_at > previous_continuous.occurred_at):
+                    previous_continuous = event
 
             if previous_continuous is None:
                 # No more continuous events

@@ -27,12 +27,11 @@ Usage:
     print(f"Processed {results['total_emails']} emails across {results['total_accounts']} accounts")
 """
 
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+from typing import Any, Optional
 
 from src.core.config_manager import EmailAccountConfig
 from src.core.email_processor import EmailProcessor
-from src.core.events import get_event_bus, ProcessingEvent, ProcessingEventType
+from src.core.events import ProcessingEvent, ProcessingEventType, get_event_bus
 from src.core.state_manager import get_state_manager
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
@@ -48,7 +47,7 @@ class MultiAccountProcessor:
     unified event tracking and result aggregation.
     """
 
-    def __init__(self, accounts: List[EmailAccountConfig]):
+    def __init__(self, accounts: list[EmailAccountConfig]):
         """
         Initialize multi-account processor
 
@@ -63,8 +62,8 @@ class MultiAccountProcessor:
         self.state = get_state_manager()
 
         # Results storage
-        self.results_by_account: Dict[str, Any] = {}
-        self.errors_by_account: Dict[str, List[Exception]] = {}
+        self.results_by_account: dict[str, Any] = {}
+        self.errors_by_account: dict[str, list[Exception]] = {}
 
         logger.info(
             f"MultiAccountProcessor initialized with {len(accounts)} accounts",
@@ -77,7 +76,7 @@ class MultiAccountProcessor:
         auto_execute: bool = False,
         confidence_threshold: Optional[int] = None,
         unread_only: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process all configured accounts sequentially
 
@@ -223,7 +222,7 @@ class MultiAccountProcessor:
         auto_execute: bool,
         confidence_threshold: Optional[int],
         unread_only: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process a single email account
 
@@ -272,7 +271,7 @@ class MultiAccountProcessor:
             "processed_at": now_utc().isoformat(),
         }
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """
         Get processing summary across all accounts
 

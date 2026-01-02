@@ -57,12 +57,12 @@ def timeout_context(seconds: int, error_message: Optional[str] = None):
         import warnings
         warnings.warn(
             "Timeout not supported on Windows, operation will run without timeout",
-            UserWarning
+            UserWarning, stacklevel=2
         )
         yield
         return
 
-    def timeout_handler(signum, frame):
+    def timeout_handler(_signum: int, _frame: object) -> None:
         msg = error_message or f"Operation timed out after {seconds} seconds"
         raise TimeoutError(msg)
 

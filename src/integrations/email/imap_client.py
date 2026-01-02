@@ -4,18 +4,17 @@ IMAP Email Client
 Thread-safe IMAP client for fetching and managing emails.
 """
 
-import imaplib
+import codecs
 import email
-from email.message import Message
-from email.header import decode_header
-from typing import List, Optional, Tuple, Union
-from datetime import datetime
+import imaplib
 import threading
 from contextlib import contextmanager
-import codecs
+from email.header import decode_header
+from email.message import Message
+from typing import Optional, Union
 
-from src.core.schemas import EmailMetadata, EmailContent
-from src.core.config_manager import EmailConfig, EmailAccountConfig
+from src.core.config_manager import EmailAccountConfig, EmailConfig
+from src.core.schemas import EmailContent, EmailMetadata
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
 
@@ -36,7 +35,7 @@ def encode_imap_folder_name(folder_name: str) -> str:
     - Other characters are encoded as UTF-16BE then base64, surrounded by & and -
     - Folder names with special chars are quoted (IMAP requirement)
 
-    Special characters requiring quoting: space " \ ( ) { } % *
+    Special characters requiring quoting: space " \\ ( ) { } % *
 
     Example:
         "À" -> "&AMA-"
@@ -190,12 +189,7 @@ class IMAPClient:
                    If EmailConfig, uses default account
         """
         # Extract EmailAccountConfig from EmailConfig if needed
-        if isinstance(config, EmailConfig):
-            # Get default account from EmailConfig
-            account_config = config.get_default_account()
-        else:
-            # Already an EmailAccountConfig
-            account_config = config
+        account_config = config.get_default_account() if isinstance(config, EmailConfig) else config
 
         self.config = account_config
         self.account_id = account_config.account_id
@@ -281,20 +275,20 @@ class IMAPClient:
 
                 logger.info("IMAP connection established")
 
-            except socket.timeout:
+            except socket.timeout as e:
                 logger.error("IMAP connection timeout")
                 self._connection = None
-                raise ConnectionError("IMAP connection timeout")
+                raise ConnectionError("IMAP connection timeout") from e
 
             except imaplib.IMAP4.error as e:
                 logger.error(f"IMAP connection failed: {e}", exc_info=True)
                 self._connection = None
-                raise ConnectionError(f"Failed to connect to IMAP server: {e}")
+                raise ConnectionError(f"Failed to connect to IMAP server: {e}") from e
 
             except Exception as e:
                 logger.error(f"Unexpected error during IMAP connection: {e}", exc_info=True)
                 self._connection = None
-                raise ConnectionError(f"Failed to connect to IMAP server: {e}")
+                raise ConnectionError(f"Failed to connect to IMAP server: {e}") from e
 
     def _close_connection(self) -> None:
         """Close IMAP connection"""
@@ -314,7 +308,7 @@ class IMAPClient:
         limit: Optional[int] = None,
         unread_only: bool = False,
         unflagged_only: bool = False
-    ) -> List[Tuple[EmailMetadata, EmailContent]]:
+    ) -> list[tuple[EmailMetadata, EmailContent]]:
         """
         Fetch emails from specified folder
 
@@ -362,7 +356,7 @@ class IMAPClient:
                 id_list = id_list[:limit]
 
             logger.info(
-                f"Fetching emails",
+                "Fetching emails",
                 extra={
                     "folder": folder,
                     "count": len(id_list),
@@ -397,7 +391,7 @@ class IMAPClient:
         self,
         msg_id: bytes,
         folder: str
-    ) -> Optional[Tuple[EmailMetadata, EmailContent]]:
+    ) -> Optional[tuple[EmailMetadata, EmailContent]]:
         """
         Fetch and parse a single email
 
@@ -441,11 +435,10 @@ class IMAPClient:
         # Search through msg_data for the tuple containing email data
         elif len(msg_data) > 1:
             for item in msg_data:
-                if isinstance(item, tuple) and len(item) >= 2:
-                    # Check if this tuple contains BODY[] response
-                    if isinstance(item[0], bytes) and b'BODY[]' in item[0]:
-                        raw_email = item[1]
-                        break
+                # Check if this tuple contains BODY[] response
+                if isinstance(item, tuple) and len(item) >= 2 and isinstance(item[0], bytes) and b'BODY[]' in item[0]:
+                    raw_email = item[1]
+                    break
 
         if raw_email is None:
             logger.warning(

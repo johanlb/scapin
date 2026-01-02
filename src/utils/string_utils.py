@@ -6,7 +6,7 @@ Helper functions for string manipulation.
 
 import re
 import unicodedata
-from typing import List, Optional
+from typing import Optional
 
 
 def truncate(text: str, length: int = 100, suffix: str = "...") -> str:
@@ -51,10 +51,7 @@ def sanitize_filename(filename: str, replacement: str = "_") -> str:
     max_length = 255
     if len(sanitized) > max_length:
         name, ext = sanitized.rsplit('.', 1) if '.' in sanitized else (sanitized, '')
-        if ext:
-            sanitized = name[:max_length - len(ext) - 1] + '.' + ext
-        else:
-            sanitized = sanitized[:max_length]
+        sanitized = name[:max_length - len(ext) - 1] + '.' + ext if ext else sanitized[:max_length]
 
     return sanitized or "unnamed"
 
@@ -74,7 +71,7 @@ def extract_email(text: str) -> Optional[str]:
     return match.group(0) if match else None
 
 
-def extract_urls(text: str) -> List[str]:
+def extract_urls(text: str) -> list[str]:
     """
     Extract all URLs from text
 
@@ -196,7 +193,7 @@ def snake_to_camel(text: str, capitalize_first: bool = False) -> str:
         return components[0] + ''.join(x.title() for x in components[1:])
 
 
-def extract_mentions(text: str) -> List[str]:
+def extract_mentions(text: str) -> list[str]:
     """
     Extract @mentions from text
 
@@ -210,7 +207,7 @@ def extract_mentions(text: str) -> List[str]:
     return re.findall(pattern, text)
 
 
-def extract_hashtags(text: str) -> List[str]:
+def extract_hashtags(text: str) -> list[str]:
     """
     Extract #hashtags from text
 

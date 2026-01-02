@@ -8,17 +8,16 @@ Also re-exports processing event classes for backward compatibility.
 """
 
 from src.core.events.universal_event import (
-    PerceivedEvent,
+    Entity,
     EventSource,
     EventType,
+    PerceivedEvent,
     UrgencyLevel,
-    Entity,
 )
-
 from src.core.processing_events import (
-    ProcessingEventType,
-    ProcessingEvent,
     EventBus,
+    ProcessingEvent,
+    ProcessingEventType,
     get_event_bus,
     reset_event_bus,
 )

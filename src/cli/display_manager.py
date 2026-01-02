@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from src.core.processing_events import ProcessingEventType, ProcessingEvent, get_event_bus
+from src.core.processing_events import ProcessingEvent, ProcessingEventType, get_event_bus
 from src.monitoring.logger import PKMLogger
 from src.utils import now_utc
 
@@ -142,7 +142,7 @@ class DisplayManager:
 
         logger.debug("DisplayManager stopped")
 
-    def _on_processing_started(self, event: ProcessingEvent) -> None:
+    def _on_processing_started(self, _event: ProcessingEvent) -> None:
         """
         Handle processing started event
 
@@ -364,7 +364,7 @@ class DisplayManager:
 
         logger.debug("Batch completed event displayed")
 
-    def _show_final_summary(self, event: Optional[ProcessingEvent] = None) -> None:
+    def _show_final_summary(self, _event: Optional[ProcessingEvent] = None) -> None:
         """
         Display final processing summary
 

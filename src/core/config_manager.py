@@ -9,11 +9,12 @@ Charge configuration hiérarchique depuis:
 Utilise Pydantic pour validation type-safe.
 """
 
-from pathlib import Path
-from typing import Optional, List
 import threading
+from pathlib import Path
+from typing import Optional
+
 import yaml
-from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -114,7 +115,7 @@ class EmailAccountConfig(BaseModel):
             import warnings
             warnings.warn(
                 f"Non-standard IMAP port {v} (standard: 143 or 993)",
-                UserWarning
+                UserWarning, stacklevel=2
             )
         return v
 
@@ -128,7 +129,7 @@ class EmailConfig(BaseModel):
     """
 
     # Multi-account configuration
-    accounts: List[EmailAccountConfig] = Field(
+    accounts: list[EmailAccountConfig] = Field(
         default_factory=list,
         description="List of email accounts"
     )
@@ -251,7 +252,7 @@ class EmailConfig(BaseModel):
                 return account
         return None
 
-    def get_enabled_accounts(self) -> List[EmailAccountConfig]:
+    def get_enabled_accounts(self) -> list[EmailAccountConfig]:
         """
         Get all enabled accounts
 
@@ -385,7 +386,7 @@ class ConfigManager:
 
     @classmethod
     def load(
-        cls, config_path: Optional[Path] = None, env_file: Optional[Path] = None
+        cls, config_path: Optional[Path] = None, _env_file: Optional[Path] = None
     ) -> PKMConfig:
         """
         Charge configuration depuis fichiers (thread-safe)
@@ -417,7 +418,7 @@ class ConfigManager:
                 config_path = Path("config/defaults.yaml")
 
             if config_path.exists():
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     yaml_defaults = yaml.safe_load(f) or {}
 
                     # Remove nested configs from defaults to let Pydantic Settings

@@ -564,11 +564,11 @@ class NoteManager:
         notes_dir_resolved = self.notes_dir.resolve()
         try:
             file_path.relative_to(notes_dir_resolved)
-        except ValueError:
+        except ValueError as e:
             # Path is outside notes_dir - possible traversal attack
             raise ValueError(
                 f"Invalid note path: {file_path} is outside notes directory {notes_dir_resolved}"
-            )
+            ) from e
 
         return file_path
 

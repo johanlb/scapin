@@ -4,27 +4,26 @@ Email Processor
 Core email processing logic that orchestrates IMAP, AI analysis, and actions.
 """
 
-from typing import List, Optional, Tuple
-from datetime import datetime
 import signal
 import sys
+from typing import Optional
 
-from src.core.schemas import (
-    EmailMetadata,
-    EmailContent,
-    EmailAnalysis,
-    EmailAction,
-    ProcessedEmail,
-    EmailValidationResult,
-)
+from src.ai.router import AIModel, get_ai_router
 from src.core.config_manager import get_config
+from src.core.error_manager import get_error_manager
+from src.core.events import ProcessingEvent, ProcessingEventType, get_event_bus
+from src.core.schemas import (
+    EmailAction,
+    EmailAnalysis,
+    EmailContent,
+    EmailMetadata,
+    EmailValidationResult,
+    ProcessedEmail,
+)
 from src.core.state_manager import get_state_manager
 from src.integrations.email.imap_client import IMAPClient
-from src.ai.router import get_ai_router, AIModel
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
-from src.core.events import get_event_bus, ProcessingEvent, ProcessingEventType
-from src.core.error_manager import get_error_manager, ErrorCategory, ErrorSeverity
 
 logger = get_logger("email_processor")
 
@@ -73,7 +72,7 @@ class EmailProcessor:
         Note: Signal handlers must be minimal to avoid deadlocks.
         Logging is done via stderr instead of logger.
         """
-        def shutdown_handler(signum, frame):
+        def shutdown_handler(signum: int, _frame: object) -> None:
             """
             Handle shutdown signals gracefully
 
@@ -101,7 +100,7 @@ class EmailProcessor:
         confidence_threshold: Optional[int] = None,
         unread_only: bool = False,
         unflagged_only: bool = True
-    ) -> List[ProcessedEmail]:
+    ) -> list[ProcessedEmail]:
         """
         Process emails from inbox
 
@@ -346,11 +345,9 @@ class EmailProcessor:
         )
 
         # Execute action if confidence is high enough
-        executed = False
         if auto_execute and analysis.confidence >= confidence_threshold:
             self._execute_action(metadata, analysis)
             self.state.increment("emails_auto_executed")  # Track actual auto-executions
-            executed = True
 
             # Emit email completed event (executed)
             self.event_bus.emit(ProcessingEvent(
@@ -532,7 +529,7 @@ class EmailProcessor:
             )
 
             if success:
-                logger.info(f"Email deleted", extra={"email_id": metadata.id})
+                logger.info("Email deleted", extra={"email_id": metadata.id})
                 self.state.increment("emails_deleted")
                 return True
             else:

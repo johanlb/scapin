@@ -419,7 +419,7 @@ class KnowledgeUpdater:
         self,
         event: PerceivedEvent,
         working_memory: WorkingMemory,
-        feedback_analysis: Optional[FeedbackAnalysis]
+        _feedback_analysis: Optional[FeedbackAnalysis]
     ) -> list[KnowledgeUpdate]:
         """Generate tag additions"""
         updates = []
@@ -544,17 +544,15 @@ class KnowledgeUpdater:
             raise KnowledgeUpdateError("Empty changes dict")
 
         # Type-specific validation
-        if update.update_type == UpdateType.NOTE_CREATED:
-            if "title" not in update.changes or "content" not in update.changes:
-                raise KnowledgeUpdateError(
-                    "Note update missing title or content"
-                )
+        if update.update_type == UpdateType.NOTE_CREATED and (
+            "title" not in update.changes or "content" not in update.changes
+        ):
+            raise KnowledgeUpdateError("Note update missing title or content")
 
-        elif update.update_type == UpdateType.ENTITY_ADDED:
-            if "entity_type" not in update.changes or "value" not in update.changes:
-                raise KnowledgeUpdateError(
-                    "Entity update missing entity_type or value"
-                )
+        elif update.update_type == UpdateType.ENTITY_ADDED and (
+            "entity_type" not in update.changes or "value" not in update.changes
+        ):
+            raise KnowledgeUpdateError("Entity update missing entity_type or value")
 
     def _apply_single_update(self, update: KnowledgeUpdate) -> None:
         """

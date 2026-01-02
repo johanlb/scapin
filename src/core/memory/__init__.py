@@ -6,16 +6,16 @@ Central memory systems for the cognitive architecture:
 - Continuity Detector: Detects conversation threads and context continuity
 """
 
-from src.core.memory.working_memory import (
-    WorkingMemory,
-    MemoryState,
-    Hypothesis,
-    ReasoningPass,
-    ContextItem,
-)
 from src.core.memory.continuity_detector import (
     ContinuityDetector,
     ContinuityScore,
+)
+from src.core.memory.working_memory import (
+    ContextItem,
+    Hypothesis,
+    MemoryState,
+    ReasoningPass,
+    WorkingMemory,
 )
 
 __all__ = [

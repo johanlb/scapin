@@ -6,7 +6,6 @@ Helper functions for date and time operations.
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import re
 
 
 def now_utc() -> datetime:

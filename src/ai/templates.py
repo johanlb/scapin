@@ -9,11 +9,12 @@ Gestionnaire de templates pour:
 Utilise Jinja2 pour templating flexible.
 """
 
-from pathlib import Path
-from typing import Dict, Any, Optional
-from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
-from enum import Enum
 import threading
+from enum import Enum
+from pathlib import Path
+from typing import Any, Optional
+
+from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
 
 from src.monitoring.logger import get_logger
 
@@ -76,10 +77,10 @@ class TemplateManager:
         self.env.filters['truncate_smart'] = self._truncate_smart
 
         # In-memory template cache for performance (thread-safe)
-        self._template_cache: Dict[str, Template] = {}
+        self._template_cache: dict[str, Template] = {}
         self._cache_lock = threading.Lock()
 
-        logger.info(f"Template manager initialized", extra={"templates_dir": str(self.templates_dir)})
+        logger.info("Template manager initialized", extra={"templates_dir": str(self.templates_dir)})
 
     @staticmethod
     def _truncate_smart(text: str, length: int = 500, suffix: str = "...") -> str:
@@ -158,13 +159,13 @@ class TemplateManager:
             template = self.get_template(template_name)
             rendered = template.render(**kwargs)
             logger.debug(
-                f"Rendered template",
+                "Rendered template",
                 extra={"template": template_name, "context_keys": list(kwargs.keys())}
             )
             return rendered
         except TemplateNotFound:
             logger.error(
-                f"Template not found",
+                "Template not found",
                 extra={"template": template_name}
             )
             raise
@@ -176,7 +177,7 @@ class TemplateManager:
             )
             raise
 
-    def render_string(self, template_string: str, context: Dict[str, Any]) -> str:
+    def render_string(self, template_string: str, context: dict[str, Any]) -> str:
         """
         Render template from string (for dynamic templates)
 

@@ -191,8 +191,8 @@ class FeedbackProcessor:
     def _calculate_correctness_score(
         self,
         feedback: UserFeedback,
-        working_memory: WorkingMemory,
-        executed_actions: list[Action]
+        _working_memory: WorkingMemory,
+        _executed_actions: list[Action]
     ) -> float:
         """
         Calculate correctness score (0-1)
@@ -350,7 +350,7 @@ class FeedbackProcessor:
         self,
         feedback: UserFeedback,
         working_memory: WorkingMemory,
-        executed_actions: list[Action],
+        _executed_actions: list[Action],
         correctness_score: float,
         action_quality_score: float,
         reasoning_quality_score: float
@@ -557,11 +557,10 @@ class FeedbackProcessor:
             return True
 
         # Don't learn from perfect confirmations (no new info)
-        if (feedback.approval and
-            analysis.correctness_score > LEARNING_PERFECT_CONFIRMATION_SCORE and
-            feedback.action_executed and
-            feedback.time_to_action < LEARNING_PERFECT_TIME_THRESHOLD):
-            return False
-
-        # Default: learn
-        return True
+        # Default: learn from everything except perfect confirmations
+        return not (
+            feedback.approval
+            and analysis.correctness_score > LEARNING_PERFECT_CONFIRMATION_SCORE
+            and feedback.action_executed
+            and feedback.time_to_action < LEARNING_PERFECT_TIME_THRESHOLD
+        )

@@ -10,14 +10,14 @@ Logging structuré JSON pour faciliter:
 Supporte aussi format texte pour développement.
 """
 
-import logging
 import json
+import logging
 import sys
 import threading
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Optional
 from enum import Enum
+from pathlib import Path
+from typing import Optional
 
 
 class LogLevel(str, Enum):

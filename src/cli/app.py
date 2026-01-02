@@ -83,7 +83,7 @@ def version_callback(value: bool):
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
-    version: bool = typer.Option(
+    _version: bool = typer.Option(
         None,
         "--version",
         "-v",
@@ -238,27 +238,27 @@ def process(
         console.print("[yellow]Tip:[/yellow] Check your IMAP settings and network connection")
         logger = get_logger("cli")
         logger.error(f"IMAP connection failed: {e}", exc_info=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     except PermissionError as e:
         console.print(f"\n[red]✗ Permission Error:[/red] {e}")
         console.print("[yellow]Tip:[/yellow] Check your IMAP credentials and app-specific password")
         logger = get_logger("cli")
         logger.error(f"Authentication failed: {e}", exc_info=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     except ValueError as e:
         console.print(f"\n[red]✗ Configuration Error:[/red] {e}")
         console.print("[yellow]Tip:[/yellow] Check your .env file configuration")
         logger = get_logger("cli")
         logger.error(f"Configuration error: {e}", exc_info=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
     except KeyboardInterrupt:
         console.print("\n[yellow]⚠ Processing interrupted by user[/yellow]")
         logger = get_logger("cli")
         logger.info("User interrupted processing")
-        raise typer.Exit(code=130)
+        raise typer.Exit(code=130) from None
 
     except Exception as e:
         console.print(f"\n[red]✗ Unexpected Error:[/red] {e}")
@@ -266,12 +266,12 @@ def process(
         console.print("[yellow]Tip:[/yellow] Check logs for more details")
         logger = get_logger("cli")
         logger.error(f"Email processing failed: {e}", exc_info=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
 def review(
-    limit: int = typer.Option(20, "--limit", "-n", help="Max decisions to review"),
+    _limit: int = typer.Option(20, "--limit", "-n", help="Max decisions to review"),
 ):
     """
     Review queued emails
@@ -293,13 +293,13 @@ def review(
 
     except KeyboardInterrupt:
         console.print("\n[yellow]⚠ Review cancelled by user[/yellow]")
-        raise typer.Exit(code=130)
+        raise typer.Exit(code=130) from None
 
     except Exception as e:
         console.print(f"\n[red]✗ Error: {e}[/red]")
         logger = get_logger("cli")
         logger.error(f"Review mode failed: {e}", exc_info=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
@@ -344,7 +344,7 @@ def queue(
             raise typer.Exit(code=exit_code)
         except Exception as e:
             console.print(f"[red]✗ Error: {e}[/red]")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from None
 
     # Show queue stats
     console.print(Panel.fit(
@@ -723,7 +723,7 @@ def config(
 
     except Exception as e:
         console.print(f"[red]✗ Configuration error: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command()
@@ -844,7 +844,7 @@ def settings(
         console.print(f"[red]✗ Settings error: {e}[/red]")
         logger = get_logger("cli")
         logger.error(f"Settings command failed: {e}", exc_info=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def run():

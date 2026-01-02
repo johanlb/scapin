@@ -10,10 +10,10 @@ Data validation schemas for all PKM entities:
 """
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator, ConfigDict
+from typing import Any, Optional
 
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 # ============================================================================
 # ENUMS
@@ -102,16 +102,16 @@ class EmailMetadata(BaseModel):
     message_id: Optional[str] = Field(None, description="Email Message-ID header")
     from_address: EmailStr = Field(..., description="Sender email address")
     from_name: Optional[str] = Field(None, description="Sender display name")
-    to_addresses: List[EmailStr] = Field(default_factory=list, description="Recipients")
-    cc_addresses: List[EmailStr] = Field(default_factory=list, description="CC recipients")
-    bcc_addresses: List[EmailStr] = Field(default_factory=list, description="BCC recipients")
+    to_addresses: list[EmailStr] = Field(default_factory=list, description="Recipients")
+    cc_addresses: list[EmailStr] = Field(default_factory=list, description="CC recipients")
+    bcc_addresses: list[EmailStr] = Field(default_factory=list, description="BCC recipients")
     subject: str = Field(..., min_length=1, description="Email subject")
     date: datetime = Field(..., description="Email date")
     has_attachments: bool = Field(default=False, description="Has attachments")
-    attachments: List[EmailAttachment] = Field(default_factory=list, description="Attachment information")
+    attachments: list[EmailAttachment] = Field(default_factory=list, description="Attachment information")
     size_bytes: Optional[int] = Field(None, description="Email size in bytes")
-    flags: List[str] = Field(default_factory=list, description="IMAP flags")
-    references: List[str] = Field(default_factory=list, description="Message references for threading")
+    flags: list[str] = Field(default_factory=list, description="IMAP flags")
+    references: list[str] = Field(default_factory=list, description="Message references for threading")
     in_reply_to: Optional[str] = Field(None, description="In-Reply-To header for threading")
 
     @field_validator("subject")
@@ -131,8 +131,8 @@ class EmailContent(BaseModel):
     plain_text: Optional[str] = Field(None, description="Plain text body")
     html: Optional[str] = Field(None, description="HTML body")
     preview: Optional[str] = Field(None, max_length=500, description="Email preview (first 500 chars)")
-    attachments: List[str] = Field(default_factory=list, description="Attachment filenames")
-    metadata: Optional[Dict[str, Any]] = Field(
+    attachments: list[str] = Field(default_factory=list, description="Attachment filenames")
+    metadata: Optional[dict[str, Any]] = Field(
         default_factory=dict,
         description="Content metadata (encoding issues, truncation, etc.)"
     )
@@ -157,12 +157,12 @@ class EmailAnalysis(BaseModel):
     destination: Optional[str] = Field(None, description="Destination folder (archive/reference)")
     confidence: int = Field(..., description="Confidence score 0-100")
     reasoning: str = Field(..., min_length=10, description="Explanation for decision")
-    omnifocus_task: Optional[Dict[str, Any]] = Field(None, description="OmniFocus task data (title, note, tags, dates)")
-    tags: List[str] = Field(default_factory=list, description="Suggested tags")
-    related_emails: List[str] = Field(
+    omnifocus_task: Optional[dict[str, Any]] = Field(None, description="OmniFocus task data (title, note, tags, dates)")
+    tags: list[str] = Field(default_factory=list, description="Suggested tags")
+    related_emails: list[str] = Field(
         default_factory=list, description="Related email Message-IDs"
     )
-    entities: Dict[str, Any] = Field(
+    entities: dict[str, Any] = Field(
         default_factory=dict, description="Extracted entities (people, dates, amounts)"
     )
     needs_full_content: bool = Field(
@@ -273,7 +273,7 @@ class KnowledgeEntry(BaseModel):
     title: str = Field(..., min_length=1, description="Entry title")
     content: str = Field(..., description="Markdown content")
     category: str = Field(..., description="Knowledge category")
-    tags: List[str] = Field(default_factory=list, description="Tags")
+    tags: list[str] = Field(default_factory=list, description="Tags")
     source_email_id: Optional[str] = Field(
         None, description="Source email Message-ID if from email"
     )
@@ -290,7 +290,7 @@ class KnowledgeQuery(BaseModel):
 
     query: str = Field(..., min_length=1, description="Search query")
     category: Optional[str] = None
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     limit: int = Field(default=10, ge=1, le=100)
     include_content: bool = Field(default=True, description="Include full content in results")
 
@@ -355,10 +355,10 @@ class ConversationContext(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     thread_id: str = Field(..., description="Email thread identifier")
-    email_ids: List[str] = Field(default_factory=list, description="Email Message-IDs in thread")
-    messages: List[ConversationMessage] = Field(default_factory=list)
+    email_ids: list[str] = Field(default_factory=list, description="Email Message-IDs in thread")
+    messages: list[ConversationMessage] = Field(default_factory=list)
     summary: Optional[str] = Field(None, description="Conversation summary")
-    entities: Dict[str, Any] = Field(default_factory=dict, description="Tracked entities")
+    entities: dict[str, Any] = Field(default_factory=dict, description="Tracked entities")
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
@@ -387,7 +387,7 @@ class HealthCheck(BaseModel):
     message: str = Field(..., description="Status message")
     response_time_ms: Optional[float] = Field(None, description="Response time in milliseconds")
     checked_at: datetime = Field(default_factory=datetime.now)
-    details: Dict[str, Any] = Field(default_factory=dict, description="Additional details")
+    details: dict[str, Any] = Field(default_factory=dict, description="Additional details")
 
 
 class SystemHealth(BaseModel):
@@ -396,7 +396,7 @@ class SystemHealth(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     overall_status: ServiceStatus
-    checks: List[HealthCheck] = Field(default_factory=list)
+    checks: list[HealthCheck] = Field(default_factory=list)
     checked_at: datetime = Field(default_factory=datetime.now)
 
     @property
@@ -405,7 +405,7 @@ class SystemHealth(BaseModel):
         return self.overall_status == ServiceStatus.HEALTHY
 
     @property
-    def unhealthy_services(self) -> List[str]:
+    def unhealthy_services(self) -> list[str]:
         """Get list of unhealthy services"""
         return [
             check.service

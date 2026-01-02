@@ -17,6 +17,7 @@ Usage:
 import os
 from pathlib import Path
 from typing import Optional
+
 from src.monitoring.logger import get_logger
 
 logger = get_logger("secrets")
@@ -198,7 +199,7 @@ def migrate_from_env_to_keychain(keys: list[str]) -> dict[str, bool]:
     """
     if not KEYRING_AVAILABLE:
         logger.error("Keyring not available - cannot migrate")
-        return {key: False for key in keys}
+        return dict.fromkeys(keys, False)
 
     results = {}
     for key in keys:

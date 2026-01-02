@@ -36,23 +36,23 @@ Usage:
     recent = store.get_recent_errors(limit=10)
 """
 
-import sqlite3
 import json
+import sqlite3
 from pathlib import Path
-from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from threading import Lock
+from typing import TYPE_CHECKING, Any, Optional
 
 # Import only for type checking to avoid circular import
 if TYPE_CHECKING:
-    from src.core.error_manager import SystemError, ErrorCategory, ErrorSeverity
+    from src.core.error_manager import ErrorCategory, ErrorSeverity, SystemError
 else:
     # Runtime: import late when needed
     SystemError = 'SystemError'
     ErrorCategory = 'ErrorCategory'
     ErrorSeverity = 'ErrorSeverity'
 
-from src.monitoring.logger import get_logger
 from src.core.config_manager import get_config
+from src.monitoring.logger import get_logger
 
 logger = get_logger("error_store")
 
@@ -106,12 +106,11 @@ class ErrorStore:
 
     def _init_database(self) -> None:
         """Initialize database schema"""
-        with self._lock:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
+        with self._lock, self._get_connection() as conn:
+            cursor = conn.cursor()
 
-                # Create errors table
-                cursor.execute("""
+            # Create errors table
+            cursor.execute("""
                     CREATE TABLE IF NOT EXISTS errors (
                         id TEXT PRIMARY KEY,
                         timestamp TEXT NOT NULL,
@@ -134,23 +133,23 @@ class ErrorStore:
                     )
                 """)
 
-                # Create indexes
-                cursor.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_errors_timestamp ON errors(timestamp DESC)"
-                )
-                cursor.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_errors_category ON errors(category)"
-                )
-                cursor.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_errors_severity ON errors(severity)"
-                )
-                cursor.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_errors_resolved ON errors(resolved)"
-                )
+            # Create indexes
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_errors_timestamp ON errors(timestamp DESC)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_errors_category ON errors(category)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_errors_severity ON errors(severity)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_errors_resolved ON errors(resolved)"
+            )
 
-                conn.commit()
+            conn.commit()
 
-                logger.debug("Database schema initialized")
+            logger.debug("Database schema initialized")
 
     def save_error(self, error: 'SystemError') -> bool:
         """
@@ -236,17 +235,16 @@ class ErrorStore:
             SystemError or None if not found
         """
         try:
-            with self._lock:
-                with self._get_connection() as conn:
-                    conn.row_factory = sqlite3.Row
-                    cursor = conn.cursor()
+            with self._lock, self._get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
 
-                    cursor.execute("SELECT * FROM errors WHERE id = ?", (error_id,))
-                    row = cursor.fetchone()
+                cursor.execute("SELECT * FROM errors WHERE id = ?", (error_id,))
+                row = cursor.fetchone()
 
-                    if row:
-                        return self._row_to_error(row)
-                    return None
+                if row:
+                    return self._row_to_error(row)
+                return None
 
         except Exception as e:
             logger.error(f"Failed to get error {error_id}: {e}", exc_info=True)
@@ -258,7 +256,7 @@ class ErrorStore:
         category: Optional['ErrorCategory'] = None,
         severity: Optional['ErrorSeverity'] = None,
         resolved: Optional[bool] = None,
-    ) -> List['SystemError']:
+    ) -> list['SystemError']:
         """
         Get recent errors with optional filters
 
@@ -272,34 +270,33 @@ class ErrorStore:
             List of SystemError objects (newest first)
         """
         try:
-            with self._lock:
-                with self._get_connection() as conn:
-                    conn.row_factory = sqlite3.Row
-                    cursor = conn.cursor()
+            with self._lock, self._get_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
 
-                    # Build query
-                    query = "SELECT * FROM errors WHERE 1=1"
-                    params = []
+                # Build query
+                query = "SELECT * FROM errors WHERE 1=1"
+                params = []
 
-                    if category:
-                        query += " AND category = ?"
-                        params.append(category.value)
+                if category:
+                    query += " AND category = ?"
+                    params.append(category.value)
 
-                    if severity:
-                        query += " AND severity = ?"
-                        params.append(severity.value)
+                if severity:
+                    query += " AND severity = ?"
+                    params.append(severity.value)
 
-                    if resolved is not None:
-                        query += " AND resolved = ?"
-                        params.append(1 if resolved else 0)
+                if resolved is not None:
+                    query += " AND resolved = ?"
+                    params.append(1 if resolved else 0)
 
-                    query += " ORDER BY timestamp DESC LIMIT ?"
-                    params.append(limit)
+                query += " ORDER BY timestamp DESC LIMIT ?"
+                params.append(limit)
 
-                    cursor.execute(query, params)
-                    rows = cursor.fetchall()
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
 
-                    return [self._row_to_error(row) for row in rows]
+                return [self._row_to_error(row) for row in rows]
 
         except Exception as e:
             logger.error(f"Failed to get recent errors: {e}", exc_info=True)
@@ -323,36 +320,35 @@ class ErrorStore:
             Count of matching errors
         """
         try:
-            with self._lock:
-                with self._get_connection() as conn:
-                    cursor = conn.cursor()
+            with self._lock, self._get_connection() as conn:
+                cursor = conn.cursor()
 
-                    # Build query
-                    query = "SELECT COUNT(*) FROM errors WHERE 1=1"
-                    params = []
+                # Build query
+                query = "SELECT COUNT(*) FROM errors WHERE 1=1"
+                params = []
 
-                    if category:
-                        query += " AND category = ?"
-                        params.append(category.value)
+                if category:
+                    query += " AND category = ?"
+                    params.append(category.value)
 
-                    if severity:
-                        query += " AND severity = ?"
-                        params.append(severity.value)
+                if severity:
+                    query += " AND severity = ?"
+                    params.append(severity.value)
 
-                    if resolved is not None:
-                        query += " AND resolved = ?"
-                        params.append(1 if resolved else 0)
+                if resolved is not None:
+                    query += " AND resolved = ?"
+                    params.append(1 if resolved else 0)
 
-                    cursor.execute(query, params)
-                    count = cursor.fetchone()[0]
+                cursor.execute(query, params)
+                count = cursor.fetchone()[0]
 
-                    return count
+                return count
 
         except Exception as e:
             logger.error(f"Failed to get error count: {e}", exc_info=True)
             return 0
 
-    def get_error_stats(self) -> Dict[str, Any]:
+    def get_error_stats(self) -> dict[str, Any]:
         """
         Get error statistics
 
@@ -360,49 +356,48 @@ class ErrorStore:
             Dictionary with error stats
         """
         try:
-            with self._lock:
-                with self._get_connection() as conn:
-                    cursor = conn.cursor()
+            with self._lock, self._get_connection() as conn:
+                cursor = conn.cursor()
 
-                    stats = {}
+                stats = {}
 
-                    # Total errors
-                    cursor.execute("SELECT COUNT(*) FROM errors")
-                    stats["total_errors"] = cursor.fetchone()[0]
+                # Total errors
+                cursor.execute("SELECT COUNT(*) FROM errors")
+                stats["total_errors"] = cursor.fetchone()[0]
 
-                    # Errors by category
-                    cursor.execute("""
+                # Errors by category
+                cursor.execute("""
                         SELECT category, COUNT(*) as count
                         FROM errors
                         GROUP BY category
                         ORDER BY count DESC
                     """)
-                    stats["by_category"] = {row[0]: row[1] for row in cursor.fetchall()}
+                stats["by_category"] = {row[0]: row[1] for row in cursor.fetchall()}
 
-                    # Errors by severity
-                    cursor.execute("""
+                # Errors by severity
+                cursor.execute("""
                         SELECT severity, COUNT(*) as count
                         FROM errors
                         GROUP BY severity
                         ORDER BY count DESC
                     """)
-                    stats["by_severity"] = {row[0]: row[1] for row in cursor.fetchall()}
+                stats["by_severity"] = {row[0]: row[1] for row in cursor.fetchall()}
 
-                    # Resolved vs unresolved
-                    cursor.execute("SELECT COUNT(*) FROM errors WHERE resolved = 1")
-                    stats["resolved"] = cursor.fetchone()[0]
+                # Resolved vs unresolved
+                cursor.execute("SELECT COUNT(*) FROM errors WHERE resolved = 1")
+                stats["resolved"] = cursor.fetchone()[0]
 
-                    cursor.execute("SELECT COUNT(*) FROM errors WHERE resolved = 0")
-                    stats["unresolved"] = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM errors WHERE resolved = 0")
+                stats["unresolved"] = cursor.fetchone()[0]
 
-                    # Recovery stats
-                    cursor.execute("SELECT COUNT(*) FROM errors WHERE recovery_attempted = 1")
-                    stats["recovery_attempted"] = cursor.fetchone()[0]
+                # Recovery stats
+                cursor.execute("SELECT COUNT(*) FROM errors WHERE recovery_attempted = 1")
+                stats["recovery_attempted"] = cursor.fetchone()[0]
 
-                    cursor.execute("SELECT COUNT(*) FROM errors WHERE recovery_successful = 1")
-                    stats["recovery_successful"] = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM errors WHERE recovery_successful = 1")
+                stats["recovery_successful"] = cursor.fetchone()[0]
 
-                    return stats
+                return stats
 
         except Exception as e:
             logger.error(f"Failed to get error stats: {e}", exc_info=True)
@@ -425,23 +420,22 @@ class ErrorStore:
                 datetime.now() - timedelta(days=older_than_days)
             ).isoformat()
 
-            with self._lock:
-                with self._get_connection() as conn:
-                    cursor = conn.cursor()
+            with self._lock, self._get_connection() as conn:
+                cursor = conn.cursor()
 
-                    cursor.execute(
-                        """
+                cursor.execute(
+                    """
                         DELETE FROM errors
                         WHERE resolved = 1 AND resolved_at < ?
                     """,
-                        (cutoff_date,),
-                    )
+                    (cutoff_date,),
+                )
 
-                    deleted = cursor.rowcount
-                    conn.commit()
+                deleted = cursor.rowcount
+                conn.commit()
 
-                    logger.info(f"Cleared {deleted} resolved errors older than {older_than_days} days")
-                    return deleted
+                logger.info(f"Cleared {deleted} resolved errors older than {older_than_days} days")
+                return deleted
 
         except Exception as e:
             logger.error(f"Failed to clear resolved errors: {e}", exc_info=True)
@@ -458,12 +452,13 @@ class ErrorStore:
             SystemError object
         """
         from datetime import datetime
+
         # Import at runtime to avoid circular dependency
         from src.core.error_manager import (
-            SystemError,
             ErrorCategory,
             ErrorSeverity,
-            RecoveryStrategy
+            RecoveryStrategy,
+            SystemError,
         )
 
         return SystemError(

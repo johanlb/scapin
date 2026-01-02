@@ -6,9 +6,11 @@ Dynamically fetches available models from Anthropic API and selects
 the most appropriate model (Opus, Sonnet, or Haiku) based on task requirements.
 """
 
-from typing import Optional, List
 from enum import Enum
+from typing import Optional
+
 import anthropic
+
 from src.monitoring.logger import get_logger
 
 logger = get_logger("model_selector")
@@ -67,7 +69,7 @@ class ModelSelector:
         self.client = anthropic.Anthropic(api_key=api_key)
         self._available_models = None
 
-    def _fetch_available_models(self) -> List:
+    def _fetch_available_models(self) -> list:
         """
         Fetch available models from Anthropic API
 
@@ -114,7 +116,7 @@ class ModelSelector:
         logger.debug(f"Selected {tier.value} model: {latest.id}")
         return latest.id
 
-    def get_best_model(self, tier: ModelTier, fallback_tiers: Optional[List[ModelTier]] = None) -> str:
+    def get_best_model(self, tier: ModelTier, fallback_tiers: Optional[list[ModelTier]] = None) -> str:
         """
         Get the best available model for a given tier with fallback options
 

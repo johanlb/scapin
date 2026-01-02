@@ -28,22 +28,24 @@ Usage:
             error_manager.attempt_recovery(error)
 """
 
-import traceback
-import threading
 import json
+import threading
+import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional, Callable, List
-from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from src.monitoring.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.core.error_store import ErrorStore
 from src.utils import now_utc
 
 logger = get_logger("error_manager")
 
 
-def sanitize_context(context: Dict[str, Any]) -> Dict[str, Any]:
+def sanitize_context(context: dict[str, Any]) -> dict[str, Any]:
     """
     Sanitize context dictionary to ensure JSON serializability
 
@@ -143,7 +145,7 @@ class SystemError:
     # Context
     component: str  # e.g., "EmailProcessor", "IMAPClient"
     operation: str  # e.g., "fetch_emails", "analyze_email"
-    context: Dict[str, Any] = field(default_factory=dict)  # Additional context
+    context: dict[str, Any] = field(default_factory=dict)  # Additional context
 
     # Recovery
     recovery_strategy: RecoveryStrategy = RecoveryStrategy.NONE
@@ -157,7 +159,7 @@ class SystemError:
     resolved_at: Optional[datetime] = None
     notes: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage"""
         return {
             "id": self.id,
@@ -181,7 +183,7 @@ class SystemError:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SystemError":
+    def from_dict(cls, data: dict[str, Any]) -> "SystemError":
         """Create from dictionary"""
         return cls(
             id=data["id"],
@@ -238,11 +240,11 @@ class ErrorManager:
             max_in_memory_errors: Maximum number of errors to keep in memory (prevents unbounded growth)
         """
         self.error_store = error_store
-        self.recovery_handlers: Dict[ErrorCategory, Callable] = {}
+        self.recovery_handlers: dict[ErrorCategory, Callable] = {}
         self.error_count = 0
-        self.errors_by_category: Dict[ErrorCategory, int] = {}
+        self.errors_by_category: dict[ErrorCategory, int] = {}
         self.max_in_memory_errors = max_in_memory_errors
-        self._recent_errors: List[SystemError] = []  # LRU cache for recent errors
+        self._recent_errors: list[SystemError] = []  # LRU cache for recent errors
 
         # Register default recovery handlers
         self._register_default_recovery_handlers()
@@ -259,7 +261,7 @@ class ErrorManager:
         component: str,
         operation: str,
         severity: Optional[ErrorSeverity] = None,
-        context: Optional[Dict[str, Any]] = None,
+        context: Optional[dict[str, Any]] = None,
         recovery_strategy: Optional[RecoveryStrategy] = None,
     ) -> SystemError:
         """
@@ -371,10 +373,7 @@ class ErrorManager:
             return False
 
         # Check if manual intervention required
-        if error.recovery_strategy == RecoveryStrategy.MANUAL:
-            return False
-
-        return True
+        return error.recovery_strategy != RecoveryStrategy.MANUAL
 
     def attempt_recovery(self, error: SystemError) -> bool:
         """
@@ -543,7 +542,7 @@ class ErrorManager:
         # Default to manual
         return RecoveryStrategy.MANUAL
 
-    def get_error_stats(self) -> Dict[str, Any]:
+    def get_error_stats(self) -> dict[str, Any]:
         """
         Get error statistics
 
@@ -559,7 +558,7 @@ class ErrorManager:
             "memory_limit": self.max_in_memory_errors,
         }
 
-    def get_recent_errors(self, limit: int = 10) -> List[SystemError]:
+    def get_recent_errors(self, limit: int = 10) -> list[SystemError]:
         """
         Get recent errors from in-memory cache
 

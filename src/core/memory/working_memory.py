@@ -18,8 +18,8 @@ Design Philosophy: Single source of truth for current cognitive state
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Any
 from enum import Enum
+from typing import Any, Optional
 
 from src.core.events import PerceivedEvent
 from src.utils import now_utc
@@ -47,11 +47,11 @@ class Hypothesis:
     id: str  # Unique hypothesis ID
     description: str  # What we think is true/should happen
     confidence: float  # 0.0-1.0
-    supporting_evidence: List[str] = field(default_factory=list)
-    contradicting_evidence: List[str] = field(default_factory=list)
+    supporting_evidence: list[str] = field(default_factory=list)
+    contradicting_evidence: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=now_utc)
     updated_at: datetime = field(default_factory=now_utc)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate hypothesis"""
@@ -93,10 +93,10 @@ class ReasoningPass:
     input_hypotheses_count: int = 0
 
     # Actions taken
-    context_queries: List[str] = field(default_factory=list)
-    context_retrieved: List[str] = field(default_factory=list)
-    ai_prompts: List[str] = field(default_factory=list)
-    ai_responses: List[str] = field(default_factory=list)
+    context_queries: list[str] = field(default_factory=list)
+    context_retrieved: list[str] = field(default_factory=list)
+    ai_prompts: list[str] = field(default_factory=list)
+    ai_responses: list[str] = field(default_factory=list)
 
     # Output state
     output_confidence: float = 0.0
@@ -104,12 +104,12 @@ class ReasoningPass:
     confidence_delta: float = 0.0
 
     # Insights gained
-    insights: List[str] = field(default_factory=list)
-    questions_raised: List[str] = field(default_factory=list)
-    entities_extracted: List[str] = field(default_factory=list)
+    insights: list[str] = field(default_factory=list)
+    questions_raised: list[str] = field(default_factory=list)
+    entities_extracted: list[str] = field(default_factory=list)
 
     # Metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def complete(self) -> None:
         """Mark pass as complete and calculate duration"""
@@ -132,7 +132,7 @@ class ContextItem:
     content: str  # The actual context
     relevance_score: float  # 0.0-1.0
     retrieved_at: datetime = field(default_factory=now_utc)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class WorkingMemory:
@@ -160,29 +160,29 @@ class WorkingMemory:
         self.updated_at = now_utc()
 
         # Reasoning State
-        self.hypotheses: Dict[str, Hypothesis] = {}  # hypothesis_id -> Hypothesis
+        self.hypotheses: dict[str, Hypothesis] = {}  # hypothesis_id -> Hypothesis
         self.current_best_hypothesis: Optional[Hypothesis] = None
         self.overall_confidence: float = event.perception_confidence
 
         # Reasoning History
-        self.reasoning_passes: List[ReasoningPass] = []
+        self.reasoning_passes: list[ReasoningPass] = []
         self.current_pass: Optional[ReasoningPass] = None
 
         # Retrieved Context
-        self.context_items: List[ContextItem] = []
-        self.related_events: List[str] = []  # Event IDs
+        self.context_items: list[ContextItem] = []
+        self.related_events: list[str] = []  # Event IDs
 
         # Open Questions
-        self.open_questions: List[str] = []
-        self.uncertainties: List[str] = []
+        self.open_questions: list[str] = []
+        self.uncertainties: list[str] = []
 
         # Continuity (if part of conversation/thread)
         self.is_continuous: bool = False
         self.conversation_id: Optional[str] = None
-        self.previous_events: List[PerceivedEvent] = []
+        self.previous_events: list[PerceivedEvent] = []
 
         # Metadata
-        self.metadata: Dict[str, Any] = {}
+        self.metadata: dict[str, Any] = {}
 
     def add_hypothesis(self, hypothesis: Hypothesis, replace: bool = False) -> None:
         """
@@ -220,7 +220,7 @@ class WorkingMemory:
         """Get hypothesis by ID"""
         return self.hypotheses.get(hypothesis_id)
 
-    def get_top_hypotheses(self, n: int = 3) -> List[Hypothesis]:
+    def get_top_hypotheses(self, n: int = 3) -> list[Hypothesis]:
         """Get top N hypotheses by confidence"""
         sorted_hyps = sorted(
             self.hypotheses.values(),
@@ -318,11 +318,11 @@ class WorkingMemory:
             relevance_score=relevance
         ))
 
-    def get_context_by_source(self, source: str) -> List[ContextItem]:
+    def get_context_by_source(self, source: str) -> list[ContextItem]:
         """Get all context from a specific source"""
         return [c for c in self.context_items if c.source == source]
 
-    def get_top_context(self, n: int = 5) -> List[ContextItem]:
+    def get_top_context(self, n: int = 5) -> list[ContextItem]:
         """Get top N most relevant context items"""
         sorted_context = sorted(
             self.context_items,
@@ -381,13 +381,10 @@ class WorkingMemory:
 
         # Continue if there are unresolved questions or uncertainties
         # Even with high confidence, open questions indicate incomplete reasoning
-        if len(self.open_questions) > 0 or len(self.uncertainties) > 0:
-            return True
-
         # High confidence and no open questions → reasoning complete
-        return False
+        return len(self.open_questions) > 0 or len(self.uncertainties) > 0
 
-    def set_continuous(self, conversation_id: str, previous_events: List[PerceivedEvent]) -> None:
+    def set_continuous(self, conversation_id: str, previous_events: list[PerceivedEvent]) -> None:
         """
         Mark this memory as part of a continuous conversation
 
@@ -409,7 +406,7 @@ class WorkingMemory:
         self.previous_events = list(previous_events)
         self.updated_at = now_utc()
 
-    def get_reasoning_summary(self) -> Dict[str, Any]:
+    def get_reasoning_summary(self) -> dict[str, Any]:
         """Get summary of reasoning process"""
         return {
             "total_passes": len(self.reasoning_passes),
@@ -425,7 +422,7 @@ class WorkingMemory:
             "uncertainties": len(self.uncertainties),
         }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "event": self.event.to_dict(),

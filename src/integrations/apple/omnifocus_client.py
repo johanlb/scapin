@@ -30,13 +30,13 @@ class OmniFocusClient:
     def add_task(
         self,
         name: str,
-        note: Optional[str] = None,
+        _note: Optional[str] = None,
         project_name: Optional[str] = None,
         tags: list[str] = None,
-        due_date: Optional[str] = None,
-        defer_date: Optional[str] = None,
-        estimated_minutes: Optional[int] = None,
-        flagged: bool = False
+        _due_date: Optional[str] = None,
+        _defer_date: Optional[str] = None,
+        _estimated_minutes: Optional[int] = None,
+        _flagged: bool = False
     ) -> dict[str, Any]:
         """
         Add a new task to OmniFocus
@@ -84,13 +84,13 @@ class OmniFocusClient:
         task_id: Optional[str] = None,
         task_name: Optional[str] = None,
         new_status: Optional[str] = None,
-        new_name: Optional[str] = None,
-        new_note: Optional[str] = None,
-        new_due_date: Optional[str] = None,
-        new_defer_date: Optional[str] = None,
-        new_flagged: Optional[bool] = None,
-        add_tags: list[str] = None,
-        remove_tags: list[str] = None
+        _new_name: Optional[str] = None,
+        _new_note: Optional[str] = None,
+        _new_due_date: Optional[str] = None,
+        _new_defer_date: Optional[str] = None,
+        _new_flagged: Optional[bool] = None,
+        _add_tags: list[str] = None,
+        _remove_tags: list[str] = None
     ) -> dict[str, Any]:
         """
         Edit an existing task

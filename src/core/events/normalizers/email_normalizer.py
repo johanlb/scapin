@@ -10,16 +10,15 @@ cognitive architecture.
 
 import hashlib
 import re
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional
 
 from src.core.events import (
-    PerceivedEvent,
     EventSource,
     EventType,
+    PerceivedEvent,
     UrgencyLevel,
 )
-from src.core.schemas import EmailMetadata, EmailContent
+from src.core.schemas import EmailContent, EmailMetadata
 from src.utils import now_utc
 
 
@@ -197,8 +196,8 @@ class EmailNormalizer:
     def _extract_entities(
         cls,
         metadata: EmailMetadata,
-        content: EmailContent
-    ) -> List:
+        _content: EmailContent
+    ) -> list:
         """
         Extract entities from email
 
@@ -297,7 +296,7 @@ class EmailNormalizer:
         cls,
         metadata: EmailMetadata,
         content: EmailContent
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Extract main topics from email
 
@@ -323,7 +322,7 @@ class EmailNormalizer:
         return topics
 
     @classmethod
-    def _extract_keywords(cls, content: EmailContent) -> List[str]:
+    def _extract_keywords(cls, _content: EmailContent) -> list[str]:
         """
         Extract important keywords from content
 
@@ -334,7 +333,7 @@ class EmailNormalizer:
         return []
 
     @classmethod
-    def _extract_urls(cls, content: EmailContent) -> List[str]:
+    def _extract_urls(cls, content: EmailContent) -> list[str]:
         """
         Extract URLs from email content
 
@@ -398,7 +397,7 @@ class EmailNormalizer:
         return metadata.in_reply_to
 
     @classmethod
-    def _extract_attachment_types(cls, metadata: EmailMetadata) -> List[str]:
+    def _extract_attachment_types(cls, metadata: EmailMetadata) -> list[str]:
         """Extract attachment file types"""
         if not metadata.attachments:
             return []

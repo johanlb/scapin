@@ -9,12 +9,13 @@ Gestionnaire d'état centralisé thread-safe pour:
 Utilise locks pour thread-safety (batch processing parallèle).
 """
 
-import threading
+import builtins
 import copy
-from typing import Any, Optional, Dict, List, Set
-from datetime import datetime
+import threading
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Any, Optional
 
 
 class ProcessingState(str, Enum):
@@ -48,7 +49,7 @@ class SessionStats:
     notes_enriched: int = 0
 
     # AI Performance
-    confidence_scores: List[int] = field(default_factory=list)
+    confidence_scores: list[int] = field(default_factory=list)
     ai_calls: int = 0
     multi_ai_verifications: int = 0
     user_overrides: int = 0
@@ -100,17 +101,17 @@ class StateManager:
 
     def __init__(self):
         """Initialize state manager"""
-        self._state: Dict[str, Any] = {}
+        self._state: dict[str, Any] = {}
         self._lock = threading.RLock()  # Reentrant lock to prevent deadlocks
         self._processing_state = ProcessingState.IDLE
         self._stats = SessionStats()
 
         # Caches
-        self._entity_cache: Dict[str, Any] = {}
-        self._context_cache: Dict[str, Any] = {}
+        self._entity_cache: dict[str, Any] = {}
+        self._context_cache: dict[str, Any] = {}
 
         # Processed tracking (éviter duplicates)
-        self._processed_message_ids: Set[str] = set()
+        self._processed_message_ids: set[str] = set()
 
     @property
     def stats(self) -> SessionStats:
@@ -219,7 +220,7 @@ class StateManager:
         """
         return self.increment(key, -amount)
 
-    def add_to_list(self, key: str, value: Any) -> List[Any]:
+    def add_to_list(self, key: str, value: Any) -> list[Any]:
         """
         Add value to list (thread-safe)
 
@@ -238,7 +239,7 @@ class StateManager:
             self._state[key] = current
             return current
 
-    def add_to_set(self, key: str, value: Any) -> Set[Any]:
+    def add_to_set(self, key: str, value: Any) -> builtins.set[Any]:
         """
         Add value to set (thread-safe)
 
@@ -329,7 +330,7 @@ class StateManager:
             self._processing_state = ProcessingState.IDLE
             return self._stats
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Export state as dictionary (deep copy for thread safety)
 

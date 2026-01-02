@@ -9,13 +9,13 @@ System health monitoring for:
 - Git repository status
 """
 
-import time
-import threading
+import contextlib
 import shutil
+import threading
+import time
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, Callable
 from pathlib import Path
-import logging
+from typing import Callable, Optional
 
 from src.core.schemas import HealthCheck, ServiceStatus, SystemHealth
 from src.monitoring.logger import get_logger
@@ -67,8 +67,8 @@ class HealthCheckService:
     """
 
     def __init__(self):
-        self._checkers: Dict[str, Callable[[], HealthCheck]] = {}
-        self._cache: Dict[str, HealthCheck] = {}
+        self._checkers: dict[str, Callable[[], HealthCheck]] = {}
+        self._cache: dict[str, HealthCheck] = {}
         self._cache_duration_seconds = 60  # Cache health checks for 1 minute
 
     def register_checker(self, service: str, checker_func: Callable[[], HealthCheck]) -> None:
@@ -151,7 +151,7 @@ class HealthCheckService:
         """
         logger.info("Running system health check")
 
-        checks: List[HealthCheck] = []
+        checks: list[HealthCheck] = []
         for service in self._checkers:
             check = self.check_service(service, use_cache=use_cache)
             if check:
@@ -226,7 +226,7 @@ def check_filesystem_health(base_path: Path) -> HealthCheck:
                 details={"path": str(base_path), "writable": True},
             )
 
-        except (PermissionError, IOError) as e:
+        except (OSError, PermissionError) as e:
             return HealthCheck(
                 service="filesystem",
                 status=ServiceStatus.DEGRADED,
@@ -364,7 +364,7 @@ def check_config_health(config_path: Path) -> HealthCheck:
         try:
             from src.core.config_manager import ConfigManager
 
-            config = ConfigManager.load()
+            ConfigManager.load()
 
             return HealthCheck(
                 service="config",
@@ -506,11 +506,8 @@ def check_imap_health() -> HealthCheck:
         finally:
             # Always try to disconnect, even if connect() failed
             if imap_client:
-                try:
+                with contextlib.suppress(Exception):
                     imap_client.disconnect()
-                except Exception:
-                    # Ignore errors during cleanup
-                    pass
 
     except Exception as e:
         return HealthCheck(
@@ -533,8 +530,8 @@ def check_ai_api_health() -> HealthCheck:
     """
     try:
         # Import local to avoid circular dependency
-        from src.core.config_manager import get_config
         from src.ai.model_selector import ModelSelector, ModelTier
+        from src.core.config_manager import get_config
 
         config = get_config()
 
@@ -561,7 +558,7 @@ def check_ai_api_health() -> HealthCheck:
             return HealthCheck(
                 service="ai_api",
                 status=ServiceStatus.HEALTHY,
-                message=f"Anthropic API connection successful",
+                message="Anthropic API connection successful",
                 details={
                     "provider": "anthropic",
                     "api_available": True,
