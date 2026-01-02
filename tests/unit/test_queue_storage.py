@@ -40,14 +40,13 @@ def sample_metadata():
         subject="Test Email Subject",
         from_address="sender@example.com",
         from_name="Test Sender",
-        to_address="recipient@example.com",
+        to_addresses=["recipient@example.com"],
         date=datetime(2025, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
         has_attachments=False,
         folder="INBOX",
         message_id="<test@example.com>",
         in_reply_to=None,
-        references=None,
-        labels=[],
+        references=[],
     )
 
 
@@ -59,11 +58,7 @@ def sample_analysis():
         confidence=75,
         category=EmailCategory.NEWSLETTER,
         reasoning="This appears to be a newsletter based on content patterns.",
-        suggested_folder=None,
-        task_title=None,
-        task_notes=None,
-        requires_reply=False,
-        priority=None,
+        destination=None,
     )
 
 

@@ -111,10 +111,10 @@ class TestErrorStoreInit:
         
         conn.close()
 
-    def test_init_default_path(self):
+    def test_init_default_path(self, mock_config):
         """Test initialization with default path from config"""
         reset_error_store()
-        # This will use config default
+        # This will use config default (mocked)
         store = get_error_store()
         assert store.db_path.exists()
 
@@ -613,23 +613,23 @@ class TestErrorStoreThreadSafety:
 class TestErrorStoreSingleton:
     """Test singleton pattern"""
 
-    def test_get_error_store_singleton(self):
+    def test_get_error_store_singleton(self, mock_config):
         """Test that get_error_store returns same instance"""
         reset_error_store()
-        
+
         store1 = get_error_store()
         store2 = get_error_store()
-        
+
         assert store1 is store2
 
-    def test_reset_error_store(self):
+    def test_reset_error_store(self, mock_config):
         """Test that reset creates new instance"""
         reset_error_store()
-        
+
         store1 = get_error_store()
         reset_error_store()
         store2 = get_error_store()
-        
+
         assert store1 is not store2
 
 

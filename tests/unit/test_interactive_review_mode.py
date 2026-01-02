@@ -608,9 +608,10 @@ class TestInteractiveReviewModeFormatEmailAge:
     def test_format_email_age_just_now(self, review_mode):
         """Test formatting very recent email"""
         from src.utils import now_utc
+        from datetime import timedelta
 
         now = now_utc()
-        recent = (now.replace(second=now.second - 10)).isoformat()
+        recent = (now - timedelta(seconds=10)).isoformat()
 
         result = review_mode._format_email_age(recent)
 
@@ -619,9 +620,10 @@ class TestInteractiveReviewModeFormatEmailAge:
     def test_format_email_age_minutes(self, review_mode):
         """Test formatting email from minutes ago"""
         from src.utils import now_utc
+        from datetime import timedelta
 
         now = now_utc()
-        minutes_ago = (now.replace(minute=now.minute - 5)).isoformat()
+        minutes_ago = (now - timedelta(minutes=5)).isoformat()
 
         result = review_mode._format_email_age(minutes_ago)
 

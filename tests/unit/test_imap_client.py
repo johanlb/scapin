@@ -53,7 +53,8 @@ class TestIMAPClientInit:
     def test_init_with_config(self, email_config):
         """Test initialization with config"""
         client = IMAPClient(email_config)
-        assert client.config == email_config
+        # IMAPClient extracts default account from EmailConfig
+        assert client.config == email_config.get_default_account()
         assert client._connection is None
 
     def test_init_creates_lock(self, imap_client):

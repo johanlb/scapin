@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 
 from src.core.events import (
-    EventType,
+    ProcessingEventType,
     ProcessingEvent,
     EventBus,
     get_event_bus,
@@ -33,19 +33,19 @@ def reset_global_bus():
     reset_event_bus()
 
 
-class TestEventType:
-    """Test EventType enum"""
+class TestProcessingEventType:
+    """Test ProcessingEventType enum"""
 
     def test_event_types_exist(self):
         """Test all event types are defined"""
-        assert EventType.ACCOUNT_STARTED == "account_started"
-        assert EventType.EMAIL_COMPLETED == "email_completed"
-        assert EventType.BATCH_COMPLETED == "batch_completed"
+        assert ProcessingEventType.ACCOUNT_STARTED == "account_started"
+        assert ProcessingEventType.EMAIL_COMPLETED == "email_completed"
+        assert ProcessingEventType.BATCH_COMPLETED == "batch_completed"
 
     def test_event_type_is_string(self):
-        """Test EventType values are strings"""
-        assert isinstance(EventType.EMAIL_STARTED.value, str)
-        assert EventType.EMAIL_STARTED.value == "email_started"
+        """Test ProcessingEventType values are strings"""
+        assert isinstance(ProcessingEventType.EMAIL_STARTED.value, str)
+        assert ProcessingEventType.EMAIL_STARTED.value == "email_started"
 
 
 class TestProcessingEvent:
@@ -53,16 +53,16 @@ class TestProcessingEvent:
 
     def test_create_minimal_event(self):
         """Test creating event with minimal fields"""
-        event = ProcessingEvent(event_type=EventType.EMAIL_STARTED)
+        event = ProcessingEvent(event_type=ProcessingEventType.EMAIL_STARTED)
 
-        assert event.event_type == EventType.EMAIL_STARTED
+        assert event.event_type == ProcessingEventType.EMAIL_STARTED
         assert isinstance(event.timestamp, datetime)
         assert event.email_id is None
 
     def test_create_full_event(self):
         """Test creating event with all fields"""
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_COMPLETED,
+            event_type=ProcessingEventType.EMAIL_COMPLETED,
             account_id="personal",
             account_name="Personal Email",
             email_id=123,
@@ -78,7 +78,7 @@ class TestProcessingEvent:
             metadata={"extra": "data"}
         )
 
-        assert event.event_type == EventType.EMAIL_COMPLETED
+        assert event.event_type == ProcessingEventType.EMAIL_COMPLETED
         assert event.account_id == "personal"
         assert event.email_id == 123
         assert event.subject == "Test Email"
@@ -88,7 +88,7 @@ class TestProcessingEvent:
     def test_event_str_representation(self):
         """Test string representation of event"""
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_COMPLETED,
+            event_type=ProcessingEventType.EMAIL_COMPLETED,
             email_id=123,
             action="archive",
             current=5,
@@ -104,7 +104,7 @@ class TestProcessingEvent:
     def test_error_event(self):
         """Test event with error"""
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_ERROR,
+            event_type=ProcessingEventType.EMAIL_ERROR,
             email_id=123,
             error="Connection failed",
             error_type="ConnectionError"
@@ -124,9 +124,9 @@ class TestEventBus:
         def handler(event):
             called.append(event)
 
-        event_bus.subscribe(EventType.EMAIL_STARTED, handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, handler)
 
-        assert event_bus.get_subscriber_count(EventType.EMAIL_STARTED) == 1
+        assert event_bus.get_subscriber_count(ProcessingEventType.EMAIL_STARTED) == 1
         assert event_bus.get_subscriber_count() == 1
 
     def test_emit_event_calls_subscriber(self, event_bus):
@@ -136,10 +136,10 @@ class TestEventBus:
         def handler(event):
             called.append(event)
 
-        event_bus.subscribe(EventType.EMAIL_STARTED, handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, handler)
 
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_STARTED,
+            event_type=ProcessingEventType.EMAIL_STARTED,
             email_id=123
         )
         event_bus.emit(event)
@@ -158,10 +158,10 @@ class TestEventBus:
         def handler2(event):
             calls_2.append(event)
 
-        event_bus.subscribe(EventType.EMAIL_STARTED, handler1)
-        event_bus.subscribe(EventType.EMAIL_STARTED, handler2)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, handler1)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, handler2)
 
-        event = ProcessingEvent(event_type=EventType.EMAIL_STARTED)
+        event = ProcessingEvent(event_type=ProcessingEventType.EMAIL_STARTED)
         event_bus.emit(event)
 
         assert len(calls_1) == 1
@@ -178,16 +178,16 @@ class TestEventBus:
         def completed_handler(event):
             completed_calls.append(event)
 
-        event_bus.subscribe(EventType.EMAIL_STARTED, started_handler)
-        event_bus.subscribe(EventType.EMAIL_COMPLETED, completed_handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, started_handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_COMPLETED, completed_handler)
 
         # Emit started event
-        event_bus.emit(ProcessingEvent(event_type=EventType.EMAIL_STARTED))
+        event_bus.emit(ProcessingEvent(event_type=ProcessingEventType.EMAIL_STARTED))
         assert len(started_calls) == 1
         assert len(completed_calls) == 0
 
         # Emit completed event
-        event_bus.emit(ProcessingEvent(event_type=EventType.EMAIL_COMPLETED))
+        event_bus.emit(ProcessingEvent(event_type=ProcessingEventType.EMAIL_COMPLETED))
         assert len(started_calls) == 1
         assert len(completed_calls) == 1
 
@@ -198,13 +198,13 @@ class TestEventBus:
         def handler(event):
             called.append(event)
 
-        event_bus.subscribe(EventType.EMAIL_STARTED, handler)
-        event_bus.unsubscribe(EventType.EMAIL_STARTED, handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, handler)
+        event_bus.unsubscribe(ProcessingEventType.EMAIL_STARTED, handler)
 
-        event_bus.emit(ProcessingEvent(event_type=EventType.EMAIL_STARTED))
+        event_bus.emit(ProcessingEvent(event_type=ProcessingEventType.EMAIL_STARTED))
 
         assert len(called) == 0
-        assert event_bus.get_subscriber_count(EventType.EMAIL_STARTED) == 0
+        assert event_bus.get_subscriber_count(ProcessingEventType.EMAIL_STARTED) == 0
 
     def test_callback_exception_caught(self, event_bus):
         """Test that callback exceptions don't crash emit"""
@@ -216,11 +216,11 @@ class TestEventBus:
         def good_handler(event):
             called_good.append(event)
 
-        event_bus.subscribe(EventType.EMAIL_STARTED, broken_handler)
-        event_bus.subscribe(EventType.EMAIL_STARTED, good_handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, broken_handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, good_handler)
 
         # Should not raise, should call good_handler
-        event_bus.emit(ProcessingEvent(event_type=EventType.EMAIL_STARTED))
+        event_bus.emit(ProcessingEvent(event_type=ProcessingEventType.EMAIL_STARTED))
 
         assert len(called_good) == 1
 
@@ -229,8 +229,8 @@ class TestEventBus:
         def handler(event):
             pass
 
-        event_bus.subscribe(EventType.EMAIL_STARTED, handler)
-        event_bus.subscribe(EventType.EMAIL_COMPLETED, handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_COMPLETED, handler)
 
         assert event_bus.get_subscriber_count() == 2
 
@@ -244,7 +244,7 @@ class TestEventBus:
         assert event_bus.get_event_count() == 0
 
         for i in range(5):
-            event_bus.emit(ProcessingEvent(event_type=EventType.EMAIL_STARTED))
+            event_bus.emit(ProcessingEvent(event_type=ProcessingEventType.EMAIL_STARTED))
 
         assert event_bus.get_event_count() == 5
 
@@ -257,7 +257,7 @@ class TestThreadSafety:
         def subscribe_handler(thread_id):
             def handler(event):
                 pass
-            event_bus.subscribe(EventType.EMAIL_STARTED, handler)
+            event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, handler)
 
         threads = []
         for i in range(10):
@@ -268,7 +268,7 @@ class TestThreadSafety:
         for t in threads:
             t.join()
 
-        assert event_bus.get_subscriber_count(EventType.EMAIL_STARTED) == 10
+        assert event_bus.get_subscriber_count(ProcessingEventType.EMAIL_STARTED) == 10
 
     def test_concurrent_emit(self, event_bus):
         """Test concurrent event emission"""
@@ -279,12 +279,12 @@ class TestThreadSafety:
             with lock:
                 calls.append(event)
 
-        event_bus.subscribe(EventType.EMAIL_STARTED, handler)
+        event_bus.subscribe(ProcessingEventType.EMAIL_STARTED, handler)
 
         def emit_events(count):
             for i in range(count):
                 event_bus.emit(ProcessingEvent(
-                    event_type=EventType.EMAIL_STARTED,
+                    event_type=ProcessingEventType.EMAIL_STARTED,
                     email_id=i
                 ))
 

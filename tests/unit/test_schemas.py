@@ -152,24 +152,24 @@ class TestEmailAnalysis:
         assert analysis.destination == "Archive/2024"
 
     def test_confidence_range_validation(self):
-        """Test confidence is clamped to 0-100"""
-        # Too high
-        analysis = EmailAnalysis(
-            action=EmailAction.DELETE,
-            category=EmailCategory.SPAM,
-            confidence=150,  # Will be clamped to 100
-            reasoning="Spam email",
-        )
-        assert analysis.confidence == 100
+        """Test confidence must be 0-100"""
+        # Too high - should raise ValidationError
+        with pytest.raises(ValidationError):
+            EmailAnalysis(
+                action=EmailAction.DELETE,
+                category=EmailCategory.SPAM,
+                confidence=150,  # Out of range
+                reasoning="Spam email",
+            )
 
-        # Too low
-        analysis2 = EmailAnalysis(
-            action=EmailAction.KEEP,
-            category=EmailCategory.OTHER,
-            confidence=-10,  # Will be clamped to 0
-            reasoning="Unknown category, needs review",
-        )
-        assert analysis2.confidence == 0
+        # Too low - should raise ValidationError
+        with pytest.raises(ValidationError):
+            EmailAnalysis(
+                action=EmailAction.KEEP,
+                category=EmailCategory.OTHER,
+                confidence=-10,  # Out of range
+                reasoning="Unknown category, needs review",
+            )
 
     def test_reasoning_min_length(self):
         """Test reasoning must be at least 10 chars"""

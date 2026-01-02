@@ -69,19 +69,19 @@ class TestEmailProcessorInit:
     @patch('src.core.email_processor.get_state_manager')
     @patch('src.core.email_processor.IMAPClient')
     @patch('src.core.email_processor.get_ai_router')
-    def test_init(self, mock_get_router, mock_imap, mock_get_state, mock_get_config):
+    def test_init(self, mock_get_router, mock_imap, mock_get_state, mock_get_config, mock_config):
         """Test processor initialization"""
-        mock_config = MagicMock()
-        mock_config.email = MagicMock()
-        mock_config.ai = MagicMock()
-        mock_get_config.return_value = mock_config
+        local_mock_config = MagicMock()
+        local_mock_config.email = MagicMock()
+        local_mock_config.ai = MagicMock()
+        mock_get_config.return_value = local_mock_config
 
         processor = EmailProcessor()
 
-        assert processor.config == mock_config
+        assert processor.config == local_mock_config
         mock_get_state.assert_called_once()
-        mock_imap.assert_called_once_with(mock_config.email)
-        mock_get_router.assert_called_once_with(mock_config.ai)
+        mock_imap.assert_called_once_with(local_mock_config.email)
+        mock_get_router.assert_called_once_with(local_mock_config.ai)
 
 
 class TestProcessInbox:
@@ -99,11 +99,11 @@ class TestProcessInbox:
         mock_get_config,
         sample_metadata,
         sample_content,
-        sample_analysis
+        sample_analysis,
+        mock_config  # Fixture for global config mock
     ):
         """Test successful inbox processing"""
-        # Setup mocks
-        mock_config = MagicMock()
+        # Setup mocks - use the mock_config fixture directly
         mock_config.email.inbox_folder = "INBOX"
         mock_config.ai.confidence_threshold = 90
         mock_get_config.return_value = mock_config
@@ -144,10 +144,10 @@ class TestProcessInbox:
         mock_get_router,
         mock_imap_class,
         mock_get_state,
-        mock_get_config
+        mock_get_config,
+        mock_config
     ):
         """Test processing empty inbox"""
-        mock_config = MagicMock()
         mock_config.email.inbox_folder = "INBOX"
         mock_get_config.return_value = mock_config
 
@@ -174,10 +174,10 @@ class TestProcessInbox:
         mock_get_state,
         mock_get_config,
         sample_metadata,
-        sample_content
+        sample_content,
+        mock_config
     ):
         """Test inbox processing with limit"""
-        mock_config = MagicMock()
         mock_config.email.inbox_folder = "INBOX"
         mock_get_config.return_value = mock_config
 
@@ -211,10 +211,10 @@ class TestProcessSingleEmail:
         mock_get_config,
         sample_metadata,
         sample_content,
-        sample_analysis
+        sample_analysis,
+        mock_config
     ):
         """Test successful single email processing"""
-        mock_config = MagicMock()
         mock_get_config.return_value = mock_config
 
         mock_state = MagicMock()
@@ -247,10 +247,10 @@ class TestProcessSingleEmail:
         mock_get_state,
         mock_get_config,
         sample_metadata,
-        sample_content
+        sample_content,
+        mock_config
     ):
         """Test processing already processed email"""
-        mock_config = MagicMock()
         mock_get_config.return_value = mock_config
 
         mock_state = MagicMock()
@@ -273,10 +273,10 @@ class TestProcessSingleEmail:
         mock_get_state,
         mock_get_config,
         sample_metadata,
-        sample_content
+        sample_content,
+        mock_config
     ):
         """Test processing when analysis fails"""
-        mock_config = MagicMock()
         mock_get_config.return_value = mock_config
 
         mock_state = MagicMock()
@@ -306,10 +306,10 @@ class TestExecuteAction:
         mock_imap_class,
         mock_get_state,
         mock_get_config,
-        sample_metadata
+        sample_metadata,
+        mock_config
     ):
         """Test executing archive action"""
-        mock_config = MagicMock()
         mock_config.email.archive_folder = "Archive"
         mock_get_config.return_value = mock_config
 
@@ -347,10 +347,10 @@ class TestExecuteAction:
         mock_imap_class,
         mock_get_state,
         mock_get_config,
-        sample_metadata
+        sample_metadata,
+        mock_config
     ):
         """Test executing delete action"""
-        mock_config = MagicMock()
         mock_get_config.return_value = mock_config
 
         mock_state = MagicMock()
@@ -387,10 +387,10 @@ class TestExecuteAction:
         mock_imap_class,
         mock_get_state,
         mock_get_config,
-        sample_metadata
+        sample_metadata,
+        mock_config
     ):
         """Test executing task creation action"""
-        mock_config = MagicMock()
         mock_get_config.return_value = mock_config
 
         mock_state = MagicMock()
@@ -432,10 +432,10 @@ class TestGetProcessingStats:
         mock_get_router,
         mock_imap_class,
         mock_get_state,
-        mock_get_config
+        mock_get_config,
+        mock_config
     ):
         """Test getting processing statistics"""
-        mock_config = MagicMock()
         mock_get_config.return_value = mock_config
 
         mock_state = MagicMock()

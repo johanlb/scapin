@@ -10,7 +10,7 @@ from rich.console import Console
 from io import StringIO
 
 from src.cli.display_manager import DisplayManager
-from src.core.events import EventType, ProcessingEvent, EventBus
+from src.core.events import ProcessingEventType, ProcessingEvent, EventBus
 
 
 class TestDisplayManager:
@@ -80,7 +80,7 @@ class TestDisplayManager:
         """Test processing started event handler"""
         display = DisplayManager(self.console)
 
-        event = ProcessingEvent(event_type=EventType.PROCESSING_STARTED)
+        event = ProcessingEvent(event_type=ProcessingEventType.PROCESSING_STARTED)
         display._on_processing_started(event)
 
         output = self.output.getvalue()
@@ -91,7 +91,7 @@ class TestDisplayManager:
         display = DisplayManager(self.console)
 
         event = ProcessingEvent(
-            event_type=EventType.ACCOUNT_STARTED,
+            event_type=ProcessingEventType.ACCOUNT_STARTED,
             account_id="personal",
             account_name="Personal (iCloud)",
         )
@@ -108,7 +108,7 @@ class TestDisplayManager:
         display.current_account_name = "Test Account"
 
         event = ProcessingEvent(
-            event_type=EventType.ACCOUNT_COMPLETED,
+            event_type=ProcessingEventType.ACCOUNT_COMPLETED,
             metadata={"stats": {"total_processed": 25}},
         )
         display._on_account_completed(event)
@@ -123,7 +123,7 @@ class TestDisplayManager:
         display = DisplayManager(self.console)
 
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_COMPLETED,
+            event_type=ProcessingEventType.EMAIL_COMPLETED,
             email_id=123,
             subject="Test Email",
             from_address="test@example.com",
@@ -151,7 +151,7 @@ class TestDisplayManager:
         display = DisplayManager(self.console)
 
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_QUEUED,
+            event_type=ProcessingEventType.EMAIL_QUEUED,
             email_id=456,
             subject="Queued Email",
             from_address="queued@example.com",
@@ -172,7 +172,7 @@ class TestDisplayManager:
         display = DisplayManager(self.console)
 
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_ERROR,
+            event_type=ProcessingEventType.EMAIL_ERROR,
             email_id=789,
             subject="Error Email",
             from_address="error@example.com",
@@ -256,12 +256,12 @@ class TestDisplayManager:
 
         # Emit events
         display.event_bus.emit(
-            ProcessingEvent(event_type=EventType.PROCESSING_STARTED)
+            ProcessingEvent(event_type=ProcessingEventType.PROCESSING_STARTED)
         )
 
         display.event_bus.emit(
             ProcessingEvent(
-                event_type=EventType.EMAIL_COMPLETED,
+                event_type=ProcessingEventType.EMAIL_COMPLETED,
                 email_id=123,
                 subject="Integration Test",
                 from_address="test@example.com",

@@ -9,7 +9,7 @@ from unittest.mock import Mock, MagicMock, patch
 from io import StringIO
 from rich.console import Console
 
-from src.core.events import EventBus, EventType, ProcessingEvent, reset_event_bus
+from src.core.events import EventBus, ProcessingEventType, ProcessingEvent, reset_event_bus
 from src.cli.display_manager import DisplayManager
 from src.monitoring.logger import PKMLogger
 
@@ -43,7 +43,7 @@ class TestEventFlowIntegration:
 
         # Emit processing started event
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.PROCESSING_STARTED,
+            event_type=ProcessingEventType.PROCESSING_STARTED,
             metadata={"limit": 50, "auto_execute": True}
         ))
 
@@ -59,7 +59,7 @@ class TestEventFlowIntegration:
 
         # Emit email completed event
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.EMAIL_COMPLETED,
+            event_type=ProcessingEventType.EMAIL_COMPLETED,
             email_id=123,
             subject="Test Email",
             from_address="test@example.com",
@@ -91,7 +91,7 @@ class TestEventFlowIntegration:
 
         # Emit email queued event
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.EMAIL_QUEUED,
+            event_type=ProcessingEventType.EMAIL_QUEUED,
             email_id=456,
             subject="Low Confidence Email",
             from_address="queued@example.com",
@@ -118,7 +118,7 @@ class TestEventFlowIntegration:
 
         # Emit error event
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.EMAIL_ERROR,
+            event_type=ProcessingEventType.EMAIL_ERROR,
             email_id=789,
             subject="Error Email",
             from_address="error@example.com",
@@ -144,14 +144,14 @@ class TestEventFlowIntegration:
 
         # Emit account started
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.ACCOUNT_STARTED,
+            event_type=ProcessingEventType.ACCOUNT_STARTED,
             account_id="personal",
             account_name="Personal Email (iCloud)"
         ))
 
         # Emit account completed
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.ACCOUNT_COMPLETED,
+            event_type=ProcessingEventType.ACCOUNT_COMPLETED,
             account_id="personal",
             metadata={"stats": {"total_processed": 25}}
         ))
@@ -173,13 +173,13 @@ class TestEventFlowIntegration:
 
         # Processing started
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.PROCESSING_STARTED
+            event_type=ProcessingEventType.PROCESSING_STARTED
         ))
 
         # Process 3 emails
         for i in range(1, 4):
             display.event_bus.emit(ProcessingEvent(
-                event_type=EventType.EMAIL_COMPLETED,
+                event_type=ProcessingEventType.EMAIL_COMPLETED,
                 email_id=i,
                 subject=f"Email {i}",
                 from_address=f"user{i}@example.com",
@@ -213,7 +213,7 @@ class TestEventFlowIntegration:
 
         # High confidence - auto-executed
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.EMAIL_COMPLETED,
+            event_type=ProcessingEventType.EMAIL_COMPLETED,
             email_id=1,
             subject="High Confidence",
             from_address="high@example.com",
@@ -225,7 +225,7 @@ class TestEventFlowIntegration:
 
         # Low confidence - queued
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.EMAIL_QUEUED,
+            event_type=ProcessingEventType.EMAIL_QUEUED,
             email_id=2,
             subject="Low Confidence",
             from_address="low@example.com",
@@ -236,7 +236,7 @@ class TestEventFlowIntegration:
 
         # Error
         display.event_bus.emit(ProcessingEvent(
-            event_type=EventType.EMAIL_ERROR,
+            event_type=ProcessingEventType.EMAIL_ERROR,
             email_id=3,
             subject="Error Email",
             from_address="error@example.com",
@@ -328,12 +328,12 @@ class TestEventBusIntegration:
             calls_2.append(event)
 
         # Subscribe both handlers
-        bus.subscribe(EventType.EMAIL_COMPLETED, handler1)
-        bus.subscribe(EventType.EMAIL_COMPLETED, handler2)
+        bus.subscribe(ProcessingEventType.EMAIL_COMPLETED, handler1)
+        bus.subscribe(ProcessingEventType.EMAIL_COMPLETED, handler2)
 
         # Emit event
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_COMPLETED,
+            event_type=ProcessingEventType.EMAIL_COMPLETED,
             email_id=123
         )
         bus.emit(event)
@@ -360,12 +360,12 @@ class TestEventBusIntegration:
             good_calls.append(event)
 
         # Subscribe both
-        bus.subscribe(EventType.EMAIL_COMPLETED, broken_handler)
-        bus.subscribe(EventType.EMAIL_COMPLETED, good_handler)
+        bus.subscribe(ProcessingEventType.EMAIL_COMPLETED, broken_handler)
+        bus.subscribe(ProcessingEventType.EMAIL_COMPLETED, good_handler)
 
         # Emit event
         event = ProcessingEvent(
-            event_type=EventType.EMAIL_COMPLETED,
+            event_type=ProcessingEventType.EMAIL_COMPLETED,
             email_id=123
         )
         bus.emit(event)

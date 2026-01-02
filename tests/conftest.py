@@ -47,11 +47,36 @@ def reset_singletons():
     PKMLogger._configured = False
     PKMLogger._loggers.clear()
 
+    # Reset error store and manager
+    try:
+        from src.core.error_store import reset_error_store
+        reset_error_store()
+    except Exception:
+        pass
+
+    try:
+        from src.core.error_manager import reset_error_manager
+        reset_error_manager()
+    except Exception:
+        pass
+
     yield
 
     # Cleanup after test
     ConfigManager._instance = None
     PKMLogger._configured = False
+
+    try:
+        from src.core.error_store import reset_error_store
+        reset_error_store()
+    except Exception:
+        pass
+
+    try:
+        from src.core.error_manager import reset_error_manager
+        reset_error_manager()
+    except Exception:
+        pass
 
 
 # ============================================================================
@@ -250,3 +275,102 @@ def capture_logs(caplog):
     """Fixture to capture logs with proper level"""
     caplog.set_level("DEBUG")
     return caplog
+
+
+# ============================================================================
+# Mock Config Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def mock_config(tmp_path):
+    """
+    Provide a mock PKMConfig for tests that need config
+
+    This fixture patches get_config() to return a mock config,
+    allowing tests to run without a real .env file.
+
+    Usage:
+        def test_something(mock_config):
+            # config is automatically mocked
+            from src.core.config_manager import get_config
+            config = get_config()  # Returns mock_config
+    """
+    from unittest.mock import MagicMock, patch
+
+    # Create mock storage config
+    mock_storage = MagicMock()
+    mock_storage.database_path = tmp_path / "test_pkm.db"
+    mock_storage.notes_path = tmp_path / "test_notes"
+
+    # Create mock email account config
+    mock_account = MagicMock()
+    mock_account.account_id = "default"
+    mock_account.account_name = "Default Account"
+    mock_account.enabled = True
+    mock_account.imap_host = "imap.example.com"
+    mock_account.imap_port = 993
+    mock_account.imap_username = "test@example.com"
+    mock_account.imap_password = "test_password"
+    mock_account.imap_timeout = 30
+    mock_account.imap_read_timeout = 60
+    mock_account.inbox_folder = "INBOX"
+    mock_account.archive_folder = "Archive"
+    mock_account.reference_folder = "Reference"
+    mock_account.delete_folder = "Trash"
+    mock_account.max_workers = 10
+    mock_account.batch_size = 100
+
+    # Create mock email config
+    mock_email = MagicMock()
+    mock_email.accounts = [mock_account]
+    mock_email.default_account_id = "default"
+    mock_email.imap_host = "imap.example.com"
+    mock_email.imap_port = 993
+    mock_email.imap_username = "test@example.com"
+    mock_email.imap_password = "test_password"
+    mock_email.get_default_account.return_value = mock_account
+    mock_email.get_account.return_value = mock_account
+
+    # Create mock AI config
+    mock_ai = MagicMock()
+    mock_ai.anthropic_api_key = "test-api-key"
+    mock_ai.confidence_threshold = 90
+    mock_ai.rate_limit_per_minute = 40
+
+    # Create mock integrations config
+    mock_integrations = MagicMock()
+    mock_integrations.omnifocus_enabled = True
+
+    # Create mock monitoring config
+    mock_monitoring = MagicMock()
+    mock_monitoring.log_level = "INFO"
+    mock_monitoring.error_reporting_enabled = True
+
+    # Create main mock config
+    mock_cfg = MagicMock()
+    mock_cfg.storage = mock_storage
+    mock_cfg.email = mock_email
+    mock_cfg.ai = mock_ai
+    mock_cfg.integrations = mock_integrations
+    mock_cfg.monitoring = mock_monitoring
+    mock_cfg.environment = "test"
+
+    with patch('src.core.config_manager.get_config', return_value=mock_cfg):
+        with patch('src.core.config_manager.ConfigManager.get', return_value=mock_cfg):
+            # Also patch where it's imported in other modules
+            with patch('src.core.error_store.get_config', return_value=mock_cfg):
+                yield mock_cfg
+
+
+@pytest.fixture
+def temp_db_path(tmp_path):
+    """Provide a temporary database path for tests"""
+    db_path = tmp_path / "test.db"
+    yield db_path
+    # Cleanup
+    if db_path.exists():
+        try:
+            db_path.unlink()
+        except Exception:
+            pass

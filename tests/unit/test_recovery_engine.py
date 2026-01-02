@@ -61,7 +61,7 @@ class TestRecoveryEngineInit:
         engine = RecoveryEngine(default_timeout=60)
         assert engine.default_timeout == 60
 
-    def test_init_recovery_engine_helper(self):
+    def test_init_recovery_engine_helper(self, mock_config):
         """Test init_recovery_engine helper function"""
         engine = init_recovery_engine()
         assert isinstance(engine, RecoveryEngine)
@@ -380,9 +380,9 @@ class TestRecoveryHandlerRegistration:
         # Handlers should be registered (can't directly test, but shouldn't error)
         assert True
 
-    def test_register_handlers_default_manager(self, recovery_engine):
+    def test_register_handlers_default_manager(self, recovery_engine, mock_config):
         """Test registering with default error manager"""
-        # Should use global error manager
+        # Should use global error manager (mocked)
         recovery_engine.register_handlers(None)
         assert True
 
