@@ -4,21 +4,19 @@ Tests for Sganarelle Bug Fixes
 Tests validating all critical and high priority bug fixes applied.
 """
 
-import pytest
 import time
-from datetime import datetime
-from pathlib import Path
 from threading import Thread
-from concurrent.futures import ThreadPoolExecutor
-import tempfile
 
-from src.sganarelle.learning_engine import LearningEngine, LearningEngineError
-from src.sganarelle.pattern_store import PatternStore, PatternStoreError, create_pattern_from_execution
-from src.sganarelle.provider_tracker import ProviderTracker
+import pytest
+
+from src.core.events.universal_event import now_utc
 from src.sganarelle.feedback_processor import FeedbackProcessor
-from src.sganarelle.types import UserFeedback, Pattern, PatternType
-from src.core.events.universal_event import PerceivedEvent, EventType, UrgencyLevel, now_utc
-from src.core.memory.working_memory import WorkingMemory
+from src.sganarelle.learning_engine import LearningEngine, LearningEngineError
+from src.sganarelle.pattern_store import (
+    PatternStore,
+)
+from src.sganarelle.provider_tracker import ProviderTracker
+from src.sganarelle.types import Pattern, PatternType, UserFeedback
 
 
 class TestLearningEngineExceptionHandling:

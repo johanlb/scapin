@@ -23,6 +23,7 @@ class EventSource(str, Enum):
     All inputs to the cognitive system are categorized by source.
     """
     EMAIL = "email"
+    TEAMS = "teams"
     FILE = "file"
     QUESTION = "question"
     DOCUMENT = "document"

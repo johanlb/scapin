@@ -4,13 +4,13 @@ Tests for Display Manager (Phase 1)
 Tests the DisplayManager that renders email processing events sequentially.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from rich.console import Console
 from io import StringIO
+from unittest.mock import Mock
 
+from rich.console import Console
+
+from src.core.events import EventBus, ProcessingEvent, ProcessingEventType
 from src.jeeves.display_manager import DisplayManager
-from src.core.events import ProcessingEventType, ProcessingEvent, EventBus
 
 
 class TestDisplayManager:

@@ -8,18 +8,19 @@ Tests the complete knowledge base context retrieval integration:
 4. Use context in Sancho Pass 2 reasoning
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock
 
-from src.passepartout import NoteManager, ContextEngine, EmbeddingGenerator, VectorStore
-from src.sancho.reasoning_engine import ReasoningEngine
-from src.core.events import PerceivedEvent, EventSource, Entity
+import pytest
+
+from src.core.events import Entity
 from src.core.events.normalizers.email_normalizer import EmailNormalizer
-from src.core.schemas import EmailMetadata, EmailContent
-from src.sancho.router import AIRouter, AIModel
+from src.core.schemas import EmailContent, EmailMetadata
+from src.passepartout import ContextEngine, NoteManager
+from src.sancho.reasoning_engine import ReasoningEngine
+from src.sancho.router import AIRouter
 from src.sancho.templates import TemplateManager
 from src.utils import now_utc
 

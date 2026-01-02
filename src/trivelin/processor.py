@@ -61,7 +61,34 @@ class EmailProcessor:
         from src.core.recovery_engine import init_recovery_engine
         self.recovery_engine = init_recovery_engine()
 
-        logger.info("Email processor initialized with error management")
+        # Initialize cognitive pipeline if enabled
+        self.cognitive_pipeline = None
+        if self.config.processing.enable_cognitive_reasoning:
+            self._init_cognitive_pipeline()
+
+        logger.info(
+            "Email processor initialized",
+            extra={
+                "cognitive_enabled": self.cognitive_pipeline is not None,
+            }
+        )
+
+    def _init_cognitive_pipeline(self) -> None:
+        """Initialize the cognitive pipeline components"""
+        from src.trivelin.cognitive_pipeline import CognitivePipeline
+
+        self.cognitive_pipeline = CognitivePipeline(
+            ai_router=self.ai_router,
+            config=self.config.processing,
+        )
+        logger.info(
+            "Cognitive pipeline initialized",
+            extra={
+                "confidence_threshold": self.config.processing.cognitive_confidence_threshold,
+                "timeout_seconds": self.config.processing.cognitive_timeout_seconds,
+                "max_passes": self.config.processing.cognitive_max_passes,
+            }
+        )
 
     def _setup_signal_handlers(self) -> None:
         """
@@ -92,6 +119,90 @@ class EmailProcessor:
         signal.signal(signal.SIGTERM, shutdown_handler)
 
         logger.debug("Signal handlers registered for graceful shutdown")
+
+    def _analyze_email(
+        self,
+        metadata: EmailMetadata,
+        content: EmailContent,
+        _auto_execute: bool = False
+    ) -> Optional[EmailAnalysis]:
+        """
+        Analyze email using cognitive pipeline or legacy single-pass
+
+        When cognitive reasoning is enabled:
+        - Uses CognitivePipeline for multi-pass reasoning
+        - Falls back to legacy mode on failure if configured
+
+        When cognitive reasoning is disabled:
+        - Uses direct AI router call (legacy mode)
+
+        Args:
+            metadata: Email metadata
+            content: Email content
+            auto_execute: Whether to auto-execute actions (passed to pipeline)
+
+        Returns:
+            EmailAnalysis or None if analysis fails
+        """
+        # Try cognitive pipeline if enabled
+        if self.cognitive_pipeline:
+            try:
+                pipeline_result = self.cognitive_pipeline.process(
+                    metadata, content, auto_execute=False  # Don't auto-execute in pipeline
+                )
+
+                if pipeline_result.success and pipeline_result.analysis:
+                    logger.debug(
+                        "Cognitive pipeline analysis complete",
+                        extra={
+                            "email_id": metadata.id,
+                            "confidence": pipeline_result.analysis.confidence,
+                            "passes": pipeline_result.reasoning_result.passes_executed
+                            if pipeline_result.reasoning_result else 0,
+                            "duration": pipeline_result.total_duration_seconds,
+                        }
+                    )
+                    return pipeline_result.analysis
+
+                # Pipeline failed - check if we should fallback
+                if self.config.processing.fallback_on_failure:
+                    logger.warning(
+                        "Cognitive pipeline failed, falling back to legacy mode",
+                        extra={
+                            "email_id": metadata.id,
+                            "error": pipeline_result.error,
+                            "error_stage": pipeline_result.error_stage,
+                            "timed_out": pipeline_result.timed_out,
+                        }
+                    )
+                    # Fall through to legacy mode below
+                else:
+                    logger.error(
+                        "Cognitive pipeline failed, no fallback configured",
+                        extra={
+                            "email_id": metadata.id,
+                            "error": pipeline_result.error,
+                        }
+                    )
+                    return None
+
+            except Exception as e:
+                logger.error(
+                    f"Cognitive pipeline exception: {e}",
+                    extra={"email_id": metadata.id},
+                    exc_info=True
+                )
+                if not self.config.processing.fallback_on_failure:
+                    return None
+                # Fall through to legacy mode
+
+        # Legacy mode: direct AI router call
+        analysis = self.ai_router.analyze_email(
+            metadata,
+            content,
+            model=AIModel.CLAUDE_HAIKU
+        )
+        return analysis
 
     def process_inbox(
         self,
@@ -308,12 +419,8 @@ class EmailProcessor:
                 extra={"email_id": metadata.id, "max_chars": 10000}
             )
 
-        # Analyze email with AI
-        analysis = self.ai_router.analyze_email(
-            metadata,
-            content,
-            model=AIModel.CLAUDE_HAIKU
-        )
+        # Analyze email with AI (cognitive pipeline or legacy)
+        analysis = self._analyze_email(metadata, content, auto_execute)
 
         if not analysis:
             logger.warning(f"Failed to analyze email {metadata.id}")

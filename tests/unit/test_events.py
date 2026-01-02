@@ -4,17 +4,17 @@ Unit Tests for Event System
 Tests EventBus, ProcessingEvent, and event handling.
 """
 
-import pytest
 import threading
-import time
 from datetime import datetime
 
+import pytest
+
 from src.core.events import (
-    ProcessingEventType,
-    ProcessingEvent,
     EventBus,
+    ProcessingEvent,
+    ProcessingEventType,
     get_event_bus,
-    reset_event_bus
+    reset_event_bus,
 )
 
 

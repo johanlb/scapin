@@ -4,8 +4,10 @@ Unit Tests for Template Manager
 Tests Jinja2 template rendering and management.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from src.sancho.templates import TemplateManager
 
 

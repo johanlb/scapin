@@ -5,16 +5,18 @@ Tests ContinuityDetector that determines if events are part of
 a continuous conversation or independent events.
 """
 
+from datetime import timedelta
+
 import pytest
-from datetime import datetime, timedelta
-from src.core.memory import ContinuityDetector, ContinuityScore
+
 from src.core.events import (
-    PerceivedEvent,
+    Entity,
     EventSource,
     EventType,
+    PerceivedEvent,
     UrgencyLevel,
-    Entity,
 )
+from src.core.memory import ContinuityDetector, ContinuityScore
 from src.utils import now_utc
 
 

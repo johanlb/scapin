@@ -11,10 +11,12 @@ max_email_size_mb and max_content_truncate_kb attributes yet.
 This functionality is planned for a future release.
 """
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from src.core.schemas import EmailMetadata, EmailContent
-from src.core.config_manager import PKMConfig, EmailConfig, AIConfig, EmailAccountConfig
+
+from src.core.config_manager import AIConfig, EmailAccountConfig, EmailConfig, PKMConfig
+from src.core.schemas import EmailContent, EmailMetadata
 from src.trivelin.processor import EmailProcessor
 
 

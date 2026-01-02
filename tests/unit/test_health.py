@@ -2,25 +2,23 @@
 Unit tests for Health Check System
 """
 
-import pytest
-from pathlib import Path
 import tempfile
-import os
+from pathlib import Path
+from unittest.mock import Mock, patch
 
+from src.core.schemas import HealthCheck, ServiceStatus, SystemHealth
 from src.monitoring.health import (
     HealthCheckService,
+    check_ai_api_health,
+    check_config_health,
+    check_disk_space_health,
     check_filesystem_health,
     check_git_health,
-    check_config_health,
-    check_python_dependencies,
     check_imap_health,
-    check_ai_api_health,
-    check_disk_space_health,
+    check_python_dependencies,
     check_queue_health,
     get_health_service,
 )
-from src.core.schemas import HealthCheck, ServiceStatus, SystemHealth
-from unittest.mock import Mock, patch, MagicMock
 
 
 class TestHealthCheckService:

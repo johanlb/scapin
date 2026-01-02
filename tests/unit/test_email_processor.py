@@ -4,19 +4,19 @@ Unit Tests for Email Processor
 Tests for email processing orchestration.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
-from src.trivelin.processor import EmailProcessor
+import pytest
+
 from src.core.schemas import (
-    EmailMetadata,
-    EmailContent,
-    EmailAnalysis,
     EmailAction,
+    EmailAnalysis,
     EmailCategory,
+    EmailContent,
+    EmailMetadata,
     ProcessedEmail,
 )
+from src.trivelin.processor import EmailProcessor
 from src.utils import now_utc
 
 

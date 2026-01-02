@@ -2,28 +2,29 @@
 Unit tests for Pydantic schemas
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from pydantic import ValidationError
 
 from src.core.schemas import (
-    EmailAction,
-    EmailCategory,
-    ReviewGrade,
-    ProcessingMode,
-    EmailMetadata,
-    EmailContent,
-    EmailAnalysis,
-    ProcessedEmail,
+    ConversationContext,
+    ConversationMessage,
     DecisionRecord,
-    KnowledgeEntry,
-    KnowledgeQuery,
+    EmailAction,
+    EmailAnalysis,
+    EmailCategory,
+    EmailContent,
+    EmailMetadata,
     FSRSCard,
     FSRSReview,
-    ConversationMessage,
-    ConversationContext,
-    ServiceStatus,
     HealthCheck,
+    KnowledgeEntry,
+    KnowledgeQuery,
+    ProcessedEmail,
+    ProcessingMode,
+    ReviewGrade,
+    ServiceStatus,
     SystemHealth,
 )
 

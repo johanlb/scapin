@@ -4,33 +4,29 @@ End-to-End Integration Tests
 Tests that validate all systems work together correctly.
 """
 
-import pytest
 from pathlib import Path
-from datetime import datetime, timezone
-import tempfile
-import shutil
 
-from src.core.config_manager import ConfigManager, get_config
-from src.core.state_manager import StateManager, get_state_manager
+import pytest
+
 from src.core.schemas import (
-    EmailMetadata,
-    EmailContent,
-    EmailAnalysis,
     EmailAction,
+    EmailAnalysis,
     EmailCategory,
+    EmailContent,
+    EmailMetadata,
     ProcessedEmail,
 )
-from src.monitoring.logger import PKMLogger, LogLevel, LogFormat, get_logger
+from src.core.state_manager import StateManager
 from src.monitoring.health import get_health_service, quick_health_check
-from src.sancho.templates import TemplateManager, get_template_manager
+from src.monitoring.logger import LogFormat, LogLevel, PKMLogger, get_logger
+from src.sancho.templates import TemplateManager
 from src.utils import (
     ensure_dir,
-    safe_write_file,
-    safe_read_file,
     now_utc,
+    safe_read_file,
+    safe_write_file,
     slugify,
 )
-
 
 pytestmark = pytest.mark.integration
 
@@ -338,12 +334,12 @@ class TestSystemIntegration:
         """
         from src.utils import (
             ensure_dir,
-            safe_write_file,
-            safe_read_file,
-            slugify,
-            normalize_whitespace,
             format_datetime,
+            normalize_whitespace,
             now_utc,
+            safe_read_file,
+            safe_write_file,
+            slugify,
         )
 
         # Create directory structure

@@ -4,9 +4,10 @@ Unit Tests for Embedding Generator
 Tests semantic embedding generation with caching and batch processing.
 """
 
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from unittest.mock import Mock, MagicMock, patch
+import pytest
 
 from src.passepartout.embeddings import EmbeddingGenerator, get_embedding_generator
 

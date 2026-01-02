@@ -4,12 +4,12 @@ Unit Tests for InteractiveMenu
 Tests the interactive menu system with questionary.
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock, call
-from pathlib import Path
+from unittest.mock import Mock, patch
 
+import pytest
+
+from src.core.config_manager import EmailAccountConfig
 from src.jeeves.menu import InteractiveMenu, run_interactive_menu
-from src.core.config_manager import EmailAccountConfig, EmailConfig
 
 
 @pytest.fixture

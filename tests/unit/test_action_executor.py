@@ -4,10 +4,12 @@ Tests for ActionExecutor
 Covers action execution, dry-run mode, IMAP operations, and OmniFocus integration.
 """
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
-from src.core.processors.action_executor import ActionExecutor, ExecutionResult
-from src.core.schemas import EmailMetadata, EmailAnalysis, EmailAction, EmailCategory
+
+from src.core.processors.action_executor import ActionExecutor
+from src.core.schemas import EmailAction, EmailAnalysis, EmailCategory, EmailMetadata
 from src.utils import now_utc
 
 

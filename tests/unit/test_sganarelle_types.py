@@ -4,27 +4,28 @@ Tests pour Sganarelle Types
 Test de tous les dataclasses immutables avec validation.
 """
 
-import pytest
-from datetime import datetime, timedelta
 from dataclasses import FrozenInstanceError
+from datetime import datetime, timedelta
 
+import pytest
+
+from src.core.events.universal_event import (
+    Entity,
+    EventSource,
+    EventType,
+    PerceivedEvent,
+    UrgencyLevel,
+    now_utc,
+)
 from src.sganarelle.types import (
-    UserFeedback,
     FeedbackAnalysis,
     KnowledgeUpdate,
-    Pattern,
-    ProviderScore,
     LearningResult,
+    Pattern,
+    PatternType,
+    ProviderScore,
     UpdateType,
-    PatternType
-)
-from src.core.events.universal_event import (
-    PerceivedEvent,
-    EventType,
-    EventSource,
-    UrgencyLevel,
-    Entity,
-    now_utc
+    UserFeedback,
 )
 
 

@@ -4,11 +4,13 @@ Tests for EmailAnalyzer
 Covers AI analysis integration, error handling, and preview mode.
 """
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, MagicMock
-from src.core.processors.email_analyzer import EmailAnalyzer
-from src.core.schemas import EmailMetadata, EmailContent, EmailAnalysis, EmailAction, EmailCategory
+
 from src.core.exceptions import AIAnalysisError, RateLimitError
+from src.core.processors.email_analyzer import EmailAnalyzer
+from src.core.schemas import EmailAction, EmailAnalysis, EmailCategory, EmailContent, EmailMetadata
 from src.utils import now_utc
 
 

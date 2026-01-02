@@ -4,22 +4,20 @@ Tests pour Sganarelle Feedback Processor
 Test du traitement et analyse du feedback utilisateur.
 """
 
-import pytest
-from datetime import datetime
 
-from src.sganarelle.feedback_processor import FeedbackProcessor
-from src.sganarelle.types import UserFeedback, FeedbackAnalysis
-from src.core.memory.working_memory import WorkingMemory, Hypothesis
+import pytest
+
 from src.core.events.universal_event import (
-    PerceivedEvent,
+    EventSource,
     EventType,
+    PerceivedEvent,
     UrgencyLevel,
-    Entity,
-    EventSource
 )
-from src.utils import now_utc
+from src.core.memory.working_memory import Hypothesis, WorkingMemory
 from src.figaro.actions.tasks import CreateTaskAction
-from src.figaro.actions.email import ArchiveEmailAction
+from src.sganarelle.feedback_processor import FeedbackProcessor
+from src.sganarelle.types import FeedbackAnalysis, UserFeedback
+from src.utils import now_utc
 
 
 def _make_event(

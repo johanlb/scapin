@@ -303,6 +303,217 @@ def review(
 
 
 @app.command()
+def journal(
+    date_str: Optional[str] = typer.Option(None, "--date", "-d", help="Date for journal (YYYY-MM-DD)"),
+    interactive: bool = typer.Option(True, "--interactive/--no-interactive", "-i", help="Interactive mode with questions"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path"),
+    output_format: str = typer.Option("markdown", "--format", "-f", help="Output format (markdown or json)"),
+):
+    """
+    Generate and complete daily journal
+
+    Creates a journal entry summarizing the day's email processing,
+    asks targeted questions, and collects feedback for learning.
+    """
+    from datetime import date
+    from pathlib import Path
+
+    from rich.markdown import Markdown
+
+    from src.jeeves.journal import (
+        JournalGenerator,
+        JournalInteractive,
+        process_corrections,
+    )
+
+    # Parse date
+    if date_str:
+        try:
+            journal_date = date.fromisoformat(date_str)
+        except ValueError:
+            console.print(f"[red]Invalid date format: {date_str}[/red]")
+            console.print("[dim]Expected format: YYYY-MM-DD[/dim]")
+            raise typer.Exit(1) from None
+    else:
+        journal_date = date.today()
+
+    console.print(Panel.fit(
+        f"[bold blue]Journal du {journal_date}[/bold blue]",
+        border_style="blue"
+    ))
+
+    try:
+        # Generate draft journal
+        generator = JournalGenerator()
+        entry = generator.generate(journal_date)
+
+        console.print(f"\n[green]OK[/green] {len(entry.emails_processed)} emails traites")
+        console.print(f"[cyan]?[/cyan] {len(entry.questions)} questions")
+
+        # Interactive mode
+        if interactive and (entry.questions or entry.emails_processed):
+            interactive_session = JournalInteractive(entry)
+            entry = interactive_session.run()
+
+        # Process corrections for learning
+        if entry.corrections:
+            result = process_corrections(entry)
+            console.print(
+                f"\n[green]OK[/green] {result.corrections_processed} corrections envoyees a Sganarelle"
+            )
+
+        # Output
+        if output_format == "json":
+            output_content = entry.to_json()
+        else:
+            output_content = entry.to_markdown()
+
+        if output:
+            output_path = Path(output)
+            output_path.write_text(output_content, encoding="utf-8")
+            console.print(f"\n[green]OK[/green] Sauvegarde dans {output_path}")
+        elif not interactive:
+            # Only print output if not interactive (already shown in interactive mode)
+            console.print()
+            console.print(Markdown(output_content))
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Journal interrompu[/yellow]")
+        raise typer.Exit(130) from None
+
+    except Exception as e:
+        console.print(f"\n[red]Erreur: {e}[/red]")
+        logger = get_logger("cli")
+        logger.error(f"Journal command failed: {e}", exc_info=True)
+        raise typer.Exit(1) from None
+
+
+@app.command()
+def teams(
+    poll: bool = typer.Option(False, "--poll", "-p", help="Continuous polling mode"),
+    interactive: bool = typer.Option(True, "--interactive/--no-interactive", "-i", help="Interactive review mode"),
+    limit: int = typer.Option(50, "--limit", "-l", help="Maximum messages per poll"),
+    since: Optional[str] = typer.Option(None, "--since", "-s", help="Only fetch messages after this datetime (ISO format)"),
+):
+    """
+    Process Microsoft Teams messages
+
+    Fetches and processes Teams messages through the cognitive pipeline.
+    Requires Microsoft account configuration in .env.
+    """
+    import asyncio
+    from datetime import datetime
+
+    from src.core.config_manager import get_config
+    from src.trivelin.teams_processor import TeamsProcessor
+
+    # Check if Teams is enabled
+    config = get_config()
+    if not config.teams.enabled:
+        console.print("[red]Teams integration is not enabled[/red]")
+        console.print("\n[yellow]To enable Teams integration:[/yellow]")
+        console.print("  1. Create an Azure AD app registration")
+        console.print("  2. Add these settings to your .env file:")
+        console.print("     TEAMS__ENABLED=true")
+        console.print("     TEAMS__ACCOUNT__CLIENT_ID=your-client-id")
+        console.print("     TEAMS__ACCOUNT__TENANT_ID=your-tenant-id")
+        console.print("\n[dim]See ROADMAP.md Phase 1.2 for details[/dim]")
+        raise typer.Exit(1)
+
+    console.print(Panel.fit(
+        "[bold blue]Microsoft Teams Integration[/bold blue]",
+        border_style="blue"
+    ))
+
+    # Parse since datetime if provided
+    since_dt: Optional[datetime] = None
+    if since:
+        try:
+            since_dt = datetime.fromisoformat(since)
+        except ValueError:
+            console.print(f"[red]Invalid datetime format: {since}[/red]")
+            console.print("[dim]Expected format: YYYY-MM-DDTHH:MM:SS[/dim]")
+            raise typer.Exit(1) from None
+
+    try:
+        # Initialize processor
+        processor = TeamsProcessor()
+
+        if poll:
+            # Continuous polling mode
+            console.print(f"[green]Polling every {config.teams.poll_interval_seconds}s. Press Ctrl+C to stop.[/green]\n")
+
+            async def poll_loop():
+                while True:
+                    try:
+                        summary = await processor.poll_and_process(limit=limit)
+                        if summary.total > 0:
+                            console.print(
+                                f"[cyan]Processed {summary.successful}/{summary.total} messages "
+                                f"({summary.failed} failed, {summary.skipped} skipped)[/cyan]"
+                            )
+                        await asyncio.sleep(config.teams.poll_interval_seconds)
+                    except KeyboardInterrupt:
+                        break
+
+            asyncio.run(poll_loop())
+            console.print("\n[yellow]Polling stopped[/yellow]")
+
+        else:
+            # Single run
+            console.print("[dim]Fetching Teams messages...[/dim]\n")
+
+            async def single_run():
+                return await processor.poll_and_process(limit=limit)
+
+            summary = asyncio.run(single_run())
+
+            # Display results
+            if summary.total == 0:
+                console.print("[dim]No new messages to process[/dim]")
+            else:
+                console.print(f"[green]OK[/green] Processed {summary.successful}/{summary.total} messages")
+                if summary.failed > 0:
+                    console.print(f"[red]Failed: {summary.failed}[/red]")
+                if summary.skipped > 0:
+                    console.print(f"[dim]Skipped: {summary.skipped}[/dim]")
+
+                # Show results table if interactive
+                if interactive and summary.results:
+                    from rich.table import Table
+
+                    table = Table(title="Processing Results", show_header=True)
+                    table.add_column("Message ID", style="cyan", max_width=20)
+                    table.add_column("Status")
+                    table.add_column("Actions")
+
+                    for result in summary.results[:20]:  # Limit to 20 rows
+                        status = (
+                            "[green]OK[/green]" if result.success
+                            else "[yellow]Skipped[/yellow]" if result.skipped
+                            else "[red]Failed[/red]"
+                        )
+                        actions = ", ".join(result.actions_taken) if result.actions_taken else "-"
+                        table.add_row(
+                            result.message_id[:20],
+                            status,
+                            actions,
+                        )
+
+                    console.print(table)
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted[/yellow]")
+        raise typer.Exit(130) from None
+
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/red]")
+        logger = get_logger("cli")
+        logger.error(f"Teams command failed: {e}", exc_info=True)
+        raise typer.Exit(1) from None
+
+
+@app.command()
 def queue(
     process_queue: bool = typer.Option(False, "--process", "-p", help="Process queued items"),
     clear: bool = typer.Option(False, "--clear", help="Clear the queue (destructive!)"),

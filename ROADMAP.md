@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 2 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Phase 0.6 ✅ → Phase 1.0 Journaling & Feedback Loop
+**Phase actuelle** : Phase 1.1 Journaling & Feedback Loop ✅ → Phase 1.2 Intégration Teams
 
 ---
 
@@ -14,7 +14,7 @@
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 967 tests (912 unit + 55 integration), 95% couverture, 100% pass rate |
+| **Tests** | 1034 tests (978 unit + 56 integration), 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (50 warnings non-critiques) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 | **Identité précédente** | PKM System (archivé) |
@@ -426,15 +426,48 @@ src/
 
 ## 📋 COUCHE 1 : EMAIL EXCELLENCE (MVP)
 
-### Phase 1.0 : Trivelin Email — Perception Unifiée
+### Phase 1.0 : Trivelin Email — Pipeline Cognitif Complet
 
-**Statut** : 📋 Planifié
+**Statut** : ✅ COMPLÉTÉ (2 janvier 2026)
 **Priorité** : 🔴 CRITIQUE
-**Durée estimée** : 2 semaines
+**Durée estimée** : 1 journée (était 2 semaines)
 **Dépendance** : Phase 0.6
 
 #### Objectif
 Transformer le traitement email existant pour utiliser pleinement l'architecture cognitive avec Trivelin comme point d'entrée unique.
+
+#### Accomplissements
+
+| Composant | Fichier | Description |
+|-----------|---------|-------------|
+| **ProcessingConfig** | `src/core/config_manager.py` | Configuration opt-in pour le pipeline cognitif |
+| **CognitivePipeline** | `src/trivelin/cognitive_pipeline.py` | Orchestrateur central coordonnant tous les valets |
+| **ActionFactory** | `src/trivelin/action_factory.py` | Conversion EmailAnalysis → Figaro Actions |
+| **Intégration Processor** | `src/trivelin/processor.py` | Intégration du pipeline dans `_analyze_email()` |
+| **Tests unitaires** | `tests/unit/test_cognitive_pipeline.py` | 15 tests couvrant init, process, timeout, config |
+
+**Flux implémenté** :
+```
+Email → EmailNormalizer → ReasoningEngine (Sancho) → PlanningEngine (Planchet)
+      → ActionOrchestrator (Figaro) → LearningEngine (Sganarelle)
+```
+
+**Configuration** :
+```python
+# src/core/config_manager.py
+class ProcessingConfig(BaseModel):
+    enable_cognitive_reasoning: bool = False  # Opt-in, OFF par défaut
+    cognitive_confidence_threshold: float = 0.85
+    cognitive_timeout_seconds: int = 20
+    cognitive_max_passes: int = 5
+    fallback_on_failure: bool = True  # Fallback au mode legacy
+```
+
+**Activation** :
+```bash
+# Dans .env
+PROCESSING__ENABLE_COGNITIVE_REASONING=true
+```
 
 #### User Stories
 
@@ -588,10 +621,23 @@ class DraftReply:
 
 ### Phase 1.1 : Journaling Email — Feedback Basique
 
-**Statut** : 📋 Planifié
+**Statut** : ✅ COMPLÉTÉ (2 janvier 2026)
 **Priorité** : 🔴 CRITIQUE
 **Durée estimée** : 2 semaines
 **Dépendance** : Phase 1.0
+
+#### Accomplissements
+
+| Module | Fichier | Lignes | État |
+|--------|---------|--------|------|
+| Models | `src/jeeves/journal/models.py` | ~350 | ✅ |
+| Generator | `src/jeeves/journal/generator.py` | ~400 | ✅ |
+| Interactive | `src/jeeves/journal/interactive.py` | ~300 | ✅ |
+| Feedback | `src/jeeves/journal/feedback.py` | ~250 | ✅ |
+| CLI Command | `src/jeeves/cli.py` (journal) | ~80 | ✅ |
+| Tests | `tests/unit/test_journal_*.py` | ~500 | ✅ (56 tests) |
+
+**Total** : ~1880 lignes de code + tests
 
 #### Objectif
 Implémenter le journaling quotidien sur la base des emails traités. C'est la **boucle de feedback minimale** qui permet à Sganarelle d'apprendre.
@@ -1368,9 +1414,9 @@ Phase 2:   ████████████████░░░░  80% �
 
 === VALEUR FONCTIONNELLE (En cours) ===
 Phase 0.6: ████████████████████ 100% ✅ Refactoring Valet
-Phase 1.0: ░░░░░░░░░░░░░░░░░░░░   0% 🏗️ Journaling & Feedback Loop (ACTUEL)
-Phase 1.1: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Flux Entrants Unifiés 🆕
-Phase 1.2: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Intégration Teams 🆕
+Phase 1.0: ████████████████████ 100% ✅ Trivelin Email (Pipeline Cognitif)
+Phase 1.1: ████████████████████ 100% ✅ Journaling & Feedback Loop
+Phase 1.2: ░░░░░░░░░░░░░░░░░░░░   0% 🏗️ Intégration Teams (ACTUEL)
 Phase 1.3: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Intégration Calendrier 🆕
 Phase 1.4: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Système de Briefing 🆕
 
@@ -1385,8 +1431,8 @@ Phase 3:   ░░░░░░░░░░░░░░░░░░░░   0% �
 Phase 4:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Révision FSRS
 
 Infrastructure:    ███████████████████░  95% ✅
-Valeur Fonct.:     ████░░░░░░░░░░░░░░░░  20% 🏗️
-Global:            ███████████░░░░░░░░░  55% 🚀
+Valeur Fonct.:     ██████░░░░░░░░░░░░░░  30% 🏗️
+Global:            ████████████░░░░░░░░  60% 🚀
 ```
 
 ### Évolution Couverture Tests
@@ -1399,8 +1445,10 @@ Global:            ███████████░░░░░░░░░ 
 | Phase 1.6 | 31 | 100% | 100% | ✅ |
 | Phase 1.7 | 25 | 100% | 100% | ✅ |
 | Phase 2 | 108 | 85%+ | 100% | 🚧 |
+| **Phase 1.0** | **15** | **100%** | **100%** | **✅** |
+| **Phase 1.1** | **56** | **100%** | **100%** | **✅** |
 | Phase 0.5 | 200+ | 95%+ | 100% | ✅ |
-| **Total** | **967** | **95%** | **100%** | **✅** |
+| **Total** | **978** | **95%** | **100%** | **✅** |
 
 ---
 
@@ -1452,8 +1500,9 @@ Global:            ███████████░░░░░░░░░ 
 
 1. ✅ **Phase 0.5** (Architecture Cognitive) — FAIT
 2. ✅ **Phase 0.6** (Refactoring Valet) — FAIT
-3. 🏗️ **Phase 1.0** (Journaling & Feedback Loop) — ⭐ CRITIQUE (ACTUEL)
-4. **Phase 1.1** (Flux Entrants Unifiés) — HAUTE
+3. ✅ **Phase 1.0** (Trivelin Email - Pipeline Cognitif) — FAIT
+4. ✅ **Phase 1.1** (Journaling & Feedback Loop) — FAIT
+5. 🏗️ **Phase 1.2** (Intégration Teams) — ⭐ HAUTE (ACTUEL)
 
 ### Q2 2026 (Avril - Juin)
 
@@ -1532,6 +1581,13 @@ Global:            ███████████░░░░░░░░░ 
   - Planifié phases UI (Web + PWA)
   - Migré 88 fichiers et 6 issues ouvertes
 
+- **v1.0.0-alpha.4** (2026-01-02) : Phase 1.0 complétée
+  - ✅ `CognitivePipeline` orchestrant tous les valets
+  - ✅ `ProcessingConfig` avec activation opt-in
+  - ✅ `ActionFactory` pour conversion EmailAnalysis → Actions
+  - ✅ Intégration dans `processor.py` avec fallback
+  - ✅ 978 tests, 95% couverture, 100% pass rate
+
 - **v1.0.0-alpha.3** (2026-01-02) : Phase 0.6 complétée
   - ✅ Migré `src/ai/` → `src/sancho/` (router, model_selector, templates, providers)
   - ✅ Migré `src/cli/` → `src/jeeves/` (cli, display_manager, menu, review_mode)
@@ -1547,7 +1603,7 @@ Global:            ███████████░░░░░░░░░ 
 
 ---
 
-**Statut** : Phase 0.6 ✅ → Phase 1.0 Journaling & Feedback Loop 🏗️
+**Statut** : Phase 1.1 Journaling & Feedback Loop ✅ → Phase 1.2 Intégration Teams 🏗️
 **Qualité** : 10/10 Production Ready Core 🚀
-**Tests** : 967 tests, 95% couverture, 100% pass ✅
-**Prochaine Étape** : Implémenter journaling quotidien avec pré-remplissage automatique
+**Tests** : 1034 tests, 95% couverture, 100% pass ✅
+**Prochaine Étape** : Intégrer Microsoft Teams pour messages, réponses et réunions

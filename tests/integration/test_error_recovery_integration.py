@@ -5,19 +5,20 @@ Tests the complete error recovery flow:
 ErrorManager → ErrorStore → RecoveryEngine
 """
 
-import pytest
 import tempfile
 import time
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import pytest
 
 from src.core.error_manager import (
-    ErrorManager,
-    SystemError,
     ErrorCategory,
+    ErrorManager,
     ErrorSeverity,
     RecoveryStrategy,
-    reset_error_manager
+    SystemError,
+    reset_error_manager,
 )
 from src.core.error_store import ErrorStore, reset_error_store
 from src.core.recovery_engine import RecoveryEngine
@@ -39,15 +40,15 @@ def integrated_system(temp_db):
     # Reset singletons
     reset_error_manager()
     reset_error_store()
-    
+
     # Create components
     error_store = ErrorStore(db_path=temp_db)
     error_manager = ErrorManager(error_store=error_store, max_in_memory_errors=100)
     recovery_engine = RecoveryEngine(default_timeout=5)
-    
+
     # Register recovery handlers
     recovery_engine.register_handlers(error_manager)
-    
+
     yield {
         "error_manager": error_manager,
         "error_store": error_store,
@@ -62,7 +63,7 @@ class TestFullErrorFlow:
         """Test error is recorded in both memory and database"""
         error_manager = integrated_system["error_manager"]
         error_store = integrated_system["error_store"]
-        
+
         # Record error
         error = error_manager.record_error(
             ValueError("Test error"),
@@ -70,12 +71,12 @@ class TestFullErrorFlow:
             component="test",
             operation="test_operation"
         )
-        
+
         # Check in-memory
         recent = error_manager.get_recent_errors(limit=1)
         assert len(recent) == 1
         assert recent[0].id == error.id
-        
+
         # Check in database
         stored = error_store.get_error(error.id)
         assert stored is not None
@@ -129,7 +130,7 @@ class TestFullErrorFlow:
         """Test handling multiple errors and statistics"""
         error_manager = integrated_system["error_manager"]
         error_store = integrated_system["error_store"]
-        
+
         # Record multiple errors
         for i in range(5):
             error_manager.record_error(
@@ -138,7 +139,7 @@ class TestFullErrorFlow:
                 component="test",
                 operation="test"
             )
-        
+
         # Check in-memory stats
         stats = error_manager.get_error_stats()
         assert stats["total_errors"] == 5
@@ -178,10 +179,10 @@ class TestFullErrorFlow:
     def test_context_sanitization_to_database(self, integrated_system):
         """Test that sanitized context can be stored in database"""
         import threading
-        
+
         error_manager = integrated_system["error_manager"]
         error_store = integrated_system["error_store"]
-        
+
         # Record error with non-serializable context
         error = error_manager.record_error(
             RuntimeError("Test"),
@@ -194,7 +195,7 @@ class TestFullErrorFlow:
                 "valid": "data"
             }
         )
-        
+
         # Should be stored successfully
         stored = error_store.get_error(error.id)
         assert stored is not None
@@ -210,7 +211,7 @@ class TestRecoveryWithRetries:
         """Test that retry attempts are tracked"""
         error_manager = integrated_system["error_manager"]
         recovery_engine = integrated_system["recovery_engine"]
-        
+
         # Create error with 0 attempts
         error = SystemError(
             id="test-retry",
@@ -232,7 +233,7 @@ class TestRecoveryWithRetries:
             resolved_at=None,
             notes=""
         )
-        
+
         # Attempt recovery multiple times
         for i in range(3):
             error.recovery_attempts = i
@@ -242,7 +243,7 @@ class TestRecoveryWithRetries:
     def test_exponential_backoff_timing(self, integrated_system):
         """Test that exponential backoff timing is correct"""
         recovery_engine = integrated_system["recovery_engine"]
-        
+
         error = SystemError(
             id="test-backoff",
             timestamp=datetime.now(),
@@ -263,13 +264,13 @@ class TestRecoveryWithRetries:
             resolved_at=None,
             notes=""
         )
-        
+
         # First attempt: 1s delay
         start = time.time()
         recovery_engine.recover_network(error)
         elapsed = time.time() - start
         assert 0.9 <= elapsed <= 1.5  # Allow some variance
-        
+
         # Second attempt: 2s delay
         error.recovery_attempts = 1
         start = time.time()
@@ -285,7 +286,7 @@ class TestErrorFiltering:
         """Test filtering errors by category"""
         error_manager = integrated_system["error_manager"]
         error_store = integrated_system["error_store"]
-        
+
         # Create errors with different categories
         for cat in [ErrorCategory.IMAP, ErrorCategory.AI, ErrorCategory.NETWORK]:
             for i in range(2):
@@ -295,7 +296,7 @@ class TestErrorFiltering:
                     component="test",
                     operation="test"
                 )
-        
+
         # Filter from database
         imap_errors = error_store.get_recent_errors(category=ErrorCategory.IMAP)
         assert len(imap_errors) == 2

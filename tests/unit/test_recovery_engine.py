@@ -4,17 +4,13 @@ Unit Tests for RecoveryEngine
 Tests recovery strategies for different error categories.
 """
 
-import pytest
 import time
 from datetime import datetime
 
+import pytest
+
+from src.core.error_manager import ErrorCategory, ErrorSeverity, RecoveryStrategy, SystemError
 from src.core.recovery_engine import RecoveryEngine, init_recovery_engine
-from src.core.error_manager import (
-    SystemError,
-    ErrorCategory,
-    ErrorSeverity,
-    RecoveryStrategy
-)
 
 
 @pytest.fixture
@@ -73,14 +69,14 @@ class TestIMAPRecovery:
     def test_recover_imap_connection_error(self, recovery_engine, sample_error):
         """Test recovery from connection error"""
         sample_error.exception_type = "ConnectionError"
-        
+
         result = recovery_engine.recover_imap(sample_error)
         assert result is True
 
     def test_recover_imap_timeout_error(self, recovery_engine, sample_error):
         """Test recovery from timeout error"""
         sample_error.exception_type = "TimeoutError"
-        
+
         result = recovery_engine.recover_imap(sample_error)
         assert result is True
 
@@ -88,7 +84,7 @@ class TestIMAPRecovery:
         """Test that authentication errors cannot be auto-recovered"""
         sample_error.exception_type = "PermissionError"
         sample_error.exception_message = "Authentication failed"
-        
+
         result = recovery_engine.recover_imap(sample_error)
         assert result is False
 
@@ -96,14 +92,14 @@ class TestIMAPRecovery:
         """Test that parse errors are skipped"""
         sample_error.exception_type = "ValueError"
         sample_error.exception_message = "Could not parse email"
-        
+
         result = recovery_engine.recover_imap(sample_error)
         assert result is True  # Skip = success
 
     def test_recover_imap_unicode_error_skip(self, recovery_engine, sample_error):
         """Test that unicode errors are skipped"""
         sample_error.exception_type = "UnicodeDecodeError"
-        
+
         result = recovery_engine.recover_imap(sample_error)
         assert result is True  # Skip = success
 
@@ -133,11 +129,11 @@ class TestAIRecovery:
             resolved_at=None,
             notes=""
         )
-        
+
         start_time = time.time()
         result = recovery_engine.recover_ai(error)
         elapsed = time.time() - start_time
-        
+
         assert result is True
         # Should have waited (base delay * 2^0 = 5s)
         assert elapsed >= 5
@@ -164,7 +160,7 @@ class TestAIRecovery:
             resolved_at=None,
             notes=""
         )
-        
+
         result = recovery_engine.recover_ai(error)
         assert result is True
 
@@ -190,7 +186,7 @@ class TestAIRecovery:
             resolved_at=None,
             notes=""
         )
-        
+
         result = recovery_engine.recover_ai(error)
         assert result is True
 
@@ -220,7 +216,7 @@ class TestNetworkRecovery:
             resolved_at=None,
             notes=""
         )
-        
+
         result = recovery_engine.recover_network(error)
         assert result is True
 
@@ -250,7 +246,7 @@ class TestValidationRecovery:
             resolved_at=None,
             notes=""
         )
-        
+
         result = recovery_engine.recover_validation(error)
         assert result is True  # Always succeeds by skipping
 
@@ -280,7 +276,7 @@ class TestBackoffCalculation:
             resolved_at=None,
             notes=""
         )
-        
+
         delay = recovery_engine._calculate_backoff_delay(error)
         # base * 2^0 = 1
         assert delay == 1
@@ -307,7 +303,7 @@ class TestBackoffCalculation:
             resolved_at=None,
             notes=""
         )
-        
+
         delay = recovery_engine._calculate_backoff_delay(error)
         # base * 2^1 = 2
         assert delay == 2
@@ -334,7 +330,7 @@ class TestBackoffCalculation:
             resolved_at=None,
             notes=""
         )
-        
+
         delay = recovery_engine._calculate_backoff_delay(error)
         # Should be capped at max_retry_delay
         assert delay == recovery_engine.max_retry_delay
@@ -361,7 +357,7 @@ class TestBackoffCalculation:
             resolved_at=None,
             notes=""
         )
-        
+
         delay = recovery_engine._calculate_backoff_delay(error, base=5)
         # 5 * 2^2 = 20
         assert delay == 20
@@ -373,10 +369,10 @@ class TestRecoveryHandlerRegistration:
     def test_register_handlers(self, recovery_engine):
         """Test registering handlers with error manager"""
         from src.core.error_manager import ErrorManager
-        
+
         error_manager = ErrorManager(error_store=None)
         recovery_engine.register_handlers(error_manager)
-        
+
         # Handlers should be registered (can't directly test, but shouldn't error)
         assert True
 

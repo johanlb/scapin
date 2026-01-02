@@ -12,22 +12,23 @@ Coverage:
 - Performance and relevance scoring
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import Mock
 
+import pytest
+
+from src.core.events import Entity, EventSource, EventType, PerceivedEvent, UrgencyLevel
+from src.core.memory.working_memory import ContextItem
 from src.passepartout.context_engine import (
-    ContextEngine,
-    ContextRetrievalResult,
-    CONTEXT_SOURCE_KB,
     CONTEXT_SOURCE_HISTORY,
+    CONTEXT_SOURCE_KB,
     CONTEXT_TYPE_ENTITY,
     CONTEXT_TYPE_SEMANTIC,
-    CONTEXT_TYPE_THREAD
+    CONTEXT_TYPE_THREAD,
+    ContextEngine,
+    ContextRetrievalResult,
 )
 from src.passepartout.note_manager import Note
-from src.core.events import PerceivedEvent, Entity, EventType, EventSource, UrgencyLevel
-from src.core.memory.working_memory import ContextItem
 
 
 def create_test_event(**overrides):

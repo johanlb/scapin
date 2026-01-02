@@ -8,21 +8,20 @@ Covers:
 - Cost estimation
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import dataclass
+from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
+from src.sancho.providers.anthropic_provider import AnthropicProvider
 from src.sancho.providers.base import (
-    IAIProvider,
+    ProviderAPIError,
+    ProviderAuthenticationError,
+    ProviderConnectionError,
+    ProviderModel,
+    ProviderRateLimitError,
     ProviderResponse,
     ProviderUsage,
-    ProviderModel,
-    ProviderAuthenticationError,
-    ProviderRateLimitError,
-    ProviderAPIError,
-    ProviderConnectionError,
 )
-from src.sancho.providers.anthropic_provider import AnthropicProvider, ANTHROPIC_PRICING
 
 
 class TestProviderDataclasses:
@@ -174,7 +173,6 @@ class TestAnthropicProvider:
                 provider = AnthropicProvider(api_key="sk-ant-test-key-12345")
 
                 # Inject anthropic module with exceptions
-                import anthropic
                 provider._anthropic.AuthenticationError = type('AuthenticationError', (Exception,), {})
                 mock_client.messages.create.side_effect = provider._anthropic.AuthenticationError("Invalid API key")
 

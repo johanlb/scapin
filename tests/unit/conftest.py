@@ -2,18 +2,17 @@
 Pytest fixtures for Sganarelle unit tests
 """
 
-import pytest
-from datetime import datetime
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
+import pytest
 
 from src.core.events.universal_event import (
-    PerceivedEvent,
     EventSource,
     EventType,
+    PerceivedEvent,
     UrgencyLevel,
-    Entity,
-    now_utc
+    now_utc,
 )
 from src.core.memory.working_memory import WorkingMemory
 

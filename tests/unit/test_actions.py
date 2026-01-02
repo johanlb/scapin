@@ -2,27 +2,15 @@
 Unit tests for Figaro Actions (Email, Tasks, Notes)
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
-from pathlib import Path
+from unittest.mock import patch
 
-from src.figaro.actions.email import (
-    ArchiveEmailAction,
-    DeleteEmailAction,
-    MoveEmailAction
-)
-from src.figaro.actions.tasks import (
-    CreateTaskAction,
-    CompleteTaskAction
-)
-from src.figaro.actions.notes import (
-    CreateNoteAction,
-    UpdateNoteAction
-)
-from src.figaro.actions.base import ValidationResult
-from src.core.events.universal_event import Entity
+import pytest
+
 from src.core.config_manager import EmailAccountConfig
+from src.core.events.universal_event import Entity
+from src.figaro.actions.email import ArchiveEmailAction, DeleteEmailAction, MoveEmailAction
+from src.figaro.actions.notes import CreateNoteAction, UpdateNoteAction
+from src.figaro.actions.tasks import CompleteTaskAction, CreateTaskAction
 
 
 def _create_test_email_config() -> EmailAccountConfig:

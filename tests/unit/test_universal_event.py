@@ -4,14 +4,14 @@ Tests for Universal Event Model
 Tests PerceivedEvent and related types (EventSource, EventType, UrgencyLevel, Entity).
 """
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import timedelta
+
 from src.core.events import (
-    PerceivedEvent,
+    Entity,
     EventSource,
     EventType,
+    PerceivedEvent,
     UrgencyLevel,
-    Entity,
 )
 from src.utils import now_utc
 

@@ -4,14 +4,14 @@ End-to-End Tests for Email Processing
 Tests complete email processing workflow based on real bugs discovered.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
+from datetime import timezone
 from email.message import EmailMessage
-from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
-from src.trivelin.processor import EmailProcessor
-from src.core.schemas import EmailMetadata, EmailContent, EmailAnalysis, EmailAction, EmailCategory
-from src.core.config_manager import EmailConfig, AIConfig
+import pytest
+
+from src.core.config_manager import AIConfig, EmailConfig
+from src.core.schemas import EmailAction, EmailCategory
 from src.integrations.email.imap_client import IMAPClient
 from src.sancho.router import AIRouter
 

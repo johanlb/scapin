@@ -4,12 +4,12 @@ Integration Tests for Event Flow
 Tests the complete event flow from EmailProcessor → EventBus → DisplayManager
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
 from io import StringIO
+
+import pytest
 from rich.console import Console
 
-from src.core.events import EventBus, ProcessingEventType, ProcessingEvent, reset_event_bus
+from src.core.events import ProcessingEvent, ProcessingEventType, reset_event_bus
 from src.jeeves.display_manager import DisplayManager
 from src.monitoring.logger import PKMLogger
 
@@ -256,7 +256,6 @@ class TestDisplayModeIntegration:
 
     def test_display_mode_hides_console_logs(self):
         """Test that display mode hides console logs"""
-        from src.monitoring.logger import PKMLogger
 
         # Ensure logging is configured
         PKMLogger.configure()
@@ -286,7 +285,6 @@ class TestDisplayModeIntegration:
     @pytest.mark.skip(reason="Test hangs due to logger state - needs investigation")
     def test_display_mode_lifecycle(self):
         """Test display mode enable/disable cycle"""
-        from src.monitoring.logger import PKMLogger
 
         # Start with display mode disabled
         PKMLogger.set_display_mode(False)

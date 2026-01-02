@@ -5,17 +5,18 @@ Tests helper functions and constant values.
 """
 
 import pytest
+
 from src.sganarelle.constants import (
-    clamp,
-    rating_to_score,
-    score_to_rating,
     # Constants validation
     EXPLICIT_FEEDBACK_WEIGHT,
     IMPLICIT_FEEDBACK_WEIGHT,
-    RATING_MIN,
     RATING_MAX,
+    RATING_MIN,
+    SCORE_MAX,
     SCORE_MIN,
-    SCORE_MAX
+    clamp,
+    rating_to_score,
+    score_to_rating,
 )
 
 
@@ -130,7 +131,7 @@ class TestConstantValues:
 
     def test_feedback_weights_sum_to_one(self):
         """Feedback weights sum to 1.0"""
-        assert EXPLICIT_FEEDBACK_WEIGHT + IMPLICIT_FEEDBACK_WEIGHT == pytest.approx(1.0)
+        assert pytest.approx(1.0) == EXPLICIT_FEEDBACK_WEIGHT + IMPLICIT_FEEDBACK_WEIGHT
 
     def test_feedback_weights_in_range(self):
         """Feedback weights are in [0, 1]"""

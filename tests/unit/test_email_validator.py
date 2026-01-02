@@ -5,8 +5,9 @@ Covers validation logic for email size limits, content, and metadata.
 """
 
 import pytest
+
 from src.core.processors.email_validator import EmailValidator
-from src.core.schemas import EmailMetadata, EmailContent, EmailValidationResult
+from src.core.schemas import EmailContent, EmailMetadata
 from src.utils import now_utc
 
 

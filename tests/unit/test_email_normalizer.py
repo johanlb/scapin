@@ -5,16 +5,14 @@ Tests EmailNormalizer that converts EmailMetadata and EmailContent
 into universal PerceivedEvent format.
 """
 
-import pytest
-from datetime import datetime
-from src.core.events.normalizers import EmailNormalizer
 from src.core.events import (
-    PerceivedEvent,
     EventSource,
     EventType,
+    PerceivedEvent,
     UrgencyLevel,
 )
-from src.core.schemas import EmailMetadata, EmailContent, EmailAttachment
+from src.core.events.normalizers import EmailNormalizer
+from src.core.schemas import EmailAttachment, EmailContent, EmailMetadata
 from src.utils import now_utc
 
 

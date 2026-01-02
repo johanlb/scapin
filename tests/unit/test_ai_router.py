@@ -4,15 +4,15 @@ Unit Tests for AI Router
 Tests for AI routing, rate limiting, and email analysis.
 """
 
-import pytest
-import time
 import json
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timezone
+import time
+from unittest.mock import MagicMock, patch
 
-from src.sancho.router import AIRouter, RateLimiter, AIModel
+import pytest
+
 from src.core.config_manager import AIConfig
-from src.core.schemas import EmailMetadata, EmailContent, EmailAnalysis, EmailAction, EmailCategory
+from src.core.schemas import EmailAction, EmailCategory, EmailContent, EmailMetadata
+from src.sancho.router import AIRouter, RateLimiter
 from src.utils import now_utc
 
 
@@ -351,10 +351,9 @@ class TestAIRouterSingleton:
     @patch('anthropic.Anthropic')
     def test_get_ai_router_singleton(self, mock_anthropic, ai_config):
         """Test that get_ai_router returns singleton"""
-        from src.sancho.router import get_ai_router, _ai_router, _router_lock
-
         # Reset singleton for test
         import src.sancho.router
+        from src.sancho.router import get_ai_router
         src.sancho.router._ai_router = None
 
         router1 = get_ai_router(ai_config)
@@ -365,8 +364,8 @@ class TestAIRouterSingleton:
     @patch('anthropic.Anthropic')
     def test_get_ai_router_with_config_from_get_config(self, mock_anthropic, ai_config):
         """Test getting router without explicit config"""
-        from src.sancho.router import get_ai_router
         import src.sancho.router
+        from src.sancho.router import get_ai_router
 
         # Reset singleton
         src.sancho.router._ai_router = None

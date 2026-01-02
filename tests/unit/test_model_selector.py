@@ -5,9 +5,8 @@ Tests the intelligent model selection system that dynamically chooses
 the best Claude model based on use case and tier (Haiku/Sonnet/Opus).
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import Mock, patch
 
 from src.sancho.model_selector import ModelSelector, ModelTier
 

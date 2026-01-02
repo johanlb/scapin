@@ -4,16 +4,16 @@ Unit Tests for QueueStorage
 Tests the JSON-based queue storage system for manual review.
 """
 
-import pytest
 import json
-import tempfile
 import shutil
-from pathlib import Path
+import tempfile
 from datetime import datetime, timezone
-from typing import Dict, Any
+from pathlib import Path
 
+import pytest
+
+from src.core.schemas import EmailAction, EmailAnalysis, EmailCategory, EmailMetadata
 from src.integrations.storage.queue_storage import QueueStorage, get_queue_storage
-from src.core.schemas import EmailMetadata, EmailAnalysis, EmailAction, EmailCategory
 
 
 @pytest.fixture
@@ -126,7 +126,7 @@ class TestQueueStorageSaveItem:
 
         # Load file
         file_path = queue_storage.queue_dir / f"{item_id}.json"
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             item = json.load(f)
 
         # Verify structure

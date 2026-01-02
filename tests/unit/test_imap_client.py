@@ -4,15 +4,14 @@ Unit Tests for IMAP Client
 Tests for email fetching and IMAP operations.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timezone
-import email
 from email.message import EmailMessage
+from unittest.mock import MagicMock, patch
 
-from src.integrations.email.imap_client import IMAPClient
+import pytest
+
 from src.core.config_manager import EmailConfig
-from src.core.schemas import EmailMetadata, EmailContent
+from src.core.schemas import EmailContent, EmailMetadata
+from src.integrations.email.imap_client import IMAPClient
 
 
 @pytest.fixture

@@ -4,12 +4,13 @@ Unit Tests for CLI Application
 Tests CLI commands and output using Typer's testing utilities.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from typer.testing import CliRunner
-from unittest.mock import patch, MagicMock
-from src.jeeves.cli import app
-from src.core.schemas import SystemHealth, HealthCheck, ServiceStatus
 
+from src.core.schemas import HealthCheck, ServiceStatus, SystemHealth
+from src.jeeves.cli import app
 
 runner = CliRunner()
 
@@ -245,8 +246,12 @@ class TestConfigCommand:
     def test_config_command_basic(self, mock_get_config):
         """Test config command shows configuration"""
         from src.core.config_manager import (
-            PKMConfig, EmailConfig, AIConfig,
-            StorageConfig, IntegrationsConfig, MonitoringConfig
+            AIConfig,
+            EmailConfig,
+            IntegrationsConfig,
+            MonitoringConfig,
+            PKMConfig,
+            StorageConfig,
         )
 
         mock_config = PKMConfig(
@@ -299,8 +304,12 @@ class TestConfigCommand:
     def test_config_command_validate(self, mock_get_config):
         """Test config command with --validate flag"""
         from src.core.config_manager import (
-            PKMConfig, EmailConfig, AIConfig,
-            StorageConfig, IntegrationsConfig, MonitoringConfig
+            AIConfig,
+            EmailConfig,
+            IntegrationsConfig,
+            MonitoringConfig,
+            PKMConfig,
+            StorageConfig,
         )
 
         mock_config = PKMConfig(

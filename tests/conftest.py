@@ -4,23 +4,22 @@ Pytest Configuration and Fixtures
 Global fixtures for all tests.
 """
 
-import pytest
 from datetime import datetime, timezone
 from pathlib import Path
-import tempfile
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
 
 from src.core.config_manager import ConfigManager
-from src.core.state_manager import StateManager
 from src.core.schemas import (
-    EmailMetadata,
-    EmailContent,
-    EmailAnalysis,
     EmailAction,
+    EmailAnalysis,
     EmailCategory,
+    EmailContent,
+    EmailMetadata,
 )
-from src.monitoring.logger import PKMLogger, LogLevel, LogFormat
-
+from src.core.state_manager import StateManager
+from src.monitoring.logger import LogFormat, LogLevel, PKMLogger
 
 # ============================================================================
 # Setup/Teardown Fixtures

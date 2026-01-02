@@ -10,13 +10,14 @@ Covers:
 """
 
 import pytest
+
 from src.utils.stats_utils import (
     calculate_average,
     calculate_percentile,
     calculate_percentiles,
-    calculate_stats_summary,
     calculate_rate,
     calculate_rate_per_minute,
+    calculate_stats_summary,
 )
 
 

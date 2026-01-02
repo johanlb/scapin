@@ -4,20 +4,21 @@ Tests for Working Memory
 Tests WorkingMemory, Hypothesis, ReasoningPass, ContextItem, and MemoryState.
 """
 
+
 import pytest
-from datetime import datetime, timedelta
-from src.core.memory import (
-    WorkingMemory,
-    MemoryState,
-    Hypothesis,
-    ReasoningPass,
-    ContextItem,
-)
+
 from src.core.events import (
-    PerceivedEvent,
     EventSource,
     EventType,
+    PerceivedEvent,
     UrgencyLevel,
+)
+from src.core.memory import (
+    ContextItem,
+    Hypothesis,
+    MemoryState,
+    ReasoningPass,
+    WorkingMemory,
 )
 from src.utils import now_utc
 

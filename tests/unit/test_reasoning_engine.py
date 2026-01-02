@@ -4,18 +4,21 @@ Unit Tests for Sancho Reasoning Engine
 Tests for the iterative multi-pass reasoning system.
 """
 
-import pytest
 import json
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
-from src.sancho.reasoning_engine import ReasoningEngine, ReasoningResult
-from src.sancho.router import AIRouter, AIModel
-from src.sancho.templates import TemplateManager
+import pytest
+
 from src.core.events.universal_event import (
-    PerceivedEvent, Entity, EventType, EventSource, UrgencyLevel
+    EventSource,
+    EventType,
+    PerceivedEvent,
+    UrgencyLevel,
 )
-
+from src.sancho.reasoning_engine import ReasoningEngine, ReasoningResult
+from src.sancho.router import AIModel, AIRouter
+from src.sancho.templates import TemplateManager
 
 # ============================================================================
 # HELPER FUNCTIONS

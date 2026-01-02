@@ -8,15 +8,15 @@ Tests the complete cognitive reasoning pipeline:
 4. EmailAnalysis → Action (execution)
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import MagicMock, Mock, patch
 
-from src.core.events import PerceivedEvent, EventSource
+import pytest
+
+from src.core.events import EventSource, PerceivedEvent
 from src.core.events.normalizers.email_normalizer import EmailNormalizer
+from src.core.schemas import EmailAction, EmailContent, EmailMetadata
 from src.sancho.reasoning_engine import ReasoningEngine, ReasoningResult
-from src.core.schemas import EmailMetadata, EmailContent, EmailAnalysis, EmailAction, EmailCategory
-from src.sancho.router import AIRouter, AIModel
+from src.sancho.router import AIRouter
 from src.sancho.templates import TemplateManager
 from src.utils import now_utc
 

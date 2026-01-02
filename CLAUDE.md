@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 2 janvier 2026  
+**Dernière mise à jour** : 3 janvier 2026  
 **Projet** : Scapin (anciennement PKM System)  
 **Dépôt** : https://github.com/johanlb/scapin  
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -129,36 +129,80 @@ Feedback via prochain journaling → Amélioration système
 | **Trivelin** | `processor.py` | ~740 | ✅ |
 | **Jeeves** | `cli.py`, `display_manager.py`, `menu.py`, `review_mode.py` | ~2500 | ✅ |
 
-### Prochaine Phase : 1.0 — Journaling & Feedback Loop
+### Phase 1.0 : Trivelin Email — Pipeline Cognitif ✅
 
-**Objectif** : Boucle d'amélioration continue via journaling quotidien
+**Statut** : COMPLÉTÉ (2 janvier 2026)
+
+| Composant | Fichier | État |
+|-----------|---------|------|
+| ProcessingConfig | `src/core/config_manager.py` | ✅ |
+| CognitivePipeline | `src/trivelin/cognitive_pipeline.py` | ✅ |
+| ActionFactory | `src/trivelin/action_factory.py` | ✅ |
+| Intégration Processor | `src/trivelin/processor.py` | ✅ |
+| Tests unitaires | `tests/unit/test_cognitive_pipeline.py` | ✅ |
+
+**Activation** : `PROCESSING__ENABLE_COGNITIVE_REASONING=true` (opt-in)
+
+### Phase 1.1 : Journaling & Feedback Loop ✅
+
+**Statut** : COMPLÉTÉ (2 janvier 2026)
+
+| Module | Fichier | État |
+|--------|---------|------|
+| Models | `src/jeeves/journal/models.py` | ✅ |
+| Generator | `src/jeeves/journal/generator.py` | ✅ |
+| Interactive | `src/jeeves/journal/interactive.py` | ✅ |
+| Feedback | `src/jeeves/journal/feedback.py` | ✅ |
+| CLI Command | `scapin journal` | ✅ |
+| Tests | 56 tests | ✅ |
+
+**Commande** : `scapin journal [--date] [--interactive] [--output] [--format]`
+
+### Phase 1.2 : Intégration Microsoft Teams ✅
+
+**Statut** : COMPLÉTÉ (2 janvier 2026)
+
+| Module | Fichier | État |
+|--------|---------|------|
+| Auth MSAL | `src/integrations/microsoft/auth.py` | ✅ |
+| Graph Client | `src/integrations/microsoft/graph_client.py` | ✅ |
+| Models | `src/integrations/microsoft/models.py` | ✅ |
+| Teams Client | `src/integrations/microsoft/teams_client.py` | ✅ |
+| Normalizer | `src/integrations/microsoft/teams_normalizer.py` | ✅ |
+| Processor | `src/trivelin/teams_processor.py` | ✅ |
+| Actions | `src/figaro/actions/teams.py` | ✅ |
+| CLI Command | `scapin teams` | ✅ |
+| Tests | 116 tests | ✅ |
+
+**Commande** : `scapin teams [--poll] [--interactive] [--limit] [--since]`
+
+### Prochaine Phase : 1.3 — Intégration Calendrier
+
+**Objectif** : Intégrer le calendrier pour la gestion des réunions et briefings
 
 | Tâche | État |
 |-------|------|
-| Structure journal quotidien | 📋 À faire |
-| Pré-remplissage automatique | 📋 À faire |
-| Interface CLI journaling | 📋 À faire |
-| Intégration Sganarelle feedback | 📋 À faire |
+| Microsoft Calendar API via Graph | 📋 À faire |
+| Événements → PerceivedEvent | 📋 À faire |
+| Briefings pré-réunion | 📋 À faire |
+| Rappels intelligents | 📋 À faire |
 
-### Nouvelles Phases (Alignées DESIGN_PHILOSOPHY.md)
+### Phases à venir (Alignées DESIGN_PHILOSOPHY.md)
 
 | Phase | Nom | Priorité | Focus |
 |-------|-----|----------|-------|
-| **1.0** | Journaling & Feedback Loop | 🔴 CRITIQUE | Boucle d'amélioration |
-| **1.1** | Flux Entrants Unifiés | 🔴 HAUTE | Trivelin multi-source |
-| **1.2** | Intégration Teams | 🔴 HAUTE | Messages + réponses + appels |
 | **1.3** | Intégration Calendrier | 🟠 MOYENNE-HAUTE | Autonomie progressive |
 | **1.4** | Système de Briefing | 🟠 MOYENNE-HAUTE | Matin, pré-réunion |
 
 ### Suite des Tests
 
-**Global** : 967 tests, 95% couverture, 100% pass rate
+**Global** : 1158 tests, 95% couverture, 99.9% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Unit tests | 912 | ✅ |
-| Integration tests | 55 | ✅ |
-| Skipped | 52 | ⏭️ |
+| Unit tests | 1095 | ✅ |
+| Integration tests | 63 | ✅ |
+| Skipped | 53 | ⏭️ |
 
 ### Qualité du Code
 
@@ -182,6 +226,17 @@ src/core/processing_events.py         # EventBus, ProcessingEvent
 ```
 src/trivelin/processor.py             # Logique principale
 src/integrations/email/imap_client.py # Opérations IMAP
+```
+
+**Intégration Teams** (Microsoft Graph) :
+```
+src/integrations/microsoft/auth.py           # MSAL OAuth
+src/integrations/microsoft/graph_client.py   # Client Graph API
+src/integrations/microsoft/teams_client.py   # Client Teams
+src/integrations/microsoft/models.py         # TeamsMessage, TeamsChat
+src/integrations/microsoft/teams_normalizer.py # → PerceivedEvent
+src/trivelin/teams_processor.py              # Orchestrateur
+src/figaro/actions/teams.py                  # Actions reply/flag/task
 ```
 
 **CLI** (Jeeves) :
@@ -248,16 +303,16 @@ LOG_FILE=./logs/scapin.log
 
 | Phase | Focus | Priorité |
 |-------|-------|----------|
-| **0.6** | Refactoring Valet & flux bout-en-bout | 🏗️ EN COURS |
-| **1.0** | Journaling & Feedback Loop | 🔴 CRITIQUE |
-| **1.1** | Flux Entrants Unifiés (Trivelin) | 🔴 HAUTE |
+| **0.6** | Refactoring Valet & flux bout-en-bout | ✅ COMPLÉTÉ |
+| **1.0** | Pipeline Cognitif Trivelin | ✅ COMPLÉTÉ |
+| **1.1** | Journaling & Feedback Loop | ✅ COMPLÉTÉ |
+| **1.2** | Intégration Teams | ✅ COMPLÉTÉ |
 
 ### Priorités Q2 2026
 
 | Phase | Focus | Priorité |
 |-------|-------|----------|
-| **1.2** | Intégration Teams | 🔴 HAUTE |
-| **1.3** | Intégration Calendrier | 🟠 MOYENNE-HAUTE |
+| **1.3** | Intégration Calendrier | 🔴 HAUTE |
 | **1.4** | Système de Briefing | 🟠 MOYENNE-HAUTE |
 
 ### Phases Ultérieures
@@ -272,6 +327,107 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-03 — Revue & Corrections Phase 1.2
+
+**Focus** : Revue approfondie du code Teams avant Phase 1.3
+
+**Corrections apportées** :
+1. ✅ `models.py` — `datetime.now()` → `datetime.now(timezone.utc)` (2 occurrences)
+2. ✅ `models.py` — Décodage HTML via `html.unescape()` au lieu de remplacements manuels
+3. ✅ `graph_client.py` — Réutilisation du `httpx.AsyncClient` (performance)
+4. ✅ `graph_client.py` — Ajout context manager (`__aenter__`/`__aexit__`)
+5. ✅ `teams_normalizer.py` — Import `re` déplacé en haut du fichier
+6. ✅ `teams_processor.py` — Implémentation complète de `_process_with_pipeline()`
+
+**Amélioration performance GraphClient** :
+- Avant : Nouveau `AsyncClient` créé à chaque requête HTTP
+- Après : Client réutilisé via `_get_client()`, fermé proprement avec `close()`
+
+**Tests** : 1158 passent (+1), Ruff 0 warnings
+
+---
+
+### Session 2026-01-02 (Suite 3) — Phase 1.2 Complétée
+
+**Focus** : Intégration Microsoft Teams via Graph API
+
+**Accomplissements** :
+1. ✅ `src/integrations/microsoft/auth.py` — MSAL OAuth avec device code flow (~160 lignes)
+2. ✅ `src/integrations/microsoft/graph_client.py` — Client Graph API async (~200 lignes)
+3. ✅ `src/integrations/microsoft/models.py` — TeamsMessage, TeamsChat, TeamsSender (~220 lignes)
+4. ✅ `src/integrations/microsoft/teams_client.py` — Client Teams haut niveau (~160 lignes)
+5. ✅ `src/integrations/microsoft/teams_normalizer.py` — Normalisation → PerceivedEvent (~240 lignes)
+6. ✅ `src/trivelin/teams_processor.py` — Orchestrateur traitement Teams (~260 lignes)
+7. ✅ `src/figaro/actions/teams.py` — Actions reply/flag/create_task (~330 lignes)
+8. ✅ Commande CLI `scapin teams` ajoutée (~120 lignes)
+9. ✅ 116 tests unitaires (models, normalizer, client, actions)
+10. ✅ Tous les tests passent (1158 tests, +116)
+11. ✅ Ruff 0 warnings sur les nouveaux fichiers
+12. ✅ Documentation mise à jour
+
+**Configuration requise** :
+```bash
+TEAMS__ENABLED=true
+TEAMS__ACCOUNT__CLIENT_ID=your-azure-app-client-id
+TEAMS__ACCOUNT__TENANT_ID=your-azure-tenant-id
+```
+
+**Commande** : `scapin teams [--poll] [--interactive] [--limit] [--since]`
+
+---
+
+### Session 2026-01-02 (Suite 2) — Phase 1.1 Complétée
+
+**Focus** : Journaling quotidien avec boucle de feedback Sganarelle
+
+**Accomplissements** :
+1. ✅ `src/jeeves/journal/models.py` — JournalEntry, JournalQuestion, Correction (~350 lignes)
+2. ✅ `src/jeeves/journal/generator.py` — JournalGenerator avec provider protocol (~400 lignes)
+3. ✅ `src/jeeves/journal/interactive.py` — Mode questionary interactif (~300 lignes)
+4. ✅ `src/jeeves/journal/feedback.py` — Intégration Sganarelle UserFeedback (~250 lignes)
+5. ✅ Commande CLI `scapin journal` ajoutée (~80 lignes)
+6. ✅ 56 tests unitaires (models, generator, feedback)
+7. ✅ Tous les tests passent (1034 tests, +56)
+8. ✅ Ruff 0 warnings
+9. ✅ Documentation mise à jour (ROADMAP.md, CLAUDE.md)
+
+**Workflow journaling** :
+```
+scapin journal → JournalGenerator.generate(date)
+              → JournalEntry (draft avec questions)
+              → JournalInteractive.run() (questionary)
+              → process_corrections() → Sganarelle.learn()
+```
+
+**Commande** : `scapin journal [--date YYYY-MM-DD] [--interactive] [--output FILE] [--format markdown|json]`
+
+---
+
+### Session 2026-01-02 (Suite) — Phase 1.0 Complétée
+
+**Focus** : Connexion du pipeline cognitif complet
+
+**Accomplissements** :
+1. ✅ `ProcessingConfig` ajouté à `config_manager.py` (opt-in, OFF par défaut)
+2. ✅ `CognitivePipeline` créé dans `src/trivelin/cognitive_pipeline.py` (~200 lignes)
+3. ✅ `ActionFactory` créé dans `src/trivelin/action_factory.py` (~80 lignes)
+4. ✅ Intégration dans `processor.py` avec fallback au mode legacy
+5. ✅ 15 tests unitaires dans `test_cognitive_pipeline.py`
+6. ✅ Tous les tests passent (978 tests, +11)
+7. ✅ Ruff 0 warnings
+8. ✅ Documentation mise à jour (ROADMAP.md, CLAUDE.md)
+
+**Flux cognitif complet** :
+```
+Email → EmailNormalizer → ReasoningEngine (Sancho)
+      → PlanningEngine (Planchet) → ActionOrchestrator (Figaro)
+      → LearningEngine (Sganarelle)
+```
+
+**Activation** : `PROCESSING__ENABLE_COGNITIVE_REASONING=true`
+
+---
 
 ### Session 2026-01-02 (Nuit) — Phase 0.6 Complétée
 
@@ -452,20 +608,19 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Phase 1.0 — Journaling & Feedback Loop
+### Phase 1.3 — Intégration Calendrier
 
-Phase 0.6 (Refactoring Valet) est **complétée** ✅. Prochaine priorité :
+Phase 1.2 (Intégration Teams) est **complétée** ✅. Prochaine priorité :
 
-1. Concevoir structure du journal quotidien
-2. Implémenter pré-remplissage automatique (résumé journée)
-3. Créer interface CLI journaling (questionary)
-4. Intégrer avec Sganarelle pour feedback loop
-5. Collecter feedback sur décisions AI pour calibration
+1. Étendre le GraphClient pour le calendrier Microsoft
+2. Créer CalendarClient pour récupérer événements
+3. Créer CalendarEvent dataclass et normalizer
+4. Normaliser événements calendrier → PerceivedEvent
+5. Intégrer les réunions avec les messages Teams
 
 ### Alternatives
 
-- **Phase 1.1** : Flux Entrants Unifiés (Trivelin multi-source)
-- **Phase 1.2** : Intégration Teams (messages + réponses)
+- **Phase 1.4** : Système de Briefing (après calendrier)
 
 ---
 
@@ -482,5 +637,5 @@ Phase 0.6 (Refactoring Valet) est **complétée** ✅. Prochaine priorité :
 
 ---
 
-**Dernière mise à jour** : 2 janvier 2026 par Claude  
+**Dernière mise à jour** : 3 janvier 2026 par Claude  
 **Prochaine révision** : Début prochaine session

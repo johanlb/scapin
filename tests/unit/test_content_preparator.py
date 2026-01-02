@@ -5,6 +5,7 @@ Covers content truncation, HTML cleaning, and preparation logic.
 """
 
 import pytest
+
 from src.core.processors.content_preparator import ContentPreparator
 from src.core.schemas import EmailContent
 

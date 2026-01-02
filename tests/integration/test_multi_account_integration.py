@@ -8,30 +8,14 @@ Note: Full .env file parsing for EMAIL__ACCOUNTS__0__* format requires
 implementing a custom settings source in PKMConfig. See Phase 2 roadmap.
 """
 
+
 import pytest
-from pathlib import Path
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
-import os
 
 from src.core.config_manager import (
-    ConfigManager,
     EmailAccountConfig,
     EmailConfig,
-    PKMConfig,
-    AIConfig
 )
 from src.core.state_manager import StateManager
-from src.core.schemas import (
-    EmailMetadata,
-    EmailContent,
-    EmailAnalysis,
-    EmailAction,
-    EmailCategory,
-)
-from src.monitoring.logger import PKMLogger, LogLevel
-from src.utils import ensure_dir, now_utc
-
 
 pytestmark = pytest.mark.integration
 

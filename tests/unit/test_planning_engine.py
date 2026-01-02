@@ -2,30 +2,18 @@
 Unit tests for Planchet Planning Engine
 """
 
-import pytest
 from datetime import datetime
 
-from src.planchet.planning_engine import (
-    PlanningEngine,
-    ActionPlan,
-    RiskLevel,
-    RiskAssessment
-)
-from src.figaro.actions.base import (
-    Action,
-    ActionResult,
-    ValidationResult,
-    ExecutionMode
-)
-from src.core.memory.working_memory import WorkingMemory, Hypothesis
 from src.core.events.universal_event import (
-    PerceivedEvent,
-    EventType,
-    Entity,
     EventSource,
-    UrgencyLevel
+    EventType,
+    PerceivedEvent,
+    UrgencyLevel,
+    now_utc,
 )
-from src.core.events.universal_event import now_utc
+from src.core.memory.working_memory import Hypothesis, WorkingMemory
+from src.figaro.actions.base import Action, ActionResult, ExecutionMode, ValidationResult
+from src.planchet.planning_engine import PlanningEngine, RiskLevel
 
 
 # Helper function to create test PerceivedEvent

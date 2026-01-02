@@ -2,18 +2,16 @@
 Unit tests for ConfigManager
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import os
+
+import pytest
 from pydantic import ValidationError
 
 from src.core.config_manager import (
-    ConfigManager,
-    PKMConfig,
-    EmailConfig,
     AIConfig,
-    get_config,
+    ConfigManager,
+    EmailConfig,
+    PKMConfig,
 )
 
 

@@ -4,23 +4,22 @@ Tests pour Sganarelle Learning Engine
 Test de l'orchestrateur principal du module d'apprentissage.
 """
 
-import pytest
-from pathlib import Path
 import tempfile
-import shutil
+from pathlib import Path
 
-from src.sganarelle.learning_engine import LearningEngine
-from src.sganarelle.types import UserFeedback, LearningResult
-from src.core.memory.working_memory import WorkingMemory, Hypothesis
+import pytest
+
 from src.core.events.universal_event import (
-    PerceivedEvent,
-    EventType,
-    UrgencyLevel,
     Entity,
-    EventSource
+    EventSource,
+    EventType,
+    PerceivedEvent,
+    UrgencyLevel,
 )
+from src.core.memory.working_memory import Hypothesis, WorkingMemory
 from src.figaro.actions.tasks import CreateTaskAction
-from src.figaro.actions.email import ArchiveEmailAction
+from src.sganarelle.learning_engine import LearningEngine
+from src.sganarelle.types import LearningResult, UserFeedback
 from src.utils import now_utc
 
 

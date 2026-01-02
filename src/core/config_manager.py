@@ -342,6 +342,141 @@ class MonitoringConfig(BaseModel):
     error_reporting_enabled: bool = Field(True, description="Enable error reporting")
 
 
+class ProcessingConfig(BaseModel):
+    """
+    Configuration for cognitive processing pipeline
+
+    Controls the multi-pass reasoning system introduced in Phase 1.0.
+    When enabled, emails go through Trivelin → Sancho → Planchet → Figaro → Sganarelle.
+    When disabled (default), emails use the legacy single-pass AI analysis.
+    """
+
+    enable_cognitive_reasoning: bool = Field(
+        False,
+        description="Enable multi-pass cognitive reasoning (opt-in, default OFF for safety)"
+    )
+    cognitive_confidence_threshold: float = Field(
+        0.85,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for auto-execution (below = review queue)"
+    )
+    cognitive_timeout_seconds: int = Field(
+        20,
+        ge=5,
+        le=120,
+        description="Maximum time for cognitive processing per email"
+    )
+    cognitive_max_passes: int = Field(
+        5,
+        ge=1,
+        le=10,
+        description="Maximum reasoning passes before forcing decision"
+    )
+    fallback_on_failure: bool = Field(
+        True,
+        description="Fall back to legacy single-pass if cognitive pipeline fails"
+    )
+
+
+class MicrosoftAccountConfig(BaseModel):
+    """
+    Configuration for Microsoft account authentication
+
+    Used for Microsoft Graph API access (Teams, Calendar, etc.).
+    Requires an Azure AD app registration with appropriate permissions.
+    """
+
+    client_id: str = Field(..., description="Azure AD application client ID")
+    tenant_id: str = Field(..., description="Azure AD tenant ID")
+    client_secret: Optional[str] = Field(
+        None,
+        description="Client secret for confidential apps (optional for public apps)"
+    )
+    redirect_uri: str = Field(
+        "http://localhost:8080",
+        description="OAuth redirect URI"
+    )
+    scopes: tuple[str, ...] = Field(
+        (
+            "User.Read",
+            "Chat.Read",
+            "Chat.ReadWrite",
+            "ChannelMessage.Read.All",
+            "ChannelMessage.Send",
+        ),
+        description="Microsoft Graph API scopes"
+    )
+
+    @field_validator("client_id")
+    @classmethod
+    def client_id_not_placeholder(cls, v: str) -> str:
+        """Validate client ID is configured"""
+        if not v or v in ("your-client-id", "YOUR_CLIENT_ID", ""):
+            raise ValueError(
+                "Microsoft client_id must be configured with a real Azure AD app client ID"
+            )
+        return v
+
+    @field_validator("tenant_id")
+    @classmethod
+    def tenant_id_not_placeholder(cls, v: str) -> str:
+        """Validate tenant ID is configured"""
+        if not v or v in ("your-tenant-id", "YOUR_TENANT_ID", "common", ""):
+            raise ValueError(
+                "Microsoft tenant_id must be configured with your Azure AD tenant ID"
+            )
+        return v
+
+
+class TeamsConfig(BaseModel):
+    """
+    Configuration for Microsoft Teams integration
+
+    Controls Teams message processing via Microsoft Graph API.
+    Requires MicrosoftAccountConfig with appropriate Teams permissions.
+    """
+
+    enabled: bool = Field(
+        False,
+        description="Enable Teams integration (opt-in, default OFF)"
+    )
+    account: Optional[MicrosoftAccountConfig] = Field(
+        None,
+        description="Microsoft account configuration"
+    )
+    poll_interval_seconds: int = Field(
+        60,
+        ge=10,
+        le=3600,
+        description="Polling interval for new messages (seconds)"
+    )
+    max_messages_per_poll: int = Field(
+        50,
+        ge=1,
+        le=500,
+        description="Maximum messages to fetch per poll"
+    )
+    process_channels: bool = Field(
+        True,
+        description="Process messages from Teams channels"
+    )
+    process_chats: bool = Field(
+        True,
+        description="Process messages from 1:1 and group chats"
+    )
+
+    @model_validator(mode='after')
+    def validate_account_when_enabled(self):
+        """Ensure account is configured when Teams is enabled"""
+        if self.enabled and self.account is None:
+            raise ValueError(
+                "Microsoft account must be configured when Teams is enabled. "
+                "Set TEAMS__ACCOUNT__CLIENT_ID and TEAMS__ACCOUNT__TENANT_ID in .env"
+            )
+        return self
+
+
 class PKMConfig(BaseSettings):
     """
     Configuration principale PKM
@@ -369,6 +504,8 @@ class PKMConfig(BaseSettings):
     storage: StorageConfig = Field(default_factory=StorageConfig)
     integrations: IntegrationsConfig = Field(default_factory=IntegrationsConfig)
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
+    processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
+    teams: TeamsConfig = Field(default_factory=TeamsConfig)
 
 
 class ConfigManager:

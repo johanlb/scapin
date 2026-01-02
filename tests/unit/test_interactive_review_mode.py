@@ -4,9 +4,9 @@ Unit Tests for InteractiveReviewMode
 Tests the interactive review mode for queued emails.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime, timezone
 
 from src.jeeves.review_mode import InteractiveReviewMode
 
@@ -607,8 +607,9 @@ class TestInteractiveReviewModeFormatEmailAge:
 
     def test_format_email_age_just_now(self, review_mode):
         """Test formatting very recent email"""
-        from src.utils import now_utc
         from datetime import timedelta
+
+        from src.utils import now_utc
 
         now = now_utc()
         recent = (now - timedelta(seconds=10)).isoformat()
@@ -619,8 +620,9 @@ class TestInteractiveReviewModeFormatEmailAge:
 
     def test_format_email_age_minutes(self, review_mode):
         """Test formatting email from minutes ago"""
-        from src.utils import now_utc
         from datetime import timedelta
+
+        from src.utils import now_utc
 
         now = now_utc()
         minutes_ago = (now - timedelta(minutes=5)).isoformat()

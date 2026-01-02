@@ -2,17 +2,14 @@
 Unit tests for StructuredLogger
 """
 
-import pytest
-import logging
 import json
-from pathlib import Path
+import logging
 
 from src.monitoring.logger import (
+    LogFormat,
+    LogLevel,
     PKMLogger,
     StructuredFormatter,
-    TextFormatter,
-    LogLevel,
-    LogFormat,
     get_logger,
 )
 

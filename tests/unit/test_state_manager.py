@@ -2,15 +2,14 @@
 Unit tests for StateManager
 """
 
-import pytest
 import threading
 import time
 from datetime import datetime
 
 from src.core.state_manager import (
-    StateManager,
-    SessionStats,
     ProcessingState,
+    SessionStats,
+    StateManager,
     get_state_manager,
 )
 

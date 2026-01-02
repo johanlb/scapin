@@ -9,21 +9,16 @@ Tests all ErrorStore functionality including:
 - Context manager usage
 """
 
-import pytest
 import sqlite3
 import tempfile
 import threading
-from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List
+from pathlib import Path
 
+import pytest
+
+from src.core.error_manager import ErrorCategory, ErrorSeverity, RecoveryStrategy, SystemError
 from src.core.error_store import ErrorStore, get_error_store, reset_error_store
-from src.core.error_manager import (
-    SystemError,
-    ErrorCategory,
-    ErrorSeverity,
-    RecoveryStrategy
-)
 
 
 @pytest.fixture
@@ -93,14 +88,14 @@ class TestErrorStoreInit:
     def test_init_creates_schema(self, temp_db):
         """Test that initialization creates proper schema"""
         store = ErrorStore(db_path=temp_db)
-        
+
         conn = sqlite3.connect(str(temp_db))
         cursor = conn.cursor()
-        
+
         # Check table exists
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='errors'")
         assert cursor.fetchone() is not None
-        
+
         # Check indexes exist
         cursor.execute("SELECT name FROM sqlite_master WHERE type='index'")
         indexes = [row[0] for row in cursor.fetchall()]
@@ -108,7 +103,7 @@ class TestErrorStoreInit:
         assert 'idx_errors_category' in indexes
         assert 'idx_errors_severity' in indexes
         assert 'idx_errors_resolved' in indexes
-        
+
         conn.close()
 
     def test_init_default_path(self, mock_config):
@@ -131,7 +126,7 @@ class TestErrorStoreSave:
         """Test that saved error can be retrieved"""
         error_store.save_error(sample_error)
         retrieved = error_store.get_error(sample_error.id)
-        
+
         assert retrieved is not None
         assert retrieved.id == sample_error.id
         assert retrieved.exception_type == sample_error.exception_type
@@ -160,7 +155,7 @@ class TestErrorStoreSave:
             resolved_at=None,
             notes=""
         )
-        
+
         assert error_store.save_error(error) is True
         retrieved = error_store.get_error("test-special-001")
         assert retrieved.exception_message == error.exception_message
@@ -168,23 +163,23 @@ class TestErrorStoreSave:
     def test_save_error_replace(self, error_store, sample_error):
         """Test that saving same ID replaces existing error"""
         error_store.save_error(sample_error)
-        
+
         # Modify and save again
         sample_error.resolved = True
         sample_error.resolved_at = datetime.now()
         error_store.save_error(sample_error)
-        
+
         retrieved = error_store.get_error(sample_error.id)
         assert retrieved.resolved is True
 
     def test_update_error(self, error_store, sample_error):
         """Test update_error method"""
         error_store.save_error(sample_error)
-        
+
         sample_error.recovery_attempted = True
         sample_error.recovery_successful = True
         result = error_store.update_error(sample_error)
-        
+
         assert result is True
         retrieved = error_store.get_error(sample_error.id)
         assert retrieved.recovery_attempted is True
@@ -229,7 +224,7 @@ class TestErrorStoreRetrieval:
                 notes=""
             )
             error_store.save_error(error)
-        
+
         results = error_store.get_recent_errors(limit=10)
         assert len(results) == 10
 
@@ -258,7 +253,7 @@ class TestErrorStoreRetrieval:
                 notes=""
             )
             error_store.save_error(error)
-        
+
         results = error_store.get_recent_errors()
         # Most recent should be first
         assert results[0].id == "test-000"
@@ -289,7 +284,7 @@ class TestErrorStoreRetrieval:
                 notes=""
             )
             error_store.save_error(error)
-        
+
         results = error_store.get_recent_errors(category=ErrorCategory.AI)
         assert len(results) == 1
         assert results[0].category == ErrorCategory.AI
@@ -318,7 +313,7 @@ class TestErrorStoreRetrieval:
                 notes=""
             )
             error_store.save_error(error)
-        
+
         results = error_store.get_recent_errors(severity=ErrorSeverity.CRITICAL)
         assert len(results) == 1
         assert results[0].severity == ErrorSeverity.CRITICAL
@@ -347,7 +342,7 @@ class TestErrorStoreRetrieval:
                 notes=""
             )
             error_store.save_error(error)
-        
+
         results = error_store.get_recent_errors(resolved=True)
         assert len(results) == 1
         assert results[0].resolved is True
@@ -385,7 +380,7 @@ class TestErrorStoreStats:
                 notes=""
             )
             error_store.save_error(error)
-        
+
         assert error_store.get_error_count() == 5
 
     def test_get_error_stats(self, error_store):
@@ -394,7 +389,7 @@ class TestErrorStoreStats:
         categories = [ErrorCategory.IMAP, ErrorCategory.AI, ErrorCategory.IMAP]
         severities = [ErrorSeverity.LOW, ErrorSeverity.CRITICAL, ErrorSeverity.MEDIUM]
         resolved_states = [True, False, False]
-        
+
         for i, (cat, sev, res) in enumerate(zip(categories, severities, resolved_states)):
             error = SystemError(
                 id=f"test-{i}",
@@ -417,7 +412,7 @@ class TestErrorStoreStats:
                 notes=""
             )
             error_store.save_error(error)
-        
+
         stats = error_store.get_error_stats()
 
         assert stats["total_errors"] == 3
@@ -459,7 +454,7 @@ class TestErrorStoreClear:
             notes=""
         )
         error_store.save_error(old_error)
-        
+
         # Create recent resolved error
         recent_error = SystemError(
             id="recent-resolved",
@@ -482,10 +477,10 @@ class TestErrorStoreClear:
             notes=""
         )
         error_store.save_error(recent_error)
-        
+
         # Clear errors older than 30 days
         deleted = error_store.clear_resolved_errors(older_than_days=30)
-        
+
         assert deleted == 1
         assert error_store.get_error("old-resolved") is None
         assert error_store.get_error("recent-resolved") is not None
@@ -514,9 +509,9 @@ class TestErrorStoreClear:
             notes=""
         )
         error_store.save_error(error)
-        
+
         deleted = error_store.clear_resolved_errors(older_than_days=30)
-        
+
         assert deleted == 0
         assert error_store.get_error("old-unresolved") is not None
 
@@ -549,17 +544,17 @@ class TestErrorStoreThreadSafety:
                     notes=""
                 )
                 error_store.save_error(error)
-        
+
         # Create 10 threads, each saving 10 errors
         threads = []
         for i in range(10):
             t = threading.Thread(target=save_errors, args=(i, 10))
             threads.append(t)
             t.start()
-        
+
         for t in threads:
             t.join()
-        
+
         # Should have 100 errors total
         count = error_store.get_error_count()
         assert count == 100
@@ -567,7 +562,7 @@ class TestErrorStoreThreadSafety:
     def test_concurrent_reads_writes(self, error_store):
         """Test concurrent reads and writes"""
         results = []
-        
+
         def writer():
             for i in range(50):
                 error = SystemError(
@@ -591,21 +586,21 @@ class TestErrorStoreThreadSafety:
                     notes=""
                 )
                 error_store.save_error(error)
-        
+
         def reader():
             for _ in range(50):
                 count = error_store.get_error_count()
                 results.append(count)
-        
+
         writer_thread = threading.Thread(target=writer)
         reader_thread = threading.Thread(target=reader)
-        
+
         writer_thread.start()
         reader_thread.start()
-        
+
         writer_thread.join()
         reader_thread.join()
-        
+
         # All operations should complete without error
         assert len(results) == 50
 
