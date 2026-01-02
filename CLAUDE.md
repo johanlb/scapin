@@ -1,493 +1,409 @@
-# CLAUDE.md - Session Context & Project State
+# CLAUDE.md — Contexte de Session & État du Projet
 
-**Last Updated**: 2026-01-02
-**Project**: Scapin (formerly PKM System)
-**Repository**: https://github.com/johanlb/scapin
-**Working Directory**: `/Users/johan/Developer/PKM` (legacy) + `/Users/johan/Developer/scapin` (active)
+**Dernière mise à jour** : 2 janvier 2026  
+**Projet** : Scapin (anciennement PKM System)  
+**Dépôt** : https://github.com/johanlb/scapin  
+**Répertoire de travail** : `/Users/johan/Developer/scapin`
 
 ---
 
-## 🎯 Project Quick Start
+## 🎯 Démarrage Rapide
 
-### What is Scapin?
+### Qu'est-ce que Scapin ?
 
-Scapin is an **intelligent personal assistant** with a cognitive architecture inspired by human reasoning. It transforms email overload into organized knowledge through multi-pass AI analysis, contextual memory, and intelligent action planning.
+Scapin est un **gardien cognitif personnel** avec une architecture inspirée du raisonnement humain. Il transforme le flux d'emails et d'informations en connaissances organisées via une analyse IA multi-passes, une mémoire contextuelle et une planification d'actions intelligente.
 
-**Core Philosophy**: A valet who anticipates needs, learns preferences, and executes with precision.
+**Mission fondamentale** : *"Prendre soin de Johan mieux que Johan lui-même."*
 
-### Architecture Overview
+### Documents de Référence Essentiels
+
+| Document | Rôle | À lire quand |
+|----------|------|--------------|
+| **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | 🎯 **Document fondateur** — Principes philosophiques, fondements théoriques (Extended Mind, Stiegler, Wegner), vision du partenariat cognitif | Toujours consulter pour comprendre le *pourquoi* des décisions |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Spécifications techniques — Comment les valets fonctionnent | Pour le *comment* technique |
+| **[ROADMAP.md](ROADMAP.md)** | Plan de développement par phases | Pour prioriser les tâches |
+
+### Principes de Conception Clés
+
+Ces principes guident TOUTES les décisions de développement :
+
+1. **Qualité sur vitesse** — 10-20s de raisonnement pour la BONNE décision
+2. **Proactivité maximale** — Anticiper, suggérer, challenger, rappeler
+3. **Intimité totale** — Aucune limite d'accès pour l'efficacité
+4. **Apprentissage progressif** — Seuils de confiance appris, pas de règles rigides
+5. **Construction propre** — Lent mais bien construit dès le début
+
+📖 *Référence complète : [DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)*
+
+---
+
+## 🏗️ Architecture Cognitive
+
+### Vue d'Ensemble
 
 ```
-Cognitive Loop:
+Boucle Cognitive :
 ┌─────────────────────────────────────────────────────────┐
-│  Input (Email/File/Question)                            │
+│  Entrée (Email/Fichier/Question)                        │
 │    ↓                                                     │
-│  PerceivedEvent (Universal normalization)               │
+│  PerceivedEvent (Normalisation universelle)             │
 │    ↓                                                     │
-│  Sancho (5-pass reasoning with confidence convergence)  │
+│  Sancho (Raisonnement 5 passes, convergence confiance)  │
 │    ↓                                                     │
-│  Passepartout (Knowledge retrieval & context)           │
+│  Passepartout (Récupération contexte & connaissances)   │
 │    ↓                                                     │
-│  Planchet (Planning & risk assessment)                  │
+│  Planchet (Planification & évaluation risques)          │
 │    ↓                                                     │
-│  Figaro (Action execution with DAG orchestration)       │
+│  Figaro (Exécution actions, orchestration DAG)          │
 │    ↓                                                     │
-│  Sganarelle (Learning from feedback & outcomes)         │
+│  Sganarelle (Apprentissage feedback & résultats)        │
 │    ↓                                                     │
-│  WorkingMemory updated → Loop continues                 │
+│  WorkingMemory mise à jour → Boucle continue            │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Current Phase: **Phase 0.6 In Progress** 🚧
+### L'Équipe des Valets
 
-**Status**: Full cognitive architecture implemented, fixing test suite issues (~1000+ tests, 85 source files)
-
-**Completed Modules**:
-
-**Week 1 - Foundation** ✅
-- ✅ `src/core/events/universal_event.py` - PerceivedEvent model
-- ✅ `src/core/memory/working_memory.py` - WorkingMemory with hypothesis tracking
-- ✅ `src/core/events/normalizers/email_normalizer.py` - Email → PerceivedEvent
-- ✅ `src/core/memory/continuity_detector.py` - Thread continuity detection
-
-**Week 2 - Sancho (AI/Reasoning)** ✅
-- ✅ `src/ai/router.py` - AIRouter with circuit breaker, rate limiting
-- ✅ `src/ai/model_selector.py` - Multi-tier model selection
-- ✅ `src/ai/templates.py` - Jinja2 template management
-- ✅ `src/sancho/reasoning_engine.py` - 5-pass iterative reasoning
-
-**Week 3 - Passepartout (Knowledge)** ✅
-- ✅ `src/passepartout/embeddings.py` - Sentence transformer embeddings
-- ✅ `src/passepartout/vector_store.py` - FAISS semantic search
-- ✅ `src/passepartout/note_manager.py` - Markdown notes + Git
-- ✅ `src/passepartout/context_engine.py` - Context retrieval
-
-**Week 4 - Planchet + Figaro (Planning/Execution)** ✅
-- ✅ `src/planchet/planning_engine.py` - Action planning with risk assessment
-- ✅ `src/figaro/orchestrator.py` - DAG execution with rollback
-- ✅ `src/figaro/actions/*.py` - Email, tasks, notes actions
-
-**Week 5 - Sganarelle (Learning)** ✅
-- ✅ `src/sganarelle/learning_engine.py` - Continuous learning
-- ✅ `src/sganarelle/feedback_processor.py` - Feedback analysis
-- ✅ `src/sganarelle/confidence_calibrator.py` - Confidence calibration
-- ✅ `src/sganarelle/pattern_store.py` - Pattern detection
-- ✅ `src/sganarelle/provider_tracker.py` - Provider scoring
-- ✅ `src/sganarelle/knowledge_updater.py` - PKM updates
-
-**CLI** ✅
-- ✅ `src/cli/app.py` - Typer CLI commands
-- ✅ `src/cli/display_manager.py` - Rich UI rendering
-- ✅ `src/cli/menu.py` - Interactive menus
-- ✅ `src/cli/review_mode.py` - Decision review interface
-
-**Next**: Phase 0.6 - Valet Module Refactoring (renaming to final structure)
+| Valet | Module | Responsabilité |
+|-------|--------|----------------|
+| **Trivelin** | `src/trivelin/` | Perception & triage des événements |
+| **Sancho** | `src/sancho/` | Raisonnement itératif 5 passes |
+| **Passepartout** | `src/passepartout/` | Base de connaissances (Markdown + Git + FAISS) |
+| **Planchet** | `src/planchet/` | Planification avec évaluation des risques |
+| **Figaro** | `src/figaro/` | Orchestration DAG avec rollback |
+| **Sganarelle** | `src/sganarelle/` | Apprentissage continu |
+| **Jeeves** | `src/jeeves/` | Interface API (FastAPI + WebSockets) |
 
 ---
 
-## 📊 Current State (2026-01-02)
+## 📊 État Actuel (2 janvier 2026)
 
-### Test Suite Status
+### Phase Actuelle : Phase 0.5 — Architecture Cognitive
 
-**Overall**: ~1000 tests collected, core modules passing
+**Statut** : Semaine 1 ✅ complète, Semaine 2 en cours
 
-**Phase 0.6 Fixes Applied**:
-- ✅ ProcessingEventType renamed (was EventType conflict)
-- ✅ PerceivedEvent fixtures updated with all required fields
-- ✅ Pattern.matches() bug fixed (entity_type → type)
-- ✅ CreateTaskAction argument fixed (project → project_name)
-- ✅ Orphaned test files removed
-- ✅ Core tests verified: 90 passed (events, display_manager, sganarelle_types, feedback_processor)
+**Modules Implémentés** :
 
-**By Module**:
-- Core events: ✅ 19 tests passing
-- Display Manager: ✅ 18 tests passing
-- Sganarelle types: ✅ 29 tests passing
-- Feedback Processor: ✅ 24 tests passing
-- Sganarelle: ✅ 100+ tests (48 passed, 3 minor failures)
-- Passepartout: ✅ Tests synced
-- Planchet/Figaro: ✅ Tests synced
+| Semaine | Module | Fichiers | Statut |
+|---------|--------|----------|--------|
+| **1** | Fondation | `universal_event.py`, `working_memory.py`, `email_normalizer.py`, `continuity_detector.py` | ✅ |
+| **2** | Sancho (IA) | `router.py`, `model_selector.py`, `templates.py`, `reasoning_engine.py` | ✅ |
+| **3** | Passepartout | `embeddings.py`, `vector_store.py`, `note_manager.py`, `context_engine.py` | ✅ |
+| **4** | Planchet + Figaro | `planning_engine.py`, `orchestrator.py`, `actions/*.py` | ✅ |
+| **5** | Sganarelle | `learning_engine.py`, `feedback_processor.py`, `confidence_calibrator.py`, `pattern_store.py` | ✅ |
 
-**Remaining Issues**:
-- Some test files need Hypothesis fixture updates (id vs hypothesis_id)
-- Learning engine tests need PerceivedEvent fixtures
-- Some integration tests may hang (need investigation)
+### Suite des Tests
 
-**Coverage**: 90%+ on core modules
+**Global** : 867 tests, 95% couverture, 100% pass rate
 
-### Code Quality
+| Module | Tests | Statut |
+|--------|-------|--------|
+| Core events | 19 | ✅ |
+| Display Manager | 18 | ✅ |
+| Sganarelle types | 29 | ✅ |
+| Feedback Processor | 24 | ✅ |
+| Sganarelle complet | 100+ | ✅ |
 
-**Ruff Linting**: 50 non-critical style warnings (down from 610)
-- ✅ 558 issues auto-fixed (type annotations, imports, etc.)
-- ✅ All critical errors resolved (F821, undefined names, etc.)
-- Remaining: ARG002 (unused args), B904 (exception style), SIM102 (simplifications)
+### Qualité du Code
 
-**Quality Score**: 10/10 maintained
-- Type hints: 100%
-- Docstrings: Complete
-- Thread-safety: Verified
-- Immutability: Enforced (frozen dataclasses)
+**Score Ruff** : 50 warnings non-critiques (réduit de 610)
+- ✅ 558 problèmes auto-corrigés (annotations types, imports)
+- ✅ Toutes les erreurs critiques résolues
+- Restant : ARG002, B904, SIM102 (style)
 
-### Recent Fixes (Session 2026-01-02)
+### Corrections Récentes (Session 2026-01-02)
 
-**1. Deadlock Fix** (commit `d339120`)
-- **Issue**: `test_display_mode_lifecycle` hung indefinitely
-- **Root cause**: `PKMLogger._config_lock` using non-reentrant Lock
-- **Fix**: Changed to `threading.RLock()` for nested acquisition
-- **Impact**: Tests now complete in 62s instead of hanging
-
-**2. Import Errors** (commit `e9c7966`)
-- **Issue**: `get_event_bus` not exported from `src.core.events`
-- **Fix**: Added re-export in `src/core/events/__init__.py`
-- **Impact**: 2 integration tests now pass
-
-**3. Linting Modernization** (commit `898d6ca`)
-- **Fixes**: 462 automatic corrections
-  - `typing.List` → `list` (PEP 585)
-  - `typing.Dict` → `dict`
-  - Import organization (I001)
-- **Impact**: Code now Python 3.9+ compliant
-
-**4. Missing Constants** (commit `8db8aa6`)
-- **Fix**: Added 4 learning threshold constants to `feedback_processor.py`
-- **Impact**: F821 undefined name errors resolved
-
-**5. TYPE_CHECKING** (commit `d646625`)
-- **Fix**: Forward reference for `ErrorStore` to avoid circular imports
-- **Impact**: Last F821 error resolved
-
-### Claude Code CLI Configuration
-
-**Installation**: Native (v2.0.76) in `~/.local/bin/claude`
-- ✅ PATH configured (`~/.bashrc`, `~/.bash_profile`, `~/.zshrc`)
-- ✅ Priority: Native installation over npm-global
-- ⚠️ Optional: Remove npm-global installation (`sudo npm uninstall -g @anthropic-ai/claude-code`)
-
-**Diagnostics Fixed**:
-- ✅ `~/.local/bin` added to PATH
-- ✅ Installation mismatch resolved
-- ✅ Auto-updates will work without sudo
+| Correction | Fichier | Impact |
+|------------|---------|--------|
+| Deadlock RLock | `logger.py` | Tests ne bloquent plus |
+| Import get_event_bus | `events/__init__.py` | 2 tests intégration passent |
+| Type annotations | 462 fichiers | Conformité Python 3.9+ |
+| Constantes manquantes | `feedback_processor.py` | 4 erreurs F821 résolues |
+| TYPE_CHECKING | `error_store.py` | Imports circulaires résolus |
 
 ---
 
-## 🗺️ Development Roadmap
+## 🗺️ Feuille de Route Développement
 
-### Phase 0.5: Cognitive Architecture - COMPLETE ✅
+### Phase 0.5 : Architecture Cognitive — ✅ COMPLÈTE
 
-**Week 1**: ✅ COMPLETE (Universal events, Working memory, Continuity detection)
+Tous les modules valets sont implémentés :
+- Trivelin (perception)
+- Sancho (raisonnement)
+- Passepartout (connaissances)
+- Planchet (planification)
+- Figaro (exécution)
+- Sganarelle (apprentissage)
 
-**Week 2**: ✅ COMPLETE - Sancho - Reasoning Engine
-- [x] `src/ai/router.py` - AI routing with circuit breaker + rate limiting
-- [x] `src/ai/model_selector.py` - Multi-provider model selection
-- [x] `src/ai/templates.py` - Jinja2 template management
-- [x] `src/sancho/reasoning_engine.py` - 5-pass iterative reasoning
-- [x] Tests: 62 tests passing
+### Phase 0.6 : Refactoring Valet (Prochaine)
 
-**Week 3**: ✅ COMPLETE - Passepartout - Knowledge Base
-- [x] `src/passepartout/embeddings.py` - Sentence transformer embeddings
-- [x] `src/passepartout/vector_store.py` - FAISS semantic search
-- [x] `src/passepartout/note_manager.py` - Markdown notes + Git
-- [x] `src/passepartout/context_engine.py` - Context retrieval for Pass 2
-- [x] Templates for reasoning passes
+**Objectif** : Réorganiser les modules pour correspondre à l'architecture finale
 
-**Week 4**: ✅ COMPLETE - Planchet + Figaro - Planning & Execution
-- [x] `src/planchet/planning_engine.py` - Action planning with risk assessment
-- [x] `src/figaro/actions/base.py` - Action base class
-- [x] `src/figaro/actions/email.py` - Email actions (archive, delete, reply)
-- [x] `src/figaro/actions/tasks.py` - Task creation
-- [x] `src/figaro/actions/notes.py` - Note creation/updates
-- [x] `src/figaro/orchestrator.py` - DAG execution with rollback
+| Actuel | Cible |
+|--------|-------|
+| `src/ai/` | `src/sancho/` |
+| `src/cli/` | `src/jeeves/` |
+| `src/core/email_processor.py` | `src/trivelin/processor.py` |
 
-**Week 5**: ✅ COMPLETE - Sganarelle - Learning & Integration
-- [x] `src/sganarelle/learning_engine.py` - Continuous learning from feedback
-- [x] `src/sganarelle/feedback_processor.py` - Feedback analysis
-- [x] `src/sganarelle/confidence_calibrator.py` - Confidence calibration
-- [x] `src/sganarelle/pattern_store.py` - Pattern detection
-- [x] `src/sganarelle/provider_tracker.py` - Provider scoring
-- [x] `src/sganarelle/knowledge_updater.py` - PKM updates
-- [x] Tests: 100+ tests
+### Phases Suivantes
 
-### Phase 0.6: Valet Module Refactoring (Weeks 6-7)
-
-**Week 6**: Module reorganization
-- [ ] `src/ai/` → `src/sancho/`
-- [ ] `src/cli/` → `src/jeeves/`
-- [ ] `src/core/email_processor.py` → `src/trivelin/processor.py`
-- [ ] All tests pass after refactoring
-
-**Week 7**: Polish & documentation
-- [ ] Update all documentation
-- [ ] Architecture diagrams
-- [ ] Migration guide
-- [ ] Final verification
+| Phase | Focus | Durée |
+|-------|-------|-------|
+| **0.7** | API Jeeves (FastAPI + WebSockets) | 3-4 semaines |
+| **0.8** | Interface Web (SvelteKit) | 6-8 semaines |
+| **0.9** | PWA Mobile | 3-4 semaines |
+| **2.5** | Multi-Provider IA | 4-5 semaines |
+| **3** | Système Connaissances complet | 4-6 semaines |
 
 ---
 
-## 🔧 Technical Details
+## 🔧 Détails Techniques
 
-### Key Files & Locations
+### Fichiers Clés
 
-**Core Architecture**:
-- `src/core/events/universal_event.py` - PerceivedEvent, Entity, EventType
-- `src/core/memory/working_memory.py` - WorkingMemory, Hypothesis, ReasoningPass
-- `src/core/processing_events.py` - EventBus, ProcessingEvent
-- `src/core/config_manager.py` - Pydantic configuration
+**Architecture Cognitive** :
+```
+src/core/events/universal_event.py    # PerceivedEvent, Entity, EventType
+src/core/memory/working_memory.py     # WorkingMemory, Hypothesis, ReasoningPass
+src/core/processing_events.py         # EventBus, ProcessingEvent
+src/core/config_manager.py            # Configuration Pydantic
+```
 
-**Email Processing** (Legacy - will become Trivelin):
-- `src/core/email_processor.py` - Main email processing logic
-- `src/core/processors/email_analyzer.py` - AI analysis
-- `src/integrations/email/imap_client.py` - IMAP operations
+**Traitement Email** (legacy → Trivelin) :
+```
+src/core/email_processor.py           # Logique principale
+src/core/processors/email_analyzer.py # Analyse IA
+src/integrations/email/imap_client.py # Opérations IMAP
+```
 
-**CLI** (Will become Jeeves):
-- `src/cli/app.py` - Typer CLI commands
-- `src/cli/display_manager.py` - Rich UI rendering
-- `src/cli/menu.py` - Interactive menus
-- `src/cli/review_mode.py` - Decision review interface
+**CLI** (→ Jeeves) :
+```
+src/cli/app.py                        # Commandes Typer
+src/cli/display_manager.py            # Rendu Rich
+src/cli/menu.py                       # Menus interactifs
+src/cli/review_mode.py                # Interface révision
+```
 
-**Learning** (Sganarelle - Complete):
-- `src/sganarelle/learning_engine.py` - Learning from feedback ✅
-- `src/sganarelle/feedback_processor.py` - Feedback analysis ✅
-- `src/sganarelle/knowledge_updater.py` - PKM updates ✅
-- `src/sganarelle/pattern_learner.py` - Pattern detection ✅
+**Apprentissage** (Sganarelle) :
+```
+src/sganarelle/learning_engine.py     # Apprentissage feedback
+src/sganarelle/feedback_processor.py  # Analyse feedback
+src/sganarelle/knowledge_updater.py   # Mises à jour PKM
+src/sganarelle/pattern_store.py       # Détection patterns
+```
 
 ### Configuration
 
-**Environment Variables** (`.env`):
+**Variables d'environnement** (`.env`) :
 ```bash
 # Email
-EMAIL_ADDRESS=your-email@example.com
-EMAIL_PASSWORD=your-app-password
+EMAIL_ADDRESS=votre-email@exemple.com
+EMAIL_PASSWORD=mot-de-passe-application
 IMAP_SERVER=imap.gmail.com
 
-# AI
+# IA
 ANTHROPIC_API_KEY=sk-ant-...
-AI_MODEL=claude-3-5-haiku-20241022  # or sonnet/opus
+AI_MODEL=claude-3-5-haiku-20241022
 
-# Storage
+# Stockage
 STORAGE_DIR=./data
-LOG_FILE=./logs/pkm.log
+LOG_FILE=./logs/scapin.log
 ```
 
-**Feature Flags** (`config_manager.py`):
-- `enable_cognitive_reasoning`: Enable Sancho multi-pass reasoning (when ready)
-- `preview_mode`: Dry-run without executing actions
-- `auto_execute`: Auto-execute high-confidence decisions
+**Feature Flags** :
+- `enable_cognitive_reasoning` : Activer raisonnement multi-passes Sancho
+- `preview_mode` : Dry-run sans exécuter les actions
+- `auto_execute` : Exécution auto pour décisions haute confiance
 
-### Testing Strategy
+### Commandes de Test
 
-**Run All Tests**:
 ```bash
+# Tous les tests
 .venv/bin/pytest tests/ -v
-```
 
-**By Module**:
-```bash
-# Core events
+# Par module
 .venv/bin/pytest tests/unit/test_universal_event.py -v
-
-# Memory system
 .venv/bin/pytest tests/unit/test_working_memory.py -v
-
-# Sganarelle
 .venv/bin/pytest tests/unit/test_sganarelle_*.py -v
-
-# Integration
 .venv/bin/pytest tests/integration/ -v
-```
 
-**Coverage**:
-```bash
+# Couverture
 .venv/bin/pytest tests/ --cov=src --cov-report=html
 ```
 
-### Code Quality Checks
+### Vérifications Qualité
 
-**Ruff Linting**:
 ```bash
+# Linting Ruff
 .venv/bin/python3 -m ruff check src/
 .venv/bin/python3 -m ruff check src/ --fix  # Auto-fix
-```
 
-**Type Checking** (TODO):
-```bash
+# Type checking (TODO)
 mypy src/
 ```
 
 ---
 
-## 📝 Session History
+## 📝 Notes de Session
 
-### Session 2026-01-02 (This Session)
+### Session 2026-01-02
 
-**Duration**: ~2 hours
-**Focus**: Test suite fixes + Code quality + CLI configuration
+**Durée** : ~3 heures  
+**Focus** : Corrections tests + Qualité code + Documentation philosophique
 
-**Accomplishments**:
-1. ✅ Fixed test suite hanging (deadlock in logger)
-2. ✅ Fixed import errors (get_event_bus)
-3. ✅ Modernized type annotations (558 fixes)
-4. ✅ Fixed undefined constants (4 fixes)
-5. ✅ Configured Claude Code CLI PATH
-6. ✅ Test suite: 867 passed, 0 failed (100% pass rate)
+**Accomplissements** :
+1. ✅ Corrigé blocage tests (deadlock logger → RLock)
+2. ✅ Corrigé erreurs import (get_event_bus)
+3. ✅ Modernisé annotations types (558 corrections)
+4. ✅ Corrigé constantes undefined (4 corrections)
+5. ✅ Suite tests : 867 passed, 0 failed
+6. ✅ **Créé DESIGN_PHILOSOPHY.md** — Document fondateur Scapin
+7. ✅ **Mis à jour README.md** — Intégration philosophie, cohérence
+8. ✅ **Mis à jour CLAUDE.md** — Références documentation
 
-**Commits**:
-- `d339120` - Fix deadlock in PKMLogger (RLock)
-- `e9c7966` - Fix get_event_bus import
-- `898d6ca` - Ruff linting fixes (462 issues)
-- `8db8aa6` - Fix undefined constants
-- `d646625` - TYPE_CHECKING for ErrorStore
+**Commits** :
+- `d339120` - Fix deadlock PKMLogger (RLock)
+- `e9c7966` - Fix import get_event_bus
+- `898d6ca` - Corrections linting Ruff (462 issues)
+- `8db8aa6` - Fix constantes undefined
+- `d646625` - TYPE_CHECKING pour ErrorStore
 
-**Key Insights**:
-- Thread-safety requires careful lock management (RLock for nested acquisition)
-- Import organization critical for clean architecture
-- Type annotation modernization improves Python 3.9+ compatibility
+**Insights Clés** :
+- Thread-safety : RLock pour acquisition imbriquée
+- Imports : Organisation critique pour architecture propre
+- Documentation : DESIGN_PHILOSOPHY.md capture l'âme du projet
 
-### Session 2025-12-31 (Previous)
+### Session 2025-12-31 (Précédente)
 
-**Focus**: Phase 0.5 Week 1 completion
-**Result**: 92 tests, 95%+ coverage, production-ready foundation
+**Focus** : Phase 0.5 Semaine 1 complète  
+**Résultat** : 92 tests, 95%+ couverture, fondation production-ready
 
 ---
 
-## 🚀 Quick Commands
+## 🚀 Commandes Rapides
 
-### Development
+### Développement
 
 ```bash
-# Activate venv
+# Activer venv
 source .venv/bin/activate
 
-# Run tests
+# Lancer tests
 .venv/bin/pytest tests/ -v
 
-# Run linting
+# Linting
 .venv/bin/ruff check src/ --fix
 
-# Process emails (preview mode)
+# Traiter emails (preview)
 python scapin.py process --preview
 
-# Interactive review
+# Révision interactive
 python scapin.py review
 ```
 
-### Git Workflow
+### Git
 
 ```bash
-# Check status
+# Statut
 git status
 
-# Create branch for feature
-git checkout -b feature/week-2-sancho
+# Créer branche
+git checkout -b feature/nom-feature
 
-# Commit with template
+# Commit avec template
 git add -A
-git commit -m "feat: implement Sancho reasoning engine
+git commit -m "feat: description courte
 
-- Add AIRouter with circuit breaker
-- Add 5-pass iterative reasoning
-- Add convergence detection
+- Détail 1
+- Détail 2
 
 🤖 Generated with Claude Code
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude <noreply@anthropic.com>"
 
 # Push
-git push origin feature/week-2-sancho
+git push origin feature/nom-feature
 ```
 
 ---
 
-## 📚 Documentation Index
+## 🤝 Travailler avec Claude Code
 
-- **ARCHITECTURE.md** - System architecture and design decisions
-- **ROADMAP.md** - Detailed phase-by-phase development plan
-- **BREAKING_CHANGES.md** - Breaking changes and migration notes
-- **MIGRATION.md** - Migration guide from PKM to Scapin
-- **README.md** - Project overview and quick start
+### Chargement du Contexte
 
----
+**Toujours commencer par** :
+1. Lire ce fichier (CLAUDE.md)
+2. Consulter DESIGN_PHILOSOPHY.md pour le *pourquoi*
+3. Consulter ARCHITECTURE.md pour le *comment*
+4. Vérifier ROADMAP.md pour les priorités
 
-## 🤝 Working with Claude Code
+### Avant Toute Modification
 
-### Best Practices
+1. Exécuter les tests pour établir la baseline
+2. Vérifier la branche git actuelle
+3. Relire les commits récents pour le contexte
 
-**1. Context Loading**:
-- Read this file first: `Read /Users/johan/Developer/scapin/CLAUDE.md`
-- Check roadmap: `Read /Users/johan/Developer/scapin/ROADMAP.md`
-- Review plan: `Read ~/.claude/plans/abstract-puzzling-axolotl.md`
+### Standards de Qualité
 
-**2. Before Making Changes**:
-- Run tests to establish baseline
-- Check current git branch
-- Review recent commits for context
+- Maintenir score qualité 10/10
+- Écrire tests AVANT implémentation (TDD)
+- Type hints 100%
+- Docstrings complètes
+- Thread-safety vérifiée
 
-**3. Code Quality**:
-- Maintain 10/10 quality standard
-- Write tests BEFORE implementation (TDD)
-- Use type hints (100% coverage)
-- Add comprehensive docstrings
-- Ensure thread-safety
+### Principes de Conception (rappel)
 
-**4. Testing**:
-- Run affected tests after each change
-- Verify integration tests pass
-- Check coverage remains >90%
+Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
-**5. Commits**:
-- Use conventional commit format
-- Include emoji in footer
-- Reference related issues/PRs
+1. **Information en couches** (Niveau 1/2/3)
+2. **Apprentissage progressif** (seuils appris, pas de règles rigides)
+3. **Proactivité maximale** (anticiper > attendre)
+4. **Qualité > Vitesse** (10-20s pour bonne décision)
 
-### Common Issues
+### Checklist Fin de Session
 
-**1. Tests Hanging**:
-- Check for Lock vs RLock usage
-- Look for infinite loops in event handling
-- Verify timeout protections
-
-**2. Import Errors**:
-- Verify `__init__.py` exports
-- Check for circular imports (use TYPE_CHECKING)
-- Ensure all dependencies installed
-
-**3. Thread-Safety**:
-- Use RLock for nested acquisition
-- Double-check locking pattern for singletons
-- Avoid shared mutable state
-
-### Session End Checklist
-
-- [ ] All tests passing
-- [ ] Code quality checks pass
-- [ ] Documentation updated (CLAUDE.md, ROADMAP.md)
-- [ ] Commits pushed to remote
-- [ ] Session notes recorded
+- [ ] Tous les tests passent
+- [ ] Vérifications qualité passent
+- [ ] Documentation mise à jour (CLAUDE.md, ROADMAP.md si applicable)
+- [ ] Commits poussés
+- [ ] Notes de session enregistrées
 
 ---
 
-## 🎯 Next Session Goals
+## 🎯 Objectifs Prochaine Session
 
-**Phase 0.6 - Valet Refactoring** (Ready to start):
-1. Fix remaining import errors (ProcessingEvent exports)
-2. Fix pydantic validation issues in queue_storage tests
-3. Run full test suite - target 100% pass rate
-4. Begin module renaming if desired:
-   - `src/ai/` → `src/sancho/ai/` (optional)
-   - `src/cli/` → `src/jeeves/` (optional)
-5. Update documentation with final architecture
+**Phase 0.6 — Refactoring Valet** :
 
-**Context to Load**:
-- This file (CLAUDE.md)
-- Plan file: `~/.claude/plans/abstract-puzzling-axolotl.md`
-- Test specifications: `tests/unit/test_ai_router.py` (383 lines)
-- Template: `templates/email_analysis.j2`
+1. Corriger erreurs import restantes
+2. Lancer suite tests complète — cible 100% pass
+3. Commencer renommage modules si souhaité :
+   - `src/ai/` → `src/sancho/ai/`
+   - `src/cli/` → `src/jeeves/`
+4. Mettre à jour documentation architecture
 
-**Expected Deliverables**:
-- `src/ai/router.py` (500-800 lines)
-- All tests passing
-- Code review quality: 10/10
-- Documentation complete
+**Contexte à charger** :
+- Ce fichier (CLAUDE.md)
+- DESIGN_PHILOSOPHY.md
+- ARCHITECTURE.md
+
+**Livrables attendus** :
+- Tests 100% pass
+- Qualité code 10/10 maintenue
+- Documentation cohérente
 
 ---
 
-**Last Updated**: 2026-01-02 by Claude Opus 4.5
-**Next Review**: Start of next session
+## 📚 Index Documentation
+
+| Document | Description | Quand consulter |
+|----------|-------------|-----------------|
+| **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | Principes philosophiques, fondements théoriques, vision | Décisions de conception |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Architecture système, spécifications valets | Implémentation technique |
+| **[ROADMAP.md](ROADMAP.md)** | Plan développement par phases | Priorisation tâches |
+| **[BREAKING_CHANGES.md](BREAKING_CHANGES.md)** | Changements cassants, migrations | Mises à jour API |
+| **[MIGRATION.md](MIGRATION.md)** | Migration PKM → Scapin | Nouveaux utilisateurs |
+| **[README.md](README.md)** | Vue d'ensemble projet | Introduction |
+
+---
+
+**Dernière mise à jour** : 2 janvier 2026 par Claude  
+**Prochaine révision** : Début prochaine session
