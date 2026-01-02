@@ -8,7 +8,8 @@ from typing import Optional
 
 import anthropic
 
-from src.ai.providers.base import (
+from src.monitoring.logger import get_logger
+from src.sancho.providers.base import (
     IAIProvider,
     ProviderAPIError,
     ProviderAuthenticationError,
@@ -18,7 +19,6 @@ from src.ai.providers.base import (
     ProviderResponse,
     ProviderUsage,
 )
-from src.monitoring.logger import get_logger
 
 logger = get_logger("anthropic_provider")
 

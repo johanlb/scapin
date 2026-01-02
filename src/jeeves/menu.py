@@ -13,7 +13,7 @@ Features:
     - Graceful Ctrl+C handling
 
 Usage:
-    from src.cli.menu import run_interactive_menu
+    from src.jeeves.menu import run_interactive_menu
 
     run_interactive_menu()
 
@@ -30,10 +30,10 @@ from questionary import Style
 from rich.console import Console
 from rich.panel import Panel
 
-from src.cli.display_manager import DisplayManager
 from src.core.config_manager import EmailAccountConfig, get_config
 from src.core.multi_account_processor import MultiAccountProcessor
 from src.integrations.storage.queue_storage import get_queue_storage
+from src.jeeves.display_manager import DisplayManager
 from src.monitoring.logger import PKMLogger, get_logger
 
 logger = get_logger("menu")
@@ -392,7 +392,7 @@ class InteractiveMenu:
             "Start interactive review?", default=True, style=custom_style
         ).ask():
             # Import and run review mode
-            from src.cli.review_mode import InteractiveReviewMode
+            from src.jeeves.review_mode import InteractiveReviewMode
 
             review_mode = InteractiveReviewMode()
             review_mode.run()

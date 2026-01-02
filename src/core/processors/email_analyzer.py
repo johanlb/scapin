@@ -26,7 +26,7 @@ class EmailAnalyzer:
     Delegates actual AI calls to AIRouter.
 
     Usage:
-        from src.ai.router import get_ai_router
+        from src.sancho.router import get_ai_router
 
         analyzer = EmailAnalyzer(get_ai_router())
         analysis = analyzer.analyze(metadata, content)

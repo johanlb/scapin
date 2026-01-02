@@ -19,8 +19,8 @@ from src.sancho.reasoning_engine import ReasoningEngine
 from src.core.events import PerceivedEvent, EventSource, Entity
 from src.core.events.normalizers.email_normalizer import EmailNormalizer
 from src.core.schemas import EmailMetadata, EmailContent
-from src.ai.router import AIRouter, AIModel
-from src.ai.templates import TemplateManager
+from src.sancho.router import AIRouter, AIModel
+from src.sancho.templates import TemplateManager
 from src.utils import now_utc
 
 

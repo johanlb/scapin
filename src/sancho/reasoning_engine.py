@@ -23,8 +23,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from src.ai.router import AIModel, AIRouter
-from src.ai.templates import TemplateManager, get_template_manager
 from src.core.events import PerceivedEvent
 from src.core.memory.working_memory import (
     Hypothesis,
@@ -32,6 +30,8 @@ from src.core.memory.working_memory import (
     WorkingMemory,
 )
 from src.core.schemas import EmailAction, EmailAnalysis, EmailCategory
+from src.sancho.router import AIModel, AIRouter
+from src.sancho.templates import TemplateManager, get_template_manager
 
 logger = logging.getLogger(__name__)
 

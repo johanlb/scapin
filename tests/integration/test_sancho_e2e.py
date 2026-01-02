@@ -16,8 +16,8 @@ from src.core.events import PerceivedEvent, EventSource
 from src.core.events.normalizers.email_normalizer import EmailNormalizer
 from src.sancho.reasoning_engine import ReasoningEngine, ReasoningResult
 from src.core.schemas import EmailMetadata, EmailContent, EmailAnalysis, EmailAction, EmailCategory
-from src.ai.router import AIRouter, AIModel
-from src.ai.templates import TemplateManager
+from src.sancho.router import AIRouter, AIModel
+from src.sancho.templates import TemplateManager
 from src.utils import now_utc
 
 
@@ -258,10 +258,10 @@ class TestReasoningPipeline:
 class TestEmailProcessorE2E:
     """Test complete EmailProcessor pipeline with Sancho"""
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_full_email_processing_with_sancho(
         self,
         mock_get_router,
@@ -274,7 +274,7 @@ class TestEmailProcessorE2E:
         sample_email_content
     ):
         """Test complete flow: Email → Reasoning → Analysis → Action"""
-        from src.core.email_processor import EmailProcessor
+        from src.trivelin.processor import EmailProcessor
 
         # Setup config with Sancho enabled
         mock_config = MagicMock()
@@ -289,7 +289,7 @@ class TestEmailProcessorE2E:
 
         # Patch ReasoningEngine to use our mocks
         with patch('src.sancho.reasoning_engine.ReasoningEngine') as mock_reasoning_class, \
-             patch('src.ai.templates.get_template_manager') as mock_get_tm:
+             patch('src.sancho.templates.get_template_manager') as mock_get_tm:
 
             # Setup ReasoningEngine mock to actually reason
             real_engine = ReasoningEngine(

@@ -9,7 +9,7 @@ from unittest.mock import Mock, MagicMock, patch
 from rich.console import Console
 from io import StringIO
 
-from src.cli.display_manager import DisplayManager
+from src.jeeves.display_manager import DisplayManager
 from src.core.events import ProcessingEventType, ProcessingEvent, EventBus
 
 
@@ -285,7 +285,7 @@ class TestDisplayManagerCreation:
 
     def test_create_display_manager(self):
         """Test create_display_manager helper function"""
-        from src.cli.display_manager import create_display_manager
+        from src.jeeves.display_manager import create_display_manager
 
         display = create_display_manager()
         assert isinstance(display, DisplayManager)

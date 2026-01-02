@@ -10,7 +10,7 @@ import json
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timezone
 
-from src.ai.router import AIRouter, RateLimiter, AIModel
+from src.sancho.router import AIRouter, RateLimiter, AIModel
 from src.core.config_manager import AIConfig
 from src.core.schemas import EmailMetadata, EmailContent, EmailAnalysis, EmailAction, EmailCategory
 from src.utils import now_utc
@@ -104,7 +104,7 @@ class TestEmailAnalysis:
     """Test email analysis functionality"""
 
     @patch('anthropic.Anthropic')
-    @patch('src.ai.templates.get_template_manager')
+    @patch('src.sancho.templates.get_template_manager')
     def test_analyze_email_success(self, mock_template_manager, mock_anthropic, ai_config):
         """Test successful email analysis"""
         # Setup mocks
@@ -161,7 +161,7 @@ class TestEmailAnalysis:
         assert analysis.confidence == 95
 
     @patch('anthropic.Anthropic')
-    @patch('src.ai.templates.get_template_manager')
+    @patch('src.sancho.templates.get_template_manager')
     def test_analyze_email_template_error(self, mock_template_manager, mock_anthropic, ai_config):
         """Test analysis with template rendering error"""
         mock_client = MagicMock()
@@ -194,7 +194,7 @@ class TestEmailAnalysis:
         assert analysis is None
 
     @patch('anthropic.Anthropic')
-    @patch('src.ai.templates.get_template_manager')
+    @patch('src.sancho.templates.get_template_manager')
     def test_analyze_email_api_error(self, mock_template_manager, mock_anthropic, ai_config):
         """Test analysis with API error"""
         mock_client = MagicMock()
@@ -351,11 +351,11 @@ class TestAIRouterSingleton:
     @patch('anthropic.Anthropic')
     def test_get_ai_router_singleton(self, mock_anthropic, ai_config):
         """Test that get_ai_router returns singleton"""
-        from src.ai.router import get_ai_router, _ai_router, _router_lock
+        from src.sancho.router import get_ai_router, _ai_router, _router_lock
 
         # Reset singleton for test
-        import src.ai.router
-        src.ai.router._ai_router = None
+        import src.sancho.router
+        src.sancho.router._ai_router = None
 
         router1 = get_ai_router(ai_config)
         router2 = get_ai_router()
@@ -365,11 +365,11 @@ class TestAIRouterSingleton:
     @patch('anthropic.Anthropic')
     def test_get_ai_router_with_config_from_get_config(self, mock_anthropic, ai_config):
         """Test getting router without explicit config"""
-        from src.ai.router import get_ai_router
-        import src.ai.router
+        from src.sancho.router import get_ai_router
+        import src.sancho.router
 
         # Reset singleton
-        src.ai.router._ai_router = None
+        src.sancho.router._ai_router = None
 
         with patch('src.core.config_manager.get_config') as mock_get_config:
             mock_config = MagicMock()

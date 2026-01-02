@@ -10,8 +10,8 @@ from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timezone, timedelta
 
 from src.sancho.reasoning_engine import ReasoningEngine, ReasoningResult
-from src.ai.router import AIRouter, AIModel
-from src.ai.templates import TemplateManager
+from src.sancho.router import AIRouter, AIModel
+from src.sancho.templates import TemplateManager
 from src.core.events.universal_event import (
     PerceivedEvent, Entity, EventType, EventSource, UrgencyLevel
 )

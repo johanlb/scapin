@@ -9,11 +9,11 @@ from unittest.mock import Mock, MagicMock, patch
 from email.message import EmailMessage
 from datetime import datetime, timezone
 
-from src.core.email_processor import EmailProcessor
+from src.trivelin.processor import EmailProcessor
 from src.core.schemas import EmailMetadata, EmailContent, EmailAnalysis, EmailAction, EmailCategory
 from src.core.config_manager import EmailConfig, AIConfig
 from src.integrations.email.imap_client import IMAPClient
-from src.ai.router import AIRouter
+from src.sancho.router import AIRouter
 
 
 @pytest.fixture

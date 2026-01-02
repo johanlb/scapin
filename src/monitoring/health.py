@@ -530,8 +530,8 @@ def check_ai_api_health() -> HealthCheck:
     """
     try:
         # Import local to avoid circular dependency
-        from src.ai.model_selector import ModelSelector, ModelTier
         from src.core.config_manager import get_config
+        from src.sancho.model_selector import ModelSelector, ModelTier
 
         config = get_config()
 

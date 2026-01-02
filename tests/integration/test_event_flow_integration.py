@@ -10,7 +10,7 @@ from io import StringIO
 from rich.console import Console
 
 from src.core.events import EventBus, ProcessingEventType, ProcessingEvent, reset_event_bus
-from src.cli.display_manager import DisplayManager
+from src.jeeves.display_manager import DisplayManager
 from src.monitoring.logger import PKMLogger
 
 

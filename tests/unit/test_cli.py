@@ -7,7 +7,7 @@ Tests CLI commands and output using Typer's testing utilities.
 import pytest
 from typer.testing import CliRunner
 from unittest.mock import patch, MagicMock
-from src.cli.app import app
+from src.jeeves.cli import app
 from src.core.schemas import SystemHealth, HealthCheck, ServiceStatus
 
 
@@ -119,7 +119,7 @@ class TestQueueCommand:
 class TestHealthCommand:
     """Test health command"""
 
-    @patch('src.cli.app.quick_health_check')
+    @patch('src.jeeves.cli.quick_health_check')
     def test_health_command_all_healthy(self, mock_health):
         """Test health command when all services healthy"""
         mock_health.return_value = SystemHealth(
@@ -147,7 +147,7 @@ class TestHealthCommand:
         assert "git" in result.stdout
         assert "All systems healthy" in result.stdout
 
-    @patch('src.cli.app.quick_health_check')
+    @patch('src.jeeves.cli.quick_health_check')
     def test_health_command_with_unhealthy(self, mock_health):
         """Test health command with unhealthy services"""
         mock_health.return_value = SystemHealth(
@@ -173,7 +173,7 @@ class TestHealthCommand:
         assert "imap" in result.stdout
         assert "unhealthy" in result.stdout.lower()
 
-    @patch('src.cli.app.quick_health_check')
+    @patch('src.jeeves.cli.quick_health_check')
     def test_health_command_with_degraded(self, mock_health):
         """Test health command with degraded services"""
         mock_health.return_value = SystemHealth(
@@ -197,7 +197,7 @@ class TestHealthCommand:
 class TestStatsCommand:
     """Test stats command"""
 
-    @patch('src.cli.app.get_state_manager')
+    @patch('src.jeeves.cli.get_state_manager')
     def test_stats_command_basic(self, mock_get_state):
         """Test stats command shows statistics"""
         mock_state = MagicMock()
@@ -222,7 +222,7 @@ class TestStatsCommand:
         assert "87.5" in result.stdout  # confidence avg
         assert "idle" in result.stdout
 
-    @patch('src.cli.app.get_state_manager')
+    @patch('src.jeeves.cli.get_state_manager')
     def test_stats_command_empty(self, mock_get_state):
         """Test stats command with no data"""
         mock_state = MagicMock()
@@ -241,7 +241,7 @@ class TestStatsCommand:
 class TestConfigCommand:
     """Test config command"""
 
-    @patch('src.cli.app.get_config')
+    @patch('src.jeeves.cli.get_config')
     def test_config_command_basic(self, mock_get_config):
         """Test config command shows configuration"""
         from src.core.config_manager import (
@@ -295,7 +295,7 @@ class TestConfigCommand:
         assert "imap.test.com" in result.stdout
         assert "90" in result.stdout  # confidence threshold
 
-    @patch('src.cli.app.get_config')
+    @patch('src.jeeves.cli.get_config')
     def test_config_command_validate(self, mock_get_config):
         """Test config command with --validate flag"""
         from src.core.config_manager import (
@@ -347,7 +347,7 @@ class TestConfigCommand:
         assert result.exit_code == 0
         assert "valid" in result.stdout.lower()
 
-    @patch('src.cli.app.get_config')
+    @patch('src.jeeves.cli.get_config')
     def test_config_command_error(self, mock_get_config):
         """Test config command handles errors"""
         mock_get_config.side_effect = Exception("Configuration error")

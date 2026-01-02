@@ -300,7 +300,7 @@ class AIRouter:
         Returns:
             EmailAnalysis or None if analysis fails
         """
-        from src.ai.templates import get_template_manager
+        from src.sancho.templates import get_template_manager
 
         # Acquire rate limit permission
         if not self.rate_limiter.acquire(timeout=30):

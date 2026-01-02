@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock, call
 from pathlib import Path
 
-from src.cli.menu import InteractiveMenu, run_interactive_menu
+from src.jeeves.menu import InteractiveMenu, run_interactive_menu
 from src.core.config_manager import EmailAccountConfig, EmailConfig
 
 
@@ -68,8 +68,8 @@ def mock_queue_storage():
 @pytest.fixture
 def interactive_menu(mock_config, mock_queue_storage):
     """Create InteractiveMenu instance with mocks"""
-    with patch("src.cli.menu.get_config", return_value=mock_config), patch(
-        "src.cli.menu.get_queue_storage", return_value=mock_queue_storage
+    with patch("src.jeeves.menu.get_config", return_value=mock_config), patch(
+        "src.jeeves.menu.get_queue_storage", return_value=mock_queue_storage
     ):
         menu = InteractiveMenu()
         return menu
@@ -80,8 +80,8 @@ class TestInteractiveMenuInit:
 
     def test_init_loads_config(self, mock_config, mock_queue_storage):
         """Test that initialization loads config"""
-        with patch("src.cli.menu.get_config", return_value=mock_config) as mock_get_config, patch(
-            "src.cli.menu.get_queue_storage", return_value=mock_queue_storage
+        with patch("src.jeeves.menu.get_config", return_value=mock_config) as mock_get_config, patch(
+            "src.jeeves.menu.get_queue_storage", return_value=mock_queue_storage
         ):
             menu = InteractiveMenu()
 
@@ -90,8 +90,8 @@ class TestInteractiveMenuInit:
 
     def test_init_loads_queue_storage(self, mock_config, mock_queue_storage):
         """Test that initialization loads queue storage"""
-        with patch("src.cli.menu.get_config", return_value=mock_config), patch(
-            "src.cli.menu.get_queue_storage", return_value=mock_queue_storage
+        with patch("src.jeeves.menu.get_config", return_value=mock_config), patch(
+            "src.jeeves.menu.get_queue_storage", return_value=mock_queue_storage
         ) as mock_get_queue:
             menu = InteractiveMenu()
 
@@ -100,8 +100,8 @@ class TestInteractiveMenuInit:
 
     def test_init_sets_running_true(self, mock_config, mock_queue_storage):
         """Test that running flag is set to True"""
-        with patch("src.cli.menu.get_config", return_value=mock_config), patch(
-            "src.cli.menu.get_queue_storage", return_value=mock_queue_storage
+        with patch("src.jeeves.menu.get_config", return_value=mock_config), patch(
+            "src.jeeves.menu.get_queue_storage", return_value=mock_queue_storage
         ):
             menu = InteractiveMenu()
 
@@ -147,7 +147,7 @@ class TestInteractiveMenuRun:
         with patch.object(interactive_menu, "_show_welcome"), patch.object(
             interactive_menu, "_show_main_menu", side_effect=KeyboardInterrupt
         ), patch.object(interactive_menu, "_show_goodbye"), patch(
-            "src.cli.menu.console", mock_console
+            "src.jeeves.menu.console", mock_console
         ):
             exit_code = interactive_menu.run()
 
@@ -159,7 +159,7 @@ class TestInteractiveMenuRun:
         """Test that run handles exceptions and returns error code"""
         with patch.object(interactive_menu, "_show_welcome"), patch.object(
             interactive_menu, "_show_main_menu", side_effect=Exception("Test error")
-        ), patch("src.cli.menu.console"):
+        ), patch("src.jeeves.menu.console"):
             exit_code = interactive_menu.run()
 
             assert exit_code == 1
@@ -168,7 +168,7 @@ class TestInteractiveMenuRun:
 class TestInteractiveMenuMainMenu:
     """Test InteractiveMenu._show_main_menu()"""
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_main_menu_shows_all_options(self, mock_questionary, interactive_menu):
         """Test that main menu shows all options"""
         mock_select = Mock()
@@ -189,7 +189,7 @@ class TestInteractiveMenuMainMenu:
         assert any("System Health" in choice for choice in choices)
         assert any("Exit" in choice for choice in choices)
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_main_menu_shows_queue_count(
         self, mock_questionary, interactive_menu, mock_queue_storage
     ):
@@ -209,7 +209,7 @@ class TestInteractiveMenuMainMenu:
 
         assert any("10 items" in choice for choice in choices)
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_main_menu_exit_selection(self, mock_questionary, interactive_menu):
         """Test selecting Exit from main menu"""
         mock_select = Mock()
@@ -220,7 +220,7 @@ class TestInteractiveMenuMainMenu:
 
         assert interactive_menu.running is False
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_main_menu_process_emails(self, mock_questionary, interactive_menu):
         """Test selecting Process Emails"""
         mock_select = Mock()
@@ -241,8 +241,8 @@ class TestInteractiveMenuSelectAccounts:
 
     def test_select_accounts_single_account(self, mock_config):
         """Test auto-selection when only one account"""
-        with patch("src.cli.menu.get_config", return_value=mock_config), patch(
-            "src.cli.menu.get_queue_storage"
+        with patch("src.jeeves.menu.get_config", return_value=mock_config), patch(
+            "src.jeeves.menu.get_queue_storage"
         ):
             menu = InteractiveMenu()
 
@@ -250,13 +250,13 @@ class TestInteractiveMenuSelectAccounts:
             single_account = mock_config.email.get_enabled_accounts()[0]
             menu.config.email.get_enabled_accounts.return_value = [single_account]
 
-            with patch("src.cli.menu.console"):
+            with patch("src.jeeves.menu.console"):
                 accounts = menu._select_accounts()
 
                 assert len(accounts) == 1
                 assert accounts[0].account_id == "personal"
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_select_accounts_multiple_accounts(
         self, mock_questionary, interactive_menu
     ):
@@ -271,7 +271,7 @@ class TestInteractiveMenuSelectAccounts:
         assert accounts[0].account_id == "personal"
         assert accounts[1].account_id == "work"
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_select_accounts_all_option(self, mock_questionary, interactive_menu):
         """Test selecting 'All Accounts' option"""
         mock_checkbox = Mock()
@@ -283,7 +283,7 @@ class TestInteractiveMenuSelectAccounts:
         # Should return all enabled accounts
         assert len(accounts) == 2
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_select_accounts_none_selected(self, mock_questionary, interactive_menu):
         """Test when no accounts selected"""
         mock_checkbox = Mock()
@@ -298,7 +298,7 @@ class TestInteractiveMenuSelectAccounts:
 class TestInteractiveMenuSelectMode:
     """Test InteractiveMenu._select_mode()"""
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_select_mode_auto(self, mock_questionary, interactive_menu):
         """Test selecting Auto mode"""
         mock_select = Mock()
@@ -315,7 +315,7 @@ class TestInteractiveMenuSelectMode:
         assert mode["auto_execute"] is True
         assert mode["confidence_threshold"] == 90
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_select_mode_manual(self, mock_questionary, interactive_menu):
         """Test selecting Manual mode"""
         mock_select = Mock()
@@ -332,7 +332,7 @@ class TestInteractiveMenuSelectMode:
         assert mode["auto_execute"] is False
         assert mode["confidence_threshold"] == 100
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_select_mode_preview(self, mock_questionary, interactive_menu):
         """Test selecting Preview mode"""
         mock_select = Mock()
@@ -353,7 +353,7 @@ class TestInteractiveMenuSelectMode:
 class TestInteractiveMenuSelectLimit:
     """Test InteractiveMenu._select_limit()"""
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_select_limit_10(self, mock_questionary, interactive_menu):
         """Test selecting 10 emails limit"""
         mock_select = Mock()
@@ -364,7 +364,7 @@ class TestInteractiveMenuSelectLimit:
 
         assert limit == 10
 
-    @patch("src.cli.menu.questionary")
+    @patch("src.jeeves.menu.questionary")
     def test_select_limit_unlimited(self, mock_questionary, interactive_menu):
         """Test selecting unlimited (None)"""
         mock_select = Mock()
@@ -379,8 +379,8 @@ class TestInteractiveMenuSelectLimit:
 class TestInteractiveMenuProcessEmails:
     """Test InteractiveMenu._process_emails_submenu()"""
 
-    @patch("src.cli.menu.questionary")
-    @patch("src.cli.menu.console")
+    @patch("src.jeeves.menu.questionary")
+    @patch("src.jeeves.menu.console")
     def test_process_emails_cancelled_no_accounts(
         self, mock_console, mock_questionary, interactive_menu
     ):
@@ -393,8 +393,8 @@ class TestInteractiveMenuProcessEmails:
             # Should print warning
             mock_console.print.assert_any_call("[yellow]⚠ No accounts selected[/yellow]")
 
-    @patch("src.cli.menu.questionary")
-    @patch("src.cli.menu.console")
+    @patch("src.jeeves.menu.questionary")
+    @patch("src.jeeves.menu.console")
     def test_process_emails_cancelled_no_mode(
         self, mock_console, mock_questionary, interactive_menu, mock_config
     ):
@@ -408,8 +408,8 @@ class TestInteractiveMenuProcessEmails:
 
             # Should return without error
 
-    @patch("src.cli.menu.questionary")
-    @patch("src.cli.menu.console")
+    @patch("src.jeeves.menu.questionary")
+    @patch("src.jeeves.menu.console")
     def test_process_emails_confirmation_rejected(
         self, mock_console, mock_questionary, interactive_menu, mock_config
     ):
@@ -433,8 +433,8 @@ class TestInteractiveMenuProcessEmails:
             # Should print cancellation
             mock_console.print.assert_any_call("[yellow]⚠ Processing cancelled[/yellow]")
 
-    @patch("src.cli.menu.questionary")
-    @patch("src.cli.menu.console")
+    @patch("src.jeeves.menu.questionary")
+    @patch("src.jeeves.menu.console")
     def test_process_emails_executes_processing(
         self, mock_console, mock_questionary, interactive_menu, mock_config
     ):
@@ -463,8 +463,8 @@ class TestInteractiveMenuProcessEmails:
 class TestInteractiveMenuReviewQueue:
     """Test InteractiveMenu._review_queue_submenu()"""
 
-    @patch("src.cli.menu.questionary")
-    @patch("src.cli.menu.console")
+    @patch("src.jeeves.menu.questionary")
+    @patch("src.jeeves.menu.console")
     def test_review_queue_empty(
         self, mock_console, mock_questionary, interactive_menu, mock_queue_storage
     ):
@@ -482,8 +482,8 @@ class TestInteractiveMenuReviewQueue:
             "[dim]Queue is empty - no emails pending review[/dim]"
         )
 
-    @patch("src.cli.menu.questionary")
-    @patch("src.cli.menu.console")
+    @patch("src.jeeves.menu.questionary")
+    @patch("src.jeeves.menu.console")
     def test_review_queue_confirmed(
         self, mock_console, mock_questionary, interactive_menu, mock_queue_storage
     ):
@@ -495,7 +495,7 @@ class TestInteractiveMenuReviewQueue:
         mock_questionary.confirm.return_value = mock_confirm
 
         # InteractiveReviewMode is imported inside the function, so patch at import location
-        with patch("src.cli.review_mode.InteractiveReviewMode") as MockReviewMode:
+        with patch("src.jeeves.review_mode.InteractiveReviewMode") as MockReviewMode:
             mock_review_instance = Mock()
             mock_review_instance.run.return_value = 0
             MockReviewMode.return_value = mock_review_instance
@@ -509,8 +509,8 @@ class TestInteractiveMenuReviewQueue:
 class TestInteractiveMenuStatistics:
     """Test InteractiveMenu._view_statistics()"""
 
-    @patch("src.cli.menu.questionary")
-    @patch("src.cli.menu.console")
+    @patch("src.jeeves.menu.questionary")
+    @patch("src.jeeves.menu.console")
     def test_view_statistics_displays_queue_stats(
         self, mock_console, mock_questionary, interactive_menu, mock_queue_storage
     ):
@@ -534,7 +534,7 @@ class TestInteractiveMenuStatistics:
 class TestRunInteractiveMenu:
     """Test run_interactive_menu() function"""
 
-    @patch("src.cli.menu.InteractiveMenu")
+    @patch("src.jeeves.menu.InteractiveMenu")
     def test_run_interactive_menu(self, MockMenu):
         """Test run_interactive_menu creates and runs menu"""
         mock_instance = Mock()

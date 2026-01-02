@@ -8,7 +8,6 @@ import signal
 import sys
 from typing import Optional
 
-from src.ai.router import AIModel, get_ai_router
 from src.core.config_manager import get_config
 from src.core.error_manager import get_error_manager
 from src.core.events import ProcessingEvent, ProcessingEventType, get_event_bus
@@ -23,6 +22,7 @@ from src.core.schemas import (
 from src.core.state_manager import get_state_manager
 from src.integrations.email.imap_client import IMAPClient
 from src.monitoring.logger import get_logger
+from src.sancho.router import AIModel, get_ai_router
 from src.utils import now_utc
 
 logger = get_logger("email_processor")

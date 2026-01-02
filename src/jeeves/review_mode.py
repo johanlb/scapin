@@ -13,7 +13,7 @@ Users can:
 AI corrections are tracked for future learning.
 
 Usage:
-    from src.cli.review_mode import InteractiveReviewMode
+    from src.jeeves.review_mode import InteractiveReviewMode
 
     review_mode = InteractiveReviewMode()
     review_mode.run()

@@ -15,7 +15,7 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from src.core.schemas import EmailMetadata, EmailContent
 from src.core.config_manager import PKMConfig, EmailConfig, AIConfig, EmailAccountConfig
-from src.core.email_processor import EmailProcessor
+from src.trivelin.processor import EmailProcessor
 
 
 @pytest.mark.skip(reason="Email size validation not yet implemented - pending schema extension")

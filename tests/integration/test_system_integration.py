@@ -22,7 +22,7 @@ from src.core.schemas import (
 )
 from src.monitoring.logger import PKMLogger, LogLevel, LogFormat, get_logger
 from src.monitoring.health import get_health_service, quick_health_check
-from src.ai.templates import TemplateManager, get_template_manager
+from src.sancho.templates import TemplateManager, get_template_manager
 from src.utils import (
     ensure_dir,
     safe_write_file,

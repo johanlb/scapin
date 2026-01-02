@@ -12,7 +12,7 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from dataclasses import dataclass
 
-from src.ai.providers.base import (
+from src.sancho.providers.base import (
     IAIProvider,
     ProviderResponse,
     ProviderUsage,
@@ -22,7 +22,7 @@ from src.ai.providers.base import (
     ProviderAPIError,
     ProviderConnectionError,
 )
-from src.ai.providers.anthropic_provider import AnthropicProvider, ANTHROPIC_PRICING
+from src.sancho.providers.anthropic_provider import AnthropicProvider, ANTHROPIC_PRICING
 
 
 class TestProviderDataclasses:
@@ -227,7 +227,7 @@ class TestProviderExceptions:
 
     def test_provider_exceptions_inherit_correctly(self):
         """Test exception hierarchy"""
-        from src.ai.providers.base import ProviderError
+        from src.sancho.providers.base import ProviderError
 
         # All exceptions should inherit from ProviderError
         assert issubclass(ProviderAuthenticationError, ProviderError)

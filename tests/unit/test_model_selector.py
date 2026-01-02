@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
 
-from src.ai.model_selector import ModelSelector, ModelTier
+from src.sancho.model_selector import ModelSelector, ModelTier
 
 
 class TestModelTier:

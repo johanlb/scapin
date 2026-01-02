@@ -30,10 +30,10 @@ Usage:
 from typing import Any, Optional
 
 from src.core.config_manager import EmailAccountConfig
-from src.core.email_processor import EmailProcessor
 from src.core.events import ProcessingEvent, ProcessingEventType, get_event_bus
 from src.core.state_manager import get_state_manager
 from src.monitoring.logger import get_logger
+from src.trivelin.processor import EmailProcessor
 from src.utils import now_utc
 
 logger = get_logger("multi_account_processor")

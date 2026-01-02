@@ -6,7 +6,7 @@ Tests Jinja2 template rendering and management.
 
 import pytest
 from pathlib import Path
-from src.ai.templates import TemplateManager
+from src.sancho.templates import TemplateManager
 
 
 class TestTemplateManager:

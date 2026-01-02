@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timezone
 
-from src.core.email_processor import EmailProcessor
+from src.trivelin.processor import EmailProcessor
 from src.core.schemas import (
     EmailMetadata,
     EmailContent,
@@ -65,10 +65,10 @@ def sample_analysis():
 class TestEmailProcessorInit:
     """Test email processor initialization"""
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_init(self, mock_get_router, mock_imap, mock_get_state, mock_get_config, mock_config):
         """Test processor initialization"""
         local_mock_config = MagicMock()
@@ -87,10 +87,10 @@ class TestEmailProcessorInit:
 class TestProcessInbox:
     """Test inbox processing"""
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_process_inbox_success(
         self,
         mock_get_router,
@@ -135,10 +135,10 @@ class TestProcessInbox:
         mock_state.increment.assert_called()
         mock_state.mark_processed.assert_called_with('123')
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_process_inbox_empty(
         self,
         mock_get_router,
@@ -163,10 +163,10 @@ class TestProcessInbox:
 
         assert len(results) == 0
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_process_inbox_with_limit(
         self,
         mock_get_router,
@@ -199,10 +199,10 @@ class TestProcessInbox:
 class TestProcessSingleEmail:
     """Test single email processing"""
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_process_single_email_success(
         self,
         mock_get_router,
@@ -236,10 +236,10 @@ class TestProcessSingleEmail:
         assert result.metadata.id == 123
         assert result.analysis.action == EmailAction.ARCHIVE
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_process_single_email_already_processed(
         self,
         mock_get_router,
@@ -262,10 +262,10 @@ class TestProcessSingleEmail:
 
         assert result is None
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_process_single_email_analysis_failure(
         self,
         mock_get_router,
@@ -296,10 +296,10 @@ class TestProcessSingleEmail:
 class TestExecuteAction:
     """Test action execution"""
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_execute_archive_action(
         self,
         mock_get_router,
@@ -337,10 +337,10 @@ class TestExecuteAction:
         assert result is True
         mock_state.increment.assert_called_with("emails_archived")
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_execute_delete_action(
         self,
         mock_get_router,
@@ -377,10 +377,10 @@ class TestExecuteAction:
         assert result is True
         mock_state.increment.assert_called_with("emails_deleted")
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_execute_task_action(
         self,
         mock_get_router,
@@ -423,10 +423,10 @@ class TestExecuteAction:
 class TestGetProcessingStats:
     """Test getting processing statistics"""
 
-    @patch('src.core.email_processor.get_config')
-    @patch('src.core.email_processor.get_state_manager')
-    @patch('src.core.email_processor.IMAPClient')
-    @patch('src.core.email_processor.get_ai_router')
+    @patch('src.trivelin.processor.get_config')
+    @patch('src.trivelin.processor.get_state_manager')
+    @patch('src.trivelin.processor.IMAPClient')
+    @patch('src.trivelin.processor.get_ai_router')
     def test_get_processing_stats(
         self,
         mock_get_router,

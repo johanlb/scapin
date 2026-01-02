@@ -120,7 +120,7 @@ def main(
 
     # If no subcommand specified, launch interactive menu
     if ctx.invoked_subcommand is None:
-        from src.cli.menu import run_interactive_menu
+        from src.jeeves.menu import run_interactive_menu
         exit_code = run_interactive_menu()
         raise typer.Exit(code=exit_code)
 
@@ -139,8 +139,8 @@ def process(
     Analyzes emails and recommends actions (archive, delete, reference, task).
     By default, processes unflagged emails (not marked/starred) from oldest to newest.
     """
-    from src.cli.display_manager import DisplayManager
-    from src.core.email_processor import EmailProcessor
+    from src.jeeves.display_manager import DisplayManager
+    from src.trivelin.processor import EmailProcessor
 
     console.print(Panel.fit(
         "[bold cyan]PKM Email Processor[/bold cyan]\n"
@@ -278,7 +278,7 @@ def review(
 
     Interactive review of low-confidence emails queued for manual approval.
     """
-    from src.cli.review_mode import InteractiveReviewMode
+    from src.jeeves.review_mode import InteractiveReviewMode
 
     console.print(Panel.fit(
         "[bold magenta]📋 Review Queue[/bold magenta]\n"
@@ -313,8 +313,8 @@ def queue(
 
     View queue statistics and manage queued emails awaiting review.
     """
-    from src.cli.review_mode import InteractiveReviewMode
     from src.integrations.storage.queue_storage import get_queue_storage
+    from src.jeeves.review_mode import InteractiveReviewMode
 
     queue_storage = get_queue_storage()
 
@@ -648,7 +648,7 @@ def menu():
     Interactive menu with arrow-key navigation for email processing,
     review queue, statistics, and settings.
     """
-    from src.cli.menu import run_interactive_menu
+    from src.jeeves.menu import run_interactive_menu
     exit_code = run_interactive_menu()
     raise typer.Exit(code=exit_code)
 
