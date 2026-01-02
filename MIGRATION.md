@@ -1,8 +1,8 @@
 # Migration Guide: PKM System → Scapin
 
-**Date**: 2025-12-31
+**Date**: 2026-01-02
 **From**: pkm-system v3.1.0
-**To**: scapin v1.0.0-alpha
+**To**: scapin v1.0.0-alpha.3
 
 ---
 
@@ -65,19 +65,24 @@ python3 pkm.py
 python3 scapin.py
 ```
 
-#### 3. Package Names
+#### 3. Package Names (Phase 0.6 Complete ✅)
 
 ```python
-# Old imports
+# Old imports (DEPRECATED)
 from src.ai.router import AIRouter
 from src.core.email_processor import EmailProcessor
 
-# New imports (future - not yet refactored)
+# New imports (Active as of 2026-01-02)
 from src.sancho.router import AIRouter
 from src.trivelin.processor import EmailProcessor
+
+# Package-level exports
+from src.sancho import AIRouter, get_ai_router, ModelSelector
+from src.jeeves import run, InteractiveMenu, DisplayManager
+from src.trivelin import EmailProcessor
 ```
 
-**Current State**: Imports still use old paths. Full refactor coming in Phase 0.6.
+**Current State**: ✅ Full refactor complete (Phase 0.6). All imports use new valet paths.
 
 ---
 

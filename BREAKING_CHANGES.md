@@ -1,8 +1,65 @@
-# Breaking Changes - PKM System
+# Breaking Changes - Scapin
 
-**Last Updated**: 2025-12-31
+**Last Updated**: 2026-01-02
 
-This document tracks all breaking changes introduced in the PKM system, including migration guides.
+This document tracks all breaking changes introduced in Scapin (formerly PKM System), including migration guides.
+
+---
+
+## Version 1.0.0-alpha.3 (2026-01-02) - Phase 0.6 Valet Architecture Migration
+
+### 🔴 CRITICAL: Module Path Changes
+
+**Breaking Change**: Major module reorganization following valet architecture.
+
+#### AI Module Migration
+
+```python
+# ❌ Old imports (BROKEN)
+from src.ai.router import AIRouter, get_ai_router
+from src.ai.model_selector import ModelSelector
+from src.ai.templates import TemplateManager, get_template_manager
+
+# ✅ New imports (CORRECT)
+from src.sancho.router import AIRouter, get_ai_router
+from src.sancho.model_selector import ModelSelector
+from src.sancho.templates import TemplateManager, get_template_manager
+
+# Or use the package exports:
+from src.sancho import AIRouter, get_ai_router, ModelSelector, TemplateManager
+```
+
+#### CLI Module Migration
+
+```python
+# ❌ Old imports (BROKEN)
+from src.cli.app import run
+from src.cli.display_manager import DisplayManager
+from src.cli.menu import InteractiveMenu
+
+# ✅ New imports (CORRECT)
+from src.jeeves.cli import run
+from src.jeeves.display_manager import DisplayManager
+from src.jeeves.menu import InteractiveMenu
+
+# Or use the package exports:
+from src.jeeves import run, DisplayManager, InteractiveMenu
+```
+
+#### Email Processor Migration
+
+```python
+# ❌ Old import (BROKEN)
+from src.core.email_processor import EmailProcessor
+
+# ✅ New import (CORRECT)
+from src.trivelin.processor import EmailProcessor
+
+# Or use the package export:
+from src.trivelin import EmailProcessor
+```
+
+**Why**: Aligning code structure with the valet architecture (Sancho = AI/Reasoning, Jeeves = Interface, Trivelin = Perception).
 
 ---
 

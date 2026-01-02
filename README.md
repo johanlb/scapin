@@ -109,8 +109,8 @@ Amélioration du système → Répéter
 | **Suivi Décisions** | ✅ | Stockage SQLite avec contexte |
 | **Architecture Cognitive** | ✅ | Modules valets complets (Phase 0.5) |
 
-**Qualité** : 867 tests, 95% couverture, 100% pass rate  
-**Code** : Score 10/10 (50 warnings non-critiques)
+**Qualité** : 967 tests, 95% couverture, 100% pass rate
+**Code** : Score 10/10 (0 ruff warnings)
 
 ### Architecture Cognitive (Phase 0.5 — ✅ Complète)
 
@@ -187,7 +187,7 @@ scapin/
 │   ├── sganarelle/      # Apprentissage & feedback
 │   ├── jeeves/          # Couche API (FastAPI + WebSockets)
 │   └── core/            # Infrastructure partagée
-├── tests/               # 867 tests, 95% couverture
+├── tests/               # 967 tests, 95% couverture
 └── docs/                # Documentation complète
 ```
 
@@ -275,18 +275,20 @@ python3 scapin.py review      # Réviser les décisions en attente
 | **1** | Intelligence Email | ✅ Multi-comptes, classification IA, récupération erreurs |
 | **2** | Expérience Interactive | ✅ Menu, file révision, UI multi-comptes |
 | **0.5** | Architecture Cognitive | ✅ Tous les modules valets implémentés |
+| **0.6** | Refactoring Valet | ✅ Migration src/ai/ → sancho, src/cli/ → jeeves, email_processor → trivelin |
 
 ### Phases en Cours et Planifiées 📅
 
 | Phase | Nom | Période | Focus |
 |-------|-----|---------|-------|
-| **0.6** | Refactoring Valet | Q1 2026 | 🏗️ Renommer modules selon architecture finale |
-| **0.7** | API Jeeves | Q1 2026 | FastAPI REST + WebSockets |
-| **0.8** | Interface Web | Q1-Q2 2026 | SvelteKit + TailwindCSS |
-| **0.9** | PWA Mobile | Q2 2026 | Progressive Web App |
-| **2.5** | Multi-Provider IA | Q2 2026 | OpenAI, Mistral, Gemini, consensus |
-| **3** | Système Connaissances | Q2 2026 | Passepartout complet avec embeddings |
-| **1.0** | Release 🎭 | Q3 2026 | Production CLI + Web + Mobile |
+| **1.0** | Trivelin Email | Q1 2026 | 🏗️ Traitement email intelligent multi-passes |
+| **1.1** | Journaling Email | Q1 2026 | Feedback loop, pré-remplissage journal |
+| **1.2** | Intégration Teams | Q2 2026 | Messages, réponses, appels |
+| **1.3** | Intégration Calendrier | Q2 2026 | Événements, disponibilités |
+| **1.4** | Système de Briefing | Q2 2026 | Briefing matin, pré-réunion |
+| **0.7** | API Jeeves | Q3 2026 | FastAPI REST + WebSockets |
+| **0.8** | Interface Web | Q3 2026 | SvelteKit + TailwindCSS |
+| **0.9** | PWA Mobile | Q4 2026 | Progressive Web App |
 
 ---
 
@@ -304,7 +306,7 @@ pytest tests/integration/ -v
 pytest tests/ --cov=src --cov-report=html
 ```
 
-**Couverture actuelle** : 95%+ (867 tests)
+**Couverture actuelle** : 95%+ (967 tests)
 
 ---
 
@@ -317,7 +319,7 @@ pytest tests/ --cov=src --cov-report=html
 | **Langage** | Python 3.11+ | Runtime principal |
 | **Validation** | Pydantic | Configuration type-safe |
 | **CLI** | Typer + Rich | Interface ligne de commande |
-| **Tests** | pytest | 867 tests, 95% couverture |
+| **Tests** | pytest | 967 tests, 95% couverture |
 | **Événements** | EventBus custom | Pub/sub thread-safe |
 
 ### IA & Intelligence
