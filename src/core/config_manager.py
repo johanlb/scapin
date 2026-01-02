@@ -404,6 +404,8 @@ class MicrosoftAccountConfig(BaseModel):
             "Chat.ReadWrite",
             "ChannelMessage.Read.All",
             "ChannelMessage.Send",
+            "Calendars.Read",
+            "Calendars.ReadWrite",
         ),
         description="Microsoft Graph API scopes"
     )
@@ -477,6 +479,66 @@ class TeamsConfig(BaseModel):
         return self
 
 
+class CalendarConfig(BaseModel):
+    """
+    Configuration for Microsoft Calendar integration
+
+    Controls calendar event processing via Microsoft Graph API.
+    Requires MicrosoftAccountConfig with Calendars.Read/ReadWrite permissions.
+    """
+
+    enabled: bool = Field(
+        False,
+        description="Enable Calendar integration (opt-in, default OFF)"
+    )
+    account: Optional[MicrosoftAccountConfig] = Field(
+        None,
+        description="Microsoft account configuration (can reuse Teams account)"
+    )
+    poll_interval_seconds: int = Field(
+        300,
+        ge=60,
+        le=3600,
+        description="Polling interval for calendar updates (seconds, default 5 min)"
+    )
+    days_ahead: int = Field(
+        7,
+        ge=1,
+        le=30,
+        description="Number of days ahead to fetch events"
+    )
+    days_behind: int = Field(
+        1,
+        ge=0,
+        le=7,
+        description="Number of days behind to include (for recent events)"
+    )
+    include_declined: bool = Field(
+        False,
+        description="Include events the user has declined"
+    )
+    include_tentative: bool = Field(
+        True,
+        description="Include tentatively accepted events"
+    )
+    briefing_hours_ahead: int = Field(
+        24,
+        ge=1,
+        le=72,
+        description="Hours ahead for briefing (default: next 24 hours)"
+    )
+
+    @model_validator(mode='after')
+    def validate_account_when_enabled(self):
+        """Ensure account is configured when Calendar is enabled"""
+        if self.enabled and self.account is None:
+            raise ValueError(
+                "Microsoft account must be configured when Calendar is enabled. "
+                "Set CALENDAR__ACCOUNT__CLIENT_ID and CALENDAR__ACCOUNT__TENANT_ID in .env"
+            )
+        return self
+
+
 class PKMConfig(BaseSettings):
     """
     Configuration principale PKM
@@ -506,6 +568,7 @@ class PKMConfig(BaseSettings):
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     teams: TeamsConfig = Field(default_factory=TeamsConfig)
+    calendar: CalendarConfig = Field(default_factory=CalendarConfig)
 
 
 class ConfigManager:

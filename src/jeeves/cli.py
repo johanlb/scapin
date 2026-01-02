@@ -514,6 +514,174 @@ def teams(
 
 
 @app.command()
+def calendar(
+    poll: bool = typer.Option(False, "--poll", "-p", help="Continuous polling mode"),
+    briefing: bool = typer.Option(False, "--briefing", "-b", help="Show briefing of upcoming events"),
+    hours: int = typer.Option(24, "--hours", "-H", help="Hours ahead for briefing (default: 24)"),
+    limit: int = typer.Option(50, "--limit", "-l", help="Maximum events per poll"),
+):
+    """
+    Process Microsoft Calendar events
+
+    Fetches and processes Calendar events through the cognitive pipeline.
+    Use --briefing to see upcoming events for the day.
+    Requires Microsoft account configuration in .env.
+    """
+    import asyncio
+
+    from src.core.config_manager import get_config
+    from src.trivelin.calendar_processor import CalendarProcessor
+
+    # Check if Calendar is enabled
+    config = get_config()
+    if not config.calendar.enabled:
+        console.print("[red]Calendar integration is not enabled[/red]")
+        console.print("\n[yellow]To enable Calendar integration:[/yellow]")
+        console.print("  1. Create an Azure AD app registration (or reuse Teams app)")
+        console.print("  2. Add these settings to your .env file:")
+        console.print("     CALENDAR__ENABLED=true")
+        console.print("     CALENDAR__ACCOUNT__CLIENT_ID=your-client-id")
+        console.print("     CALENDAR__ACCOUNT__TENANT_ID=your-tenant-id")
+        console.print("\n[dim]See ROADMAP.md Phase 1.3 for details[/dim]")
+        raise typer.Exit(1)
+
+    console.print(Panel.fit(
+        "[bold green]Microsoft Calendar Integration[/bold green]",
+        border_style="green"
+    ))
+
+    try:
+        # Initialize processor
+        processor = CalendarProcessor()
+
+        if briefing:
+            # Show briefing of upcoming events
+            console.print(f"[dim]Fetching events for next {hours} hours...[/dim]\n")
+
+            async def get_briefing():
+                return await processor.get_briefing(hours_ahead=hours)
+
+            events = asyncio.run(get_briefing())
+
+            if not events:
+                console.print("[dim]No upcoming events[/dim]")
+            else:
+                from rich.table import Table
+
+                table = Table(title=f"Upcoming Events (Next {hours}h)", show_header=True)
+                table.add_column("Time", style="cyan", width=12)
+                table.add_column("Subject", style="white", max_width=40)
+                table.add_column("Duration", style="dim", width=8)
+                table.add_column("Attendees", style="dim", width=8)
+                table.add_column("Status", width=10)
+
+                for event in events:
+                    # Extract info from metadata
+                    meta = event.metadata
+                    is_all_day = meta.get("is_all_day", False)
+                    duration = meta.get("duration_minutes", 0)
+                    attendee_count = meta.get("attendee_count", 0)
+                    response = meta.get("response_status", "none")
+                    is_online = meta.get("is_online", False)
+
+                    # Format time - use start from metadata, not occurred_at
+                    # (occurred_at is when we received the notification, not event start)
+                    if is_all_day:
+                        time_str = "All Day"
+                    else:
+                        start_str = meta.get("start", "")
+                        if start_str:
+                            from datetime import datetime
+                            start_dt = datetime.fromisoformat(start_str)
+                            time_str = start_dt.strftime("%H:%M")
+                        else:
+                            time_str = "--:--"
+
+                    # Format duration
+                    if duration >= 60:
+                        dur_str = f"{duration // 60}h{duration % 60:02d}m"
+                    else:
+                        dur_str = f"{duration}m"
+
+                    # Format status with color
+                    if response == "accepted":
+                        status = "[green]Accepted[/green]"
+                    elif response == "tentativelyAccepted":
+                        status = "[yellow]Tentative[/yellow]"
+                    elif response == "declined":
+                        status = "[red]Declined[/red]"
+                    elif response == "notResponded":
+                        status = "[cyan]Pending[/cyan]"
+                    else:
+                        status = "[dim]Organizer[/dim]"
+
+                    # Add online indicator
+                    subject = event.title
+                    if is_online:
+                        subject = f"[blue]●[/blue] {subject}"
+
+                    table.add_row(
+                        time_str,
+                        subject[:40],
+                        dur_str,
+                        str(attendee_count) if attendee_count > 0 else "-",
+                        status,
+                    )
+
+                console.print(table)
+                console.print(f"\n[dim]Total: {len(events)} events[/dim]")
+
+        elif poll:
+            # Continuous polling mode
+            console.print(f"[green]Polling every {config.calendar.poll_interval_seconds}s. Press Ctrl+C to stop.[/green]\n")
+
+            async def poll_loop():
+                while True:
+                    try:
+                        summary = await processor.poll_and_process(limit=limit)
+                        if summary.total > 0:
+                            console.print(
+                                f"[cyan]Processed {summary.successful}/{summary.total} events "
+                                f"({summary.failed} failed, {summary.skipped} skipped)[/cyan]"
+                            )
+                        await asyncio.sleep(config.calendar.poll_interval_seconds)
+                    except KeyboardInterrupt:
+                        break
+
+            asyncio.run(poll_loop())
+            console.print("\n[yellow]Polling stopped[/yellow]")
+
+        else:
+            # Single run
+            console.print("[dim]Fetching Calendar events...[/dim]\n")
+
+            async def single_run():
+                return await processor.poll_and_process(limit=limit)
+
+            summary = asyncio.run(single_run())
+
+            # Display results
+            if summary.total == 0:
+                console.print("[dim]No events to process[/dim]")
+            else:
+                console.print(f"[green]OK[/green] Processed {summary.successful}/{summary.total} events")
+                if summary.failed > 0:
+                    console.print(f"[red]Failed: {summary.failed}[/red]")
+                if summary.skipped > 0:
+                    console.print(f"[dim]Skipped: {summary.skipped}[/dim]")
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted[/yellow]")
+        raise typer.Exit(130) from None
+
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/red]")
+        logger = get_logger("cli")
+        logger.error(f"Calendar command failed: {e}", exc_info=True)
+        raise typer.Exit(1) from None
+
+
+@app.command()
 def queue(
     process_queue: bool = typer.Option(False, "--process", "-p", help="Process queued items"),
     clear: bool = typer.Option(False, "--clear", help="Clear the queue (destructive!)"),

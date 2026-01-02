@@ -1,10 +1,16 @@
 """
 Figaro Actions - Concrete Action Implementations
 
-Provides executable actions for email, tasks, notes, and Teams.
+Provides executable actions for email, tasks, notes, Teams, and Calendar.
 """
 
 from src.figaro.actions.base import Action, ActionResult, ExecutionMode, ValidationResult
+from src.figaro.actions.calendar import (
+    CalendarBlockTimeAction,
+    CalendarCreateEventAction,
+    CalendarCreateTaskFromEventAction,
+    CalendarRespondAction,
+)
 from src.figaro.actions.email import ArchiveEmailAction, DeleteEmailAction, MoveEmailAction
 from src.figaro.actions.notes import CreateNoteAction, UpdateNoteAction
 from src.figaro.actions.tasks import CompleteTaskAction, CreateTaskAction
@@ -44,4 +50,9 @@ __all__ = [
     "create_teams_reply",
     "create_teams_flag",
     "create_teams_task",
+    # Calendar actions
+    "CalendarCreateEventAction",
+    "CalendarRespondAction",
+    "CalendarCreateTaskFromEventAction",
+    "CalendarBlockTimeAction",
 ]

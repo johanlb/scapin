@@ -105,7 +105,7 @@ Feedback via prochain journaling → Amélioration système
 
 ---
 
-## 📊 État Actuel (2 janvier 2026)
+## 📊 État Actuel (3 janvier 2026)
 
 ### Phases Complétées
 
@@ -176,31 +176,53 @@ Feedback via prochain journaling → Amélioration système
 
 **Commande** : `scapin teams [--poll] [--interactive] [--limit] [--since]`
 
-### Prochaine Phase : 1.3 — Intégration Calendrier
+### Phase 1.3 : Intégration Calendrier Microsoft ✅
 
-**Objectif** : Intégrer le calendrier pour la gestion des réunions et briefings
+**Statut** : COMPLÉTÉ (3 janvier 2026)
+
+| Module | Fichier | État |
+|--------|---------|------|
+| Models | `src/integrations/microsoft/calendar_models.py` | ✅ |
+| Client | `src/integrations/microsoft/calendar_client.py` | ✅ |
+| Normalizer | `src/integrations/microsoft/calendar_normalizer.py` | ✅ |
+| Processor | `src/trivelin/calendar_processor.py` | ✅ |
+| Actions | `src/figaro/actions/calendar.py` | ✅ |
+| CLI Command | `scapin calendar` | ✅ |
+| Tests | 92 tests | ✅ |
+
+**Commande** : `scapin calendar [--poll] [--briefing] [--hours] [--limit]`
+
+**Configuration** :
+```bash
+CALENDAR__ENABLED=true
+CALENDAR__POLL_INTERVAL_SECONDS=300
+CALENDAR__DAYS_AHEAD=7
+# Réutilise les credentials Teams (même client_id/tenant_id)
+```
+
+### Prochaine Phase : 1.4 — Système de Briefing
+
+**Objectif** : Briefings intelligents (matin, pré-réunion)
 
 | Tâche | État |
 |-------|------|
-| Microsoft Calendar API via Graph | 📋 À faire |
-| Événements → PerceivedEvent | 📋 À faire |
-| Briefings pré-réunion | 📋 À faire |
-| Rappels intelligents | 📋 À faire |
+| Morning briefing (synthèse emails + calendar) | 📋 À faire |
+| Pre-meeting briefing (contexte réunion) | 📋 À faire |
+| Rappels intelligents basés sur urgence | 📋 À faire |
 
 ### Phases à venir (Alignées DESIGN_PHILOSOPHY.md)
 
 | Phase | Nom | Priorité | Focus |
 |-------|-----|----------|-------|
-| **1.3** | Intégration Calendrier | 🟠 MOYENNE-HAUTE | Autonomie progressive |
 | **1.4** | Système de Briefing | 🟠 MOYENNE-HAUTE | Matin, pré-réunion |
 
 ### Suite des Tests
 
-**Global** : 1158 tests, 95% couverture, 99.9% pass rate
+**Global** : 1250 tests, 95% couverture, 99.9% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Unit tests | 1095 | ✅ |
+| Unit tests | 1187 | ✅ |
 | Integration tests | 63 | ✅ |
 | Skipped | 53 | ⏭️ |
 
@@ -237,6 +259,15 @@ src/integrations/microsoft/models.py         # TeamsMessage, TeamsChat
 src/integrations/microsoft/teams_normalizer.py # → PerceivedEvent
 src/trivelin/teams_processor.py              # Orchestrateur
 src/figaro/actions/teams.py                  # Actions reply/flag/task
+```
+
+**Intégration Calendrier** (Microsoft Graph) :
+```
+src/integrations/microsoft/calendar_models.py      # CalendarEvent, CalendarAttendee
+src/integrations/microsoft/calendar_client.py      # Client Calendar API
+src/integrations/microsoft/calendar_normalizer.py  # → PerceivedEvent
+src/trivelin/calendar_processor.py                 # Orchestrateur
+src/figaro/actions/calendar.py                     # Actions create/respond/block
 ```
 
 **CLI** (Jeeves) :
@@ -307,13 +338,13 @@ LOG_FILE=./logs/scapin.log
 | **1.0** | Pipeline Cognitif Trivelin | ✅ COMPLÉTÉ |
 | **1.1** | Journaling & Feedback Loop | ✅ COMPLÉTÉ |
 | **1.2** | Intégration Teams | ✅ COMPLÉTÉ |
+| **1.3** | Intégration Calendrier | ✅ COMPLÉTÉ |
 
 ### Priorités Q2 2026
 
 | Phase | Focus | Priorité |
 |-------|-------|----------|
-| **1.3** | Intégration Calendrier | 🔴 HAUTE |
-| **1.4** | Système de Briefing | 🟠 MOYENNE-HAUTE |
+| **1.4** | Système de Briefing | 🔴 HAUTE |
 
 ### Phases Ultérieures
 
@@ -327,6 +358,56 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-03 (Suite 2) — Revue Code Calendar
+
+**Focus** : Revue approfondie du code Calendar avant Phase 1.4
+
+**Corrections apportées** :
+1. ✅ `cli.py:588-598` — **BUG FIX** : Affichage heure utilisait `occurred_at` au lieu de `metadata["start"]`
+2. ✅ `graph_client.py` — Ajout méthodes `patch()` et `delete()` manquantes
+3. ✅ `calendar_client.py` — `update_event()` et `delete_event()` maintenant fonctionnels
+4. ✅ `calendar_client.py` — DocString corrigé avec `datetime.now(timezone.utc)`
+
+**Qualité code** : Tous les fichiers Calendar révisés et validés production-ready
+
+**Tests** : 1250 passent, Ruff 0 warnings sur fichiers modifiés
+
+---
+
+### Session 2026-01-03 (Suite) — Phase 1.3 Complétée
+
+**Focus** : Intégration Microsoft Calendar via Graph API
+
+**Accomplissements** :
+1. ✅ `src/core/config_manager.py` — Ajout scopes Calendar + CalendarConfig
+2. ✅ `src/integrations/microsoft/calendar_models.py` — CalendarEvent, CalendarAttendee (~400 lignes)
+3. ✅ `src/integrations/microsoft/calendar_client.py` — Client Calendar API async (~400 lignes)
+4. ✅ `src/integrations/microsoft/calendar_normalizer.py` — Normalisation → PerceivedEvent (~400 lignes)
+5. ✅ `src/trivelin/calendar_processor.py` — Orchestrateur traitement Calendar (~400 lignes)
+6. ✅ `src/figaro/actions/calendar.py` — Actions create/respond/task/block (~580 lignes)
+7. ✅ Commande CLI `scapin calendar` ajoutée (~160 lignes)
+8. ✅ 92 tests unitaires (models, normalizer, actions)
+9. ✅ Tous les tests passent (1250 tests, +92)
+10. ✅ Ruff 0 warnings
+11. ✅ Documentation mise à jour
+
+**Décisions techniques clés** :
+- `occurred_at` pour événements calendrier = moment de notification (pas start)
+- Urgence basée sur proximité temporelle (heures jusqu'à l'événement)
+- Réutilisation 100% de GraphClient et MicrosoftAuthenticator
+
+**Configuration requise** :
+```bash
+CALENDAR__ENABLED=true
+CALENDAR__POLL_INTERVAL_SECONDS=300
+CALENDAR__DAYS_AHEAD=7
+# Réutilise les credentials Teams
+```
+
+**Commande** : `scapin calendar [--poll] [--briefing] [--hours] [--limit]`
+
+---
 
 ### Session 2026-01-03 — Revue & Corrections Phase 1.2
 
@@ -608,19 +689,18 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Phase 1.3 — Intégration Calendrier
+### Phase 1.4 — Système de Briefing
 
-Phase 1.2 (Intégration Teams) est **complétée** ✅. Prochaine priorité :
+Phase 1.3 (Intégration Calendrier) est **complétée** ✅. Prochaine priorité :
 
-1. Étendre le GraphClient pour le calendrier Microsoft
-2. Créer CalendarClient pour récupérer événements
-3. Créer CalendarEvent dataclass et normalizer
-4. Normaliser événements calendrier → PerceivedEvent
-5. Intégrer les réunions avec les messages Teams
+1. Morning briefing — Synthèse emails + calendar du jour
+2. Pre-meeting briefing — Contexte réunion (attendees, historique, docs)
+3. Rappels intelligents basés sur urgence et proximité temporelle
+4. Integration dans le journal quotidien
 
 ### Alternatives
 
-- **Phase 1.4** : Système de Briefing (après calendrier)
+- **Phase 0.7** : API Jeeves (FastAPI) — Si besoin d'interface web
 
 ---
 

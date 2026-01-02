@@ -128,6 +128,44 @@ class GraphClient:
         """
         return await self._request("POST", endpoint, json=json_data)
 
+    async def patch(
+        self,
+        endpoint: str,
+        json_data: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """
+        Make PATCH request to Graph API
+
+        Args:
+            endpoint: API endpoint
+            json_data: Request body with fields to update
+
+        Returns:
+            Response JSON as dict
+
+        Raises:
+            GraphAPIError: If request fails
+        """
+        return await self._request("PATCH", endpoint, json=json_data)
+
+    async def delete(
+        self,
+        endpoint: str,
+    ) -> dict[str, Any]:
+        """
+        Make DELETE request to Graph API
+
+        Args:
+            endpoint: API endpoint to delete
+
+        Returns:
+            Empty dict (DELETE returns 204 No Content)
+
+        Raises:
+            GraphAPIError: If request fails
+        """
+        return await self._request("DELETE", endpoint)
+
     async def get_all_pages(
         self,
         endpoint: str,
