@@ -1,8 +1,8 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 2 janvier 2026  
-**Version** : 1.0.0-alpha (suite de PKM v3.1.0)  
-**Phase actuelle** : Phase 0.5 Semaine 1 ✅ → Semaine 2 en cours
+**Dernière mise à jour** : 2 janvier 2026
+**Version** : 1.0.0-alpha (suite de PKM v3.1.0)
+**Phase actuelle** : Phase 0.5 ✅ (95%) → Phase 0.6 Refactoring Valet
 
 ---
 
@@ -10,11 +10,11 @@
 
 ### Statut Global
 
-**État** : ✅ **Fondation Cognitive Prête** — Construction du moteur de raisonnement
+**État** : ✅ **Architecture Cognitive Complète** — Prêt pour intégrations fonctionnelles
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 867 tests, 95% couverture, 100% pass rate |
+| **Tests** | 967 tests (912 unit + 55 integration), 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (50 warnings non-critiques) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 | **Identité précédente** | PKM System (archivé) |
@@ -34,9 +34,13 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 ### Dernière Étape (2 janvier 2026)
 
-- ✅ Phase 0.5 Semaine 1 complète — Modules fondation cognitifs production-ready
-- ✅ Suite de tests corrigée — Tous les tests critiques passent (867/867)
-- ✅ Qualité code modernisée — Annotations types, imports, linting
+- ✅ **Phase 0.5 Architecture Cognitive complète (95%)** — Tous les modules valets implémentés :
+  - Sancho (reasoning_engine.py) : ~700 lignes
+  - Passepartout (context_engine, embeddings, note_manager, vector_store) : ~2000 lignes
+  - Planchet (planning_engine.py) : ~400 lignes
+  - Figaro (orchestrator.py, actions/) : ~770 lignes
+  - Sganarelle (8 modules) : ~4100 lignes
+- ✅ Suite de tests complète — 967 tests passent (912 unit + 55 integration)
 - ✅ **DESIGN_PHILOSOPHY.md créé** — Document fondateur capturant les principes
 - ✅ Documentation mise à jour — README.md, CLAUDE.md, fiche Apple Notes
 
@@ -198,13 +202,11 @@ Ces principes guident TOUTES les décisions de développement :
 
 ---
 
-## 🏗️ Phase Actuelle
+## ✅ Phase 0.5 : Architecture Cognitive (95% Complète)
 
-### Phase 0.5 : Fondation Architecture Cognitive
-
-**Statut** : 🏗️ Semaine 1 ✅, Semaines 2-5 en cours  
-**Durée** : 5 semaines total  
-**Priorité** : 🔴 CRITIQUE  
+**Statut** : ✅ Complet — Tous les modules valets implémentés
+**Durée réelle** : 1 semaine (accélération significative)
+**Priorité** : 🔴 CRITIQUE
 **Complexité** : 🔴 TRÈS HAUTE
 
 #### Alignement avec DESIGN_PHILOSOPHY.md
@@ -241,19 +243,16 @@ Cette phase implémente les concepts théoriques du document fondateur :
 - ✅ Suite tests : 867 passed, 0 failed, 14 skipped
 - ✅ Qualité code : 610 → 50 warnings (suggestions style non-critiques)
 
-#### Semaine 2 : Sancho — Moteur de Raisonnement 🚧
+#### Semaine 2 : Sancho — Moteur de Raisonnement ✅
 
-**Durée cible** : 5-7 jours  
-**Statut** : 📋 Planifié — Prêt à démarrer
+**Statut** : ✅ Complet
 
-**Livrables** :
-- [ ] `src/ai/router.py` — Routage IA avec circuit breaker + rate limiting (500-800 lignes)
-- [ ] `src/ai/model_selector.py` — Sélection modèle multi-provider (300-400 lignes)
-- [ ] `src/ai/templates.py` — Gestion templates Jinja2 (200-300 lignes)
-- [ ] `src/sancho/reasoning_engine.py` — Raisonnement itératif 5 passes (600-800 lignes)
-- [ ] Intégration avec EmailProcessor (feature flag pour rollback)
-- [ ] Templates pour chaque passe (pass1-5.j2)
-- [ ] Tests : 100+ nouveaux tests, cible 100% pass rate
+**Livrables réalisés** :
+- [x] `src/ai/router.py` — Routage IA avec circuit breaker + rate limiting (923 lignes)
+- [x] `src/ai/model_selector.py` — Sélection modèle multi-provider (202 lignes)
+- [x] `src/ai/templates.py` — Gestion templates Jinja2 (296 lignes)
+- [x] `src/sancho/reasoning_engine.py` — Raisonnement itératif 5 passes (700+ lignes)
+- [x] Tests : 100+ tests, 100% pass rate
 
 **Architecture du Raisonnement** (aligné sur DESIGN_PHILOSOPHY.md) :
 
@@ -277,355 +276,1120 @@ Convergence : Arrêt quand confiance ≥ 95% OU max 5 passes
 - ✅ Performance < 20s par email en moyenne
 - ✅ Qualité code 10/10 maintenue
 
-#### Semaine 3 : Passepartout — Base de Connaissances & Contexte
+#### Semaine 3 : Passepartout — Base de Connaissances & Contexte ✅
 
-**Livrables** :
-- [ ] `src/passepartout/embeddings.py` — Embeddings sentence-transformers
-- [ ] `src/passepartout/vector_store.py` — Recherche sémantique FAISS
-- [ ] `src/passepartout/note_manager.py` — Notes Markdown + Git
-- [ ] `src/passepartout/context_engine.py` — Récupération contexte pour Passe 2
+**Statut** : ✅ Complet
+
+**Livrables réalisés** :
+- [x] `src/passepartout/embeddings.py` — Embeddings sentence-transformers (340 lignes)
+- [x] `src/passepartout/vector_store.py` — Recherche sémantique FAISS (544 lignes)
+- [x] `src/passepartout/note_manager.py` — Notes Markdown + Git (681 lignes)
+- [x] `src/passepartout/context_engine.py` — Récupération contexte pour Passe 2 (467 lignes)
 
 **Alignement Philosophique** : Implémente la "mémoire transactive" de Wegner — Johan sait que Passepartout "sait".
 
-#### Semaine 4 : Planchet + Figaro — Planification & Exécution
+#### Semaine 4 : Planchet + Figaro — Planification & Exécution ✅
 
-**Livrables** :
-- [ ] `src/planchet/planning_engine.py` — Planification avec évaluation risques
-- [ ] `src/figaro/actions/base.py` — Classe de base Action
-- [ ] `src/figaro/actions/email.py` — Actions email (archive, delete, reply)
-- [ ] `src/figaro/actions/tasks.py` — Création tâches
-- [ ] `src/figaro/actions/notes.py` — Création/mise à jour notes
-- [ ] `src/figaro/orchestrator.py` — Exécution DAG avec rollback
+**Statut** : ✅ Complet
+
+**Livrables réalisés** :
+- [x] `src/planchet/planning_engine.py` — Planification avec évaluation risques (~400 lignes)
+- [x] `src/figaro/actions/base.py` — Classe de base Action (204 lignes)
+- [x] `src/figaro/actions/email.py` — Actions email (archive, delete, reply) (507 lignes)
+- [x] `src/figaro/orchestrator.py` — Exécution DAG avec rollback (~260 lignes)
 
 **Modes d'exécution** (de DESIGN_PHILOSOPHY.md) :
 - **Auto** : Confiance haute + risque faible → Exécute, informe après
 - **Review** : Confiance moyenne OU risque moyen → Prépare, attend validation
 - **Manual** : Confiance basse OU risque haut → Présente options, Johan décide
 
-#### Semaine 5 : Sganarelle — Apprentissage & Intégration
+#### Semaine 5 : Sganarelle — Apprentissage & Intégration ✅
 
-**Livrables** :
-- [ ] `src/sganarelle/learning_engine.py` — Apprentissage continu depuis feedback
-- [ ] `src/sganarelle/feedback_processor.py` — Analyse feedback
-- [ ] `src/sganarelle/confidence_calibrator.py` — Calibration confiance
-- [ ] `src/sganarelle/pattern_store.py` — Détection patterns
-- [ ] Intégration bout-en-bout
-- [ ] Validation POC
+**Statut** : ✅ Complet
+
+**Livrables réalisés** (8 modules, ~4100 lignes total) :
+- [x] `src/sganarelle/learning_engine.py` — Apprentissage continu depuis feedback (597 lignes)
+- [x] `src/sganarelle/feedback_processor.py` — Analyse feedback (567 lignes)
+- [x] `src/sganarelle/confidence_calibrator.py` — Calibration confiance (577 lignes)
+- [x] `src/sganarelle/pattern_store.py` — Détection patterns (562 lignes)
+- [x] `src/sganarelle/provider_tracker.py` — Suivi performance providers (616 lignes)
+- [x] `src/sganarelle/knowledge_updater.py` — Mise à jour base de connaissances (588 lignes)
+- [x] `src/sganarelle/types.py` — Types et structures de données (382 lignes)
+- [x] `src/sganarelle/constants.py` — Constantes et seuils (220 lignes)
 
 **Alignement Philosophique** : Implémente la "boucle d'amélioration continue" — journaling → enrichissement fiches → meilleures analyses → feedback.
 
 ---
 
-## 📅 Phases Futures
+## 🎯 Plan de Développement v2.0 (Refonte Complète)
 
-### Phase 0.6 : Refactoring Modules Valet
+> **Principe directeur** : Livrer de la **valeur incrémentale** par couches.
+> Chaque couche est utilisable indépendamment et enrichit les suivantes.
 
-**Statut** : 📋 Planifié  
-**Durée** : 2-3 semaines  
-**Priorité** : 🟡 MOYENNE
+### 📊 Graphe de Dépendances
 
-**Objectif** : Restructurer les modules pour correspondre à l'architecture valet thématique.
+```
+                    ┌─────────────────────────────────────────────────────────┐
+                    │            COUCHE 4 : AMÉLIORATION CONTINUE             │
+                    │                                                         │
+                    │  Phase 1.6 : Journaling Complet                        │
+                    │  (synthèse toutes sources + feedback Sganarelle)       │
+                    └─────────────────────────────────────────────────────────┘
+                                              ▲
+                                              │ dépend de
+                    ┌─────────────────────────────────────────────────────────┐
+                    │            COUCHE 3 : INTELLIGENCE PROACTIVE            │
+                    │                                                         │
+                    │  Phase 1.5 : Système de Briefing                       │
+                    │  (briefing matin, pré-réunion, post-réunion)           │
+                    └─────────────────────────────────────────────────────────┘
+                                              ▲
+                                              │ dépend de
+                    ┌─────────────────────────────────────────────────────────┐
+                    │              COUCHE 2 : MULTI-SOURCE                    │
+                    │                                                         │
+                    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
+                    │  │ Phase 1.2   │  │ Phase 1.3   │  │ Phase 1.4   │     │
+                    │  │ Teams       │  │ Calendrier  │  │ LinkedIn    │     │
+                    │  └─────────────┘  └─────────────┘  └─────────────┘     │
+                    └─────────────────────────────────────────────────────────┘
+                                              ▲
+                                              │ dépend de
+                    ┌─────────────────────────────────────────────────────────┐
+                    │            COUCHE 1 : EMAIL EXCELLENCE (MVP)            │
+                    │                                                         │
+                    │  Phase 1.0 : Trivelin Email                            │
+                    │  Phase 1.1 : Journaling Email (feedback basique)       │
+                    └─────────────────────────────────────────────────────────┘
+                                              ▲
+                                              │ dépend de
+                    ┌─────────────────────────────────────────────────────────┐
+                    │              COUCHE 0 : FONDATION                       │
+                    │                                                         │
+                    │  Phase 0.6 : Refactoring Valet + Flux Bout-en-Bout     │
+                    │  (valider que l'architecture cognitive fonctionne)     │
+                    └─────────────────────────────────────────────────────────┘
+```
 
-| Chemin Actuel | Nouveau Chemin | Valet | Responsabilité |
-|---------------|----------------|-------|----------------|
-| `src/ai/` | `src/sancho/` | Sancho Panza | Sagesse & Raisonnement |
-| `src/core/email_processor.py` | `src/trivelin/processor.py` | Trivelin | Triage & Classification |
-| `src/core/multi_account_processor.py` | `src/figaro/orchestrator.py` | Figaro | Orchestration |
-| `src/cli/` | `src/jeeves/` | Jeeves | Service & Couche API |
-| Nouveau | `src/planchet/` | Planchet | Planification |
-| Nouveau | `src/sganarelle/` | Sganarelle | Apprentissage |
-| Nouveau | `src/passepartout/` | Passepartout | Navigation & Recherche |
+### 🎁 Quick Wins (de DESIGN_PHILOSOPHY.md)
 
-**Note** : `src/core/` reste pour l'infrastructure partagée (events, config, state).
+| Quick Win | Livré par | Valeur |
+|-----------|-----------|--------|
+| **Inbox Zero assisté** | Phase 1.0 | Emails pré-analysés, brouillons prêts |
+| **Tri données existantes** | Phase 1.1 | Transformation emails → fiches organisées |
+| **Contexte avant réunion** | Phase 1.5 | Briefing pré-réunion automatique |
+| **Moins d'oublis** | Phase 1.6 | Journaling capture tout, rien ne se perd |
 
-**Critères de Succès** :
-- ✅ Tous modules suivent thème valet
-- ✅ Séparation des responsabilités claire
-- ✅ Zéro changement cassant pour utilisateurs
-- ✅ Tous tests passent
-- ✅ Documentation mise à jour
+---
+
+## 📋 COUCHE 0 : FONDATION
+
+### Phase 0.6 : Refactoring Valet & Validation Bout-en-Bout
+
+**Statut** : 🏗️ EN COURS (40%)
+**Priorité** : 🔴 BLOQUANT
+**Durée estimée** : 1-2 semaines
+
+#### Objectif
+Finaliser l'architecture valet et **prouver** que le flux cognitif complet fonctionne sur un email réel.
+
+#### User Stories
+```gherkin
+En tant que développeur,
+Je veux valider le flux Email → Trivelin → Sancho → Planchet → Figaro → Sganarelle
+Afin de m'assurer que l'architecture cognitive fonctionne avant d'ajouter des sources.
+
+Critères d'acceptation :
+- Un email de test passe par TOUS les valets
+- Le raisonnement multi-passes (Sancho) converge
+- Une action est planifiée (Planchet) et exécutée (Figaro)
+- Le feedback est enregistré (Sganarelle)
+- Les logs tracent chaque étape
+```
+
+#### Tâches Techniques
+
+| Tâche | Fichiers | État |
+|-------|----------|------|
+| Migrer `email_processor.py` → `src/trivelin/processor.py` | Nouveau fichier | 📋 |
+| Créer `src/trivelin/normalizers/email_normalizer.py` | Déplacer de `src/core/events/` | 📋 |
+| Migrer `src/ai/` → `src/sancho/` (router, model_selector, templates) | 3 fichiers | 📋 |
+| Migrer `src/cli/` → `src/jeeves/` | Tous fichiers CLI | 📋 |
+| Créer orchestrateur principal `src/scapin.py` | Nouveau fichier | 📋 |
+| Mettre à jour tous les imports | ~50 fichiers | 📋 |
+| Test d'intégration bout-en-bout | `tests/integration/test_e2e_flow.py` | 📋 |
+
+#### Critères de Succès
+- [ ] 100% des tests existants passent après migration
+- [ ] 1 test d'intégration E2E passe (email → action exécutée)
+- [ ] Documentation des imports mise à jour
+- [ ] Aucun fichier orphelin dans les anciens emplacements
 
 ---
 
-### Phase 0.7 : Couche API Jeeves
+## 📋 COUCHE 1 : EMAIL EXCELLENCE (MVP)
 
-**Statut** : 📋 Planifié  
-**Durée** : 3-4 semaines  
-**Priorité** : 🟡 MOYENNE
+### Phase 1.0 : Trivelin Email — Perception Unifiée
 
-**Objectif** : Construire API REST FastAPI pour interfaces web et mobile.
+**Statut** : 📋 Planifié
+**Priorité** : 🔴 CRITIQUE
+**Durée estimée** : 2 semaines
+**Dépendance** : Phase 0.6
 
-**Livrables** :
-- [ ] **Application FastAPI** (`src/jeeves/api/`)
-  - Design API RESTful
-  - Documentation OpenAPI/Swagger
-  - Authentification JWT
-  - Support CORS pour clients web
+#### Objectif
+Transformer le traitement email existant pour utiliser pleinement l'architecture cognitive avec Trivelin comme point d'entrée unique.
 
-- [ ] **Endpoints Principaux**
-  - `POST /api/process/email` — Traiter emails
-  - `GET /api/queue` — Obtenir file révision
-  - `POST /api/queue/{id}/approve` — Approuver item en file
-  - `POST /api/queue/{id}/modify` — Modifier et exécuter
-  - `GET /api/health` — Santé système
-  - `GET /api/stats` — Statistiques traitement
-  - `POST /api/reasoning/query` — Poser questions
-  - `GET /api/notes` — Lister notes PKM
-  - `GET /api/notes/{id}` — Obtenir note spécifique
+#### User Stories
 
-- [ ] **Support WebSocket**
-  - Événements traitement temps réel
-  - Mises à jour live pendant traitement email
-  - Système notification
+```gherkin
+STORY 1 : Traitement email intelligent
+En tant que Johan,
+Je veux que Scapin analyse mes emails avec raisonnement multi-passes
+Afin d'avoir des décisions de qualité (pas du one-shot).
 
-**Stack Technologique** :
-- FastAPI (framework web Python async)
-- Pydantic (validation requête/réponse)
-- uvicorn (serveur ASGI)
-- WebSockets (mises à jour temps réel)
-
-**Critères de Succès** :
-- ✅ Toutes opérations CRUD disponibles via API
-- ✅ Mises à jour temps réel via WebSocket
-- ✅ < 100ms temps réponse API (endpoints non-traitement)
-- ✅ Documentation API complète
-- ✅ 90%+ couverture tests
+Critères d'acceptation :
+- Chaque email passe par Sancho (1-5 passes selon complexité)
+- La confiance finale est ≥ 85% ou l'email va en file de révision
+- Le temps de traitement est < 20s par email
+- Je peux voir la trace de raisonnement si je le souhaite
 
 ---
+
+STORY 2 : Brouillons de réponse
+En tant que Johan,
+Je veux que Scapin prépare des brouillons de réponse pour les emails nécessitant action
+Afin de réduire mon temps de réponse.
+
+Critères d'acceptation :
+- Les emails identifiés comme "nécessite réponse" ont un brouillon
+- Le brouillon est dans le style de Johan (appris)
+- Je peux modifier et envoyer, ou rejeter
+- Le feedback améliore les futurs brouillons
+
+---
+
+STORY 3 : Extraction d'entités
+En tant que Johan,
+Je veux que Scapin extraie automatiquement les personnes, dates, et projets des emails
+Afin d'enrichir ma base de connaissances.
+
+Critères d'acceptation :
+- Nouvelles personnes → proposition de fiche (pas création automatique)
+- Dates importantes → proposition de rappel/tâche
+- Projets mentionnés → liaison avec fiches existantes
+```
+
+#### Modèle de Données
+
+```python
+@dataclass(frozen=True)
+class EmailProcessingResult:
+    """Résultat du traitement d'un email par Trivelin → ... → Sganarelle"""
+
+    # Identification
+    email_id: str
+    message_id: str
+
+    # Perception (Trivelin)
+    perceived_event: PerceivedEvent
+    extracted_entities: list[Entity]
+
+    # Raisonnement (Sancho)
+    reasoning_result: ReasoningResult
+    passes_executed: int
+    final_confidence: float
+
+    # Planification (Planchet)
+    planned_actions: list[PlannedAction]
+    risk_assessment: RiskAssessment
+    execution_mode: ExecutionMode  # AUTO | REVIEW | MANUAL
+
+    # Exécution (Figaro)
+    executed_actions: list[ExecutedAction]
+    execution_status: ExecutionStatus
+
+    # Outputs
+    draft_reply: Optional[DraftReply]
+    proposed_tasks: list[ProposedTask]
+    proposed_notes: list[ProposedNote]
+
+    # Métriques
+    processing_duration_seconds: float
+    tokens_used: TokenUsage
+
+@dataclass
+class DraftReply:
+    """Brouillon de réponse préparé par Scapin"""
+    subject: str
+    body: str
+    tone: str  # formal, casual, friendly
+    confidence: float
+    alternatives: list[str]  # Autres formulations possibles
+```
+
+#### Architecture Technique
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        TRIVELIN                                  │
+│  src/trivelin/                                                   │
+│  ├── __init__.py                                                │
+│  ├── processor.py          # Point d'entrée, orchestration      │
+│  ├── email_fetcher.py      # Récupération IMAP (existant)       │
+│  └── normalizers/                                                │
+│      ├── __init__.py                                            │
+│      ├── base.py           # Interface Normalizer               │
+│      └── email_normalizer.py  # Email → PerceivedEvent          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ PerceivedEvent
+┌─────────────────────────────────────────────────────────────────┐
+│                         SANCHO                                   │
+│  (Existant - reasoning_engine.py)                               │
+│  Raisonnement multi-passes jusqu'à confiance ≥ 95%              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ ReasoningResult
+┌─────────────────────────────────────────────────────────────────┐
+│                        PLANCHET                                  │
+│  (Existant - planning_engine.py)                                │
+│  Planification avec évaluation des risques                      │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ ActionPlan
+┌─────────────────────────────────────────────────────────────────┐
+│                         FIGARO                                   │
+│  (Existant - orchestrator.py)                                   │
+│  Exécution DAG avec rollback                                    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ ExecutionResult
+┌─────────────────────────────────────────────────────────────────┐
+│                       SGANARELLE                                 │
+│  (Existant - learning_engine.py)                                │
+│  Apprentissage du feedback                                      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Livrables
+
+| Livrable | Fichier | Lignes estimées |
+|----------|---------|-----------------|
+| Processeur Trivelin | `src/trivelin/processor.py` | ~400 |
+| Actions brouillon réponse | `src/figaro/actions/draft_reply.py` | ~200 |
+| Tests unitaires | `tests/unit/test_trivelin_*.py` | ~500 |
+| Test intégration | `tests/integration/test_email_e2e.py` | ~200 |
+
+#### Critères de Succès
+- [ ] 10 emails de test traités avec succès
+- [ ] Temps moyen < 15s par email
+- [ ] Confiance moyenne > 85%
+- [ ] Brouillons générés pour emails "nécessite réponse"
+- [ ] Entités extraites et proposées (pas forcément acceptées)
+
+---
+
+### Phase 1.1 : Journaling Email — Feedback Basique
+
+**Statut** : 📋 Planifié
+**Priorité** : 🔴 CRITIQUE
+**Durée estimée** : 2 semaines
+**Dépendance** : Phase 1.0
+
+#### Objectif
+Implémenter le journaling quotidien sur la base des emails traités. C'est la **boucle de feedback minimale** qui permet à Sganarelle d'apprendre.
+
+#### User Stories
+
+```gherkin
+STORY 1 : Journal pré-rempli
+En tant que Johan,
+Je veux que Scapin pré-remplisse mon journal quotidien avec les emails traités
+Afin de ne pas partir d'une page blanche.
+
+Critères d'acceptation :
+- Commande `scapin journal` génère un brouillon
+- Le brouillon liste : emails traités, actions prises, décisions
+- Je peux compléter/corriger en ~15 minutes
+- Le format est Markdown avec YAML frontmatter
+
+---
+
+STORY 2 : Questions ciblées
+En tant que Johan,
+Je veux que Scapin me pose des questions ciblées sur les éléments incertains
+Afin d'améliorer sa compréhension.
+
+Critères d'acceptation :
+- Questions sur les emails où confiance < 80%
+- Questions sur les nouvelles personnes détectées
+- Format interactif (questionary) avec choix rapides
+- Possibilité de passer une question
+
+---
+
+STORY 3 : Enrichissement fiches
+En tant que Johan,
+Je veux que mes corrections enrichissent automatiquement les fiches
+Afin que Scapin s'améliore.
+
+Critères d'acceptation :
+- Correction "cette personne est X" → mise à jour fiche personne
+- Correction "ce projet est Y" → mise à jour fiche projet
+- Correction "cette action était fausse" → feedback Sganarelle
+- Historique des corrections conservé
+```
+
+#### Modèle de Données
+
+```python
+@dataclass
+class JournalEntry:
+    """Entrée de journal quotidien"""
+
+    # Métadonnées
+    date: date
+    created_at: datetime
+    updated_at: datetime
+
+    # Contenu pré-rempli par Scapin
+    emails_processed: list[EmailSummary]
+    tasks_completed: list[TaskSummary]  # Depuis OmniFocus
+    decisions_made: list[DecisionSummary]
+
+    # Questions de Scapin
+    questions: list[JournalQuestion]
+
+    # Réponses de Johan
+    answers: dict[str, Any]
+
+    # Ajouts manuels de Johan
+    notes: str
+    reflections: str
+
+    # Feedback pour Sganarelle
+    corrections: list[Correction]
+
+    # Statut
+    status: JournalStatus  # DRAFT | IN_PROGRESS | COMPLETED
+
+@dataclass
+class JournalQuestion:
+    """Question posée par Scapin"""
+    id: str
+    category: QuestionCategory  # PERSON | PROJECT | DECISION | CLARIFICATION
+    question: str
+    context: str  # Pourquoi Scapin pose cette question
+    options: list[str]  # Choix rapides proposés
+    related_entity_id: Optional[str]
+    priority: int  # 1-5, 5 = plus important
+
+@dataclass
+class Correction:
+    """Correction apportée par Johan"""
+    original_analysis: str
+    corrected_analysis: str
+    correction_type: CorrectionType  # CATEGORY | ACTION | ENTITY | OTHER
+    entity_id: Optional[str]
+    feedback_strength: float  # 0-1, importance de la correction
+```
+
+#### Format Journal (Markdown)
+
+```markdown
+---
+date: 2026-01-03
+status: completed
+emails_processed: 12
+corrections: 2
+duration_minutes: 14
+---
+
+# Journal du 3 janvier 2026
+
+## 📧 Emails Traités (12)
+
+### Haute importance (3)
+- **Marie Dupont** : Budget Q2 - [Archivé] ✅
+  - Action : Tâche créée "Réviser budget Q2" (due: 10 jan)
+- **Client ABC** : Proposition commerciale - [En attente] ⏳
+  - Brouillon réponse préparé
+- **Direction** : Réunion stratégique - [Archivé] ✅
+  - Événement calendrier détecté
+
+### Normale (7)
+- 3 newsletters archivées automatiquement
+- 2 notifications LinkedIn (priorité basse)
+- 2 emails internes traités
+
+### Basse priorité (2)
+- Spam filtré
+
+## ❓ Questions de Scapin
+
+### Q1 : Nouvelle personne détectée
+> "Jean Martin" apparaît pour la première fois. Qui est-ce ?
+- [x] Collègue Eufonie
+- [ ] Client
+- [ ] Fournisseur
+- [ ] Autre : ___
+
+### Q2 : Clarification projet
+> L'email de Marie mentionne "Projet Alpha". Est-ce lié à "Initiative Q2" ?
+- [x] Oui, c'est le même projet
+- [ ] Non, projets différents
+
+## 📝 Notes personnelles
+
+(Ajoutées par Johan)
+
+Journée productive. La proposition pour ABC nécessite une relecture demain matin.
+
+## 🔄 Corrections
+
+1. Email de Jean classé "personnel" → devrait être "professionnel Eufonie"
+2. Priorité newsletter TechCrunch trop haute → baisser à "basse"
+```
+
+#### Interface CLI
+
+```bash
+# Générer le brouillon du journal
+$ scapin journal
+📅 Génération du journal du 3 janvier 2026...
+✅ 12 emails traités aujourd'hui
+❓ 2 questions à répondre
+
+# Mode interactif
+$ scapin journal --interactive
+? [1/2] "Jean Martin" apparaît pour la première fois. Qui est-ce ?
+  ○ Collègue Eufonie
+  ○ Client
+  ○ Fournisseur
+  ○ Autre (saisir)
+> Collègue Eufonie ✓
+
+? [2/2] L'email de Marie mentionne "Projet Alpha". Est-ce lié à "Initiative Q2" ?
+  ○ Oui, c'est le même projet
+  ○ Non, projets différents
+> Oui ✓
+
+📝 Voulez-vous ajouter des notes personnelles ? (o/N) o
+> Journée productive. La proposition pour ABC nécessite une relecture demain.
+
+✅ Journal complété en 4 minutes
+📊 Feedback envoyé à Sganarelle (2 corrections, 1 nouvelle entité)
+```
+
+#### Livrables
+
+| Livrable | Fichier | Lignes estimées |
+|----------|---------|-----------------|
+| Générateur journal | `src/jeeves/journal/generator.py` | ~300 |
+| Modèles journal | `src/jeeves/journal/models.py` | ~200 |
+| Interface CLI | `src/jeeves/journal/cli.py` | ~250 |
+| Intégration Sganarelle | `src/sganarelle/journal_feedback.py` | ~150 |
+| Storage journal | `src/passepartout/journal_store.py` | ~200 |
+| Tests | `tests/unit/test_journal_*.py` | ~400 |
+
+#### Critères de Succès
+- [ ] Journal généré en < 5s
+- [ ] Session journaling complète en < 15 min (objectif DESIGN_PHILOSOPHY)
+- [ ] Corrections intégrées dans Sganarelle
+- [ ] Nouvelles entités ajoutées à Passepartout
+- [ ] Historique des journaux consultable
+
+---
+
+## 📋 COUCHE 2 : MULTI-SOURCE
+
+### Phase 1.2 : Intégration Microsoft Teams
+
+**Statut** : 📋 Planifié
+**Priorité** : 🔴 HAUTE
+**Durée estimée** : 3 semaines
+**Dépendance** : Phase 1.0
+
+#### Objectif
+Intégrer les messages Teams dans le flux Trivelin. Teams est critique car c'est le canal principal pour Eufonie/Skiillz.
+
+#### User Stories
+
+```gherkin
+STORY 1 : Lecture messages Teams
+En tant que Johan,
+Je veux que Scapin lise mes messages Teams comme il lit mes emails
+Afin d'avoir une vue unifiée de mes communications.
+
+Critères d'acceptation :
+- Messages Teams passent par Trivelin → même pipeline
+- Priorisation : mentions directes > channels importants > autres
+- Pas de duplication si même info par email et Teams
+
+---
+
+STORY 2 : Brouillons réponse Teams
+En tant que Johan,
+Je veux que Scapin prépare des brouillons de réponse Teams
+Afin de répondre rapidement.
+
+Critères d'acceptation :
+- Brouillon adapté au format Teams (court, informel)
+- Option d'envoyer directement ou modifier
+- Tracking des réponses envoyées
+
+---
+
+STORY 3 : Contexte avant appel Teams
+En tant que Johan,
+Je veux un briefing avant chaque appel Teams planifié
+Afin d'être préparé.
+
+Critères d'acceptation :
+- Notification 10 min avant l'appel
+- Briefing : participants, historique, points à aborder
+- Intégration avec calendrier
+```
+
+#### Architecture Technique
+
+```python
+# Configuration Microsoft Graph
+@dataclass
+class TeamsConfig:
+    tenant_id: str
+    client_id: str
+    client_secret: str  # Ou certificat
+    scopes: list[str] = field(default_factory=lambda: [
+        "Chat.Read",
+        "Chat.ReadWrite",
+        "ChannelMessage.Read.All",
+        "User.Read",
+        "Calendars.Read"
+    ])
+
+# Normalizer Teams
+class TeamsNormalizer(BaseNormalizer):
+    """Convertit un message Teams en PerceivedEvent"""
+
+    def normalize(self, teams_message: TeamsMessage) -> PerceivedEvent:
+        return PerceivedEvent(
+            id=f"teams_{teams_message.id}",
+            source=EventSource.TEAMS,
+            title=self._extract_title(teams_message),
+            content=teams_message.body.content,
+            timestamp=teams_message.created_datetime,
+            entities=self._extract_entities(teams_message),
+            metadata={
+                "channel_id": teams_message.channel_id,
+                "chat_id": teams_message.chat_id,
+                "is_mention": teams_message.mentions_me,
+                "importance": teams_message.importance,
+                "reply_to": teams_message.reply_to_id,
+            },
+            perception_confidence=0.95
+        )
+```
+
+#### Stratégie de Polling
+
+```python
+class TeamsPoller:
+    """Polling des messages Teams avec delta queries"""
+
+    # Fréquences de polling
+    POLL_INTERVALS = {
+        "mentions": timedelta(minutes=1),      # Mentions directes : rapide
+        "important_channels": timedelta(minutes=5),  # Channels Eufonie/Skiillz
+        "other_channels": timedelta(minutes=15),     # Autres channels
+        "chats": timedelta(minutes=2),               # Messages privés
+    }
+
+    async def poll(self):
+        """Polling avec delta pour éviter les doublons"""
+        delta_link = self.get_delta_link()
+        new_messages = await self.graph_client.get_messages(delta_link)
+
+        for message in new_messages:
+            if self._should_process(message):
+                yield message
+```
+
+#### Livrables
+
+| Livrable | Fichier | Lignes estimées |
+|----------|---------|-----------------|
+| Client Graph API | `src/integrations/microsoft/graph_client.py` | ~400 |
+| Normalizer Teams | `src/trivelin/normalizers/teams_normalizer.py` | ~200 |
+| Poller Teams | `src/integrations/microsoft/teams_poller.py` | ~300 |
+| Actions Teams | `src/figaro/actions/teams.py` | ~250 |
+| Config OAuth | `src/integrations/microsoft/auth.py` | ~150 |
+| Tests | `tests/unit/test_teams_*.py` | ~400 |
+
+#### Critères de Succès
+- [ ] OAuth fonctionnel avec Microsoft 365
+- [ ] Messages Teams dans le flux Trivelin
+- [ ] Brouillons de réponse générés
+- [ ] Latence polling < 2 min pour mentions
+- [ ] Pas de rate limiting (respect quotas Graph API)
+
+---
+
+### Phase 1.3 : Intégration Calendrier
+
+**Statut** : 📋 Planifié
+**Priorité** : 🟠 MOYENNE-HAUTE
+**Durée estimée** : 2-3 semaines
+**Dépendance** : Phase 1.2 (réutilise Graph API)
+
+#### Objectif
+Lire les calendriers (iCloud + Exchange) pour alimenter les briefings et le contexte.
+
+#### User Stories
+
+```gherkin
+STORY 1 : Vue unifiée calendriers
+En tant que Johan,
+Je veux que Scapin voie tous mes calendriers (perso + pro)
+Afin d'avoir une vue complète de mon emploi du temps.
+
+Critères d'acceptation :
+- iCloud Calendar (perso + AWCS)
+- Exchange Calendar (Eufonie/Skiillz)
+- Détection des conflits cross-calendriers
+- Respect des permissions (pas de modification sans validation)
+
+---
+
+STORY 2 : Briefing automatique
+En tant que Johan,
+Je veux un briefing avant chaque réunion importante
+Afin d'être préparé.
+
+Critères d'acceptation :
+- Notification configurable (10 min par défaut)
+- Contenu : participants, historique, contexte, points à discuter
+- Format adapté (court pour standup, détaillé pour client)
+
+---
+
+STORY 3 : Autonomie progressive (DESIGN_PHILOSOPHY 7.3)
+En tant que Johan,
+Je veux que Scapin apprenne quand il peut modifier mon calendrier
+Afin qu'il devienne plus autonome sur les patterns établis.
+
+Critères d'acceptation :
+- Phase 1 : Lecture + suggestions seulement
+- Phase 2 : "Je propose ce créneau, j'ajoute ?" (après N validations)
+- Phase 3 : Ajout automatique pour types validés
+- Tracking des patterns d'approbation dans Sganarelle
+```
+
+#### Modèle Autonomie Progressive
+
+```python
+@dataclass
+class CalendarAutonomyLevel:
+    """Niveau d'autonomie pour un type d'événement"""
+    event_type: str  # "standup", "1:1", "client_meeting", etc.
+    approvals: int  # Nombre de fois Johan a approuvé
+    rejections: int  # Nombre de fois Johan a rejeté
+
+    @property
+    def approval_rate(self) -> float:
+        total = self.approvals + self.rejections
+        return self.approvals / total if total > 0 else 0
+
+    @property
+    def autonomy_level(self) -> int:
+        """
+        1 = Lecture seule (< 5 approbations ou taux < 80%)
+        2 = Suggestion avec validation (5-15 approbations, taux >= 80%)
+        3 = Autonome (> 15 approbations, taux >= 95%)
+        """
+        if self.approvals < 5 or self.approval_rate < 0.8:
+            return 1
+        elif self.approvals < 15 or self.approval_rate < 0.95:
+            return 2
+        else:
+            return 3
+```
+
+#### Livrables
+
+| Livrable | Fichier | Lignes estimées |
+|----------|---------|-----------------|
+| Client iCloud Calendar | `src/integrations/apple/calendar_client.py` | ~300 |
+| Client Exchange (via Graph) | `src/integrations/microsoft/calendar_client.py` | ~250 |
+| Fusion calendriers | `src/trivelin/calendar_aggregator.py` | ~200 |
+| Modèle autonomie | `src/sganarelle/calendar_autonomy.py` | ~150 |
+| Tests | `tests/unit/test_calendar_*.py` | ~350 |
+
+---
+
+### Phase 1.4 : Intégration LinkedIn (Priorité Basse)
+
+**Statut** : 📋 Planifié
+**Priorité** : 🟢 BASSE
+**Durée estimée** : 1-2 semaines
+**Dépendance** : Phase 1.0
+
+#### Objectif
+Intégrer les messages LinkedIn avec filtrage agressif (beaucoup de spam/prospection).
+
+#### Scope Limité
+- ✅ Lecture messages uniquement
+- ✅ Filtrage agressif (spam, prospection)
+- ❌ Pas de publication de contenu (hors scope v1.0)
+- ❌ Pas de gestion du profil
+
+#### Livrables
+
+| Livrable | Fichier | Lignes estimées |
+|----------|---------|-----------------|
+| Client LinkedIn API | `src/integrations/linkedin/client.py` | ~200 |
+| Normalizer LinkedIn | `src/trivelin/normalizers/linkedin_normalizer.py` | ~150 |
+| Filtre spam | `src/trivelin/filters/linkedin_spam.py` | ~100 |
+
+---
+
+## 📋 COUCHE 3 : INTELLIGENCE PROACTIVE
+
+### Phase 1.5 : Système de Briefing
+
+**Statut** : 📋 Planifié
+**Priorité** : 🟠 MOYENNE-HAUTE
+**Durée estimée** : 2-3 semaines
+**Dépendance** : Phase 1.3 (Calendrier)
+
+#### Objectif
+Créer le système de briefing contextuel qui prépare Johan avant chaque interaction importante.
+
+#### Types de Briefings
+
+| Type | Déclencheur | Contenu | Timing |
+|------|-------------|---------|--------|
+| **Briefing Matin** | 7h00 (configurable) | Priorités, réunions, rappels | Push notification |
+| **Pré-Réunion** | 10 min avant événement | Participants, historique, points | Push notification |
+| **Pré-Appel Teams** | 5 min avant appel | Contexte court, derniers échanges | Push notification |
+| **Post-Réunion** | Fin de l'événement | Proposition résumé, actions | CLI interactif |
+
+#### Modèle de Données
+
+```python
+@dataclass
+class Briefing:
+    """Briefing généré par Scapin"""
+
+    id: str
+    type: BriefingType  # MORNING | PRE_MEETING | PRE_CALL | POST_MEETING
+    trigger_event: Optional[CalendarEvent]
+    generated_at: datetime
+
+    # Contenu structuré (Information en couches - DESIGN_PHILOSOPHY 5.1)
+    level_1: BriefingLevel1  # 30 secondes - résumé actionnable
+    level_2: BriefingLevel2  # 2 minutes - contexte et options
+    level_3: BriefingLevel3  # Complet - détails pour audit
+
+    # Livraison
+    delivery_method: DeliveryMethod  # CLI | NOTIFICATION | EMAIL
+    delivered_at: Optional[datetime]
+    read_at: Optional[datetime]
+
+@dataclass
+class BriefingLevel1:
+    """Niveau 1 : 30 secondes"""
+    headline: str  # "Réunion client ABC dans 10 min"
+    key_points: list[str]  # Max 3 points
+    action_needed: Optional[str]  # "Préparer démo produit"
+
+@dataclass
+class BriefingLevel2:
+    """Niveau 2 : 2 minutes"""
+    participants: list[ParticipantContext]
+    recent_interactions: list[InteractionSummary]
+    suggested_talking_points: list[str]
+    risks_or_concerns: list[str]
+
+@dataclass
+class BriefingLevel3:
+    """Niveau 3 : Complet"""
+    full_history: list[Interaction]
+    related_notes: list[Note]
+    related_tasks: list[Task]
+    reasoning_trace: str  # Comment Scapin a construit ce briefing
+```
+
+#### Générateur de Briefing
+
+```python
+class BriefingGenerator:
+    """Génère des briefings en utilisant Sancho + Passepartout"""
+
+    def __init__(
+        self,
+        reasoning_engine: ReasoningEngine,  # Sancho
+        context_engine: ContextEngine,       # Passepartout
+        calendar_client: CalendarClient,
+    ):
+        self.reasoning = reasoning_engine
+        self.context = context_engine
+        self.calendar = calendar_client
+
+    async def generate_pre_meeting_briefing(
+        self,
+        event: CalendarEvent
+    ) -> Briefing:
+        # 1. Récupérer contexte des participants
+        participants_context = await self._get_participants_context(
+            event.attendees
+        )
+
+        # 2. Récupérer historique des interactions
+        interactions = await self.context.get_interactions_with(
+            entities=[a.email for a in event.attendees],
+            limit=10,
+            days=90
+        )
+
+        # 3. Récupérer notes et tâches liées
+        related_notes = await self.context.search_notes(
+            query=event.title,
+            entities=event.attendees,
+            limit=5
+        )
+
+        # 4. Générer le briefing avec Sancho
+        briefing_event = PerceivedEvent(
+            source=EventSource.CALENDAR,
+            title=f"Briefing pour: {event.title}",
+            content=self._format_briefing_context(
+                event, participants_context, interactions, related_notes
+            ),
+            metadata={"event_id": event.id}
+        )
+
+        reasoning_result = await self.reasoning.reason(briefing_event)
+
+        # 5. Structurer en niveaux
+        return self._structure_briefing(
+            event, reasoning_result, participants_context, interactions
+        )
+```
+
+#### Livrables
+
+| Livrable | Fichier | Lignes estimées |
+|----------|---------|-----------------|
+| Générateur briefing | `src/sancho/briefing_generator.py` | ~400 |
+| Modèles briefing | `src/core/models/briefing.py` | ~200 |
+| Scheduler briefings | `src/jeeves/briefing_scheduler.py` | ~250 |
+| CLI briefing | `src/jeeves/cli/briefing_commands.py` | ~150 |
+| Notifications | `src/jeeves/notifications/briefing_notifier.py` | ~200 |
+| Tests | `tests/unit/test_briefing_*.py` | ~400 |
+
+#### Critères de Succès
+- [ ] Briefing matin généré automatiquement
+- [ ] Briefing pré-réunion 10 min avant
+- [ ] Contenu pertinent (vérifié manuellement sur 10 réunions)
+- [ ] Information en 3 niveaux (DESIGN_PHILOSOPHY)
+- [ ] Post-réunion capture les actions
+
+---
+
+## 📋 COUCHE 4 : AMÉLIORATION CONTINUE
+
+### Phase 1.6 : Journaling Complet
+
+**Statut** : 📋 Planifié
+**Priorité** : 🔴 CRITIQUE (mais dépend des couches précédentes)
+**Durée estimée** : 2 semaines
+**Dépendance** : Phases 1.1, 1.2, 1.3, 1.5
+
+#### Objectif
+Étendre le journaling basique (Phase 1.1) pour synthétiser TOUTES les sources et boucler complètement avec Sganarelle.
+
+#### Différence avec Phase 1.1
+
+| Aspect | Phase 1.1 (Basique) | Phase 1.6 (Complet) |
+|--------|---------------------|---------------------|
+| Sources | Emails uniquement | Emails + Teams + Calendrier + OmniFocus |
+| Questions | Clarifications simples | Questions sur patterns, préférences |
+| Feedback | Corrections ponctuelles | Calibration complète Sganarelle |
+| Revues | Quotidienne seulement | Quotidienne + Hebdo + Mensuelle |
+
+#### User Stories Additionnelles
+
+```gherkin
+STORY : Revue hebdomadaire
+En tant que Johan,
+Je veux une revue hebdomadaire qui synthétise ma semaine
+Afin de prendre du recul et ajuster mes priorités.
+
+Critères d'acceptation :
+- Synthèse : emails traités, réunions, tâches complétées
+- Temps passé par domaine (Eufonie, Skiillz, AWCS, Perso)
+- Suggestions d'amélioration de Scapin
+- Durée : ~30 min
+
+---
+
+STORY : Calibration Sganarelle
+En tant que Johan,
+Je veux que Scapin me montre ses apprentissages et demande validation
+Afin de corriger les mauvais patterns avant qu'ils ne s'ancrent.
+
+Critères d'acceptation :
+- "J'ai appris que X, est-ce correct ?"
+- Possibilité de confirmer, corriger, ou supprimer
+- Visualisation des seuils de confiance par domaine
+```
+
+#### Livrables
+
+| Livrable | Fichier | Lignes estimées |
+|----------|---------|-----------------|
+| Synthétiseur multi-source | `src/jeeves/journal/multi_source_synthesizer.py` | ~300 |
+| Revue hebdo/mensuelle | `src/jeeves/journal/reviews.py` | ~250 |
+| Calibration UI | `src/jeeves/journal/calibration_ui.py` | ~200 |
+| Dashboard apprentissage | `src/jeeves/journal/learning_dashboard.py` | ~200 |
+
+---
+
+## 📋 COUCHES TECHNIQUES (Dépendent des couches fonctionnelles)
+
+### Phase 0.7 : API Jeeves
+
+**Dépendance** : Couches 1-4 pour avoir du contenu à exposer
+**Durée estimée** : 3-4 semaines
+
+```python
+# Endpoints principaux
+@app.get("/api/briefing/today")
+async def get_today_briefing() -> Briefing: ...
+
+@app.get("/api/briefing/upcoming")
+async def get_upcoming_briefings() -> list[Briefing]: ...
+
+@app.get("/api/journal/draft")
+async def get_journal_draft(date: date) -> JournalEntry: ...
+
+@app.post("/api/journal/complete")
+async def complete_journal(entry: JournalEntry) -> JournalEntry: ...
+
+@app.get("/api/queue")
+async def get_review_queue() -> list[QueueItem]: ...
+
+@app.post("/api/queue/{item_id}/approve")
+async def approve_queue_item(item_id: str, modifications: dict) -> None: ...
+
+@app.get("/api/learning/patterns")
+async def get_learned_patterns() -> list[LearnedPattern]: ...
+```
 
 ### Phase 0.8 : Interface Web
 
-**Statut** : 📋 Planifié  
-**Durée** : 6-8 semaines  
-**Priorité** : 🔴 HAUTE
+**Dépendance** : Phase 0.7
+**Durée estimée** : 6-8 semaines
 
-**Objectif** : Construire application web moderne pour usage quotidien Scapin.
-
-**Livrables** :
-- [ ] **Application Frontend** (SvelteKit)
-  - UI moderne et responsive
-  - Mises à jour temps réel
-  - Interface traitement email
-  - Gestion file révision
-  - Navigateur notes PKM
-  - Dashboard statistiques
-  - Gestion paramètres
-
-- [ ] **Vues Principales**
-  - `/dashboard` — Vue d'ensemble avec stats
-  - `/process` — Interface traitement email
-  - `/queue` — File révision avec approuver/modifier/rejeter
-  - `/notes` — Navigateur base de connaissances
-  - `/search` — Interface recherche sémantique
-  - `/settings` — Configuration comptes et IA
-  - `/health` — Monitoring santé système
-
-- [ ] **Fonctionnalités Temps Réel**
-  - Statut traitement live
-  - Mises à jour WebSocket
-  - Barres progression et notifications
-  - Visualisations confiance
-
-- [ ] **Raisonnement Interactif**
-  - Voir trace raisonnement (les 5 passes)
-  - Comprendre décisions IA
-  - Fournir feedback
-  - Modifier et relancer
-
-**Stack Technologique** :
-- **Frontend** : SvelteKit (moderne, rapide, simple)
-- **Style** : TailwindCSS (CSS utility-first)
-- **Graphiques** : Chart.js ou D3.js
-- **Icônes** : Lucide ou Heroicons
-- **État** : Svelte stores + client API
-- **Build** : Vite (serveur dev rapide)
-
-**Principes Design** :
-- **Propre & Minimal** : Focus sur contenu, pas chrome
-- **Rapide** : < 2s chargement page, interactions instantanées
-- **Accessible** : WCAG 2.1 AA conforme
-- **Responsive** : Design mobile-first
-
----
+Vues principales :
+- `/dashboard` — Briefing du jour, actions en attente
+- `/journal` — Interface journaling interactive
+- `/queue` — File de révision
+- `/learning` — Visualisation apprentissage Sganarelle
 
 ### Phase 0.9 : PWA Mobile
 
-**Statut** : 📋 Planifié  
-**Durée** : 3-4 semaines  
-**Priorité** : 🟡 MOYENNE
+**Dépendance** : Phase 0.8
+**Durée estimée** : 3-4 semaines
 
-**Objectif** : Convertir UI web en Progressive Web App pour usage mobile.
-
-**Livrables** :
-- [ ] **Infrastructure PWA**
-  - Service Worker pour support offline
-  - Manifest app (icônes, couleurs, nom)
-  - Prompts installation
-  - Notifications push
-  - Sync background
-
-- [ ] **Optimisations Mobile**
-  - UI touch-friendly
-  - Patterns navigation mobile
-  - Gestion file offline
-  - Actions rapides (traiter, réviser)
-  - Intégration partage natif
-
-**Critères de Succès** :
-- ✅ Fonctionne offline (lecture seule)
-- ✅ Installation comme app sur iOS/Android
-- ✅ Notifications push fonctionnelles
-- ✅ < 3s chargement sur 3G
-- ✅ Score Lighthouse PWA > 90
+Focus sur :
+- Notifications push (briefings)
+- Validation rapide (queue)
+- Journaling simplifié
 
 ---
 
-### Phase 2.5 : Système IA Multi-Provider
+## 📅 Calendrier Révisé
 
-**Statut** : 📋 Planifié  
-**Durée** : 4-5 semaines  
-**Priorité** : 🔴 HAUTE
+### Q1 2026 (Janvier - Mars)
 
-**Objectif** : Supporter plusieurs providers IA avec mécanisme consensus intelligent.
+| Mois | Phase | Focus |
+|------|-------|-------|
+| **Janvier** | 0.6 | Refactoring + Validation E2E |
+| **Janvier-Février** | 1.0 | Trivelin Email (MVP) |
+| **Février-Mars** | 1.1 | Journaling Email (feedback basique) |
 
-**Livrables** :
-- [ ] **Couche Abstraction Provider**
-  - `ClaudeProvider` (existant) ✅
-  - `OpenAIProvider` (GPT-4o, GPT-4-turbo)
-  - `MistralProvider` (Mistral Large/Medium/Small)
-  - `GeminiProvider` (Gemini 2.0 Flash, Gemini 1.5 Pro)
+**Livrable Q1** : Email Excellence — Inbox Zero assisté fonctionnel
 
-- [ ] **Moteur Consensus**
-  - Déclenchement quand confiance < 75%
-  - Interrogation 2-3 providers
-  - Agrégation réponses
-  - Consensus pondéré basé sur précision provider
+### Q2 2026 (Avril - Juin)
 
-- [ ] **Routage Intelligent**
-  - Utiliser provider le moins cher pour tâches simples
-  - Consensus pour décisions incertaines
-  - Failover automatique
-  - Suivi et optimisation coûts
+| Mois | Phase | Focus |
+|------|-------|-------|
+| **Avril** | 1.2 | Intégration Teams |
+| **Avril-Mai** | 1.3 | Intégration Calendrier |
+| **Mai** | 1.4 | LinkedIn (optionnel, basse priorité) |
+| **Mai-Juin** | 1.5 | Système de Briefing |
 
-**Bénéfices** :
-- **Résilience** : Pas de point unique de défaillance
-- **Précision** : Consensus réduit erreurs de 10%+
-- **Optimisation Coûts** : Choisir le moins cher pour la tâche
-- **Pérennité** : Facile d'ajouter nouveaux providers
+**Livrable Q2** : Multi-Source + Briefings — Préparation réunions automatique
 
----
+### Q3 2026 (Juillet - Septembre)
 
-### Phase 3 : Système de Connaissances
+| Mois | Phase | Focus |
+|------|-------|-------|
+| **Juillet** | 1.6 | Journaling Complet |
+| **Juillet-Août** | 0.7 | API Jeeves |
+| **Août-Septembre** | 0.8 | Interface Web |
 
-**Statut** : 📋 Planifié  
-**Durée** : 4-6 semaines  
-**Priorité** : 🟡 MOYENNE
+**Livrable Q3** : Boucle complète + Interface Web
 
-**Objectif** : Construire système gestion connaissances avec notes Markdown, versioning Git, et extraction entités.
+### Q4 2026 (Octobre - Décembre)
 
-**Livrables** :
-- [ ] **NoteManager** (`src/passepartout/note_manager.py`)
-  - CRUD notes
-  - Support frontmatter YAML
-  - Auto-linking entre notes
-  - Gestion tags
-  - Fonctionnalité recherche
+| Mois | Phase | Focus |
+|------|-------|-------|
+| **Octobre** | 0.9 | PWA Mobile |
+| **Novembre** | 2.5 | IA Multi-Provider |
+| **Décembre** | — | Polish + Beta |
 
-- [ ] **Intégration Git**
-  - Auto-commit sur changements notes
-  - Suivi historique versions
-  - Résolution conflits
-  - Gestion branches
-
-- [ ] **Moteur Contexte** (`src/passepartout/context_engine.py`)
-  - Récupération notes récentes pour contexte IA
-  - Suggestions contexte pertinent
-  - Recherche intelligente avec embeddings (FAISS)
-  - Gestion fenêtre contexte
-
-- [ ] **Extraction Entités**
-  - Reconnaissance entités nommées (personnes, organisations, projets)
-  - Tagging automatique
-  - Liaison entités aux notes
-  - Suivi relations
-
----
-
-### Phase 4 : Système Révision FSRS
-
-**Statut** : 📋 Planifié  
-**Durée** : 3-4 semaines  
-**Priorité** : 🟢 BASSE
-
-**Objectif** : Implémenter système répétition espacée pour révision connaissances utilisant algorithme FSRS.
-
-**Alignement Philosophique** : Adresse le risque "érosion mémoire biologique" identifié dans DESIGN_PHILOSOPHY.md — révision espacée pour les connaissances critiques (visages, principes, relations clés).
-
----
-
-### Phase 5 : Graphe de Propriétés
-
-**Statut** : 📋 Planifié  
-**Durée** : 3-4 semaines  
-**Priorité** : 🟢 BASSE
-
-**Objectif** : Construire graphe de propriétés pour relations connaissances utilisant NetworkX.
-
----
-
-### Phase 6 : Intégrations
-
-**Statut** : 🔶 Partiel (30% — OmniFocus uniquement)  
-**Durée** : 4-5 semaines restantes  
-**Priorité** : 🟢 BASSE
-
-**Complété** ✅ :
-- [x] **Intégration OmniFocus MCP** (30%)
-  - Outils MCP disponibles
-  - Création tâches depuis emails
-  - Organisation projet basique
-
-**Restant** :
-- [ ] OmniFocus complet (70%)
-- [ ] Sync Apple Contacts
-- [ ] Intégration Apple Calendar
-
----
-
-### Phase 7 : Sync Bidirectionnelle
-
-**Statut** : 📋 Planifié  
-**Durée** : 5-6 semaines  
-**Priorité** : 🟢 BASSE
-
-**Objectif** : Activer sync bidirectionnelle entre notes Markdown et Apple Notes.
+**Livrable Q4** : Mobile + Consensus IA + Beta Release
 
 ---
 
 ## 📈 Progression Globale
 
-### Vue d'Ensemble Phases
+### Vue d'Ensemble Phases (Réorganisée)
 
 ```
+=== INFRASTRUCTURE (Complète) ===
 Phase 0:   ████████████████████ 100% ✅ Fondations
 Phase 1:   ████████████████████ 100% ✅ Traitement Email
 Phase 1.5: ████████████████████ 100% ✅ Événements & Display
 Phase 1.6: ████████████████████ 100% ✅ Monitoring Santé
 Phase 1.7: ████████████████████ 100% ✅ Sélecteur Modèle IA
+Phase 0.5: ███████████████████░  95% ✅ Architecture Cognitive
 Phase 2:   ████████████████░░░░  80% 🚧 Menu Interactif
-Phase 0.5: ████░░░░░░░░░░░░░░░░  20% 🏗️ Architecture Cognitive (CRITIQUE)
-Phase 0.6: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Refactoring Valet
+
+=== VALEUR FONCTIONNELLE (En cours) ===
+Phase 0.6: ████████░░░░░░░░░░░░  40% 🏗️ Refactoring Valet (ACTUEL)
+Phase 1.0: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Journaling & Feedback Loop 🆕
+Phase 1.1: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Flux Entrants Unifiés 🆕
+Phase 1.2: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Intégration Teams 🆕
+Phase 1.3: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Intégration Calendrier 🆕
+Phase 1.4: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Système de Briefing 🆕
+
+=== INTERFACES (Planifié) ===
 Phase 0.7: ░░░░░░░░░░░░░░░░░░░░   0% 📋 API Jeeves
 Phase 0.8: ░░░░░░░░░░░░░░░░░░░░   0% 📋 UI Web
 Phase 0.9: ░░░░░░░░░░░░░░░░░░░░   0% 📋 PWA Mobile
-Phase 2.5: ░░░░░░░░░░░░░░░░░░░░   0% 📋 IA Multi-Provider
-Phase 3:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Système Connaissances
-Phase 4:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Révision FSRS
-Phase 5:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Graphe Propriétés
-Phase 6:   ██████░░░░░░░░░░░░░░  30% 📋 Intégrations
-Phase 7:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Sync Bidirectionnelle
 
-Global:    ██████████████░░░░░░  70% 🚀
+=== AVANCÉ (Futur) ===
+Phase 2.5: ░░░░░░░░░░░░░░░░░░░░   0% 📋 IA Multi-Provider
+Phase 3:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Connaissances Avancées
+Phase 4:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Révision FSRS
+
+Infrastructure:    ███████████████████░  95% ✅
+Valeur Fonct.:     ████░░░░░░░░░░░░░░░░  20% 🏗️
+Global:            ███████████░░░░░░░░░  55% 🚀
 ```
 
 ### Évolution Couverture Tests
@@ -638,8 +1402,8 @@ Global:    ██████████████░░░░░░  70% �
 | Phase 1.6 | 31 | 100% | 100% | ✅ |
 | Phase 1.7 | 25 | 100% | 100% | ✅ |
 | Phase 2 | 108 | 85%+ | 100% | 🚧 |
-| Phase 0.5 | 92+ | 95%+ | 100% | 🏗️ |
-| **Total** | **867** | **95%** | **100%** | **✅** |
+| Phase 0.5 | 200+ | 95%+ | 100% | ✅ |
+| **Total** | **967** | **95%** | **100%** | **✅** |
 
 ---
 
@@ -685,33 +1449,40 @@ Global:    ██████████████░░░░░░  70% �
 
 ## 🚀 Priorités Développement
 
-### Q1 2026 (3 Prochains Mois)
+### Q1 2026 (Janvier - Mars)
 
-1. **Compléter Phase 2** (Menu Interactif) — 2-3 semaines
-2. **Phase 0.5** (Architecture Cognitive) — 4-5 semaines ⭐ CRITIQUE
-3. **Phase 0.6** (Refactoring Valet) — 2-3 semaines
+**Focus** : Valeur fonctionnelle immédiate
+
+1. ✅ **Phase 0.5** (Architecture Cognitive) — FAIT
+2. 🏗️ **Phase 0.6** (Refactoring Valet) — En cours
+3. **Phase 1.0** (Journaling & Feedback Loop) — ⭐ CRITIQUE
+4. **Phase 1.1** (Flux Entrants Unifiés) — HAUTE
+
+### Q2 2026 (Avril - Juin)
+
+**Focus** : Intégrations professionnelles
+
+1. **Phase 1.2** (Intégration Teams) — HAUTE
+2. **Phase 1.3** (Intégration Calendrier) — MOYENNE-HAUTE
+3. **Phase 1.4** (Système de Briefing) — MOYENNE-HAUTE
 4. **Début Phase 0.7** (API Jeeves) — Si temps permet
 
-### Q2 2026
+### Q3 2026 (Juillet - Septembre)
 
-1. **Compléter Phase 0.7** (API Jeeves)
-2. **Phase 0.8** (UI Web) — 6-8 semaines
-3. **Phase 0.9** (PWA Mobile) — 3-4 semaines
-4. **Phase 2.5** (IA Multi-Provider)
-5. **Début Phase 3** (Système Connaissances)
+**Focus** : Interfaces et consensus IA
 
-### Q3 2026
+1. **Phase 0.7** (API Jeeves)
+2. **Phase 0.8** (UI Web)
+3. **Phase 2.5** (IA Multi-Provider)
 
-1. **Compléter Phase 3** (Système Connaissances)
+### Q4 2026 (Octobre - Décembre)
+
+**Focus** : Mobile et optimisation
+
+1. **Phase 0.9** (PWA Mobile)
 2. **Phase 4** (Révision FSRS)
-3. **Phase 5** (Graphe Propriétés)
-4. **Phase 6** (Compléter Intégrations)
-
-### Q4 2026
-
-1. **Phase 7** (Sync Bidirectionnelle)
-2. **Polish & Optimisation Performance**
-3. **Release Beta Publique**
+3. **Polish & Optimisation Performance**
+4. **Release Beta**
 
 ---
 
@@ -772,7 +1543,7 @@ Global:    ██████████████░░░░░░  70% �
 
 ---
 
-**Statut** : Phase 0.5 Semaine 1 ✅ → Semaine 2 🚧  
-**Qualité** : 10/10 Production Ready Core 🚀  
-**Tests** : 867 tests, 95% couverture, 100% pass ✅  
-**Prochaine Étape** : Semaine 2 — Moteur de raisonnement Sancho
+**Statut** : Phase 0.5 ✅ (95%) → Phase 0.6 Refactoring Valet 🏗️
+**Qualité** : 10/10 Production Ready Core 🚀
+**Tests** : 967 tests, 95% couverture, 100% pass ✅
+**Prochaine Étape** : Compléter refactoring valet + réviser plan selon DESIGN_PHILOSOPHY

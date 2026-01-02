@@ -109,49 +109,61 @@ Feedback via prochain journaling → Amélioration système
 
 ### Phases Complétées
 
-| Phase | Nom | Statut |
-|-------|-----|--------|
-| **0** | Fondations | ✅ |
-| **1** | Intelligence Email | ✅ |
-| **2** | Expérience Interactive | ✅ |
-| **0.5** | Architecture Cognitive | ✅ Complet |
+| Phase | Nom | Statut | Lignes Code |
+|-------|-----|--------|-------------|
+| **0** | Fondations | ✅ | — |
+| **1** | Intelligence Email | ✅ | — |
+| **2** | Expérience Interactive | 80% 🚧 | — |
+| **0.5** | Architecture Cognitive | ✅ 95% | ~8000 lignes |
+
+### Modules Valets Implémentés
+
+| Valet | Module | Lignes | Statut |
+|-------|--------|--------|--------|
+| **Sancho** | `reasoning_engine.py` | ~700 | ✅ |
+| **Passepartout** | `context_engine`, `embeddings`, `note_manager`, `vector_store` | ~2000 | ✅ |
+| **Planchet** | `planning_engine.py` | ~400 | ✅ |
+| **Figaro** | `orchestrator.py`, `actions/` | ~770 | ✅ |
+| **Sganarelle** | 8 modules (learning, feedback, calibration, patterns, etc.) | ~4100 | ✅ |
+| **Trivelin** | À créer (fusion avec email_processor) | 0 | 📋 |
+| **Jeeves** | À créer (migration de cli/) | 0 | 📋 |
 
 ### Phase Actuelle : 0.6 — Refactoring Valet
 
-**Objectif** : Réorganiser les modules pour correspondre à l'architecture finale
+**Objectif** : Finaliser l'architecture valet et valider le flux bout-en-bout
 
-| Actuel | Cible |
-|--------|-------|
-| `src/ai/` | `src/sancho/` |
-| `src/cli/` | `src/jeeves/` |
-| `src/core/email_processor.py` | `src/trivelin/processor.py` |
+| Tâche | État |
+|-------|------|
+| Modules valets créés | ✅ Fait |
+| `src/ai/` → `src/sancho/` | 📋 À faire |
+| `src/cli/` → `src/jeeves/` | 📋 À faire |
+| `src/core/email_processor.py` → `src/trivelin/` | 📋 À faire |
+| Flux bout-en-bout validé | 📋 À faire |
 
-### Modules Implémentés (Phase 0.5)
+### Nouvelles Phases (Alignées DESIGN_PHILOSOPHY.md)
 
-| Semaine | Module | Fichiers Clés | Statut |
-|---------|--------|---------------|--------|
-| **1** | Fondation | `universal_event.py`, `working_memory.py`, `continuity_detector.py` | ✅ |
-| **2** | Sancho | `router.py`, `model_selector.py`, `reasoning_engine.py` | ✅ |
-| **3** | Passepartout | `embeddings.py`, `vector_store.py`, `note_manager.py`, `context_engine.py` | ✅ |
-| **4** | Planchet + Figaro | `planning_engine.py`, `orchestrator.py`, `actions/*.py` | ✅ |
-| **5** | Sganarelle | `learning_engine.py`, `feedback_processor.py`, `confidence_calibrator.py` | ✅ |
+| Phase | Nom | Priorité | Focus |
+|-------|-----|----------|-------|
+| **1.0** | Journaling & Feedback Loop | 🔴 CRITIQUE | Boucle d'amélioration |
+| **1.1** | Flux Entrants Unifiés | 🔴 HAUTE | Trivelin multi-source |
+| **1.2** | Intégration Teams | 🔴 HAUTE | Messages + réponses + appels |
+| **1.3** | Intégration Calendrier | 🟠 MOYENNE-HAUTE | Autonomie progressive |
+| **1.4** | Système de Briefing | 🟠 MOYENNE-HAUTE | Matin, pré-réunion |
 
 ### Suite des Tests
 
-**Global** : 867 tests, 95% couverture, 100% pass rate
+**Global** : 967 tests, 95% couverture, 100% pass rate
 
-| Module | Tests | Statut |
-|--------|-------|--------|
-| Core events | 19 | ✅ |
-| Display Manager | 18 | ✅ |
-| Sganarelle types | 29 | ✅ |
-| Feedback Processor | 24 | ✅ |
-| Sganarelle complet | 100+ | ✅ |
+| Catégorie | Tests | Statut |
+|-----------|-------|--------|
+| Unit tests | 912 | ✅ |
+| Integration tests | 55 | ✅ |
+| Skipped | 52 | ⏭️ |
 
 ### Qualité du Code
 
-**Score** : 10/10  
-**Ruff** : 50 warnings non-critiques (réduit de 610)
+**Score** : 10/10
+**Ruff** : 50 warnings non-critiques
 
 ---
 
@@ -220,42 +232,88 @@ LOG_FILE=./logs/scapin.log
 
 ---
 
-## 🗺️ Feuille de Route
+## 🗺️ Feuille de Route (Révisée selon DESIGN_PHILOSOPHY.md)
 
-### Phases Suivantes
+### Priorités Q1 2026
 
-| Phase | Focus | Durée Estimée |
-|-------|-------|---------------|
-| **0.6** | Refactoring Valet | 2-3 semaines |
-| **0.7** | API Jeeves (FastAPI + WebSockets) | 3-4 semaines |
-| **0.8** | Interface Web (SvelteKit) | 6-8 semaines |
-| **0.9** | PWA Mobile | 3-4 semaines |
-| **2.5** | Multi-Provider IA | 4-5 semaines |
-| **3** | Système Connaissances complet | 4-6 semaines |
+> **Principe** : Valeur fonctionnelle AVANT couches techniques
+
+| Phase | Focus | Priorité |
+|-------|-------|----------|
+| **0.6** | Refactoring Valet & flux bout-en-bout | 🏗️ EN COURS |
+| **1.0** | Journaling & Feedback Loop | 🔴 CRITIQUE |
+| **1.1** | Flux Entrants Unifiés (Trivelin) | 🔴 HAUTE |
+
+### Priorités Q2 2026
+
+| Phase | Focus | Priorité |
+|-------|-------|----------|
+| **1.2** | Intégration Teams | 🔴 HAUTE |
+| **1.3** | Intégration Calendrier | 🟠 MOYENNE-HAUTE |
+| **1.4** | Système de Briefing | 🟠 MOYENNE-HAUTE |
+
+### Phases Ultérieures
+
+| Phase | Focus |
+|-------|-------|
+| **0.7** | API Jeeves (FastAPI) |
+| **0.8** | Interface Web (SvelteKit) |
+| **0.9** | PWA Mobile |
+| **2.5** | Multi-Provider IA (consensus) |
 
 ---
 
 ## 📝 Notes de Session
 
-### Session 2026-01-02
+### Session 2026-01-02 (Soir) — Plan v2.0 Complet
 
-**Durée** : ~3 heures  
-**Focus** : Documentation philosophique + Corrections tests + Cohérence
+**Focus** : Refonte complète du plan de développement
+
+**Accomplissements** :
+1. ✅ Analysé les dépendances réelles entre phases
+2. ✅ Identifié les gaps dans les spécifications existantes
+3. ✅ **Restructuré entièrement le plan en 4 couches** :
+   - **Couche 0** : Fondation (Phase 0.6 - Refactoring Valet)
+   - **Couche 1** : Email Excellence MVP (Phases 1.0-1.1)
+   - **Couche 2** : Multi-Source (Phases 1.2-1.4)
+   - **Couche 3** : Intelligence Proactive (Phase 1.5)
+   - **Couche 4** : Amélioration Continue (Phase 1.6)
+4. ✅ **Créé spécifications fonctionnelles détaillées** pour chaque phase :
+   - User Stories en format Gherkin
+   - Modèles de données (dataclasses Python)
+   - Diagrammes d'architecture
+   - Tables de livrables avec estimations
+   - Critères de succès mesurables
+5. ✅ Ajouté graphe de dépendances visuel
+6. ✅ Mappé les Quick Wins de DESIGN_PHILOSOPHY aux phases
+7. ✅ Calendrier révisé Q1-Q4 2026
+
+**Décisions clés** :
+- Journaling divisé : Phase 1.1 (email-only MVP) + Phase 1.6 (complet multi-source)
+- Teams avant Calendrier (réutilise Graph API)
+- Briefings après Calendrier (nécessite les événements)
+- Couches techniques (API/Web/PWA) après valeur fonctionnelle
+
+### Session 2026-01-02 (Après-midi)
+
+**Focus** : Révision initiale du plan de développement
+
+**Accomplissements** :
+1. ✅ Analysé état réel vs ROADMAP — Découvert Phase 0.5 à 95% (pas 20%)
+2. ✅ Mis à jour ROADMAP.md avec l'état réel des modules valets
+3. ✅ Tests : 967 passed (912 unit + 55 integration)
+
+**Changement majeur** : Le plan passe d'une approche "couches techniques" (API → Web → Mobile) à une approche "valeur fonctionnelle" (Journaling → Teams → Briefings).
+
+### Session 2026-01-02 (Matin)
+
+**Focus** : Documentation philosophique + Corrections tests
 
 **Accomplissements** :
 1. ✅ Créé **DESIGN_PHILOSOPHY.md** — Document fondateur complet
-2. ✅ Créé fiche Apple Notes "Scapin — Principes de Conception"
-3. ✅ Mis à jour **README.md** — Intégration philosophie, 5 principes, boucle amélioration
-4. ✅ Mis à jour **CLAUDE.md** — Cohérence avec DESIGN_PHILOSOPHY.md
-5. ✅ Corrigé suite tests (867 passed, 0 failed)
-6. ✅ Corrigé deadlock logger (RLock)
-7. ✅ Modernisé annotations types (558 corrections)
-
-**Documents créés/modifiés** :
-- `docs/DESIGN_PHILOSOPHY.md` (nouveau)
-- `README.md` (amélioré)
-- `CLAUDE.md` (amélioré)
-- Fiche Apple Notes "Personal Knowledge Management/Scapin — Principes de Conception"
+2. ✅ Corrigé suite tests (867 → 967 tests)
+3. ✅ Corrigé deadlock logger (RLock)
+4. ✅ Modernisé annotations types
 
 ---
 
@@ -320,14 +378,25 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-**Phase 0.6 — Refactoring Valet** :
+### Option A : Compléter Phase 0.6 (Refactoring Valet)
 
-1. Vérifier erreurs import restantes
-2. Lancer suite tests complète — cible 100% pass
-3. Commencer renommage modules :
-   - `src/ai/` → `src/sancho/`
-   - `src/cli/` → `src/jeeves/`
-4. Mettre à jour imports dans tout le codebase
+1. Migrer `src/ai/router.py`, `model_selector.py` → `src/sancho/`
+2. Migrer `src/cli/` → `src/jeeves/`
+3. Migrer `src/core/email_processor.py` → `src/trivelin/processor.py`
+4. Mettre à jour tous les imports
+5. Valider flux bout-en-bout : Email → Trivelin → Sancho → ... → Sganarelle
+
+### Option B : Démarrer Phase 1.0 (Journaling)
+
+1. Concevoir structure du journal quotidien
+2. Implémenter pré-remplissage automatique
+3. Créer interface CLI journaling (questionary)
+4. Intégrer avec Sganarelle pour feedback loop
+
+### Recommandation
+
+Compléter **Phase 0.6 d'abord** (flux bout-en-bout validé) avant de commencer le journaling.
+Cela garantit que l'architecture cognitive fonctionne de bout en bout.
 
 ---
 
