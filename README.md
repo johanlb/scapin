@@ -1,7 +1,7 @@
 # 🎭 Scapin — Votre Gardien Cognitif Personnel
 
 **Version** : 1.0.0-alpha  
-**Statut** : 🏗️ Développement actif — Architecture cognitive  
+**Statut** : 🏗️ Développement actif — Architecture cognitive complète  
 **Python** : 3.9+
 
 > Nommé d'après Scapin, le valet rusé et inventif de Molière qui trouve toujours une solution.
@@ -14,17 +14,29 @@
 
 > **"Prendre soin de vous mieux que vous-même."**
 
-Scapin n'est pas un simple processeur d'emails ou un gestionnaire de tâches. C'est un **gardien cognitif proactif** — une extension de votre esprit qui anticipe vos besoins, apprend vos préférences et agit avec intelligence.
+Scapin n'est pas un simple processeur d'emails ou un gestionnaire de tâches. C'est un **gardien cognitif proactif** — une extension active de votre esprit qui anticipe vos besoins, prépare le terrain, et pense le plus loin possible pour vous.
 
-### Ce que Scapin fait
+### Ce que Scapin Fait
 
 - **Perçoit** les événements entrants (emails, fichiers, questions, calendrier)
-- **Raisonne** avec conscience du contexte et réflexion multi-étapes
-- **Décide** intelligemment via des passes cognitives itératives
-- **Apprend** continuellement de vos retours et des résultats
-- **Agit** comme votre valet numérique de confiance
+- **Raisonne** avec conscience du contexte et réflexion multi-étapes itérative
+- **Décide** intelligemment via des passes cognitives jusqu'à 95% de confiance
+- **Apprend** continuellement de vos corrections et des résultats
+- **Agit** comme votre valet numérique de confiance — anticipant, préparant, facilitant
 
-### Philosophie Fondatrice
+### La Tension Centrale Résolue
+
+> **Paradoxe** : Besoin de déléguer massivement (trop de choses à gérer) ET de préserver la capacité à penser (débat, challenge, exploration).
+
+**Résolution** : Scapin est simultanément :
+- **Déchargeur cognitif** — Pour les micro-tâches et le contexte factuel
+- **Sparring partner intellectuel** — Pour le débat, l'exploration, le challenge des idées
+
+Ces deux rôles libèrent de la bande passante cognitive pour se concentrer sur l'essentiel.
+
+---
+
+## 📚 Philosophie Fondatrice
 
 La conception de Scapin s'appuie sur des fondements théoriques solides :
 
@@ -35,15 +47,48 @@ La conception de Scapin s'appuie sur des fondements théoriques solides :
 | **Pharmacologie** | Stiegler | Scapin augmente vos capacités au lieu de les remplacer |
 | **Effet Google** | Sparrow et al. (2011) | Scapin gère la localisation, vous gardez l'essentiel |
 
-**Trois principes directeurs** :
+### Les 5 Principes Directeurs
 
-1. **Qualité sur vitesse** — 10-20 secondes de raisonnement pour la BONNE décision, plutôt qu'une réponse instantanée mais fausse
+| # | Principe | Description |
+|---|----------|-------------|
+| **1** | **Qualité sur vitesse** | 10-20 secondes de raisonnement pour la BONNE décision |
+| **2** | **Proactivité maximale** | Anticiper, suggérer, challenger, rappeler — sans attendre |
+| **3** | **Intimité totale** | Aucune limite d'accès pour une efficacité maximale |
+| **4** | **Apprentissage progressif** | Seuils de confiance appris, pas de règles rigides |
+| **5** | **Construction propre** | Lent mais bien construit dès le début |
 
-2. **Proactivité maximale** — Scapin anticipe, suggère, challenge, rappelle — sans attendre qu'on lui demande
+📖 **Document fondateur** : [DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md) — Capture l'âme de Scapin, les fondements théoriques complets, et les décisions de conception.
 
-3. **Apprentissage progressif** — Pas de règles rigides, mais des seuils de confiance qui évoluent avec vos corrections
+---
 
-📖 *Pour approfondir : [DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md) — Le document fondateur qui capture l'âme de Scapin*
+## 🔄 La Boucle d'Amélioration Continue
+
+Le système s'améliore via un cycle vertueux centré sur le journaling quotidien :
+
+```
+Journée vécue
+     ↓
+Scapin pré-remplit le journal (ce qu'il sait)
+     ↓
+Vous complétez et corrigez (~15 min)
+     ↓
+Enrichissement des fiches (personnes, projets, décisions)
+     ↓
+Meilleure analyse future
+     ↓
+Suggestions plus pertinentes
+     ↓
+Feedback via journaling suivant
+     ↓
+Amélioration du système → Répéter
+```
+
+**Information en 3 Couches** :
+| Niveau | Contenu | Temps | Usage |
+|--------|---------|-------|-------|
+| **1** | Résumé actionnable | 30s | Décision rapide |
+| **2** | Contexte et options | 2 min | Choix informé |
+| **3** | Détails complets | Variable | Auto-alimentation Scapin |
 
 ---
 
@@ -62,11 +107,12 @@ La conception de Scapin s'appuie sur des fondements théoriques solides :
 | **Monitoring Santé** | ✅ | Checks IMAP, API IA, disque, file |
 | **Récupération Erreurs** | ✅ | Backoff exponentiel, protection timeout, cache LRU |
 | **Suivi Décisions** | ✅ | Stockage SQLite avec contexte |
+| **Architecture Cognitive** | ✅ | Modules valets complets (Phase 0.5) |
 
 **Qualité** : 867 tests, 95% couverture, 100% pass rate  
 **Code** : Score 10/10 (50 warnings non-critiques)
 
-### Architecture Cognitive (Phase 0.5 — En cours)
+### Architecture Cognitive (Phase 0.5 — ✅ Complète)
 
 Scapin utilise une **boucle cognitive itérative** — pas une IA one-shot, mais un raisonnement multi-étapes véritable :
 
@@ -196,7 +242,7 @@ python3 scapin.py review      # Réviser les décisions en attente
 
 | Document | Description |
 |----------|-------------|
-| **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | 🎯 **Document fondateur** — Principes philosophiques, fondements théoriques, vision |
+| **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | 🎯 **Document fondateur** — Principes philosophiques, fondements théoriques (Extended Mind, Stiegler, Wegner), vision du partenariat cognitif |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Architecture cognitive complète — Comment l'équipe des valets fonctionne |
 | **[ROADMAP.md](ROADMAP.md)** | Phases de développement, priorités, calendrier (Q1-Q4 2026) |
 
@@ -215,6 +261,7 @@ python3 scapin.py review      # Réviser les décisions en attente
 - **Raisonnement Multi-Passes** : Pourquoi 10-20s pour de meilleures décisions
 - **Boucle Cognitive** : Événement → Perception → Raisonnement → Planification → Action → Apprentissage
 - **Pharmacologie** : Comment Scapin augmente vos capacités sans les remplacer
+- **Information en Couches** : Niveau 1 (30s) → Niveau 2 (2min) → Niveau 3 (complet)
 
 ---
 
@@ -227,27 +274,18 @@ python3 scapin.py review      # Réviser les décisions en attente
 | **0** | Fondations | ✅ Structure, config, logging, CLI |
 | **1** | Intelligence Email | ✅ Multi-comptes, classification IA, récupération erreurs |
 | **2** | Expérience Interactive | ✅ Menu, file révision, UI multi-comptes |
+| **0.5** | Architecture Cognitive | ✅ Tous les modules valets implémentés |
 
-### Phase Actuelle 🏗️
-
-**Phase 0.5 : Architecture Cognitive** (20% complété)
-
-- [x] **Semaine 1** : Événements universels, mémoire de travail, détection continuité
-- [ ] **Semaine 2** : Moteur de raisonnement Sancho (boucle 5 passes)
-- [ ] **Semaine 3** : Base de connaissances Passepartout (embeddings + FAISS)
-- [ ] **Semaine 4** : Planification Planchet + Exécution Figaro (DAG)
-- [ ] **Semaine 5** : Apprentissage Sganarelle + intégration bout-en-bout
-
-### Phases Planifiées 📅
+### Phases en Cours et Planifiées 📅
 
 | Phase | Nom | Période | Focus |
 |-------|-----|---------|-------|
-| **0.6** | Refactoring Valet | Q1 2026 | Renommer modules selon architecture valet |
+| **0.6** | Refactoring Valet | Q1 2026 | 🏗️ Renommer modules selon architecture finale |
 | **0.7** | API Jeeves | Q1 2026 | FastAPI REST + WebSockets |
 | **0.8** | Interface Web | Q1-Q2 2026 | SvelteKit + TailwindCSS |
 | **0.9** | PWA Mobile | Q2 2026 | Progressive Web App |
 | **2.5** | Multi-Provider IA | Q2 2026 | OpenAI, Mistral, Gemini, consensus |
-| **3** | Système Connaissances | Q2 2026 | Passepartout complet |
+| **3** | Système Connaissances | Q2 2026 | Passepartout complet avec embeddings |
 | **1.0** | Release 🎭 | Q3 2026 | Production CLI + Web + Mobile |
 
 ---
@@ -345,7 +383,7 @@ Les valets de la comédie classique qui ont inspiré l'architecture :
 
 | Aspect | PKM System | Scapin |
 |--------|-----------|--------|
-| **Identité** | Processeur email | Assistant cognitif |
+| **Identité** | Processeur email | Gardien cognitif |
 | **Modules** | Génériques | Thème valet |
 | **Version** | v3.1.0 (final) | v1.0.0-alpha |
 | **Dépôt** | [Archivé](https://github.com/johanlb/pkm-system) | [Actif](https://github.com/johanlb/scapin) |
