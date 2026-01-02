@@ -350,11 +350,26 @@ python scapin.py review
 
 ### Standards de Qualité
 
-- Score qualité 10/10 maintenu
-- Tests AVANT implémentation (TDD)
-- Type hints 100%
-- Docstrings complètes
-- Thread-safety vérifiée
+**Exigence : Code parfait, chaque commit production-ready.**
+
+| Critère | Standard | Note |
+|---------|----------|------|
+| **Couverture tests** | 95% | Unit + Integration + Performance |
+| **Type hints** | 100% | Y compris fonctions internes |
+| **Docstrings** | Complètes | Classes, méthodes, modules |
+| **Ruff/Linting** | 0 warning | Code parfait, pas de compromis |
+| **Thread-safety** | Vérifiée | Surtout singletons et caches |
+
+**Tests** :
+- Tests unitaires pour chaque module
+- Tests d'intégration pour les flux critiques
+- Tests de performance pour valider les fondations (temps de réponse, mémoire)
+- TDD encouragé mais pas obligatoire — tests et code peuvent être écrits en parallèle
+
+**Commits** :
+- Chaque commit doit être production-ready
+- Pas de dette technique acceptée
+- Code exploratoire → branche séparée, puis nettoyage avant merge
 
 ### Principes de Conception (rappel)
 
