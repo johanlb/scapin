@@ -23,7 +23,7 @@ from src.integrations.email.imap_client import IMAPClient
 from src.ai.router import get_ai_router, AIModel
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
-from src.core.events import get_event_bus, ProcessingEvent, EventType
+from src.core.events import get_event_bus, ProcessingEvent, ProcessingEventType
 from src.core.error_manager import get_error_manager, ErrorCategory, ErrorSeverity
 
 logger = get_logger("email_processor")
@@ -136,7 +136,7 @@ class EmailProcessor:
 
         # Emit processing started event
         self.event_bus.emit(ProcessingEvent(
-            event_type=EventType.PROCESSING_STARTED,
+            event_type=ProcessingEventType.PROCESSING_STARTED,
             metadata={
                 "limit": limit,
                 "auto_execute": auto_execute,
@@ -178,7 +178,7 @@ class EmailProcessor:
                     try:
                         # Emit email started event
                         self.event_bus.emit(ProcessingEvent(
-                            event_type=EventType.EMAIL_STARTED,
+                            event_type=ProcessingEventType.EMAIL_STARTED,
                             email_id=metadata.id,
                             subject=metadata.subject,
                             from_address=metadata.from_address,
@@ -202,7 +202,7 @@ class EmailProcessor:
                     except Exception as e:
                         # Emit error event
                         self.event_bus.emit(ProcessingEvent(
-                            event_type=EventType.EMAIL_ERROR,
+                            event_type=ProcessingEventType.EMAIL_ERROR,
                             email_id=metadata.id,
                             subject=metadata.subject,
                             from_address=metadata.from_address,
@@ -227,7 +227,7 @@ class EmailProcessor:
 
             # Emit processing completed event
             self.event_bus.emit(ProcessingEvent(
-                event_type=EventType.PROCESSING_COMPLETED,
+                event_type=ProcessingEventType.PROCESSING_COMPLETED,
                 metadata={
                     "total_processed": len(processed_emails),
                     "auto_executed": self.state.get("emails_auto_executed", 0),
@@ -354,7 +354,7 @@ class EmailProcessor:
 
             # Emit email completed event (executed)
             self.event_bus.emit(ProcessingEvent(
-                event_type=EventType.EMAIL_COMPLETED,
+                event_type=ProcessingEventType.EMAIL_COMPLETED,
                 email_id=metadata.id,
                 subject=metadata.subject,
                 from_address=metadata.from_address,
@@ -381,7 +381,7 @@ class EmailProcessor:
 
             # Emit email queued event
             self.event_bus.emit(ProcessingEvent(
-                event_type=EventType.EMAIL_QUEUED,
+                event_type=ProcessingEventType.EMAIL_QUEUED,
                 email_id=metadata.id,
                 subject=metadata.subject,
                 from_address=metadata.from_address,

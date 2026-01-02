@@ -32,7 +32,7 @@ from datetime import datetime
 
 from src.core.config_manager import EmailAccountConfig
 from src.core.email_processor import EmailProcessor
-from src.core.events import get_event_bus, ProcessingEvent, EventType
+from src.core.events import get_event_bus, ProcessingEvent, ProcessingEventType
 from src.core.state_manager import get_state_manager
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
@@ -124,7 +124,7 @@ class MultiAccountProcessor:
                 # Emit account started event
                 self.event_bus.emit(
                     ProcessingEvent(
-                        event_type=EventType.ACCOUNT_STARTED,
+                        event_type=ProcessingEventType.ACCOUNT_STARTED,
                         account_id=account.account_id,
                         account_name=account.account_name,
                         metadata={
@@ -156,7 +156,7 @@ class MultiAccountProcessor:
                 # Emit account completed event
                 self.event_bus.emit(
                     ProcessingEvent(
-                        event_type=EventType.ACCOUNT_COMPLETED,
+                        event_type=ProcessingEventType.ACCOUNT_COMPLETED,
                         account_id=account.account_id,
                         account_name=account.account_name,
                         metadata={
@@ -183,7 +183,7 @@ class MultiAccountProcessor:
                 # Emit account error event
                 self.event_bus.emit(
                     ProcessingEvent(
-                        event_type=EventType.ACCOUNT_ERROR,
+                        event_type=ProcessingEventType.ACCOUNT_ERROR,
                         account_id=account.account_id,
                         account_name=account.account_name,
                         error=str(e),

@@ -5,20 +5,20 @@ Provides a pub/sub event bus for decoupling backend processing from frontend dis
 Enables sequential display of parallel processing events.
 """
 
+import threading
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
-import threading
-from collections import defaultdict
+from typing import Any, Callable, Optional
 
 from src.monitoring.logger import PKMLogger
 
 logger = PKMLogger.get_logger(__name__)
 
 
-class EventType(str, Enum):
-    """Types of processing events"""
+class ProcessingEventType(str, Enum):
+    """Types of processing lifecycle events (distinct from semantic EventType)"""
     # Processing-level events
     PROCESSING_STARTED = "processing_started"
     PROCESSING_COMPLETED = "processing_completed"
@@ -54,7 +54,7 @@ class ProcessingEvent:
     This is the core data structure for communicating between the backend
     (EmailProcessor) and frontend (DisplayManager).
     """
-    event_type: EventType
+    event_type: ProcessingEventType
     timestamp: datetime = field(default_factory=datetime.now)
 
     # Account context
@@ -83,7 +83,7 @@ class ProcessingEvent:
     error_type: Optional[str] = None
 
     # Additional metadata
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __str__(self) -> str:
         """String representation for logging"""
@@ -133,14 +133,14 @@ class EventBus:
 
     def __init__(self):
         """Initialize event bus"""
-        self._subscribers: Dict[EventType, List[Callable]] = defaultdict(list)
+        self._subscribers: dict[ProcessingEventType, list[Callable]] = defaultdict(list)
         self._lock = threading.Lock()
         self._event_count = 0
         self._max_events = 10000  # Prevent memory leaks
 
         logger.debug("EventBus initialized")
 
-    def subscribe(self, event_type: EventType, callback: Callable[[ProcessingEvent], None]) -> None:
+    def subscribe(self, event_type: ProcessingEventType, callback: Callable[[ProcessingEvent], None]) -> None:
         """
         Subscribe to events of a specific type
 
@@ -155,7 +155,7 @@ class EventBus:
             self._subscribers[event_type].append(callback)
             logger.debug(f"Subscribed to {event_type.value}: {callback.__name__}")
 
-    def unsubscribe(self, event_type: EventType, callback: Callable[[ProcessingEvent], None]) -> None:
+    def unsubscribe(self, event_type: ProcessingEventType, callback: Callable[[ProcessingEvent], None]) -> None:
         """
         Unsubscribe from events
 
@@ -221,7 +221,7 @@ class EventBus:
             self._event_count = 0
             logger.debug("EventBus cleared")
 
-    def get_subscriber_count(self, event_type: Optional[EventType] = None) -> int:
+    def get_subscriber_count(self, event_type: Optional[ProcessingEventType] = None) -> int:
         """
         Get number of subscribers
 

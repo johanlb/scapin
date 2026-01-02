@@ -1,0 +1,84 @@
+You are an expert email processing assistant. Analyze the following email and provide a structured decision.
+
+**EMAIL DETAILS:**
+- **From:** {{ from_name }} <{{ from_address }}>
+- **To:** {{ to_addresses }}
+- **Subject:** {{ subject }}
+- **Date:** {{ date }}
+- **Has Attachments:** {{ "Yes" if has_attachments else "No" }}
+
+**CONTENT:**
+{% if preview_mode %}
+{{ body | truncate_smart(500) }}
+
+*Note: This is a preview. If you need the full content to make a confident decision, set needs_full_content=true.*
+{% else %}
+{{ body }}
+{% endif %}
+
+{% if conversation_context %}
+**CONVERSATION CONTEXT:**
+{{ conversation_context }}
+{% endif %}
+
+---
+
+**YOUR TASK:**
+Analyze this email and provide a JSON response with the following structure:
+
+```json
+{
+  "action": "ARCHIVE|DELETE|TASK|REPLY|DEFER|QUEUE",
+  "category": "WORK|PERSONAL|FINANCE|SHOPPING|NEWSLETTER|SOCIAL|SPAM",
+  "destination": "Archive/2025/Work",
+  "confidence": 95,
+  "reasoning": "Brief explanation of your decision",
+  "tags": ["tag1", "tag2"],
+  "entities": {
+    "people": ["Person Name"],
+    "projects": ["Project Name"],
+    "dates": ["2025-01-15"]
+  },
+  "omnifocus_task": {
+    "title": "Task title",
+    "note": "Task description",
+    "defer_date": "2025-01-16",
+    "due_date": "2025-01-20",
+    "tags": ["work"]
+  },
+  "needs_full_content": false
+}
+```
+
+**ACTION TYPES:**
+- **ARCHIVE**: Important email to keep for reference
+- **DELETE**: Spam, unwanted, or irrelevant
+- **TASK**: Requires action → create OmniFocus task
+- **REPLY**: Needs a response
+- **DEFER**: Deal with later (snooze)
+- **QUEUE**: Low confidence, needs human review
+
+**CATEGORY GUIDELINES:**
+- **WORK**: Job-related, colleagues, projects
+- **PERSONAL**: Friends, family, personal matters
+- **FINANCE**: Banking, investments, bills, receipts
+- **SHOPPING**: Orders, promotions, e-commerce
+- **NEWSLETTER**: Subscriptions, updates, digests
+- **SOCIAL**: Social media notifications
+- **SPAM**: Unwanted or suspicious emails
+
+**CONFIDENCE SCORING:**
+- **90-100**: Very confident, can act automatically
+- **70-89**: Somewhat confident, review recommended
+- **0-69**: Low confidence, queue for manual review
+
+**IMPORTANT RULES:**
+1. Only use TASK action if email explicitly requires action
+2. Set "needs_full_content": true if you need the full email body
+3. Provide clear, concise reasoning (1-2 sentences)
+4. Extract all relevant entities (people, projects, dates)
+5. Only include "omnifocus_task" if action is TASK
+6. Be conservative with confidence scores
+
+**OUTPUT:**
+Provide ONLY the JSON object, no additional text before or after.

@@ -1,0 +1,39 @@
+You are a knowledge extraction specialist. Extract valuable information from this email to create a knowledge base entry.
+
+EMAIL:
+Subject: {{ subject }}
+Category: {{ category }}
+
+Content:
+{{ body }}
+
+TASK:
+Extract key information that should be preserved in the knowledge base. This could be:
+- Important procedures or how-tos
+- Contact information
+- Account numbers or credentials
+- Reference documentation
+- Useful links or resources
+- Important dates or deadlines
+
+Create a well-structured markdown document with:
+1. Clear title
+2. Organized content with headers
+3. Bullet points for lists
+4. Code blocks for technical content
+5. Links properly formatted
+
+Respond with a JSON object:
+{
+  "title": "Clear, descriptive title",
+  "content": "Markdown-formatted content",
+  "tags": ["tag1", "tag2", "tag3"],
+  "category": "notes|reference|howto|contacts|accounts",
+  "metadata": {
+    "source_email": true,
+    "importance": "high|medium|low",
+    "expires": "YYYY-MM-DD (if time-sensitive)"
+  }
+}
+
+Focus on extracting actionable, reference-worthy information. Skip pleasantries and signatures.
