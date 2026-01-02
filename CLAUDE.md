@@ -114,31 +114,31 @@ Feedback via prochain journaling → Amélioration système
 | **0** | Fondations | ✅ | — |
 | **1** | Intelligence Email | ✅ | — |
 | **2** | Expérience Interactive | 80% 🚧 | — |
-| **0.5** | Architecture Cognitive | ✅ 95% | ~8000 lignes |
+| **0.5** | Architecture Cognitive | ✅ | ~8000 lignes |
+| **0.6** | Refactoring Valet | ✅ | ~5200 lignes migrées |
 
 ### Modules Valets Implémentés
 
 | Valet | Module | Lignes | Statut |
 |-------|--------|--------|--------|
-| **Sancho** | `reasoning_engine.py` | ~700 | ✅ |
+| **Sancho** | `router.py`, `model_selector.py`, `templates.py`, `reasoning_engine.py`, `providers/` | ~2650 | ✅ |
 | **Passepartout** | `context_engine`, `embeddings`, `note_manager`, `vector_store` | ~2000 | ✅ |
 | **Planchet** | `planning_engine.py` | ~400 | ✅ |
 | **Figaro** | `orchestrator.py`, `actions/` | ~770 | ✅ |
 | **Sganarelle** | 8 modules (learning, feedback, calibration, patterns, etc.) | ~4100 | ✅ |
-| **Trivelin** | À créer (fusion avec email_processor) | 0 | 📋 |
-| **Jeeves** | À créer (migration de cli/) | 0 | 📋 |
+| **Trivelin** | `processor.py` | ~740 | ✅ |
+| **Jeeves** | `cli.py`, `display_manager.py`, `menu.py`, `review_mode.py` | ~2500 | ✅ |
 
-### Phase Actuelle : 0.6 — Refactoring Valet
+### Prochaine Phase : 1.0 — Journaling & Feedback Loop
 
-**Objectif** : Finaliser l'architecture valet et valider le flux bout-en-bout
+**Objectif** : Boucle d'amélioration continue via journaling quotidien
 
 | Tâche | État |
 |-------|------|
-| Modules valets créés | ✅ Fait |
-| `src/ai/` → `src/sancho/` | 📋 À faire |
-| `src/cli/` → `src/jeeves/` | 📋 À faire |
-| `src/core/email_processor.py` → `src/trivelin/` | 📋 À faire |
-| Flux bout-en-bout validé | 📋 À faire |
+| Structure journal quotidien | 📋 À faire |
+| Pré-remplissage automatique | 📋 À faire |
+| Interface CLI journaling | 📋 À faire |
+| Intégration Sganarelle feedback | 📋 À faire |
 
 ### Nouvelles Phases (Alignées DESIGN_PHILOSOPHY.md)
 
@@ -178,17 +178,25 @@ src/core/memory/working_memory.py     # WorkingMemory, Hypothesis, ReasoningPass
 src/core/processing_events.py         # EventBus, ProcessingEvent
 ```
 
-**Traitement Email** (legacy → Trivelin) :
+**Traitement Email** (Trivelin) :
 ```
-src/core/email_processor.py           # Logique principale
+src/trivelin/processor.py             # Logique principale
 src/integrations/email/imap_client.py # Opérations IMAP
 ```
 
-**CLI** (→ Jeeves) :
+**CLI** (Jeeves) :
 ```
-src/cli/app.py                        # Commandes Typer
-src/cli/display_manager.py            # Rendu Rich
-src/cli/menu.py                       # Menus interactifs
+src/jeeves/cli.py                     # Commandes Typer
+src/jeeves/display_manager.py         # Rendu Rich
+src/jeeves/menu.py                    # Menus interactifs
+```
+
+**AI** (Sancho) :
+```
+src/sancho/router.py                  # AI routing + rate limiting
+src/sancho/reasoning_engine.py        # Multi-pass reasoning
+src/sancho/model_selector.py          # Model selection
+src/sancho/templates.py               # Prompt templates
 ```
 
 **Apprentissage** (Sganarelle) :
@@ -264,6 +272,33 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-02 (Nuit) — Phase 0.6 Complétée
+
+**Focus** : Exécution du refactoring valet
+
+**Accomplissements** :
+1. ✅ Migré `src/ai/` → `src/sancho/` (router, model_selector, templates, providers)
+2. ✅ Migré `src/cli/` → `src/jeeves/` (cli, display_manager, menu, review_mode)
+3. ✅ Migré `src/core/email_processor.py` → `src/trivelin/processor.py`
+4. ✅ Mis à jour tous les imports (38 fichiers)
+5. ✅ Tous les tests passent (967 tests)
+6. ✅ Ruff 0 warnings
+7. ✅ Commit poussé sur GitHub
+
+**Structure finale des valets** :
+```
+src/
+├── sancho/          # AI + Reasoning (~2650 lignes)
+├── jeeves/          # CLI Interface (~2500 lignes)
+├── trivelin/        # Event Perception (~740 lignes)
+├── passepartout/    # Knowledge Base (~2000 lignes)
+├── planchet/        # Planning (~400 lignes)
+├── figaro/          # Execution (~770 lignes)
+└── sganarelle/      # Learning (~4100 lignes)
+```
+
+---
 
 ### Session 2026-01-02 (Soir) — Plan v2.0 Complet
 
@@ -417,25 +452,20 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Option A : Compléter Phase 0.6 (Refactoring Valet)
+### Phase 1.0 — Journaling & Feedback Loop
 
-1. Migrer `src/ai/router.py`, `model_selector.py` → `src/sancho/`
-2. Migrer `src/cli/` → `src/jeeves/`
-3. Migrer `src/core/email_processor.py` → `src/trivelin/processor.py`
-4. Mettre à jour tous les imports
-5. Valider flux bout-en-bout : Email → Trivelin → Sancho → ... → Sganarelle
-
-### Option B : Démarrer Phase 1.0 (Journaling)
+Phase 0.6 (Refactoring Valet) est **complétée** ✅. Prochaine priorité :
 
 1. Concevoir structure du journal quotidien
-2. Implémenter pré-remplissage automatique
+2. Implémenter pré-remplissage automatique (résumé journée)
 3. Créer interface CLI journaling (questionary)
 4. Intégrer avec Sganarelle pour feedback loop
+5. Collecter feedback sur décisions AI pour calibration
 
-### Recommandation
+### Alternatives
 
-Compléter **Phase 0.6 d'abord** (flux bout-en-bout validé) avant de commencer le journaling.
-Cela garantit que l'architecture cognitive fonctionne de bout en bout.
+- **Phase 1.1** : Flux Entrants Unifiés (Trivelin multi-source)
+- **Phase 1.2** : Intégration Teams (messages + réponses)
 
 ---
 
