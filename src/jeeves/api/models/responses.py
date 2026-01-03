@@ -5,7 +5,7 @@ Pydantic models for all API responses.
 Provides type safety and automatic OpenAPI documentation.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field
@@ -24,8 +24,8 @@ class APIResponse(BaseModel, Generic[T]):
     data: T | None = Field(None, description="Response data")
     error: str | None = Field(None, description="Error message if failed")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(),
-        description="Response timestamp",
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="Response timestamp (UTC)",
     )
 
 

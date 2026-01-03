@@ -7,7 +7,6 @@ Async wrapper around BriefingGenerator for API use.
 from dataclasses import dataclass
 
 from src.core.config_manager import PKMConfig
-from src.core.events import PerceivedEvent
 from src.jeeves.briefing.generator import BriefingGenerator
 from src.jeeves.briefing.models import MorningBriefing, PreMeetingBriefing
 from src.monitoring.logger import get_logger
@@ -68,23 +67,14 @@ class BriefingService:
         """
         logger.info(f"Generating pre-meeting briefing for event {event_id}")
 
-        # Get the calendar event
+        # Get the calendar event (already normalized to PerceivedEvent)
         from src.trivelin.calendar_processor import CalendarProcessor
 
         processor = CalendarProcessor()
-        event = await processor.get_event(event_id)
+        perceived_event = await processor.get_event(event_id)
 
-        if event is None:
+        if perceived_event is None:
             raise ValueError(f"Calendar event not found: {event_id}")
-
-        # Convert CalendarEvent to PerceivedEvent if needed
-        if not isinstance(event, PerceivedEvent):
-            from src.integrations.microsoft.calendar_normalizer import CalendarNormalizer
-
-            normalizer = CalendarNormalizer()
-            perceived_event = normalizer.normalize(event)
-        else:
-            perceived_event = event
 
         # Generate briefing
         generator = BriefingGenerator(config=self.config.briefing)
