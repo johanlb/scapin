@@ -1250,16 +1250,34 @@ Critères d'acceptation :
 - Authentification JWT
 - WebSockets temps réel
 
-### Phase 0.8 : Interface Web
+### Phase 0.8 : Interface Web (SvelteKit)
 
 **Dépendance** : Phase 0.7
 **Durée estimée** : 6-8 semaines
+**Statut** : 📋 Planifié
+
+📖 **Plan détaillé** : [`docs/plans/phase-0.8-web/`](docs/plans/phase-0.8-web/00-index.md)
+
+Le plan complet est découpé en 10 documents :
+- `00-index.md` — Vue d'ensemble et navigation
+- `01-vision.md` — Concept event-centric et principes UX
+- `02-architecture.md` — Stack technique (SvelteKit, TailwindCSS)
+- `03-design-system.md` — Couleurs, typographie, composants
+- `04-mockups-core.md` — Briefing, Flux, Notes PKM, Discussions
+- `05-mockups-analytics.md` — Statistiques, Rapports, Settings
+- `06-ux-avancee.md` — 17 améliorations UX (Cmd+K, Focus, etc.)
+- `07-api-endpoints.md` — ~50 nouveaux endpoints API
+- `08-implementation.md` — 20 étapes d'implémentation
+- `09-criteres-succes.md` — Checklist de validation
 
 Vues principales :
-- `/dashboard` — Briefing du jour, actions en attente
-- `/journal` — Interface journaling interactive
-- `/queue` — File de révision
-- `/learning` — Visualisation apprentissage Sganarelle
+- `/` — Briefing du matin avec résumé IA
+- `/flux` — Flux unifié d'événements (A traiter, Traités, Historique)
+- `/notes` — CRUD complet notes PKM avec liens bidirectionnels
+- `/discussions` — Multi-sessions chat comme Claude Desktop
+- `/stats` — Dashboard KPIs et consommation tokens
+- `/rapports` — Journaliers, hebdomadaires, mensuels
+- `/settings` — Configuration comptes et seuils IA
 
 ### Phase 0.9 : PWA Mobile
 

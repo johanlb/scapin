@@ -892,9 +892,23 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 Phases 1.4 (Briefing) et 0.7 (API MVP) sont **complétées** ✅. Prochaines priorités :
 
-1. Dashboard SvelteKit — Affichage briefings, emails, calendar
-2. Connexion API — Utilisation des endpoints REST existants
-3. Interface responsive — Desktop et mobile
+📖 **Plan détaillé** : [`docs/plans/phase-0.8-web/`](docs/plans/phase-0.8-web/00-index.md)
+
+Le plan est découpé en 10 documents couvrant :
+- Vision event-centric et principes UX
+- Architecture technique (SvelteKit + TailwindCSS)
+- Design system (couleurs, typographie, composants)
+- Mockups ASCII détaillés (Briefing, Flux, Notes, Discussions, Stats)
+- ~50 nouveaux endpoints API nécessaires
+- 20 étapes d'implémentation ordonnées
+- Critères de succès (checklist)
+
+**Étapes prioritaires** :
+1. Setup projet SvelteKit + TailwindCSS
+2. Design system (composants de base)
+3. Layout principal (sidebar + chat panel)
+4. Client API + Auth JWT
+5. Page Briefing (home)
 
 ### Extensions API (optionnel)
 

@@ -287,7 +287,7 @@ python3 scapin.py review      # Réviser les décisions en attente
 | **1.3** | Intégration Calendrier | Q2 2026 | Événements, disponibilités |
 | **1.4** | Système de Briefing | Q2 2026 | Briefing matin, pré-réunion |
 | **0.7** | API Jeeves | Q3 2026 | FastAPI REST + WebSockets |
-| **0.8** | Interface Web | Q3 2026 | SvelteKit + TailwindCSS |
+| **0.8** | Interface Web | Q3 2026 | SvelteKit + TailwindCSS ([Plan détaillé](docs/plans/phase-0.8-web/00-index.md)) |
 | **0.9** | PWA Mobile | Q4 2026 | Progressive Web App |
 
 ---
