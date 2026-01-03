@@ -33,8 +33,8 @@ Ce plan décrit l'implémentation d'une interface web **event-centric** pour Sca
 | 04 | [mockups-core.md](./04-mockups-core.md) | 🖼️ Mockups | Layout, Briefing, Flux, Notes PKM, Discussions |
 | 05 | [mockups-analytics.md](./05-mockups-analytics.md) | 🖼️ Mockups | Statistiques, Rapports, Settings |
 | 06 | [ux-avancee.md](./06-ux-avancee.md) | ✨ UX | 17 améliorations (Cmd+K, Focus, Snooze, Tags...) |
-| 07 | [api-endpoints.md](./07-api-endpoints.md) | 🔌 API | ~50 nouveaux endpoints backend nécessaires |
-| 08 | [implementation.md](./08-implementation.md) | 🛠️ Étapes | 20 étapes d'implémentation ordonnées |
+| 07 | [api-endpoints.md](./07-api-endpoints.md) | 🔌 API | ~60 nouveaux endpoints backend nécessaires |
+| 08 | [implementation.md](./08-implementation.md) | 🛠️ Étapes | 21 étapes d'implémentation ordonnées |
 | 09 | [criteres-succes.md](./09-criteres-succes.md) | ✅ Validation | Checklist complète de validation |
 
 ---
@@ -44,12 +44,15 @@ Ce plan décrit l'implémentation d'une interface web **event-centric** pour Sca
 | Route | Page | Description |
 |-------|------|-------------|
 | `/` | Briefing | Page d'accueil avec résumé du jour et actions urgentes |
-| `/flux` | Flux | Événements unifiés (À traiter, Traités, Historique, Rejets) |
+| `/flux` | Flux | Événements unifiés (4 onglets : À traiter, Traités, Historique, Rejets) |
 | `/flux/[id]` | Détail | Vue détaillée d'un événement avec actions |
 | `/notes` | Notes PKM | Arborescence, recherche, édition Markdown |
 | `/notes/[path]` | Note | Édition d'une note avec liens bidirectionnels |
 | `/discussions` | Discussions | Liste des conversations avec Scapin |
 | `/discussions/[id]` | Chat | Conversation temps réel (WebSocket) |
+| `/journal` | Journal | Sessions de journaling interactif |
+| `/journal/[date]` | Session | Session journal du jour |
+| `/chat` | Chat Mobile | Chat plein écran (mobile uniquement) |
 | `/stats` | Statistiques | Dashboard KPIs, graphiques, consommation tokens |
 | `/rapports` | Rapports | Journaliers, hebdomadaires, mensuels + export |
 | `/settings` | Paramètres | Comptes, seuils IA, intégrations |

@@ -167,10 +167,29 @@ Le chat avec Scapin est un **panel latéral permanent** qui peut être :
 ### 4. Feedback Immédiat
 
 - **Toast notifications** : Confirmation des actions
-- **Loading states** : Skeleton pendant le chargement
+- **Loading states** : Skeleton avec shimmer effect pendant le chargement
 - **Optimistic updates** : UI mise à jour avant confirmation serveur
+- **Haptic feedback** : Vibration légère sur mobile pour confirmer les actions
 
-### 5. Prévention des Erreurs
+### 5. Micro-interactions Apple-Style
+
+L'interface vise la qualité Apple avec des micro-interactions soignées :
+
+| Élément | Animation |
+|---------|-----------|
+| **Boutons** | Scale 0.97 au press, spring bounce au release |
+| **Cards** | Élévation shadow progressive au hover |
+| **Modals** | Fade + scale avec backdrop blur |
+| **Toggles** | Spring animation avec léger overshoot |
+| **Listes** | Rubber-band effect en fin de scroll |
+| **Transitions** | Shared element entre card et detail |
+
+```css
+/* Spring physics pour animations naturelles */
+transition: transform 200ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+```
+
+### 6. Prévention des Erreurs
 
 - **Confirmations** : Pour actions destructrices (supprimer note, rejeter définitivement)
 - **Undo** : Possibilité d'annuler les 5 dernières actions
@@ -233,15 +252,45 @@ Rapports automatiques :
 
 ---
 
-## Responsive (Nice-to-have)
+## Mobile-First — MVP
 
-L'interface est conçue desktop-first mais reste utilisable sur tablette :
+L'interface est conçue **mobile-first** avec adaptation progressive vers desktop.
+L'usage mobile étant régulier, c'est une priorité MVP.
+
+### Breakpoints
 
 | Breakpoint | Adaptation |
 |------------|------------|
-| Desktop (>1200px) | Layout complet 3 colonnes |
-| Tablette (768-1200px) | Chat en overlay, sidebar collapsible |
-| Mobile (<768px) | Navigation bottom, contenu plein écran |
+| Mobile (<640px) | Bottom nav, contenu plein écran, chat en page dédiée |
+| Tablette (640-1024px) | Sidebar icons, chat en overlay |
+| Desktop (>1024px) | Layout complet 3 colonnes |
+
+### Principes Touch & Gestes
+
+| Principe | Spécification |
+|----------|---------------|
+| **Touch targets** | Minimum 44x44px sur tous les boutons |
+| **Thumb zone** | Actions importantes en bas de l'écran |
+| **Swipe horizontal** | Approuver (droite) / Rejeter (gauche) sur EventCard |
+| **Pull-to-refresh** | Sur toutes les listes |
+| **Long press** | Menu contextuel |
+| **Haptic feedback** | Retour tactile sur actions (iOS Safari) |
+
+### Safe Areas (iPhone)
+
+L'interface respecte les safe areas pour l'encoche et la barre home :
+
+```css
+padding-top: env(safe-area-inset-top);
+padding-bottom: env(safe-area-inset-bottom);
+```
+
+### PWA
+
+L'application est installable comme PWA :
+- `manifest.json` avec icônes et couleurs
+- Service worker pour cache et offline basique
+- Splash screen personnalisé
 
 ---
 

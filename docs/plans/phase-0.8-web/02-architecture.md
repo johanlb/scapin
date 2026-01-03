@@ -469,14 +469,10 @@ web/
 │       │   └── +page.svelte       # Page login
 │       │
 │       ├── flux/
-│       │   ├── +page.svelte       # Flux unifié (défaut: À traiter)
-│       │   ├── +layout.svelte     # Layout avec onglets
-│       │   ├── traites/
-│       │   │   └── +page.svelte   # Onglet "Traités"
-│       │   ├── historique/
-│       │   │   └── +page.svelte   # Onglet "Historique"
-│       │   ├── rejets/
-│       │   │   └── +page.svelte   # Onglet "Rejets"
+│       │   ├── +page.svelte       # Flux unifié avec 4 onglets (UI = tabs, pas routes)
+│       │   ├── +layout.svelte     # Layout avec gestion du tab actif
+│       │   ├── [[tab]]/           # Route optionnelle pour deep-link (traites, historique, rejets)
+│       │   │   └── +page.svelte   # Même composant, tab différent via param
 │       │   └── [id]/
 │       │       └── +page.svelte   # Détail événement (niveau 3)
 │       │
@@ -491,6 +487,9 @@ web/
 │       │   ├── +page.svelte       # Liste discussions (multi-sessions)
 │       │   └── [id]/
 │       │       └── +page.svelte   # Discussion plein écran
+│       │
+│       ├── chat/
+│       │   └── +page.svelte       # Chat mobile (redirige vers /discussions sur desktop)
 │       │
 │       ├── journal/
 │       │   ├── +page.svelte       # Liste journaux passés
@@ -576,16 +575,15 @@ web/
 |-------|------|-------------|
 | `/` | Briefing | Page d'accueil, résumé du jour |
 | `/login` | Login | Authentification |
-| `/flux` | Flux | Événements à traiter (défaut) |
-| `/flux/traites` | Flux | Événements traités |
-| `/flux/historique` | Flux | Timeline complète |
-| `/flux/rejets` | Flux | Rejets (apprentissage) |
+| `/flux` | Flux | Événements (4 onglets via UI tabs) |
+| `/flux/[[tab]]` | Flux | Deep-link vers onglet (traites, historique, rejets) |
 | `/flux/[id]` | Détail | Événement complet |
 | `/notes` | Notes | Arborescence PKM |
 | `/notes/new` | Notes | Nouvelle note |
 | `/notes/[...path]` | Notes | Vue/édition note |
 | `/discussions` | Discussions | Liste sessions chat |
 | `/discussions/[id]` | Discussions | Chat plein écran |
+| `/chat` | Chat Mobile | Chat plein écran (mobile only, redirige vers /discussions sur desktop) |
 | `/journal` | Journal | Liste sessions passées |
 | `/journal/[date]` | Journal | Session interactive |
 | `/rapports` | Rapports | Journaliers (défaut) |
@@ -594,6 +592,9 @@ web/
 | `/rapports/[id]` | Rapports | Détail + export |
 | `/stats` | Statistiques | Dashboard KPIs |
 | `/settings` | Paramètres | Configuration |
+
+> **Note Flux** : L'UI utilise des **onglets** (tabs) pour naviguer entre À traiter/Traités/Historique/Rejets.
+> Les routes `/flux/traites` etc. existent uniquement pour le deep-linking et les bookmarks.
 
 ---
 

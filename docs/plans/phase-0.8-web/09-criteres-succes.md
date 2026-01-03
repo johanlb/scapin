@@ -12,16 +12,20 @@
 | Briefing & Flux | 5 | — |
 | Notes PKM | 6 | — |
 | Discussions | 6 | — |
-| Journal | 4 | — |
 | **Mobile** | **6** | — |
+| Backend | 3 | — |
+| Qualité | 3 | — |
+| **Sous-total MVP** | **33** | — |
+| Journal | — | 4 |
 | Statistiques | — | 7 |
 | Pipeline Valets | — | 3 |
 | Rapports | — | 4 |
 | Settings | — | 6 |
 | UX Avancée | — | 17 |
-| Backend | 3 | — |
-| Qualité | 3 | — |
-| **Total** | **37** | **37** |
+| **Sous-total Nice-to-have** | — | **41** |
+| **Total** | **33** | **41** |
+
+> **Note** : Le backend Journal existe déjà (Phase 1.1 CLI). Seule l'**interface web** Journal est Nice-to-have.
 
 ---
 
@@ -76,18 +80,7 @@
 
 ---
 
-## 5. Journal — MVP
-
-| # | Critère | Métrique |
-|---|---------|----------|
-| 1 | Génération draft du jour | Pré-rempli avec événements |
-| 2 | Questions interactives | Style Q&A |
-| 3 | Soumission corrections | Feedback Sganarelle |
-| 4 | Liste journaux par date | Navigation calendrier |
-
----
-
-## 6. Mobile — MVP
+## 5. Mobile — MVP
 
 | # | Critère | Métrique |
 |---|---------|----------|
@@ -100,7 +93,7 @@
 
 ---
 
-## 7. Backend — MVP
+## 6. Backend — MVP
 
 | # | Critère | Métrique |
 |---|---------|----------|
@@ -110,7 +103,7 @@
 
 ---
 
-## 8. Qualité — MVP
+## 7. Qualité — MVP
 
 | # | Critère | Métrique |
 |---|---------|----------|
@@ -121,6 +114,19 @@
 ---
 
 # Critères Nice-to-have
+
+## 8. Journal (Web) — Nice-to-have
+
+> Le backend Journal existe déjà (Phase 1.1). Cette section concerne l'interface web.
+
+| # | Critère | Métrique |
+|---|---------|----------|
+| 1 | Génération draft du jour | Pré-rempli avec événements |
+| 2 | Questions interactives | Style Q&A |
+| 3 | Soumission corrections | Feedback Sganarelle |
+| 4 | Liste journaux par date | Navigation calendrier |
+
+---
 
 ## 9. Statistiques — Nice-to-have
 
@@ -243,13 +249,14 @@ Fonctionnalités planifiées pour une version future :
 Avant de considérer la Phase 0.8 comme complétée :
 
 ```
-□ Tous les critères MVP cochés (37 items)
+□ Tous les critères MVP cochés (33 items)
 □ Tests E2E passent sans échec
 □ Performance Lighthouse > 80 (desktop ET mobile)
 □ Documentation utilisateur rédigée
 □ Ruff 0 warnings sur backend
 □ 1450+ tests backend passent
 □ PWA installable et fonctionnelle
+□ Mobile : Bottom nav, swipe gestures, safe areas OK
 □ Revue de code effectuée
 ```
 

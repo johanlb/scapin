@@ -271,17 +271,77 @@ L'usage mobile est **régulier**, donc le design mobile est prioritaire (MVP).
 ```json
 // manifest.json
 {
-  "name": "Scapin",
+  "name": "Scapin — Gardien Cognitif",
   "short_name": "Scapin",
+  "description": "Votre assistant personnel pour gérer emails, Teams et calendrier",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "theme_color": "#3b82f6",
   "background_color": "#ffffff",
+  "scope": "/",
   "icons": [
+    { "src": "/icons/scapin-72.png", "sizes": "72x72", "type": "image/png" },
+    { "src": "/icons/scapin-96.png", "sizes": "96x96", "type": "image/png" },
+    { "src": "/icons/scapin-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/icons/scapin-144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "/icons/scapin-152.png", "sizes": "152x152", "type": "image/png" },
     { "src": "/icons/scapin-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/scapin-512.png", "sizes": "512x512", "type": "image/png" }
-  ]
+    { "src": "/icons/scapin-384.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "/icons/scapin-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/scapin-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/briefing.png", "sizes": "1280x720", "type": "image/png", "label": "Briefing du matin" },
+    { "src": "/screenshots/flux.png", "sizes": "1280x720", "type": "image/png", "label": "Flux d'événements" }
+  ],
+  "shortcuts": [
+    { "name": "Briefing", "url": "/", "icons": [{ "src": "/icons/briefing.png", "sizes": "96x96" }] },
+    { "name": "À traiter", "url": "/flux", "icons": [{ "src": "/icons/inbox.png", "sizes": "96x96" }] }
+  ],
+  "categories": ["productivity", "utilities"]
 }
+```
+
+### Service Worker Strategy
+
+```typescript
+// service-worker.ts (stratégies de cache)
+
+// 1. App Shell - Cache First (HTML, CSS, JS)
+// 2. API calls - Network First avec fallback cache
+// 3. Images - Cache First avec expiration
+// 4. Actions utilisateur - Background Sync si offline
+
+const CACHE_VERSION = 'scapin-v1';
+const OFFLINE_PAGE = '/offline.html';
+
+// Pages à pré-cacher pour l'offline
+const PRE_CACHE = [
+  '/',
+  '/flux',
+  '/notes',
+  '/offline.html',
+  '/icons/scapin-192.png'
+];
+
+// Résumé stratégies
+// - GET /api/* → Network first, fallback cache
+// - POST /api/* → Background sync si offline
+// - Assets statiques → Cache first
+```
+
+### Apple-specific Meta Tags
+
+```html
+<!-- Dans app.html pour iOS -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Scapin">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
+<!-- Splash screens iOS -->
+<link rel="apple-touch-startup-image" href="/splash/iphone.png">
 ```
 
 ---
@@ -666,29 +726,78 @@ Tous les éléments interactifs doivent avoir un focus visible :
 
 ---
 
-## Animations
+## Animations — Standards Apple
+
+L'interface vise la qualité Apple avec des animations naturelles basées sur la physique.
+
+### Spring Physics (Animations Naturelles)
 
 ```css
-/* Transition defaults */
---transition-fast: 150ms ease-in-out;
---transition-normal: 200ms ease-in-out;
---transition-slow: 300ms ease-in-out;
+/* Spring curves - imitent le comportement physique réel */
+--spring-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);  /* Rebond prononcé */
+--spring-smooth: cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Rebond léger */
+--spring-snappy: cubic-bezier(0.34, 1.56, 0.64, 1);       /* Rapide avec overshoot */
 
-/* Common transitions */
-.transition-colors { transition: color, background-color, border-color var(--transition-fast); }
-.transition-shadow { transition: box-shadow var(--transition-fast); }
-.transition-transform { transition: transform var(--transition-normal); }
+/* Easing Apple-style */
+--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);           /* Décélération douce */
+--ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);      /* Symétrique fluide */
 ```
 
-### Animations Clés
+### Durées par Contexte
 
-| Animation | Durée | Usage |
-|-----------|-------|-------|
-| **Fade** | 200ms | Modals, dropdowns |
-| **Scale** | 200ms | Modals (0.95 → 1) |
-| **Slide** | 300ms | Toasts, panels |
-| **Pulse** | 2s loop | Loading, status "raisonnement" |
-| **Spin** | 1s loop | Loading spinner |
+```css
+/* Durées inspirées Human Interface Guidelines */
+--duration-instant: 100ms;    /* Micro-interactions (hover, press) */
+--duration-quick: 200ms;      /* Transitions standard */
+--duration-normal: 300ms;     /* Panels, dropdowns */
+--duration-emphasis: 400ms;   /* Modals, overlays */
+--duration-page: 500ms;       /* Transitions de page */
+```
+
+### Transitions Standards
+
+```css
+/* Common transitions */
+.transition-colors {
+  transition: color, background-color, border-color var(--duration-instant) ease-out;
+}
+.transition-shadow {
+  transition: box-shadow var(--duration-quick) var(--ease-out-expo);
+}
+.transition-transform {
+  transition: transform var(--duration-quick) var(--spring-smooth);
+}
+.transition-all {
+  transition: all var(--duration-normal) var(--ease-out-expo);
+}
+```
+
+### Micro-interactions Apple-Style
+
+| Élément | Animation | CSS |
+|---------|-----------|-----|
+| **Bouton press** | Scale down 0.97 | `transform: scale(0.97)` |
+| **Bouton release** | Spring bounce back | `transition: var(--spring-bounce)` |
+| **Card hover** | Élévation + shadow | `transform: translateY(-2px)` |
+| **Toggle** | Spring avec overshoot | `transition: var(--spring-snappy)` |
+| **Modal open** | Scale 0.95→1 + fade | `transform: scale(0.95)` → `scale(1)` |
+| **Slide panel** | Translate X avec spring | `transform: translateX(100%)` → `translateX(0)` |
+
+```css
+/* Exemple bouton Apple-style */
+.btn {
+  transition: transform var(--duration-instant) ease-out,
+              box-shadow var(--duration-quick) var(--ease-out-expo);
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:hover {
+  box-shadow: var(--shadow-md);
+}
+```
+
+### Animations Keyframes
 
 ```css
 /* Pulse pour status "raisonnement" */
@@ -697,9 +806,150 @@ Tous les éléments interactifs doivent avoir un focus visible :
   50% { opacity: 0.5; }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+/* Shimmer pour skeleton loading (Apple-style) */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-hover) 50%,
+    var(--bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Rubber-band scroll effect */
+@keyframes rubber-band {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.02); }
+  50% { transform: scale(0.99); }
+  70% { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+/* Spin pour loading */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+```
+
+---
+
+## Glassmorphism & Backdrop Blur
+
+Apple utilise intensivement le backdrop-blur pour créer de la profondeur.
+
+```css
+/* Blur levels */
+--backdrop-blur-sm: blur(4px);
+--backdrop-blur-md: blur(12px);
+--backdrop-blur-lg: blur(24px);
+
+/* Glass effect - sidebar, modals, tooltips */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: var(--backdrop-blur-lg);
+  -webkit-backdrop-filter: var(--backdrop-blur-lg);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.dark .glass {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: var(--backdrop-blur-sm);
+}
+```
+
+---
+
+## Haptic Feedback (iOS Safari)
+
+Retour tactile pour confirmer les actions sur mobile.
+
+```typescript
+// lib/utils/haptics.ts
+
+type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
+
+export function haptic(type: HapticType = 'light'): void {
+  // Vérifie le support de l'API Vibration
+  if (!('vibrate' in navigator)) return;
+
+  const patterns: Record<HapticType, number[]> = {
+    light: [10],           // Tap léger
+    medium: [20],          // Tap standard
+    heavy: [30],           // Tap appuyé
+    success: [10, 50, 10], // Double tap court
+    warning: [20, 40, 20], // Double tap moyen
+    error: [50, 100, 50],  // Vibration longue
+  };
+
+  navigator.vibrate(patterns[type]);
+}
+
+// Usage dans les composants
+// <button on:click={() => { haptic('success'); doAction(); }}>
+```
+
+### Quand utiliser Haptic
+
+| Action | Type | Raison |
+|--------|------|--------|
+| Approuver événement | `success` | Confirmation positive |
+| Rejeter événement | `medium` | Action neutre |
+| Supprimer | `warning` | Action importante |
+| Erreur | `error` | Feedback négatif |
+| Swipe complet | `light` | Confirmation geste |
+| Pull-to-refresh | `medium` | Seuil atteint |
+
+---
+
+## Safe Areas (iPhone)
+
+Support des zones sûres pour iPhone avec encoche et barre home.
+
+```css
+/* Variables CSS pour safe areas */
+:root {
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+  --safe-area-left: env(safe-area-inset-left);
+  --safe-area-right: env(safe-area-inset-right);
+}
+
+/* Header avec encoche */
+.header {
+  padding-top: calc(16px + var(--safe-area-top));
+}
+
+/* Bottom navigation avec barre home */
+.bottom-nav {
+  padding-bottom: calc(8px + var(--safe-area-bottom));
+}
+
+/* Modals plein écran */
+.modal-fullscreen {
+  padding: var(--safe-area-top) var(--safe-area-right)
+           var(--safe-area-bottom) var(--safe-area-left);
+}
+```
+
+### Viewport Meta
+
+```html
+<!-- Dans app.html -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 ```
 
 ---
