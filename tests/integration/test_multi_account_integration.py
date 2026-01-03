@@ -5,7 +5,7 @@ Tests the end-to-end multi-account email processing functionality using
 direct Python object creation (env file parsing requires custom logic).
 
 Note: Full .env file parsing for EMAIL__ACCOUNTS__0__* format requires
-implementing a custom settings source in PKMConfig. See Phase 2 roadmap.
+implementing a custom settings source in ScapinConfig. See Phase 2 roadmap.
 """
 
 

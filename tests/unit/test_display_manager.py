@@ -84,7 +84,7 @@ class TestDisplayManager:
         display._on_processing_started(event)
 
         output = self.output.getvalue()
-        assert "PKM Email Processing Started" in output
+        assert "Scapin Processing Started" in output
 
     def test_on_account_started(self):
         """Test account started event handler"""
@@ -275,7 +275,7 @@ class TestDisplayManager:
 
         # Verify output contains expected content
         output = self.output.getvalue()
-        assert "PKM Email Processing Started" in output
+        assert "Scapin Processing Started" in output
         assert "Integration Test" in output
         assert "Processing Summary" in output
 

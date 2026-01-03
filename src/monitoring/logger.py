@@ -1,5 +1,5 @@
 """
-PKM Structured Logger
+Scapin Structured Logger
 
 Logging structuré JSON pour faciliter:
 - Parsing automatique
@@ -45,7 +45,7 @@ class StructuredFormatter(logging.Formatter):
     {
         "timestamp": "2025-12-29T14:30:00.000Z",
         "level": "INFO",
-        "logger": "pkm.email",
+        "logger": "scapin.email",
         "message": "Email processed successfully",
         "extra": {
             "email_id": "abc123",
@@ -103,7 +103,7 @@ class TextFormatter(logging.Formatter):
     Formatter pour logs texte (développement)
 
     Output format:
-    2025-12-29 14:30:00 INFO [pkm.email] Email processed successfully
+    2025-12-29 14:30:00 INFO [scapin.email] Email processed successfully
     """
 
     def __init__(self):
@@ -113,12 +113,12 @@ class TextFormatter(logging.Formatter):
         )
 
 
-class PKMLogger:
+class ScapinLogger:
     """
-    Logger PKM structuré (thread-safe)
+    Logger Scapin structuré (thread-safe)
 
     Usage:
-        logger = PKMLogger.get_logger("pkm.email")
+        logger = ScapinLogger.get_logger("scapin.email")
         logger.info("Email processed", email_id="abc123", action="archive")
         logger.error("Failed to process", email_id="def456", exc_info=True)
     """
@@ -150,7 +150,7 @@ class PKMLogger:
                 return
 
             # Root logger
-            root_logger = logging.getLogger("pkm")
+            root_logger = logging.getLogger("scapin")
             root_logger.setLevel(level.value)
             root_logger.propagate = False
 
@@ -188,7 +188,7 @@ class PKMLogger:
         Get or create logger
 
         Args:
-            name: Logger name (e.g. "pkm.email", "pkm.ai.router")
+            name: Logger name (e.g. "scapin.email", "scapin.ai.router")
 
         Returns:
             Logger instance
@@ -197,7 +197,7 @@ class PKMLogger:
             cls.configure()
 
         if name not in cls._loggers:
-            logger = logging.getLogger(f"pkm.{name}")
+            logger = logging.getLogger(f"scapin.{name}")
             cls._loggers[name] = logger
 
         return cls._loggers[name]
@@ -219,20 +219,20 @@ class PKMLogger:
 
         Usage:
             # Hide console logs during processing
-            PKMLogger.set_display_mode(True)
+            ScapinLogger.set_display_mode(True)
 
             # Process emails (DisplayManager shows events, no log noise)
             processor.process_inbox(...)
 
             # Restore console logs
-            PKMLogger.set_display_mode(False)
+            ScapinLogger.set_display_mode(False)
         """
         with cls._config_lock:
             # Ensure logging is configured
             if not cls._configured:
                 cls.configure()
 
-            root_logger = logging.getLogger("pkm")
+            root_logger = logging.getLogger("scapin")
 
             if enabled and not cls._display_mode:
                 # Hide console handlers
@@ -264,7 +264,7 @@ def get_logger(name: str) -> logging.Logger:
         logger = get_logger("email")
         logger.info("Processing email", email_id="123")
     """
-    return PKMLogger.get_logger(name)
+    return ScapinLogger.get_logger(name)
 
 
 # Context manager for temporary log level
@@ -283,11 +283,11 @@ class TemporaryLogLevel:
         self.original_level = None
 
     def __enter__(self):
-        root_logger = logging.getLogger("pkm")
+        root_logger = logging.getLogger("scapin")
         self.original_level = root_logger.level
         root_logger.setLevel(self.level)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        root_logger = logging.getLogger("pkm")
+        root_logger = logging.getLogger("scapin")
         root_logger.setLevel(self.original_level)

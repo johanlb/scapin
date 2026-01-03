@@ -1,6 +1,6 @@
-# PKM Email Processor - API Documentation
+# Scapin - API Documentation
 
-Complete API documentation for the PKM Email Processor system.
+Complete API documentation for the Scapin system.
 
 > ⚠️ **v3.1.0 Breaking Changes**: `PerceivedEvent` is now immutable. Use `dataclasses.replace()` for modifications. See [Migration Guide](#perceivedevent-immutability-v310).
 
@@ -64,7 +64,7 @@ ai:
   rate_limit_per_minute: 40
 
 storage:
-  database_path: data/pkm.db
+  database_path: data/scapin.db
   notes_path: data/notes
   backup_enabled: true
 ```
@@ -123,10 +123,10 @@ Structured logging system with JSON and text formats.
 **Usage:**
 
 ```python
-from src.monitoring.logger import PKMLogger, LogLevel, LogFormat, get_logger
+from src.monitoring.logger import ScapinLogger, LogLevel, LogFormat, get_logger
 
 # Configure logging (do once at startup)
-PKMLogger.configure(level=LogLevel.INFO, format=LogFormat.JSON)
+ScapinLogger.configure(level=LogLevel.INFO, format=LogFormat.JSON)
 
 # Get logger for your module
 logger = get_logger("my_module")
@@ -584,29 +584,29 @@ Command-line interface using Typer and Rich.
 
 ```bash
 # Check system health
-python3 pkm.py health
+python3 scapin.py health
 
 # View configuration
-python3 pkm.py config
-python3 pkm.py config --validate
+python3 scapin.py config
+python3 scapin.py config --validate
 
 # Show session statistics
-python3 pkm.py stats
+python3 scapin.py stats
 
 # Process emails (coming in Phase 1)
-python3 pkm.py process --limit 50 --auto --confidence 90
+python3 scapin.py process --limit 50 --auto --confidence 90
 
 # Review decisions (coming in Phase 2.5)
-python3 pkm.py review --limit 20
+python3 scapin.py review --limit 20
 
 # Manage queue (coming in Phase 1)
-python3 pkm.py queue --process
+python3 scapin.py queue --process
 
 # Verbose logging
-python3 pkm.py --verbose --log-format json stats
+python3 scapin.py --verbose --log-format json stats
 
 # Show version
-python3 pkm.py --version
+python3 scapin.py --version
 ```
 
 **Programmatic Usage:**
@@ -662,7 +662,7 @@ from datetime import datetime
 def process_email(
     email_id: int,
     metadata: EmailMetadata,
-    config: Optional[PKMConfig] = None
+    config: Optional[ScapinConfig] = None
 ) -> Optional[EmailAnalysis]:
     """
     Process email and return analysis

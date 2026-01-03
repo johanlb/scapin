@@ -1,5 +1,5 @@
 """
-Display Manager for PKM Email Processor
+Display Manager for Scapin
 
 Provides sequential, beautiful display of email processing events using Rich.
 Subscribes to EventBus and renders events as they arrive.
@@ -13,10 +13,10 @@ from rich.panel import Panel
 from rich.text import Text
 
 from src.core.processing_events import ProcessingEvent, ProcessingEventType, get_event_bus
-from src.monitoring.logger import PKMLogger
+from src.monitoring.logger import ScapinLogger
 from src.utils import now_utc
 
-logger = PKMLogger.get_logger(__name__)
+logger = ScapinLogger.get_logger(__name__)
 
 
 class DisplayManager:
@@ -151,7 +151,7 @@ class DisplayManager:
         """
         self.console.print()
         self.console.print(Panel.fit(
-            "[bold cyan]PKM Email Processing Started[/bold cyan]\n"
+            "[bold cyan]Scapin Processing Started[/bold cyan]\n"
             "[dim]Processing emails with AI-powered classification[/dim]",
             border_style="cyan"
         ))

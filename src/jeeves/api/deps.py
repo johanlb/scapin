@@ -8,12 +8,12 @@ Provides services and configuration access.
 from collections.abc import Generator
 from functools import lru_cache
 
-from src.core.config_manager import PKMConfig, get_config
+from src.core.config_manager import ScapinConfig, get_config
 from src.jeeves.api.services.briefing_service import BriefingService
 
 
 @lru_cache
-def get_cached_config() -> PKMConfig:
+def get_cached_config() -> ScapinConfig:
     """Get cached configuration"""
     return get_config()
 

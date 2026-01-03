@@ -1,5 +1,5 @@
 """
-PKM Template Manager
+Scapin Template Manager
 
 Gestionnaire de templates pour:
 - Prompts AI (analyse email, extraction knowledge)

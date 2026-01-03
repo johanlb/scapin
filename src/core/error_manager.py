@@ -1,7 +1,7 @@
 """
 Error Management System
 
-Centralized error handling, tracking, and recovery for the PKM system.
+Centralized error handling, tracking, and recovery for the Scapin system.
 Provides structured error representation, persistence, and automatic recovery.
 
 Architecture:

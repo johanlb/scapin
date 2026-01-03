@@ -19,7 +19,7 @@ from src.core.schemas import (
     EmailMetadata,
 )
 from src.core.state_manager import StateManager
-from src.monitoring.logger import LogFormat, LogLevel, PKMLogger
+from src.monitoring.logger import LogFormat, LogLevel, ScapinLogger
 
 # ============================================================================
 # Setup/Teardown Fixtures
@@ -29,7 +29,7 @@ from src.monitoring.logger import LogFormat, LogLevel, PKMLogger
 @pytest.fixture(scope="session", autouse=True)
 def setup_logging():
     """Configure logging for tests (session-wide)"""
-    PKMLogger.configure(level=LogLevel.WARNING, format=LogFormat.TEXT)
+    ScapinLogger.configure(level=LogLevel.WARNING, format=LogFormat.TEXT)
 
 
 @pytest.fixture(autouse=True)
@@ -42,9 +42,9 @@ def reset_singletons():
     # Reset ConfigManager
     ConfigManager._instance = None
 
-    # Reset PKMLogger
-    PKMLogger._configured = False
-    PKMLogger._loggers.clear()
+    # Reset ScapinLogger
+    ScapinLogger._configured = False
+    ScapinLogger._loggers.clear()
 
     # Reset error store and manager
     try:
@@ -63,7 +63,7 @@ def reset_singletons():
 
     # Cleanup after test
     ConfigManager._instance = None
-    PKMLogger._configured = False
+    ScapinLogger._configured = False
 
     try:
         from src.core.error_store import reset_error_store
@@ -284,7 +284,7 @@ def capture_logs(caplog):
 @pytest.fixture
 def mock_config(tmp_path):
     """
-    Provide a mock PKMConfig for tests that need config
+    Provide a mock ScapinConfig for tests that need config
 
     This fixture patches get_config() to return a mock config,
     allowing tests to run without a real .env file.

@@ -141,7 +141,7 @@ class TestErrorStoreSave:
             category=ErrorCategory.IMAP,
             severity=ErrorSeverity.LOW,
             exception_type="ValueError",
-            exception_message="Invalid folder: _PKM/À supprimer with émojis 🎉",
+            exception_message="Invalid folder: _Scapin/À supprimer with émojis 🎉",
             traceback="Traceback...",
             component="test",
             operation="test",

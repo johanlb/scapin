@@ -5,7 +5,7 @@ Central hub for short-term understanding and reasoning state.
 
 Working Memory holds:
 - Current event being processed
-- Retrieved context from PKM
+- Retrieved context from Scapin
 - Reasoning trace (all passes)
 - Hypotheses and inferences
 - Confidence scores
@@ -123,7 +123,7 @@ class ReasoningPass:
 @dataclass
 class ContextItem:
     """
-    A piece of context retrieved from PKM or elsewhere
+    A piece of context retrieved from Scapin or elsewhere
 
     Context informs reasoning by providing relevant background information.
     """

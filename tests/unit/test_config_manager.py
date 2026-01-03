@@ -11,7 +11,7 @@ from src.core.config_manager import (
     AIConfig,
     ConfigManager,
     EmailConfig,
-    PKMConfig,
+    ScapinConfig,
 )
 
 
@@ -72,7 +72,7 @@ IMAP_PASSWORD=testpass123
         """Test config validation catches errors"""
         with pytest.raises((ValidationError, ValueError)):
             # Missing required field
-            PKMConfig(
+            ScapinConfig(
                 email=EmailConfig(
                     imap_host="test.com",
                     imap_username="test@test.com",

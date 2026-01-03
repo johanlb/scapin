@@ -1,5 +1,5 @@
 """
-PKM CLI Application
+Scapin CLI Application
 
 Main CLI entry point using Typer and Rich for elegant interface.
 """
@@ -18,12 +18,12 @@ from src.core.config_manager import get_config
 from src.core.schemas import ServiceStatus
 from src.core.state_manager import get_state_manager
 from src.monitoring.health import quick_health_check
-from src.monitoring.logger import LogFormat, LogLevel, PKMLogger, get_logger
+from src.monitoring.logger import LogFormat, LogLevel, ScapinLogger, get_logger
 
 # Create Typer app
 app = typer.Typer(
     name="pkm",
-    help="PKM Email Processor - Intelligent email management system",
+    help="Scapin - Intelligent email management system",
     add_completion=False,
 )
 
@@ -75,7 +75,7 @@ def format_health_status(status: ServiceStatus, include_text: bool = True) -> st
 def version_callback(value: bool):
     """Show version and exit"""
     if value:
-        console.print("[bold cyan]PKM Email Processor[/bold cyan] v2.0.0")
+        console.print("[bold cyan]Scapin[/bold cyan] v2.0.0")
         console.print("Powered by Claude AI")
         raise typer.Exit()
 
@@ -103,14 +103,14 @@ def main(
     ),
 ):
     """
-    PKM Email Processor - Intelligent email management
+    Scapin - Intelligent email management
 
     Process emails with AI, extract knowledge, manage tasks.
     """
     # Configure logging
     level = LogLevel.DEBUG if verbose else LogLevel.INFO
     fmt = LogFormat.JSON if log_format == "json" else LogFormat.TEXT
-    PKMLogger.configure(level=level, format=fmt)
+    ScapinLogger.configure(level=level, format=fmt)
 
     # Store in context for subcommands
     ctx.obj = {
@@ -143,7 +143,7 @@ def process(
     from src.trivelin.processor import EmailProcessor
 
     console.print(Panel.fit(
-        "[bold cyan]PKM Email Processor[/bold cyan]\n"
+        "[bold cyan]Scapin[/bold cyan]\n"
         "Processing your inbox...",
         border_style="cyan"
     ))
@@ -160,7 +160,7 @@ def process(
 
     try:
         # Enable display mode BEFORE initialization to hide all console logs
-        PKMLogger.set_display_mode(True)
+        ScapinLogger.set_display_mode(True)
 
         # Initialize display manager
         display = DisplayManager(console)
@@ -180,7 +180,7 @@ def process(
             )
         finally:
             # Always restore console logs
-            PKMLogger.set_display_mode(False)
+            ScapinLogger.set_display_mode(False)
             display.stop()
 
         # Display results

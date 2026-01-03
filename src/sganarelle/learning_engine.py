@@ -68,7 +68,7 @@ class LearningEngine:
 
     Coordonne tous les composants de Sganarelle pour fermer la boucle cognitive:
     1. Feedback Processing → analyse qualité décision
-    2. Knowledge Updates → enrichit PKM
+    2. Knowledge Updates → enrichit Scapin
     3. Pattern Learning → identifie comportements récurrents
     4. Provider Tracking → optimise sélection AI
     5. Confidence Calibration → améliore prédictions
@@ -90,7 +90,7 @@ class LearningEngine:
 
         Args:
             storage_dir: Répertoire pour persistence (None = memory only)
-            enable_knowledge_updates: Enable PKM updates
+            enable_knowledge_updates: Enable Scapin knowledge updates
             enable_pattern_learning: Enable pattern identification
             enable_provider_tracking: Enable AI provider metrics
             enable_confidence_calibration: Enable confidence tuning

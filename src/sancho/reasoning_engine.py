@@ -9,7 +9,7 @@ who provides grounded reasoning and sound judgment.
 
 Architecture:
 - Pass 1: Initial quick analysis (~60-70% confidence) - 2-3s
-- Pass 2: Context enrichment with PKM (~75-85% confidence) - 3-5s
+- Pass 2: Context enrichment with Scapin (~75-85% confidence) - 3-5s
 - Pass 3: Deep multi-step reasoning (~85-92% confidence) - 2-4s
 - Pass 4: Cross-provider validation (~90-96% confidence) - 3-5s
 - Pass 5: User clarification if needed (~95-99% confidence) - async
@@ -81,7 +81,7 @@ class ReasoningEngine:
     Design Philosophy:
     - Quality over speed (10-20s is acceptable for good decisions)
     - Iterative refinement (each pass builds on previous)
-    - Context-aware (leverages PKM knowledge base)
+    - Context-aware (leverages Scapin knowledge base)
     - Explainable (full reasoning trace preserved)
     - Adaptive (stops early if confident, continues if uncertain)
 
@@ -312,7 +312,7 @@ class ReasoningEngine:
 
     def _pass2_context_enrichment(self, wm: WorkingMemory) -> None:
         """
-        Pass 2: Context enrichment with PKM knowledge
+        Pass 2: Context enrichment with Scapin knowledge
 
         Goal: Re-analyze with retrieved context
         Target Confidence: 75-85%

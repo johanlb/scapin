@@ -1,7 +1,7 @@
 """
 Utility Functions
 
-Common helper functions for the PKM system.
+Common helper functions for the Scapin system.
 """
 
 from .date_utils import (

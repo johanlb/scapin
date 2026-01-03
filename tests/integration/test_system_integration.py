@@ -18,7 +18,7 @@ from src.core.schemas import (
 )
 from src.core.state_manager import StateManager
 from src.monitoring.health import get_health_service, quick_health_check
-from src.monitoring.logger import LogFormat, LogLevel, PKMLogger, get_logger
+from src.monitoring.logger import LogFormat, LogLevel, ScapinLogger, get_logger
 from src.sancho.templates import TemplateManager
 from src.utils import (
     ensure_dir,
@@ -33,7 +33,7 @@ pytestmark = pytest.mark.integration
 
 class TestSystemIntegration:
     """
-    End-to-end integration tests for the PKM system
+    End-to-end integration tests for the Scapin system
 
     These tests validate that all components work together correctly.
     """
@@ -53,7 +53,7 @@ class TestSystemIntegration:
         8. Store data
         """
         # ===== Phase 1: System Setup =====
-        PKMLogger.configure(level=LogLevel.INFO, format=LogFormat.TEXT)
+        ScapinLogger.configure(level=LogLevel.INFO, format=LogFormat.TEXT)
         logger = get_logger("integration_test")
         logger.info("Starting integration test")
 
@@ -258,7 +258,7 @@ class TestSystemIntegration:
         Validates both TEXT and JSON logging formats.
         """
         # Test TEXT format
-        PKMLogger.configure(level=LogLevel.INFO, format=LogFormat.TEXT)
+        ScapinLogger.configure(level=LogLevel.INFO, format=LogFormat.TEXT)
         logger = get_logger("test_logger")
 
         logger.info("Test message in TEXT format")
@@ -267,8 +267,8 @@ class TestSystemIntegration:
         assert "Test message in TEXT format" in captured.out
 
         # Test JSON format
-        PKMLogger._configured = False  # Reset for reconfiguration
-        PKMLogger.configure(level=LogLevel.INFO, format=LogFormat.JSON)
+        ScapinLogger._configured = False  # Reset for reconfiguration
+        ScapinLogger.configure(level=LogLevel.INFO, format=LogFormat.JSON)
         logger = get_logger("test_logger_json")
 
         logger.info("Test message in JSON format", extra={"key": "value"})

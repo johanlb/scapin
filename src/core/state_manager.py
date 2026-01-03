@@ -1,5 +1,5 @@
 """
-PKM State Manager
+Scapin State Manager
 
 Gestionnaire d'état centralisé thread-safe pour:
 - État de session (emails traités, stats, etc.)

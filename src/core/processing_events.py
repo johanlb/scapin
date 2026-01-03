@@ -1,5 +1,5 @@
 """
-Event System for PKM Email Processor
+Event System for Scapin
 
 Provides a pub/sub event bus for decoupling backend processing from frontend display.
 Enables sequential display of parallel processing events.
@@ -12,9 +12,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Optional
 
-from src.monitoring.logger import PKMLogger
+from src.monitoring.logger import ScapinLogger
 
-logger = PKMLogger.get_logger(__name__)
+logger = ScapinLogger.get_logger(__name__)
 
 
 class ProcessingEventType(str, Enum):

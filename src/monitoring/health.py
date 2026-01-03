@@ -1,5 +1,5 @@
 """
-PKM Health Check System
+Scapin Health Check System
 
 System health monitoring for:
 - IMAP email server connectivity

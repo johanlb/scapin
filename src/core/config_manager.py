@@ -1,5 +1,5 @@
 """
-PKM Configuration Manager
+Scapin Configuration Manager
 
 Charge configuration hiérarchique depuis:
 1. Defaults (config/defaults.yaml)
@@ -44,7 +44,7 @@ class EmailAccountConfig(BaseModel):
     inbox_folder: str = Field("INBOX", description="Inbox folder name")
     archive_folder: str = Field("Archive", description="Archive folder name")
     reference_folder: str = Field("Référence", description="Reference folder name")
-    delete_folder: str = Field("_PKM/À supprimer", description="Delete folder name")
+    delete_folder: str = Field("_Scapin/À supprimer", description="Delete folder name")
 
     # Processing (can be different per account)
     max_workers: int = Field(10, ge=1, le=50, description="Max worker threads")
@@ -221,7 +221,7 @@ class EmailConfig(BaseModel):
                 inbox_folder=self.inbox_folder or "INBOX",
                 archive_folder=self.archive_folder or "Archive",
                 reference_folder=self.reference_folder or "Référence",
-                delete_folder=self.delete_folder or "_PKM/À supprimer",
+                delete_folder=self.delete_folder or "_Scapin/À supprimer",
                 max_workers=self.max_workers or 10,
                 batch_size=self.batch_size or 100,
             )
@@ -310,7 +310,7 @@ class StorageConfig(BaseModel):
 
     database_path: Path = Field(Path("data/pkm.db"), description="SQLite database path")
     notes_path: Path = Field(
-        Path.home() / "Documents/PKM/Notes", description="Notes directory"
+        Path.home() / "Documents/Scapin/Notes", description="Notes directory"
     )
     github_repo_url: Optional[str] = Field(
         None, description="GitHub remote repository URL"
@@ -613,9 +613,9 @@ class BriefingConfig(BaseModel):
     )
 
 
-class PKMConfig(BaseSettings):
+class ScapinConfig(BaseSettings):
     """
-    Configuration principale PKM
+    Configuration principale Scapin
 
     Charge depuis:
     1. config/defaults.yaml (defaults)
@@ -656,13 +656,13 @@ class ConfigManager:
         print(config.ai.anthropic_api_key)
     """
 
-    _instance: Optional[PKMConfig] = None
+    _instance: Optional[ScapinConfig] = None
     _lock = threading.Lock()
 
     @classmethod
     def load(
         cls, config_path: Optional[Path] = None, _env_file: Optional[Path] = None
-    ) -> PKMConfig:
+    ) -> ScapinConfig:
         """
         Charge configuration depuis fichiers (thread-safe)
 
@@ -671,7 +671,7 @@ class ConfigManager:
             env_file: Path to .env (default: .env)
 
         Returns:
-            PKMConfig instance validée
+            ScapinConfig instance validée
 
         Raises:
             ValidationError: Si configuration invalide
@@ -707,7 +707,7 @@ class ConfigManager:
             # Merge with environment variables
             # Pydantic Settings will automatically load from .env
             try:
-                cls._instance = PKMConfig(**defaults)
+                cls._instance = ScapinConfig(**defaults)
             except Exception as e:
                 raise ValueError(
                     f"Failed to load configuration. "
@@ -718,18 +718,18 @@ class ConfigManager:
         return cls._instance
 
     @classmethod
-    def reload(cls) -> PKMConfig:
+    def reload(cls) -> ScapinConfig:
         """Force reload configuration"""
         cls._instance = None
         return cls.load()
 
     @classmethod
-    def get(cls) -> PKMConfig:
+    def get(cls) -> ScapinConfig:
         """
         Get configuration (load if not loaded)
 
         Returns:
-            PKMConfig instance
+            ScapinConfig instance
         """
         if cls._instance is None:
             return cls.load()
@@ -737,7 +737,7 @@ class ConfigManager:
 
 
 # Convenience function
-def get_config() -> PKMConfig:
+def get_config() -> ScapinConfig:
     """
     Get global configuration instance
 

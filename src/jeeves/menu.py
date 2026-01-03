@@ -34,7 +34,7 @@ from src.core.config_manager import EmailAccountConfig, get_config
 from src.core.multi_account_processor import MultiAccountProcessor
 from src.integrations.storage.queue_storage import get_queue_storage
 from src.jeeves.display_manager import DisplayManager
-from src.monitoring.logger import PKMLogger, get_logger
+from src.monitoring.logger import ScapinLogger, get_logger
 
 logger = get_logger("menu")
 console = Console()
@@ -98,7 +98,7 @@ class InteractiveMenu:
         """Display welcome banner"""
         console.print()
         console.print(Panel.fit(
-            "[bold cyan]🧠 PKM Email Processor[/bold cyan]\n"
+            "[bold cyan]🧠 Scapin[/bold cyan]\n"
             "[dim]Intelligent Email Management with AI[/dim]\n\n"
             "[dim]Use ↑↓ arrows to navigate, Enter to select, Ctrl+C to exit[/dim]",
             border_style="cyan",
@@ -109,7 +109,7 @@ class InteractiveMenu:
         """Display goodbye message"""
         console.print()
         console.print(Panel.fit(
-            "[bold green]✓ Thank you for using PKM![/bold green]\n"
+            "[bold green]✓ Thank you for using Scapin![/bold green]\n"
             "[dim]Your inbox is in good hands[/dim]",
             border_style="green",
         ))
@@ -323,7 +323,7 @@ class InteractiveMenu:
 
         try:
             # Enable display mode
-            PKMLogger.set_display_mode(True)
+            ScapinLogger.set_display_mode(True)
 
             # Initialize display manager
             display = DisplayManager(console)
@@ -366,7 +366,7 @@ class InteractiveMenu:
 
         finally:
             # Restore console logs
-            PKMLogger.set_display_mode(False)
+            ScapinLogger.set_display_mode(False)
 
     def _review_queue_submenu(self):
         """Review Queue submenu"""

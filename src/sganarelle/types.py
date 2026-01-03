@@ -136,7 +136,7 @@ class KnowledgeUpdate:
     """
     Une mise à jour de la base de connaissances
 
-    Représente un changement à appliquer au PKM.
+    Représente un changement à appliquer à Scapin.
     Immutable.
     """
     update_type: UpdateType

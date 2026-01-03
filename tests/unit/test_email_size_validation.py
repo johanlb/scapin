@@ -15,7 +15,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.core.config_manager import AIConfig, EmailAccountConfig, EmailConfig, PKMConfig
+from src.core.config_manager import AIConfig, EmailAccountConfig, EmailConfig, ScapinConfig
 from src.core.schemas import EmailContent, EmailMetadata
 from src.trivelin.processor import EmailProcessor
 
@@ -50,8 +50,8 @@ class TestEmailSizeValidation:
             anthropic_api_key="sk-ant-test-key-12345"
         )
 
-        # Create full PKM config
-        config = Mock(spec=PKMConfig)
+        # Create full Scapin config
+        config = Mock(spec=ScapinConfig)
         config.email = email_config
         config.ai = ai_config
 

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
 
-from src.core.config_manager import PKMConfig
+from src.core.config_manager import ScapinConfig
 from src.jeeves.api.deps import get_cached_config
 from src.jeeves.api.models.responses import (
     APIResponse,
@@ -165,7 +165,7 @@ async def get_stats() -> APIResponse[StatsResponse]:
 
 @router.get("/config", response_model=APIResponse[ConfigResponse])
 async def get_config_endpoint(
-    config: PKMConfig = Depends(get_cached_config),
+    config: ScapinConfig = Depends(get_cached_config),
 ) -> APIResponse[ConfigResponse]:
     """
     Get current configuration

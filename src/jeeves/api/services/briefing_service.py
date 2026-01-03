@@ -6,7 +6,7 @@ Async wrapper around BriefingGenerator for API use.
 
 from dataclasses import dataclass
 
-from src.core.config_manager import PKMConfig
+from src.core.config_manager import ScapinConfig
 from src.jeeves.briefing.generator import BriefingGenerator
 from src.jeeves.briefing.models import MorningBriefing, PreMeetingBriefing
 from src.monitoring.logger import get_logger
@@ -22,7 +22,7 @@ class BriefingService:
     Wraps BriefingGenerator with API-specific logic.
     """
 
-    config: PKMConfig
+    config: ScapinConfig
 
     async def generate_morning_briefing(
         self,

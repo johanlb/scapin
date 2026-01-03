@@ -1,7 +1,7 @@
 """
-PKM Pydantic Schemas
+Scapin Pydantic Schemas
 
-Data validation schemas for all PKM entities:
+Data validation schemas for all Scapin entities:
 - Email processing
 - Decision tracking
 - Knowledge management

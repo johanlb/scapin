@@ -8,7 +8,7 @@ import logging
 from src.monitoring.logger import (
     LogFormat,
     LogLevel,
-    PKMLogger,
+    ScapinLogger,
     StructuredFormatter,
     get_logger,
 )
@@ -21,7 +21,7 @@ class TestStructuredFormatter:
         """Test formatting basic log message"""
         formatter = StructuredFormatter()
         record = logging.LogRecord(
-            name="pkm.test",
+            name="scapin.test",
             level=logging.INFO,
             pathname="/test/file.py",
             lineno=42,
@@ -35,7 +35,7 @@ class TestStructuredFormatter:
         log_entry = json.loads(result)
 
         assert log_entry["level"] == "INFO"
-        assert log_entry["logger"] == "pkm.test"
+        assert log_entry["logger"] == "scapin.test"
         assert log_entry["message"] == "Test message"
         assert "timestamp" in log_entry
         assert log_entry["source"]["file"] == "/test/file.py"
@@ -45,7 +45,7 @@ class TestStructuredFormatter:
         """Test formatting with extra fields"""
         formatter = StructuredFormatter()
         record = logging.LogRecord(
-            name="pkm.email",
+            name="scapin.email",
             level=logging.INFO,
             pathname="/test/email.py",
             lineno=10,
@@ -69,42 +69,42 @@ class TestStructuredFormatter:
         assert log_entry["extra"]["confidence"] == 95
 
 
-class TestPKMLogger:
-    """Test PKMLogger"""
+class TestScapinLogger:
+    """Test ScapinLogger"""
 
     def setup_method(self):
         """Reset logger configuration"""
-        PKMLogger._configured = False
-        PKMLogger._loggers.clear()
+        ScapinLogger._configured = False
+        ScapinLogger._loggers.clear()
 
     def test_configure_json_format(self):
         """Test configuring logger with JSON format"""
-        PKMLogger.configure(level=LogLevel.INFO, format=LogFormat.JSON)
+        ScapinLogger.configure(level=LogLevel.INFO, format=LogFormat.JSON)
 
-        logger = PKMLogger.get_logger("test")
+        logger = ScapinLogger.get_logger("test")
         assert logger is not None
         # Logger inherits from parent, check effective level
         assert logger.getEffectiveLevel() == logging.INFO
 
     def test_configure_text_format(self):
         """Test configuring logger with text format"""
-        PKMLogger.configure(level=LogLevel.DEBUG, format=LogFormat.TEXT)
+        ScapinLogger.configure(level=LogLevel.DEBUG, format=LogFormat.TEXT)
 
-        logger = PKMLogger.get_logger("test")
+        logger = ScapinLogger.get_logger("test")
         assert logger is not None
         assert logger.getEffectiveLevel() == logging.DEBUG
 
     def test_get_logger_returns_logger(self):
         """Test get_logger returns valid logger"""
-        logger = PKMLogger.get_logger("email")
+        logger = ScapinLogger.get_logger("email")
 
         assert isinstance(logger, logging.Logger)
-        assert logger.name == "pkm.email"
+        assert logger.name == "scapin.email"
 
     def test_get_logger_caches_instances(self):
         """Test logger instances are cached"""
-        logger1 = PKMLogger.get_logger("test")
-        logger2 = PKMLogger.get_logger("test")
+        logger1 = ScapinLogger.get_logger("test")
+        logger2 = ScapinLogger.get_logger("test")
 
         assert logger1 is logger2
 
@@ -113,7 +113,7 @@ class TestPKMLogger:
         logger = get_logger("test")
 
         assert isinstance(logger, logging.Logger)
-        assert "pkm.test" in logger.name
+        assert "scapin.test" in logger.name
 
 
 class TestTemporaryLogLevelContext:
@@ -123,8 +123,8 @@ class TestTemporaryLogLevelContext:
         """Test context manager changes log level temporarily"""
         from src.monitoring.logger import TemporaryLogLevel
 
-        PKMLogger.configure(level=LogLevel.INFO)
-        root_logger = logging.getLogger("pkm")
+        ScapinLogger.configure(level=LogLevel.INFO)
+        root_logger = logging.getLogger("scapin")
 
         original_level = root_logger.level
 

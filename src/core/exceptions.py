@@ -1,8 +1,8 @@
 """
-Custom Exceptions for PKM System
+Custom Exceptions for Scapin System
 
 Provides a hierarchy of specific exceptions to replace broad catch-all handlers.
-All exceptions inherit from PKMError base class for easy catching of PKM-specific errors.
+All exceptions inherit from ScapinError base class for easy catching of Scapin-specific errors.
 
 Usage:
     from src.core.exceptions import ValidationError, EmailProcessingError
@@ -14,17 +14,17 @@ Usage:
 from typing import Any, Optional
 
 
-class PKMError(Exception):
+class ScapinError(Exception):
     """
-    Base exception for all PKM system errors
+    Base exception for all Scapin system errors
 
-    All custom PKM exceptions inherit from this to allow catching
-    any PKM-specific error with a single except clause.
+    All custom Scapin exceptions inherit from this to allow catching
+    any Scapin-specific error with a single except clause.
     """
 
     def __init__(self, message: str, details: Optional[dict[str, Any]] = None):
         """
-        Initialize PKM error
+        Initialize Scapin error
 
         Args:
             message: Human-readable error message
@@ -40,7 +40,7 @@ class PKMError(Exception):
         return self.message
 
 
-class EmailProcessingError(PKMError):
+class EmailProcessingError(ScapinError):
     """
     Email processing failed
 
@@ -50,7 +50,7 @@ class EmailProcessingError(PKMError):
     pass
 
 
-class AIAnalysisError(PKMError):
+class AIAnalysisError(ScapinError):
     """
     AI analysis failed
 
@@ -60,7 +60,7 @@ class AIAnalysisError(PKMError):
     pass
 
 
-class ValidationError(PKMError):
+class ValidationError(ScapinError):
     """
     Validation failed
 
@@ -70,7 +70,7 @@ class ValidationError(PKMError):
     pass
 
 
-class RateLimitError(PKMError):
+class RateLimitError(ScapinError):
     """
     Rate limit exceeded
 
@@ -80,7 +80,7 @@ class RateLimitError(PKMError):
     pass
 
 
-class AuthenticationError(PKMError):
+class AuthenticationError(ScapinError):
     """
     Authentication failed
 
@@ -90,7 +90,7 @@ class AuthenticationError(PKMError):
     pass
 
 
-class ConfigurationError(PKMError):
+class ConfigurationError(ScapinError):
     """
     Configuration is invalid
 
@@ -100,7 +100,7 @@ class ConfigurationError(PKMError):
     pass
 
 
-class DatabaseError(PKMError):
+class DatabaseError(ScapinError):
     """
     Database operation failed
 
@@ -110,7 +110,7 @@ class DatabaseError(PKMError):
     pass
 
 
-class IMAPError(PKMError):
+class IMAPError(ScapinError):
     """
     IMAP operation failed
 
@@ -120,7 +120,7 @@ class IMAPError(PKMError):
     pass
 
 
-class NetworkError(PKMError):
+class NetworkError(ScapinError):
     """
     Network operation failed
 
@@ -130,7 +130,7 @@ class NetworkError(PKMError):
     pass
 
 
-class SerializationError(PKMError):
+class SerializationError(ScapinError):
     """
     Serialization/deserialization failed
 

@@ -11,7 +11,7 @@ from rich.console import Console
 
 from src.core.events import ProcessingEvent, ProcessingEventType, reset_event_bus
 from src.jeeves.display_manager import DisplayManager
-from src.monitoring.logger import PKMLogger
+from src.monitoring.logger import ScapinLogger
 
 
 @pytest.fixture(autouse=True)
@@ -49,7 +49,7 @@ class TestEventFlowIntegration:
 
         # Verify output contains expected text
         result = output.getvalue()
-        assert "PKM Email Processing Started" in result
+        assert "Scapin Processing Started" in result
 
     def test_email_completed_flow(self, mock_console):
         """Test EMAIL_COMPLETED event flow"""
@@ -252,59 +252,59 @@ class TestEventFlowIntegration:
 
 
 class TestDisplayModeIntegration:
-    """Test PKMLogger display mode integration"""
+    """Test ScapinLogger display mode integration"""
 
     def test_display_mode_hides_console_logs(self):
         """Test that display mode hides console logs"""
 
         # Ensure logging is configured
-        PKMLogger.configure()
+        ScapinLogger.configure()
 
         # Get a logger
-        logger = PKMLogger.get_logger("test")
+        logger = ScapinLogger.get_logger("test")
 
         # Enable display mode
-        PKMLogger.set_display_mode(True)
+        ScapinLogger.set_display_mode(True)
 
         # Console handlers should be removed
-        root_logger = PKMLogger.get_logger("pkm")
+        root_logger = ScapinLogger.get_logger("pkm")
         console_handlers = [
             h for h in root_logger.handlers
             if isinstance(h, __import__('logging').StreamHandler)
         ]
 
         # Note: All console handlers should be removed in display mode
-        assert PKMLogger._display_mode is True
+        assert ScapinLogger._display_mode is True
 
         # Disable display mode
-        PKMLogger.set_display_mode(False)
+        ScapinLogger.set_display_mode(False)
 
         # Console handlers should be restored
-        assert PKMLogger._display_mode is False
+        assert ScapinLogger._display_mode is False
 
     @pytest.mark.skip(reason="Test hangs due to logger state - needs investigation")
     def test_display_mode_lifecycle(self):
         """Test display mode enable/disable cycle"""
 
         # Start with display mode disabled
-        PKMLogger.set_display_mode(False)
-        assert PKMLogger._display_mode is False
+        ScapinLogger.set_display_mode(False)
+        assert ScapinLogger._display_mode is False
 
         # Enable
-        PKMLogger.set_display_mode(True)
-        assert PKMLogger._display_mode is True
+        ScapinLogger.set_display_mode(True)
+        assert ScapinLogger._display_mode is True
 
         # Enable again (should be idempotent)
-        PKMLogger.set_display_mode(True)
-        assert PKMLogger._display_mode is True
+        ScapinLogger.set_display_mode(True)
+        assert ScapinLogger._display_mode is True
 
         # Disable
-        PKMLogger.set_display_mode(False)
-        assert PKMLogger._display_mode is False
+        ScapinLogger.set_display_mode(False)
+        assert ScapinLogger._display_mode is False
 
         # Disable again (should be idempotent)
-        PKMLogger.set_display_mode(False)
-        assert PKMLogger._display_mode is False
+        ScapinLogger.set_display_mode(False)
+        assert ScapinLogger._display_mode is False
 
 
 class TestEventBusIntegration:

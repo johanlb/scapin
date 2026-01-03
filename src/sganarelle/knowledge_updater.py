@@ -1,7 +1,7 @@
 """
 Sganarelle Knowledge Updater
 
-Applique les mises à jour de connaissances à la base PKM (Passepartout)
+Applique les mises à jour de connaissances à la base Scapin (Passepartout)
 en fonction de l'apprentissage depuis les décisions et le feedback.
 
 Thread-safe avec transactions atomiques.
@@ -29,7 +29,7 @@ class KnowledgeUpdater:
     """
     Gestionnaire de mises à jour de la base de connaissances
 
-    Applique les KnowledgeUpdate au PKM de manière atomique et thread-safe.
+    Applique les KnowledgeUpdate à Scapin de manière atomique et thread-safe.
     Gère les conflits, la validation, et le rollback en cas d'erreur.
 
     Thread-safe: Utilise verrous pour accès concurrent aux notes.
@@ -253,7 +253,7 @@ class KnowledgeUpdater:
         """
         raise NotImplementedError(
             "Rollback functionality requires Passepartout integration. "
-            "Cannot rollback updates without git-backed PKM."
+            "Cannot rollback updates without git-backed knowledge base."
         )
 
     def get_update_stats(self) -> dict[str, Any]:

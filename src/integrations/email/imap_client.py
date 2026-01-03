@@ -39,7 +39,7 @@ def encode_imap_folder_name(folder_name: str) -> str:
 
     Example:
         "À" -> "&AMA-"
-        "_PKM/À supprimer" -> '"_PKM/&AMA- supprimer"'
+        "_Scapin/À supprimer" -> '"_Scapin/&AMA- supprimer"'
         "Folder (2025)" -> '"Folder (2025)"'
 
     Args:

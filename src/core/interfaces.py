@@ -1,5 +1,5 @@
 """
-PKM Abstract Base Classes (Interfaces)
+Scapin Abstract Base Classes (Interfaces)
 
 Defines contracts for all major system components:
 - Email processing

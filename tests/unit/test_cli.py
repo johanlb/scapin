@@ -22,21 +22,21 @@ class TestCLIBasics:
         """Test CLI shows help message"""
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        assert "PKM Email Processor" in result.stdout
+        assert "Scapin" in result.stdout
         assert "Intelligent email management system" in result.stdout
 
     def test_cli_version(self):
         """Test version flag"""
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
-        assert "PKM Email Processor" in result.stdout
+        assert "Scapin" in result.stdout
         assert "v2.0.0" in result.stdout
 
     def test_cli_version_short(self):
         """Test -v flag for version"""
         result = runner.invoke(app, ["-v"])
         assert result.exit_code == 0
-        assert "PKM Email Processor" in result.stdout
+        assert "Scapin" in result.stdout
 
 
 @pytest.mark.skip(reason="Process command requires full config - integration test")
@@ -250,11 +250,11 @@ class TestConfigCommand:
             EmailConfig,
             IntegrationsConfig,
             MonitoringConfig,
-            PKMConfig,
+            ScapinConfig,
             StorageConfig,
         )
 
-        mock_config = PKMConfig(
+        mock_config = ScapinConfig(
             email=EmailConfig(
                 imap_host="imap.test.com",
                 imap_port=993,
@@ -308,11 +308,11 @@ class TestConfigCommand:
             EmailConfig,
             IntegrationsConfig,
             MonitoringConfig,
-            PKMConfig,
+            ScapinConfig,
             StorageConfig,
         )
 
-        mock_config = PKMConfig(
+        mock_config = ScapinConfig(
             email=EmailConfig(
                 imap_host="imap.test.com",
                 imap_port=993,

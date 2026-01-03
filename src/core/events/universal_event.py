@@ -82,7 +82,7 @@ class Entity:
     Extracted entity from event content
 
     Entities are key pieces of information that help with context retrieval
-    and relationship mapping in the PKM.
+    and relationship mapping in Scapin.
     """
     type: str  # person, organization, date, location, topic, project, etc.
     value: str  # The actual entity value
