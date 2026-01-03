@@ -425,6 +425,33 @@ LOG_FILE=./logs/scapin.log
 
 ## 📝 Notes de Session
 
+### Session 2026-01-03 (Suite 6) — Refactoring PKM → Scapin
+
+**Focus** : Suppression de toutes les références à "PKM" dans le codebase
+
+**Accomplissements** :
+1. ✅ Renommage `PKMLogger` → `ScapinLogger` dans `src/monitoring/logger.py`
+2. ✅ Renommage `PKMConfig` → `ScapinConfig` dans `src/core/config_manager.py`
+3. ✅ Renommage `PKMError` → `ScapinError` dans `src/core/exceptions.py`
+4. ✅ Mise à jour de tous les imports (35 fichiers modifiés)
+5. ✅ Mise à jour des chemins de dossiers (`_PKM` → `_Scapin`)
+6. ✅ Suppression du répertoire `src/pkm_system.egg-info/`
+7. ✅ Mise à jour de `docs/api/README.md`
+8. ✅ Mise à jour de `ROADMAP.md` avec la progression correcte
+9. ✅ Tous les tests passent (1288 unit, 65 integration)
+10. ✅ Ruff 0 warnings
+
+**Fichiers principaux modifiés** :
+- `src/monitoring/logger.py` — Classe ScapinLogger, logger names "scapin.*"
+- `src/core/config_manager.py` — Classe ScapinConfig, chemins _Scapin
+- `src/core/exceptions.py` — Classe ScapinError
+- `tests/unit/test_logger.py` — Assertions mises à jour pour "scapin"
+
+**Commits** :
+- `951561d` — refactor: rename PKM to Scapin across entire codebase
+
+---
+
 ### Session 2026-01-03 (Suite 5) — Revue de Code Approfondie
 
 **Focus** : Revue de code complète des phases 1.0-1.4 et 0.7
