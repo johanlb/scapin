@@ -200,30 +200,86 @@ CALENDAR__DAYS_AHEAD=7
 # Réutilise les credentials Teams (même client_id/tenant_id)
 ```
 
-### Prochaine Phase : 1.4 — Système de Briefing
+### Phase 1.4 : Système de Briefing ✅
 
-**Objectif** : Briefings intelligents (matin, pré-réunion)
+**Statut** : COMPLÉTÉ (3 janvier 2026)
 
-| Tâche | État |
-|-------|------|
-| Morning briefing (synthèse emails + calendar) | 📋 À faire |
-| Pre-meeting briefing (contexte réunion) | 📋 À faire |
-| Rappels intelligents basés sur urgence | 📋 À faire |
+| Module | Fichier | État |
+|--------|---------|------|
+| Models | `src/jeeves/briefing/models.py` | ✅ |
+| Generator | `src/jeeves/briefing/generator.py` | ✅ |
+| Display | `src/jeeves/briefing/display.py` | ✅ |
+| CLI Command | `scapin briefing` | ✅ |
+| Tests | 58 tests | ✅ |
 
-### Phases à venir (Alignées DESIGN_PHILOSOPHY.md)
+**Commande** : `scapin briefing [--morning/-m] [--meeting/-M <id>] [--hours/-H] [--output/-o] [--quiet/-q]`
+
+**Configuration** :
+```bash
+BRIEFING__ENABLED=true
+BRIEFING__MORNING_HOURS_BEHIND=12
+BRIEFING__MORNING_HOURS_AHEAD=24
+BRIEFING__PRE_MEETING_MINUTES_BEFORE=15
+BRIEFING__SHOW_CONFIDENCE=true
+```
+
+### Phase 0.7 : API Jeeves (FastAPI) — MVP ✅
+
+**Statut** : MVP COMPLÉTÉ (3 janvier 2026)
+
+| Module | Fichier | État |
+|--------|---------|------|
+| App Factory | `src/jeeves/api/app.py` | ✅ |
+| Response Models | `src/jeeves/api/models/responses.py` | ✅ |
+| Common Models | `src/jeeves/api/models/common.py` | ✅ |
+| Dependencies | `src/jeeves/api/deps.py` | ✅ |
+| System Router | `src/jeeves/api/routers/system.py` | ✅ |
+| Briefing Router | `src/jeeves/api/routers/briefing.py` | ✅ |
+| Briefing Service | `src/jeeves/api/services/briefing_service.py` | ✅ |
+| CLI Command | `scapin serve` | ✅ |
+| Tests | 20 tests | ✅ |
+
+**Commande** : `scapin serve [--host] [--port] [--reload]`
+
+**Endpoints disponibles** :
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | API info |
+| `GET /api/health` | Health check avec status composants |
+| `GET /api/stats` | Statistiques de traitement |
+| `GET /api/config` | Configuration (secrets masqués) |
+| `GET /api/briefing/morning` | Briefing du matin |
+| `GET /api/briefing/meeting/{id}` | Briefing pré-réunion |
+
+**Usage** :
+```bash
+scapin serve                    # Démarrer sur 0.0.0.0:8000
+scapin serve --port 8080        # Port personnalisé
+scapin serve --reload           # Mode dev avec auto-reload
+```
+
+**Documentation** : `http://localhost:8000/docs` (OpenAPI/Swagger)
+
+**Prochaines étapes (optionnelles)** :
+- Routers email, calendar, teams, journal, queue
+- Authentification JWT
+- WebSockets temps réel
+
+### Phases à venir
 
 | Phase | Nom | Priorité | Focus |
 |-------|-----|----------|-------|
-| **1.4** | Système de Briefing | 🟠 MOYENNE-HAUTE | Matin, pré-réunion |
+| **0.8** | Interface Web (SvelteKit) | 🟡 MOYENNE | Dashboard web |
+| **0.9** | PWA Mobile | 🟢 BASSE | App mobile |
 
 ### Suite des Tests
 
-**Global** : 1250 tests, 95% couverture, 99.9% pass rate
+**Global** : 1396 tests, 95% couverture, 99.9% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Unit tests | 1187 | ✅ |
-| Integration tests | 63 | ✅ |
+| Unit tests | 1278 | ✅ |
+| Integration tests | 65 | ✅ |
 | Skipped | 53 | ⏭️ |
 
 ### Qualité du Code
@@ -275,6 +331,16 @@ src/figaro/actions/calendar.py                     # Actions create/respond/bloc
 src/jeeves/cli.py                     # Commandes Typer
 src/jeeves/display_manager.py         # Rendu Rich
 src/jeeves/menu.py                    # Menus interactifs
+```
+
+**API REST** (Jeeves) :
+```
+src/jeeves/api/app.py                 # FastAPI application factory
+src/jeeves/api/deps.py                # Dependency injection
+src/jeeves/api/models/responses.py    # Pydantic response models
+src/jeeves/api/routers/system.py      # /api/health, /api/stats, /api/config
+src/jeeves/api/routers/briefing.py    # /api/briefing/* endpoints
+src/jeeves/api/services/briefing_service.py  # Async briefing service
 ```
 
 **AI** (Sancho) :
@@ -344,13 +410,13 @@ LOG_FILE=./logs/scapin.log
 
 | Phase | Focus | Priorité |
 |-------|-------|----------|
-| **1.4** | Système de Briefing | 🔴 HAUTE |
+| **1.4** | Système de Briefing | ✅ COMPLÉTÉ |
+| **0.7** | API Jeeves (FastAPI) | ✅ MVP COMPLÉTÉ |
 
 ### Phases Ultérieures
 
 | Phase | Focus |
 |-------|-------|
-| **0.7** | API Jeeves (FastAPI) |
 | **0.8** | Interface Web (SvelteKit) |
 | **0.9** | PWA Mobile |
 | **2.5** | Multi-Provider IA (consensus) |
@@ -358,6 +424,82 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-03 (Suite 4) — Phase 0.7 API MVP Complété
+
+**Focus** : API REST FastAPI pour exposer les fonctionnalités Scapin
+
+**Accomplissements** :
+1. ✅ `src/jeeves/api/` — Structure complète du module API
+2. ✅ `src/jeeves/api/app.py` — FastAPI app factory avec CORS, exception handling (~100 lignes)
+3. ✅ `src/jeeves/api/models/responses.py` — Modèles Pydantic génériques APIResponse, BriefingResponse, etc. (~180 lignes)
+4. ✅ `src/jeeves/api/models/common.py` — PaginationParams, ErrorDetail (~30 lignes)
+5. ✅ `src/jeeves/api/deps.py` — Dependency injection avec lru_cache (~25 lignes)
+6. ✅ `src/jeeves/api/routers/system.py` — Endpoints health, stats, config (~200 lignes)
+7. ✅ `src/jeeves/api/routers/briefing.py` — Endpoints morning, meeting (~140 lignes)
+8. ✅ `src/jeeves/api/services/briefing_service.py` — Service async wrapper (~80 lignes)
+9. ✅ Commande CLI `scapin serve` ajoutée (~40 lignes)
+10. ✅ `pyproject.toml` — Dépendances FastAPI, uvicorn, python-jose
+11. ✅ 20 tests unitaires (system, briefing endpoints)
+12. ✅ Tous les tests passent (1396 tests, +20)
+13. ✅ Ruff 0 warnings
+14. ✅ Documentation mise à jour
+
+**Architecture API** :
+```
+Client HTTP → FastAPI App
+              ↓
+         Routers (system, briefing)
+              ↓
+         Services (async wrappers)
+              ↓
+         Existing: Generators, Processors
+              ↓
+         Response Models → JSON
+```
+
+**Endpoints** :
+- `GET /` — API info
+- `GET /api/health` — Health check avec composants
+- `GET /api/stats` — Statistiques
+- `GET /api/config` — Configuration (secrets masqués)
+- `GET /api/briefing/morning` — Briefing matinal
+- `GET /api/briefing/meeting/{id}` — Briefing pré-réunion
+
+**Commande** : `scapin serve [--host 0.0.0.0] [--port 8000] [--reload]`
+
+---
+
+### Session 2026-01-03 (Suite 3) — Phase 1.4 Complétée
+
+**Focus** : Système de Briefing intelligent (morning + pre-meeting)
+
+**Accomplissements** :
+1. ✅ `src/core/config_manager.py` — Ajout BriefingConfig
+2. ✅ `src/jeeves/briefing/models.py` — BriefingItem, MorningBriefing, AttendeeContext, PreMeetingBriefing (~400 lignes)
+3. ✅ `src/jeeves/briefing/generator.py` — BriefingGenerator avec BriefingDataProvider protocol (~450 lignes)
+4. ✅ `src/jeeves/briefing/display.py` — BriefingDisplay Rich multi-couches (~400 lignes)
+5. ✅ `src/jeeves/briefing/__init__.py` — Exports module
+6. ✅ Commande CLI `scapin briefing` ajoutée (~80 lignes)
+7. ✅ 58 tests unitaires (models, generator, display)
+8. ✅ Tous les tests passent (1308 tests, +58)
+9. ✅ Ruff 0 warnings
+10. ✅ Documentation mise à jour
+
+**Architecture briefing** :
+```
+Sources (Email/Teams/Calendar) → PerceivedEvent normalisé
+          ↓
+BriefingGenerator.generate_morning_briefing()
+          ↓
+MorningBriefing { urgent_items, calendar_today, emails_pending, teams_unread }
+          ↓
+BriefingDisplay.render_morning_briefing() → Rich multi-couches
+```
+
+**Commande** : `scapin briefing --morning` ou `scapin briefing --meeting <event_id>`
+
+---
 
 ### Session 2026-01-03 (Suite 2) — Revue Code Calendar
 
@@ -606,6 +748,10 @@ python scapin.py process --preview
 
 # Révision interactive
 python scapin.py review
+
+# Démarrer API server
+python scapin.py serve --reload
+# → http://localhost:8000/docs
 ```
 
 ---
@@ -689,18 +835,19 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Phase 1.4 — Système de Briefing
+### Phase 0.8 — Interface Web (SvelteKit)
 
-Phase 1.3 (Intégration Calendrier) est **complétée** ✅. Prochaine priorité :
+Phases 1.4 (Briefing) et 0.7 (API MVP) sont **complétées** ✅. Prochaines priorités :
 
-1. Morning briefing — Synthèse emails + calendar du jour
-2. Pre-meeting briefing — Contexte réunion (attendees, historique, docs)
-3. Rappels intelligents basés sur urgence et proximité temporelle
-4. Integration dans le journal quotidien
+1. Dashboard SvelteKit — Affichage briefings, emails, calendar
+2. Connexion API — Utilisation des endpoints REST existants
+3. Interface responsive — Desktop et mobile
 
-### Alternatives
+### Extensions API (optionnel)
 
-- **Phase 0.7** : API Jeeves (FastAPI) — Si besoin d'interface web
+- Routers email, calendar, teams, journal, queue
+- Authentification JWT
+- WebSockets temps réel
 
 ---
 

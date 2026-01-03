@@ -363,10 +363,7 @@ def journal(
             )
 
         # Output
-        if output_format == "json":
-            output_content = entry.to_json()
-        else:
-            output_content = entry.to_markdown()
+        output_content = entry.to_json() if output_format == "json" else entry.to_markdown()
 
         if output:
             output_path = Path(output)
@@ -425,11 +422,10 @@ def teams(
         border_style="blue"
     ))
 
-    # Parse since datetime if provided
-    since_dt: Optional[datetime] = None
+    # Parse since datetime if provided (validates format, TODO: pass to processor)
     if since:
         try:
-            since_dt = datetime.fromisoformat(since)
+            datetime.fromisoformat(since)  # Validate format
         except ValueError:
             console.print(f"[red]Invalid datetime format: {since}[/red]")
             console.print("[dim]Expected format: YYYY-MM-DDTHH:MM:SS[/dim]")
@@ -598,7 +594,9 @@ def calendar(
                             time_str = "--:--"
 
                     # Format duration
-                    if duration >= 60:
+                    if duration <= 0:
+                        dur_str = "-"
+                    elif duration >= 60:
                         dur_str = f"{duration // 60}h{duration % 60:02d}m"
                     else:
                         dur_str = f"{duration}m"
@@ -1223,6 +1221,170 @@ def settings(
         console.print(f"[red]✗ Settings error: {e}[/red]")
         logger = get_logger("cli")
         logger.error(f"Settings command failed: {e}", exc_info=True)
+        raise typer.Exit(1) from None
+
+
+@app.command()
+def briefing(
+    morning: bool = typer.Option(False, "--morning", "-m", help="Generate morning briefing"),
+    meeting: Optional[str] = typer.Option(None, "--meeting", "-M", help="Pre-meeting briefing for event ID"),
+    hours: int = typer.Option(24, "--hours", "-H", help="Hours ahead for calendar events"),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Save briefing to file (markdown)"),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Show only overview (no details)"),
+):
+    """
+    Generate intelligent briefings
+
+    Morning briefing: Synthesizes calendar, emails, and Teams for the day.
+    Pre-meeting briefing: Provides context for an upcoming meeting.
+
+    Examples:
+        scapin briefing --morning
+        scapin briefing --morning --hours 48
+        scapin briefing --meeting "event123"
+        scapin briefing --morning --output today.md
+    """
+    import asyncio
+    from pathlib import Path
+
+    from src.core.config_manager import get_config
+    from src.jeeves.briefing import BriefingDisplay, BriefingGenerator
+
+    config = get_config()
+
+    if not config.briefing.enabled:
+        console.print("[red]Briefing system is not enabled[/red]")
+        console.print("\n[yellow]To enable briefing system:[/yellow]")
+        console.print("  Add to your .env file:")
+        console.print("     BRIEFING__ENABLED=true")
+        raise typer.Exit(1)
+
+    generator = BriefingGenerator(config=config.briefing)
+    display = BriefingDisplay(console)
+
+    try:
+        if morning or (not meeting):
+            # Morning briefing (default if no option provided)
+            console.print(Panel.fit(
+                "[bold cyan]Morning Briefing[/bold cyan]",
+                border_style="cyan"
+            ))
+
+            # Override hours if provided
+            if hours != 24:
+                generator.config = config.briefing.model_copy(
+                    update={"morning_hours_ahead": hours}
+                )
+
+            async def generate_morning():
+                return await generator.generate_morning_briefing()
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task(description="Generating briefing...", total=None)
+                briefing_result = asyncio.run(generate_morning())
+
+            # Display
+            display.render_morning_briefing(
+                briefing_result,
+                show_details=not quiet,
+            )
+
+            # Save to file if requested
+            if output:
+                output_path = Path(output)
+                output_path.write_text(briefing_result.to_markdown())
+                console.print(f"\n[dim]Saved to {output}[/dim]")
+
+        elif meeting:
+            # Pre-meeting briefing
+            console.print(Panel.fit(
+                "[bold cyan]Pre-Meeting Briefing[/bold cyan]",
+                border_style="cyan"
+            ))
+
+            from src.trivelin.calendar_processor import CalendarProcessor
+
+            async def generate_pre_meeting():
+                processor = CalendarProcessor()
+                event = await processor.get_event(meeting)
+                return await generator.generate_pre_meeting_briefing(event)
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=True,
+            ) as progress:
+                progress.add_task(description="Fetching meeting context...", total=None)
+                briefing_result = asyncio.run(generate_pre_meeting())
+
+            # Display
+            display.render_pre_meeting_briefing(
+                briefing_result,
+                show_details=not quiet,
+            )
+
+            # Save to file if requested
+            if output:
+                output_path = Path(output)
+                output_path.write_text(briefing_result.to_markdown())
+                console.print(f"\n[dim]Saved to {output}[/dim]")
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted[/yellow]")
+        raise typer.Exit(130) from None
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        logger = get_logger("cli")
+        logger.error(f"Briefing command failed: {e}", exc_info=True)
+        raise typer.Exit(1) from None
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0", "--host", "-H", help="API host"),
+    port: int = typer.Option(8000, "--port", "-p", help="API port"),
+    reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload for development"),
+):
+    """
+    Start the Scapin API server
+
+    Launches a FastAPI server exposing all Scapin functionality via REST API.
+
+    Examples:
+        scapin serve                    # Start on default port 8000
+        scapin serve --port 8080        # Start on custom port
+        scapin serve --reload           # Development mode with auto-reload
+    """
+    try:
+        import uvicorn
+    except ImportError:
+        console.print("[red]FastAPI/Uvicorn not installed[/red]")
+        console.print("Install with: [cyan]pip install fastapi uvicorn[/cyan]")
+        raise typer.Exit(1) from None
+
+    console.print(Panel.fit(
+        f"[bold green]Starting Scapin API[/bold green]\n\n"
+        f"Host: [cyan]{host}:{port}[/cyan]\n"
+        f"Docs: [cyan]http://{host}:{port}/docs[/cyan]\n"
+        f"Health: [cyan]http://{host}:{port}/api/health[/cyan]",
+        border_style="green"
+    ))
+
+    try:
+        uvicorn.run(
+            "src.jeeves.api.app:app",
+            host=host,
+            port=port,
+            reload=reload,
+        )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Server error: {e}[/red]")
         raise typer.Exit(1) from None
 
 

@@ -539,6 +539,80 @@ class CalendarConfig(BaseModel):
         return self
 
 
+class BriefingConfig(BaseModel):
+    """
+    Configuration for the intelligent briefing system
+
+    Controls how briefings are generated from multiple sources (Email, Calendar, Teams).
+    Supports morning briefings and pre-meeting briefings with contextual information.
+    """
+
+    enabled: bool = Field(
+        True,
+        description="Enable briefing system"
+    )
+
+    # Morning briefing settings
+    morning_hours_behind: int = Field(
+        12,
+        ge=1,
+        le=48,
+        description="Hours behind to look for emails/teams messages"
+    )
+    morning_hours_ahead: int = Field(
+        24,
+        ge=1,
+        le=72,
+        description="Hours ahead to look for calendar events"
+    )
+
+    # Pre-meeting briefing settings
+    pre_meeting_minutes_before: int = Field(
+        15,
+        ge=5,
+        le=60,
+        description="Minutes before meeting to generate pre-meeting briefing"
+    )
+    pre_meeting_context_days: int = Field(
+        7,
+        ge=1,
+        le=30,
+        description="Days of context to fetch for attendee communications"
+    )
+
+    # Display settings
+    max_urgent_items: int = Field(
+        5,
+        ge=1,
+        le=20,
+        description="Maximum urgent items to show in briefing"
+    )
+    max_standard_items: int = Field(
+        10,
+        ge=1,
+        le=50,
+        description="Maximum standard items per category"
+    )
+    show_confidence: bool = Field(
+        True,
+        description="Show confidence scores and AI summaries"
+    )
+
+    # Source toggles
+    include_emails: bool = Field(
+        True,
+        description="Include emails in briefings"
+    )
+    include_calendar: bool = Field(
+        True,
+        description="Include calendar events in briefings"
+    )
+    include_teams: bool = Field(
+        True,
+        description="Include Teams messages in briefings"
+    )
+
+
 class PKMConfig(BaseSettings):
     """
     Configuration principale PKM
@@ -569,6 +643,7 @@ class PKMConfig(BaseSettings):
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     teams: TeamsConfig = Field(default_factory=TeamsConfig)
     calendar: CalendarConfig = Field(default_factory=CalendarConfig)
+    briefing: BriefingConfig = Field(default_factory=BriefingConfig)
 
 
 class ConfigManager:
