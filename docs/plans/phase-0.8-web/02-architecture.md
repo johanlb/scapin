@@ -598,4 +598,96 @@ web/
 
 ---
 
+## Déploiement
+
+### Architecture de Production
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              PRODUCTION                                      │
+│                                                                              │
+│  ┌─────────────────────────────────┐    ┌─────────────────────────────────┐ │
+│  │   FRONTEND (Static)             │    │   BACKEND (API)                 │ │
+│  │                                 │    │                                 │ │
+│  │   Vercel / Cloudflare Pages     │    │   Mac local ou VPS              │ │
+│  │                                 │    │                                 │ │
+│  │   • SvelteKit SSG/SSR           │───▶│   • FastAPI :8000               │ │
+│  │   • CDN global                  │    │   • WebSocket /ws/*             │ │
+│  │   • HTTPS automatique           │    │   • SQLite + fichiers           │ │
+│  │                                 │    │                                 │ │
+│  └─────────────────────────────────┘    └─────────────────────────────────┘ │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │                           CLIENTS                                        ││
+│  │                                                                          ││
+│  │   Safari Mac          Safari iPhone         Chrome (fallback)           ││
+│  │   (PWA optionnel)     (Add to Home Screen)                              ││
+│  │                                                                          ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Configuration Déploiement
+
+**Frontend (Vercel)** :
+```bash
+# vercel.json
+{
+  "framework": "sveltekit",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".svelte-kit/output"
+}
+```
+
+**Backend** :
+```bash
+# Lancement local
+scapin serve --host 0.0.0.0 --port 8000
+
+# Ou via systemd sur VPS
+# /etc/systemd/system/scapin-api.service
+```
+
+### Variables d'Environnement
+
+| Variable | Frontend | Backend | Description |
+|----------|----------|---------|-------------|
+| `PUBLIC_API_URL` | ✓ | — | URL de l'API backend |
+| `PUBLIC_WS_URL` | ✓ | — | URL WebSocket |
+| `JWT_SECRET` | — | ✓ | Secret pour tokens JWT |
+| `ANTHROPIC_API_KEY` | — | ✓ | Clé API Claude |
+
+---
+
+## Évolution vers Capacitor (Optionnel)
+
+Si les limitations PWA deviennent gênantes (push notifications, background refresh), on peut ajouter Capacitor :
+
+```
+web/
+├── src/                    # Code SvelteKit (inchangé)
+├── capacitor.config.ts     # Config Capacitor
+├── ios/                    # Projet Xcode généré
+│   └── App/
+└── package.json            # + @capacitor/core, @capacitor/ios
+```
+
+**Plugins Capacitor utiles** :
+- `@capacitor/push-notifications` — Notifications push
+- `@capacitor/haptics` — Retour haptique natif
+- `@capacitor/app` — Lifecycle, deep links
+- `@capacitor/splash-screen` — Splash screen natif
+
+**Commandes** :
+```bash
+npx cap init                 # Initialiser Capacitor
+npx cap add ios              # Ajouter plateforme iOS
+npx cap sync                 # Sync après build web
+npx cap open ios             # Ouvrir dans Xcode
+```
+
+> **Note** : Cette évolution est optionnelle. On commence en PWA pur et on évalue après quelques semaines d'usage.
+
+---
+
 [< Vision](./01-vision.md) | [Suivant : Design System >](./03-design-system.md)

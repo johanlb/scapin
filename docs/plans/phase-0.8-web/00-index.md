@@ -59,16 +59,52 @@ Ce plan décrit l'implémentation d'une interface web **event-centric** pour Sca
 
 ---
 
-## Stack Technique
+## Décisions Techniques
+
+### Type d'Application
+
+| Décision | Choix | Raison |
+|----------|-------|--------|
+| **Approche** | Web PWA | Développement rapide, une seule codebase |
+| **Évolution** | → Capacitor (si besoin) | Accès APIs natives iOS si limitations PWA |
+| **Usage** | Personnel | Pas de distribution App Store |
+| **Design** | Mobile-first | Usage régulier sur iPhone |
+
+### Stack
 
 | Couche | Technologie | Rôle |
 |--------|-------------|------|
-| **Frontend** | SvelteKit | Framework web avec SSR |
-| **Styling** | TailwindCSS | Utility-first CSS |
+| **Frontend** | SvelteKit 2.x | Framework web avec SSR |
+| **Styling** | TailwindCSS 4.x | Utility-first CSS |
 | **Types** | TypeScript | Typage strict |
+| **Animations** | svelte-motion | Spring physics Apple-style |
 | **Backend** | FastAPI | API REST (existant Phase 0.7) |
 | **Temps réel** | WebSocket | Chat et notifications |
 | **Auth** | JWT | Authentification stateless |
+
+### Déploiement
+
+| Composant | Hébergement | Notes |
+|-----------|-------------|-------|
+| **Frontend** | Vercel ou Cloudflare Pages | Gratuit, CDN global |
+| **Backend** | Mac local ou VPS | Scapin tourne en continu |
+| **Base de données** | SQLite + fichiers locaux | Simplicité, pas de serveur DB |
+
+### Stratégie PWA → Capacitor
+
+```
+Phase 1 : PWA (maintenant)
+├── Fonctionne dans Safari (Mac + iPhone)
+├── Add to Home Screen sur iOS
+├── Service Worker pour cache offline
+└── Si limitations gênantes...
+         ↓
+Phase 2 : + Capacitor (optionnel)
+├── Wrapper natif iOS
+├── Push notifications fiables
+├── Background refresh
+└── TestFlight pour distribution perso
+```
 
 ---
 
@@ -92,4 +128,4 @@ Ce plan décrit l'implémentation d'une interface web **event-centric** pour Sca
 
 ---
 
-*Dernière mise à jour : 4 janvier 2026*
+*Dernière mise à jour : 4 janvier 2026 — Décisions techniques finalisées*
