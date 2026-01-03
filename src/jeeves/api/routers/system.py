@@ -34,6 +34,7 @@ async def health_check() -> APIResponse[HealthResponse]:
     """
     checks: list[HealthCheckResult] = []
     overall_status = "healthy"
+    config = None
 
     # Check configuration
     try:
@@ -55,72 +56,73 @@ async def health_check() -> APIResponse[HealthResponse]:
         )
         overall_status = "unhealthy"
 
-    # Check email accounts
-    try:
-        enabled_accounts = config.email.get_enabled_accounts()
-        if enabled_accounts:
+    # Check email accounts (only if config loaded)
+    if config is not None:
+        try:
+            enabled_accounts = config.email.get_enabled_accounts()
+            if enabled_accounts:
+                checks.append(
+                    HealthCheckResult(
+                        name="email",
+                        status="ok",
+                        message=f"{len(enabled_accounts)} account(s) configured",
+                    )
+                )
+            else:
+                checks.append(
+                    HealthCheckResult(
+                        name="email",
+                        status="warning",
+                        message="No email accounts enabled",
+                    )
+                )
+                if overall_status == "healthy":
+                    overall_status = "degraded"
+        except Exception as e:
             checks.append(
                 HealthCheckResult(
                     name="email",
+                    status="error",
+                    message=str(e),
+                )
+            )
+            overall_status = "unhealthy"
+
+        # Check Teams integration
+        if config.teams.enabled:
+            checks.append(
+                HealthCheckResult(
+                    name="teams",
                     status="ok",
-                    message=f"{len(enabled_accounts)} account(s) configured",
+                    message="Teams integration enabled",
                 )
             )
         else:
             checks.append(
                 HealthCheckResult(
-                    name="email",
+                    name="teams",
                     status="warning",
-                    message="No email accounts enabled",
+                    message="Teams integration disabled",
                 )
             )
-            if overall_status == "healthy":
-                overall_status = "degraded"
-    except Exception as e:
-        checks.append(
-            HealthCheckResult(
-                name="email",
-                status="error",
-                message=str(e),
-            )
-        )
-        overall_status = "unhealthy"
 
-    # Check Teams integration
-    if config.teams.enabled:
-        checks.append(
-            HealthCheckResult(
-                name="teams",
-                status="ok",
-                message="Teams integration enabled",
+        # Check Calendar integration
+        if config.calendar.enabled:
+            checks.append(
+                HealthCheckResult(
+                    name="calendar",
+                    status="ok",
+                    message="Calendar integration enabled",
+                )
             )
-        )
-    else:
-        checks.append(
-            HealthCheckResult(
-                name="teams",
-                status="warning",
-                message="Teams integration disabled",
+        else:
+            checks.append(
+                HealthCheckResult(
+                    name="calendar",
+                    status="warning",
+                    message="Calendar integration disabled",
+                )
             )
-        )
-
-    # Check Calendar integration
-    if config.calendar.enabled:
-        checks.append(
-            HealthCheckResult(
-                name="calendar",
-                status="ok",
-                message="Calendar integration enabled",
-            )
-        )
-    else:
-        checks.append(
-            HealthCheckResult(
-                name="calendar",
-                status="warning",
-                message="Calendar integration disabled",
-            )
-        )
 
     uptime = time.time() - _start_time
 
