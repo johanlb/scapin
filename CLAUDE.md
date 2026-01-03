@@ -274,13 +274,13 @@ scapin serve --reload           # Mode dev avec auto-reload
 
 ### Suite des Tests
 
-**Global** : 1396 tests, 95% couverture, 99.9% pass rate
+**Global** : 1350+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Unit tests | 1278 | ✅ |
+| Unit tests | 1288 | ✅ |
 | Integration tests | 65 | ✅ |
-| Skipped | 53 | ⏭️ |
+| Skipped | 44 | ⏭️ |
 
 ### Qualité du Code
 
@@ -424,6 +424,32 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-03 (Suite 5) — Revue de Code Approfondie
+
+**Focus** : Revue de code complète des phases 1.0-1.4 et 0.7
+
+**Résultats** :
+- ✅ **Ruff** : 0 warnings
+- ✅ **Tests** : 1288 unit tests passent, 44 skippés
+- ✅ **Phases révisées** : 1.0, 1.1, 1.2, 1.3, 1.4, 0.7
+
+**Corrections appliquées** :
+1. ✅ `responses.py:27` — `datetime.now()` → `datetime.now(timezone.utc)`
+2. ✅ `briefing_service.py` — Suppression code mort (isinstance check jamais faux)
+3. ✅ `briefing_service.py` — Suppression import inutilisé `PerceivedEvent`
+
+**Fichiers révisés (tous propres)** :
+- Phase 1.0 : `cognitive_pipeline.py`, `action_factory.py`
+- Phase 1.1 : `journal/models.py`, `generator.py`, `interactive.py`, `feedback.py`
+- Phase 1.2 : `teams_client.py`, `teams_normalizer.py`, `teams_processor.py`, `teams.py`
+- Phase 1.3 : `calendar_models.py`, `calendar_normalizer.py`, `calendar_processor.py`, `calendar.py`
+- Phase 1.4 : `briefing/models.py`, `generator.py`, `display.py`
+- Phase 0.7 : `api/app.py`, `deps.py`, `responses.py`, `system.py`, `briefing.py`
+
+**Conclusion** : Code production-ready avec utilisation cohérente de `now_utc()`, bonne gestion d'erreurs, séparation des responsabilités, et documentation complète.
+
+---
 
 ### Session 2026-01-03 (Suite 4) — Phase 0.7 API MVP Complété
 
