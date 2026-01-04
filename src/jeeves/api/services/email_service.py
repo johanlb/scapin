@@ -225,10 +225,11 @@ class EmailService:
                         to_folder=dest,
                     )
                 elif action == "delete":
+                    dest = destination or self._config.email.delete_folder or "Trash"
                     return imap_client.move_email(
                         msg_id=email_id,
                         from_folder="INBOX",
-                        to_folder=self._config.email.delete_folder,
+                        to_folder=dest,
                     )
                 elif action == "task":
                     # Task creation is not yet implemented
