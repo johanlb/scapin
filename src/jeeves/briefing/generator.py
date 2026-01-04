@@ -91,18 +91,18 @@ class DefaultBriefingDataProvider:
     async def get_emails_since(
         self,
         since: datetime,
-        _limit: int = 50,
+        limit: int = 50,  # noqa: ARG002
     ) -> list[PerceivedEvent]:
         """Get emails received since the given datetime"""
         # TODO: Implement when EmailProcessor supports this query
         # For now, return empty list
-        logger.debug(f"get_emails_since({since}) - not yet implemented")
+        logger.debug(f"get_emails_since({since}, limit={limit}) - not yet implemented")
         return []
 
     async def get_calendar_events(
         self,
         hours_ahead: int,
-        _include_in_progress: bool = True,
+        include_in_progress: bool = True,  # noqa: ARG002
     ) -> list[PerceivedEvent]:
         """Get upcoming calendar events using CalendarProcessor"""
         try:
@@ -119,32 +119,32 @@ class DefaultBriefingDataProvider:
     async def get_teams_messages(
         self,
         since: datetime,
-        _limit: int = 50,
+        limit: int = 50,  # noqa: ARG002
     ) -> list[PerceivedEvent]:
         """Get Teams messages since the given datetime"""
         # TODO: Implement when TeamsProcessor supports this query
         # For now, return empty list
-        logger.debug(f"get_teams_messages({since}) - not yet implemented")
+        logger.debug(f"get_teams_messages({since}, limit={limit}) - not yet implemented")
         return []
 
     async def get_emails_with_people(
         self,
         emails: list[str],
-        _days: int = 7,
+        days: int = 7,  # noqa: ARG002
     ) -> list[PerceivedEvent]:
         """Get emails involving specific people"""
         # TODO: Implement when EmailProcessor supports this query
-        logger.debug(f"get_emails_with_people({emails}) - not yet implemented")
+        logger.debug(f"get_emails_with_people({emails}, days={days}) - not yet implemented")
         return []
 
     async def get_teams_with_people(
         self,
         emails: list[str],
-        _days: int = 7,
+        days: int = 7,  # noqa: ARG002
     ) -> list[PerceivedEvent]:
         """Get Teams messages involving specific people"""
         # TODO: Implement when TeamsProcessor supports this query
-        logger.debug(f"get_teams_with_people({emails}) - not yet implemented")
+        logger.debug(f"get_teams_with_people({emails}, days={days}) - not yet implemented")
         return []
 
 
