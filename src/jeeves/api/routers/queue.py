@@ -50,7 +50,7 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
         account_id=item.get("account_id"),
         queued_at=_parse_datetime(item.get("queued_at")) or datetime.now(timezone.utc),
         metadata=QueueItemMetadata(
-            id=metadata.get("id", ""),
+            id=str(metadata.get("id", "")),  # IMAP returns int, API expects str
             subject=metadata.get("subject", ""),
             from_address=metadata.get("from_address", ""),
             from_name=metadata.get("from_name", ""),
