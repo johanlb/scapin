@@ -299,20 +299,34 @@ cd web && npm run build   # Build production
 cd web && npm run check   # Vérifier les types
 ```
 
+### Phase 0.9 : PWA Mobile ✅
+
+**Statut** : COMPLÉTÉ (4 janvier 2026)
+
+| Composant | Fichier | État |
+|-----------|---------|------|
+| Service Worker v0.9.0 | `web/static/sw.js` | ✅ |
+| Notifications Store | `web/src/lib/stores/notifications.svelte.ts` | ✅ |
+| Icônes PNG | `web/static/icons/` | ✅ |
+| Manifest étendu | `web/static/manifest.json` | ✅ |
+| Page Share | `web/src/routes/share/+page.svelte` | ✅ |
+| Page Handle | `web/src/routes/handle/+page.svelte` | ✅ |
+
 ### Phases à venir
 
 | Phase | Nom | Priorité | Focus |
 |-------|-----|----------|-------|
-| **0.9** | PWA Mobile | 🟢 BASSE | App mobile |
+| **1.6** | Journaling Complet | 🟡 MOYENNE | Multi-source |
+| **2.5** | IA Multi-Provider | 🟢 BASSE | Consensus |
 
 ### Suite des Tests
 
-**Global** : 1377 tests, 95% couverture, 100% pass rate
+**Global** : 1385+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Unit tests | 1366 | ✅ |
-| Integration tests | 64 | ✅ |
+| Backend tests | 1376 | ✅ |
+| Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
 ### Qualité du Code
@@ -457,6 +471,44 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-04 (Suite 5) — Phase 0.9 PWA Mobile COMPLET
+
+**Focus** : Progressive Web App avec Service Worker, Notifications, Deeplinks
+
+**Accomplissements** :
+
+1. ✅ **Service Worker v0.9.0** (`web/static/sw.js`)
+   - Caching intelligent : network-first pour API, cache-first pour static
+   - Stale-while-revalidate pour mises à jour en arrière-plan
+   - Background sync support
+   - Push notification handlers avec urgence
+
+2. ✅ **Push Notifications** (`web/src/lib/stores/notifications.svelte.ts`)
+   - Demande de permission utilisateur
+   - Notifications via Service Worker
+   - Écoute des événements WebSocket pour triggering
+   - Intégration dans Settings
+
+3. ✅ **Icônes PWA** (`web/static/icons/`)
+   - icon-192.png, icon-512.png (gradient bleu-violet avec "S")
+   - apple-touch-icon.png (180x180)
+   - favicon-16.png, favicon-32.png, favicon.ico
+
+4. ✅ **Manifest étendu** (`web/static/manifest.json`)
+   - 4 shortcuts (Briefing, Courrier, Notes, Journal)
+   - share_target pour recevoir du contenu partagé
+   - protocol_handlers pour `web+scapin://`
+   - launch_handler pour navigation existante
+
+5. ✅ **Deeplinks** (`web/src/routes/share/`, `web/src/routes/handle/`)
+   - Page /share pour recevoir contenu partagé
+   - Page /handle pour routing protocole web+scapin://
+   - Navigation intelligente vers sections pertinentes
+
+**Tests** : 1385+ tests (1376 backend + 8 frontend), svelte-check 0 errors
+
+---
 
 ### Session 2026-01-04 (Suite 4) — Corrections et Validation Phase 0.8
 
@@ -1178,14 +1230,12 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Phase 0.9 — PWA Mobile
+### Phases Avancées
 
-La Phase 0.8 est complète avec l'interface web, auth JWT et WebSockets. Prochaines étapes :
+Les Phases 0.8 (Web) et 0.9 (PWA Mobile) sont complètes. Prochaines étapes possibles :
 
-1. **Service Worker avancé** — Cache offline, background sync
-2. **Push Notifications** — Notifications système via WebSocket events
-3. **App Icons** — Génération de tous les formats (Android, iOS)
-4. **Deeplinks** — Ouvrir l'app depuis des liens emails
+1. **Phase 1.6** — Journaling Complet multi-source
+2. **Phase 2.5** — IA Multi-Provider avec consensus
 
 ### Extensions optionnelles
 

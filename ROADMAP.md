@@ -1,8 +1,8 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 3 janvier 2026
-**Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Phase 0.7 API Jeeves ✅ → Phase 0.8 Interface Web
+**Dernière mise à jour** : 4 janvier 2026
+**Version** : 0.9.0-alpha (suite de PKM v3.1.0)
+**Phase actuelle** : Phase 0.9 PWA Mobile ✅ → Phases avancées
 
 ---
 
@@ -10,11 +10,11 @@
 
 ### Statut Global
 
-**État** : ✅ **Phases Fonctionnelles Complètes** — Prêt pour interfaces (Web/Mobile)
+**État** : ✅ **Interfaces Complètes** — Web + PWA Mobile prêts
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1350+ tests (1288 unit + 65 integration), 95% couverture, 100% pass rate |
+| **Tests** | 1385+ tests (1376 backend + 8 frontend), 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 | **Identité précédente** | PKM System (archivé) |
@@ -32,15 +32,14 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 📖 *Document fondateur : [DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md) — Principes philosophiques et théoriques*
 
-### Dernières Étapes (3 janvier 2026)
+### Dernières Étapes (4 janvier 2026)
 
-- ✅ **Phase 1.2 Intégration Teams** — Client Graph API, normalizer, processor, actions (116 tests)
-- ✅ **Phase 1.3 Intégration Calendrier** — Client Calendar, normalizer, processor, actions (92 tests)
-- ✅ **Phase 1.4 Système de Briefing** — Generator, display multi-couches, CLI (58 tests)
+- ✅ **Phase 0.8 Interface Web** — SvelteKit + TailwindCSS v4, design Liquid Glass, auth JWT, WebSockets
+- ✅ **Phase 0.9 PWA Mobile** — Service Worker, Push Notifications, Deeplinks, Share Target
 - ✅ **Phase 0.7 API Jeeves MVP** — FastAPI, endpoints system/briefing, services async (20 tests)
-- ✅ **Refactoring PKM → Scapin** — Renommage classes (ScapinLogger, ScapinConfig, ScapinError)
-- ✅ Suite de tests complète — 1350+ tests passent (1288 unit + 65 integration)
-- ✅ Qualité code — Ruff 0 warnings
+- ✅ **Phase 1.4 Système de Briefing** — Generator, display multi-couches, CLI (58 tests)
+- ✅ Suite de tests complète — 1385+ tests passent (1376 backend + 8 frontend)
+- ✅ Qualité code — Ruff 0 warnings, svelte-check 0 warnings
 
 ---
 
@@ -1250,13 +1249,22 @@ Critères d'acceptation :
 - Authentification JWT
 - WebSockets temps réel
 
-### Phase 0.8 : Interface Web (SvelteKit)
+### Phase 0.8 : Interface Web (SvelteKit) ✅
 
 **Dépendance** : Phase 0.7
-**Durée estimée** : 6-8 semaines
-**Statut** : 📋 Planifié
+**Durée** : 3-4 janvier 2026
+**Statut** : ✅ COMPLÉTÉ
 
 📖 **Plan détaillé** : [`docs/plans/phase-0.8-web/`](docs/plans/phase-0.8-web/00-index.md)
+
+**Livrables** :
+- [x] SvelteKit + TailwindCSS v4 + Svelte 5 runes
+- [x] Design system Liquid Glass (Apple WWDC 2025)
+- [x] 7 pages : Briefing, Flux, Notes, Discussions, Journal, Stats, Settings
+- [x] Authentification JWT avec PIN mobile
+- [x] WebSockets temps réel pour événements
+- [x] Gestes mobiles : pull-to-refresh, swipe cards
+- [x] Recherche globale Cmd+K
 
 Le plan complet est découpé en 10 documents :
 - `00-index.md` — Vue d'ensemble et navigation
@@ -1279,16 +1287,20 @@ Vues principales :
 - `/rapports` — Journaliers, hebdomadaires, mensuels
 - `/settings` — Configuration comptes et seuils IA
 
-### Phase 0.9 : PWA Mobile
+### Phase 0.9 : PWA Mobile ✅
 
 **Dépendance** : Phase 0.8
-**Durée estimée** : 3-4 semaines
+**Durée** : 4 janvier 2026
+**Statut** : ✅ COMPLÉTÉ
 
-Focus sur :
-- Notifications push (briefings)
-- Validation rapide (queue)
-- Journaling simplifié
-- **Deeplinks** : URLs d'action pour intégration OmniFocus, annotations, et outils tiers (ex: `scapin://task/123/complete`)
+**Livrables** :
+- [x] Service Worker v0.9.0 avec caching intelligent (network-first API, cache-first static)
+- [x] Push Notifications via Service Worker avec urgence
+- [x] Icônes PNG générées (192, 512, apple-touch-icon, favicons)
+- [x] Manifest avec shortcuts, share_target, protocol_handlers
+- [x] Deeplinks via `web+scapin://` protocol
+- [x] Share Target pour recevoir du contenu partagé
+- [x] Background sync support
 
 ---
 
@@ -1361,8 +1373,8 @@ Phase 1.4: ████████████████████ 100% ✅
 
 === INTERFACES ===
 Phase 0.7: ████████████████████ 100% ✅ API Jeeves MVP
-Phase 0.8: ░░░░░░░░░░░░░░░░░░░░   0% 📋 UI Web (SvelteKit)
-Phase 0.9: ░░░░░░░░░░░░░░░░░░░░   0% 📋 PWA Mobile
+Phase 0.8: ████████████████████ 100% ✅ UI Web (SvelteKit)
+Phase 0.9: ████████████████████ 100% ✅ PWA Mobile
 
 === AVANCÉ (Futur) ===
 Phase 1.5: ░░░░░░░░░░░░░░░░░░░░   0% 📋 LinkedIn (basse priorité)
@@ -1457,8 +1469,8 @@ Global:            ████████████████░░░░ 
 
 **Focus** : Interfaces utilisateur
 
-1. 🏗️ **Phase 0.8** (UI Web SvelteKit) — ⭐ HAUTE (ACTUEL)
-2. **Phase 0.9** (PWA Mobile) — MOYENNE
+1. ✅ **Phase 0.8** (UI Web SvelteKit) — COMPLÉTÉ
+2. ✅ **Phase 0.9** (PWA Mobile) — COMPLÉTÉ
 
 ### Q3 2026 (Juillet - Septembre)
 
@@ -1564,7 +1576,7 @@ Global:            ████████████████░░░░ 
 
 ---
 
-**Statut** : Phase 0.7 API Jeeves ✅ → Phase 0.8 Interface Web 🏗️
+**Statut** : Phase 0.9 PWA Mobile ✅ — Interfaces complètes
 **Qualité** : 10/10 Production Ready Core 🚀
-**Tests** : 1350+ tests, 95% couverture, 100% pass ✅
-**Prochaine Étape** : Interface Web SvelteKit avec dashboard et briefings
+**Tests** : 1385+ tests, 95% couverture, 100% pass ✅
+**Prochaine Étape** : Phases avancées (Journaling Complet, IA Multi-Provider)

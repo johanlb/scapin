@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { Sidebar, MobileNav, ChatPanel } from '$lib/components/layout';
 	import { CommandPalette } from '$lib/components/ui';
-	import { showCommandPalette, openCommandPalette, closeCommandPalette, authStore, wsStore } from '$lib/stores';
+	import { showCommandPalette, openCommandPalette, closeCommandPalette, authStore, wsStore, notificationStore } from '$lib/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -13,7 +13,7 @@
 	// Check if current route is login page
 	const isLoginPage = $derived($page.url.pathname === '/login');
 
-	// Initialize auth and register service worker
+	// Initialize auth, service worker, and notifications
 	onMount(async () => {
 		// Initialize auth state
 		await authStore.initialize();
@@ -28,6 +28,10 @@
 					console.error('[PWA] Service worker registration failed:', error);
 				});
 		}
+
+		// Initialize notifications and setup event listener
+		await notificationStore.initialize();
+		notificationStore.setupEventListener();
 	});
 
 	// Auth guard: redirect to login if needed
@@ -82,13 +86,8 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 	<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
 	<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-	<meta name="apple-mobile-web-app-capable" content="yes" />
-	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 	<meta name="description" content="Scapin - Votre valet de l'esprit, gardien cognitif personnel" />
-	<!-- PWA -->
 	<link rel="manifest" href="/manifest.json" />
-	<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-	<link rel="apple-touch-icon" href="/icons/icon.svg" />
 	<title>Scapin</title>
 </svelte:head>
 

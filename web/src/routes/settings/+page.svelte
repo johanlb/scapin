@@ -1,9 +1,22 @@
 <script lang="ts">
 	import { Card, Button } from '$lib/components/ui';
+	import { notificationStore } from '$lib/stores';
 
-	let notifications = $state(true);
 	let darkMode = $state('auto');
 	let language = $state('fr');
+	let requestingPermission = $state(false);
+
+	async function toggleNotifications() {
+		if (notificationStore.isGranted) {
+			// Can't programmatically revoke permissions - user must do it in browser settings
+			return;
+		}
+		if (notificationStore.canRequestPermission) {
+			requestingPermission = true;
+			await notificationStore.requestPermission();
+			requestingPermission = false;
+		}
+	}
 
 	interface Integration {
 		id: string;
@@ -102,20 +115,35 @@
 					<div class="min-w-0">
 						<h3 class="font-semibold text-[var(--color-text-primary)]">Notifications push</h3>
 						<p class="text-sm text-[var(--color-text-secondary)]">
-							Recevoir des alertes pour les éléments urgents
+							{#if !notificationStore.isSupported}
+								Non supportées par ce navigateur
+							{:else if notificationStore.isDenied}
+								Refusées - modifiez les paramètres du navigateur
+							{:else if notificationStore.isGranted}
+								Actives pour les éléments urgents
+							{:else}
+								Recevoir des alertes pour les éléments urgents
+							{/if}
 						</p>
 					</div>
-					<button
-						type="button"
-						onclick={() => notifications = !notifications}
-						aria-label={notifications ? 'Désactiver les notifications' : 'Activer les notifications'}
-						aria-pressed={notifications}
-						class="w-14 h-8 rounded-full transition-colors shrink-0 {notifications ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-bg-tertiary)]'}"
-					>
-						<span
-							class="block w-6 h-6 rounded-full bg-white shadow-md transform transition-transform {notifications ? 'translate-x-7' : 'translate-x-1'}"
-						></span>
-					</button>
+					{#if notificationStore.isSupported && !notificationStore.isDenied}
+						<button
+							type="button"
+							onclick={toggleNotifications}
+							disabled={requestingPermission || notificationStore.isGranted}
+							aria-label={notificationStore.isGranted ? 'Notifications activées' : 'Activer les notifications'}
+							aria-pressed={notificationStore.isGranted}
+							class="w-14 h-8 rounded-full transition-colors shrink-0 disabled:opacity-50 {notificationStore.isGranted ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-bg-tertiary)]'}"
+						>
+							<span
+								class="block w-6 h-6 rounded-full bg-white shadow-md transform transition-transform {notificationStore.isGranted ? 'translate-x-7' : 'translate-x-1'}"
+							></span>
+						</button>
+					{:else}
+						<span class="text-sm text-[var(--color-text-tertiary)]">
+							{notificationStore.isDenied ? '🚫' : '⚠️'}
+						</span>
+					{/if}
 				</div>
 			</Card>
 		</section>
@@ -168,7 +196,7 @@
 				<div class="text-center">
 					<h3 class="text-xl font-bold text-[var(--color-text-primary)] mb-1">🎭 Scapin</h3>
 					<p class="text-sm text-[var(--color-text-secondary)] mb-1">Votre valet de l'esprit</p>
-					<p class="text-xs text-[var(--color-text-tertiary)]">Version 0.8.0</p>
+					<p class="text-xs text-[var(--color-text-tertiary)]">Version 0.9.0</p>
 				</div>
 			</Card>
 		</section>
