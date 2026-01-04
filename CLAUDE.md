@@ -532,6 +532,48 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-05 (Suite 9) — Flux Email Complet avec Actions IMAP
+
+**Focus** : Compléter le workflow de revue email avec exécution des actions IMAP et destinations IA
+
+**Accomplissements** :
+
+1. ✅ **Exécution actions IMAP sur approbation** (`queue_service.py`)
+   - `approve_item()` exécute maintenant l'action IMAP (archive/delete/task)
+   - `_execute_email_action()` gère les différents types d'actions
+   - Auto-création des dossiers de destination via `_ensure_folder_exists()`
+
+2. ✅ **Destinations IA utilisées** (flux complet)
+   - Ajout `destination` à `ApproveRequest` model
+   - Passage de la destination du frontend → API → IMAP
+   - Dossiers créés automatiquement (ex: `Archive/Famille/Gazette_Arlette`)
+
+3. ✅ **Flagging IMAP anti-reimport** (`processor.py`, `imap_client.py`)
+   - Emails flagués (`\\Flagged`) quand mis en queue
+   - `unflagged_only=True` par défaut pour éviter reimport
+   - `_unflag_email()` sur reject pour permettre retraitement
+
+4. ✅ **Limite 20 items par batch** (tous canaux)
+   - `DEFAULT_PROCESSING_LIMIT = 20` dans processor, teams_processor, calendar_processor
+   - Traitement oldest-first (plus anciens en premier)
+   - Documentation dans CLAUDE.md section "Règles de Traitement"
+
+5. ✅ **Vue enrichie Level 3** (`flux/+page.svelte`)
+   - Toggle "Enrichir" / "Vue simple"
+   - `reasoning_detailed` affiché quand disponible
+   - Métadonnées inline en mode enrichi
+
+**Fichiers modifiés** :
+- `src/jeeves/api/services/queue_service.py` — Actions IMAP
+- `src/trivelin/processor.py` — Flagging + limite 20
+- `src/integrations/email/imap_client.py` — add_flag/remove_flag
+- `web/src/routes/flux/+page.svelte` — UI enrichie
+- `CLAUDE.md` — Règles de traitement
+
+**Commit** : `3d31dd6` — feat(queue): complete email processing flow with IMAP actions and destinations
+
+---
+
 ### Session 2026-01-05 (Suite 8) — Connexion Settings à l'API Config
 
 **Focus** : Connecter la page Réglages au endpoint `/api/config` pour afficher les statuts réels des intégrations
