@@ -57,7 +57,13 @@ L'interface Scapin utilise un vocabulaire évocateur du XVIIe siècle et de l'un
 | Terme UI | Action technique | Contexte |
 |----------|------------------|----------|
 | **Classer** | `archive` | Archiver un élément traité |
+| **Supprimer** | `delete` | Supprimer un élément |
 | **Répondre** | `reply` | Répondre à un email/message |
+| **Signaler** | `flag` | Marquer comme important |
+| **Reporter** | `defer` | Différer le traitement |
+| **Ignorer** | `reject` | Ne rien faire, écarter |
+| **Passer** | `skip` | Passer au suivant sans action |
+| **Plus tard** | `snooze` | Reporter en fin de file |
 | **Rédiger** | `create_note` | Créer une nouvelle note |
 | **Consigner** | `create_journal_entry` | Créer une entrée de journal |
 | **Recevoir** | `import` | Importer des fichiers |
@@ -71,10 +77,14 @@ L'interface Scapin utilise un vocabulaire évocateur du XVIIe siècle et de l'un
 | Terme UI | Concept technique | Description |
 |----------|-------------------|-------------|
 | **Affaires pressantes** | Urgent items | Éléments nécessitant attention immédiate |
-| **À votre attention** | Pending items | Éléments en attente de traitement |
+| **À votre attention** | Pending items | Éléments en attente de décision |
+| **Traités** | Approved items | Éléments traités/approuvés |
+| **Écartés** | Rejected items | Éléments rejetés/ignorés |
+| **Par Scapin** | Auto-processed | Éléments traités automatiquement |
 | **Observations de votre valet** | AI Insights | Analyses et recommandations IA |
 | **Le Courrier du jour** | Event feed | Flux d'événements du jour |
 | **Vos Registres** | Statistics dashboard | Tableau de bord statistiques |
+| **Pli** | Email/Message | Un email ou message dans la queue |
 
 ---
 

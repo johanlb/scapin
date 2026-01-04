@@ -21,13 +21,29 @@ class QueueItemMetadata(BaseModel):
     folder: str | None = Field(None, description="Source folder")
 
 
+class ActionOptionResponse(BaseModel):
+    """Option d'action proposée par l'IA"""
+
+    action: str = Field(..., description="Type d'action (archive, delete, task, etc.)")
+    destination: str | None = Field(None, description="Dossier de destination")
+    confidence: int = Field(..., description="Score de confiance 0-100")
+    reasoning: str = Field(..., description="Explication courte de l'action")
+    reasoning_detailed: str | None = Field(None, description="Explication détaillée de l'action")
+    is_recommended: bool = Field(False, description="Option recommandée")
+
+
 class QueueItemAnalysis(BaseModel):
     """AI analysis in queue item"""
 
-    action: str = Field(..., description="Suggested action")
+    action: str = Field(..., description="Suggested action (from recommended option)")
     confidence: float = Field(..., description="Confidence score 0-100")
     category: str | None = Field(None, description="Email category")
     reasoning: str = Field("", description="AI reasoning")
+    summary: str | None = Field(None, description="Résumé de l'email en français")
+    options: list[ActionOptionResponse] = Field(
+        default_factory=list,
+        description="Options d'action proposées par l'IA"
+    )
 
 
 class QueueItemContent(BaseModel):
@@ -77,14 +93,27 @@ class ApproveRequest(BaseModel):
         None,
         description="Override category (optional)",
     )
+    destination: str | None = Field(
+        None,
+        description="Destination folder for archive action (optional)",
+    )
 
 
 class ModifyRequest(BaseModel):
-    """Request to modify a queue item"""
+    """Request to modify a queue item - select an option or provide custom instruction"""
 
     action: str = Field(..., description="New action to take")
+    destination: str | None = Field(None, description="Dossier de destination")
     category: str | None = Field(None, description="New category (optional)")
     reasoning: str | None = Field(None, description="Reason for modification")
+    selected_option_index: int | None = Field(
+        None,
+        description="Index de l'option sélectionnée (0-based)"
+    )
+    custom_instruction: str | None = Field(
+        None,
+        description="Instruction personnalisée (si aucune option ne convient)"
+    )
 
 
 class RejectRequest(BaseModel):

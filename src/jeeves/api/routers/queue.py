@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.jeeves.api.models.queue import (
+    ActionOptionResponse,
     ApproveRequest,
     ModifyRequest,
     QueueItemAnalysis,
@@ -63,6 +64,18 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             confidence=analysis.get("confidence", 0),
             category=analysis.get("category"),
             reasoning=analysis.get("reasoning", ""),
+            summary=analysis.get("summary"),
+            options=[
+                ActionOptionResponse(
+                    action=opt.get("action", ""),
+                    destination=opt.get("destination"),
+                    confidence=opt.get("confidence", 0),
+                    reasoning=opt.get("reasoning", ""),
+                    reasoning_detailed=opt.get("reasoning_detailed"),
+                    is_recommended=opt.get("is_recommended", False),
+                )
+                for opt in analysis.get("options", [])
+            ],
         ),
         content=QueueItemContent(
             preview=content.get("preview", ""),
@@ -167,15 +180,16 @@ async def approve_queue_item(
     service: QueueService = Depends(_get_queue_service),
 ) -> APIResponse[QueueItemResponse]:
     """
-    Approve a queue item
+    Approve a queue item and execute the IMAP action
 
-    Marks the item as approved, optionally with modified action/category.
+    Marks the item as approved and executes the action (archive/delete).
     """
     try:
         item = await service.approve_item(
             item_id=item_id,
             modified_action=request.modified_action,
             modified_category=request.modified_category,
+            destination=request.destination,
         )
         if not item:
             raise HTTPException(status_code=404, detail=f"Queue item not found: {item_id}")
@@ -198,9 +212,9 @@ async def modify_queue_item(
     service: QueueService = Depends(_get_queue_service),
 ) -> APIResponse[QueueItemResponse]:
     """
-    Modify a queue item's action
+    Modify a queue item's action and execute it
 
-    Changes the suggested action to a different one.
+    Changes the suggested action to a different one and executes it.
     """
     try:
         item = await service.modify_item(
@@ -208,6 +222,7 @@ async def modify_queue_item(
             action=request.action,
             category=request.category,
             reasoning=request.reasoning,
+            destination=request.destination,
         )
         if not item:
             raise HTTPException(status_code=404, detail=f"Queue item not found: {item_id}")

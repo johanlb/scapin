@@ -147,16 +147,42 @@ class EmailContent(BaseModel):
         return self
 
 
+class ActionOption(BaseModel):
+    """Une option d'action proposée par l'IA"""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    action: EmailAction = Field(..., description="Type d'action")
+    destination: Optional[str] = Field(None, description="Dossier de destination")
+    confidence: int = Field(..., ge=0, le=100, description="Score de confiance 0-100")
+    reasoning: str = Field(..., min_length=5, description="Explication courte de l'action")
+    reasoning_detailed: Optional[str] = Field(None, description="Explication détaillée de l'action")
+    is_recommended: bool = Field(default=False, description="Option recommandée par l'IA")
+
+
 class EmailAnalysis(BaseModel):
     """AI analysis result for an email"""
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
+    # Action principale (rétro-compatible)
     action: EmailAction = Field(..., description="Recommended action")
     category: EmailCategory = Field(..., description="Email category")
     destination: Optional[str] = Field(None, description="Destination folder (archive/reference)")
     confidence: int = Field(..., description="Confidence score 0-100")
     reasoning: str = Field(..., min_length=10, description="Explanation for decision")
+
+    # Multi-options (nouveau)
+    options: list[ActionOption] = Field(
+        default_factory=list,
+        description="Liste des options d'action proposées"
+    )
+    summary: Optional[str] = Field(
+        None,
+        description="Résumé de l'email en français"
+    )
+
+    # Autres champs
     omnifocus_task: Optional[dict[str, Any]] = Field(None, description="OmniFocus task data (title, note, tags, dates)")
     tags: list[str] = Field(default_factory=list, description="Suggested tags")
     related_emails: list[str] = Field(

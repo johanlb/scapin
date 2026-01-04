@@ -687,28 +687,9 @@ class AIRouter:
         """
         Parse AI response into EmailAnalysis
 
-        Expected JSON format:
-        {
-            "action": "ARCHIVE" | "DELETE" | "TASK" | "REPLY" | "DEFER" | "QUEUE",
-            "category": "WORK" | "PERSONAL" | "FINANCE" | "SHOPPING" | "NEWSLETTER" | "SOCIAL" | "SPAM",
-            "destination": "Archive/2025/Work",
-            "confidence": 95,
-            "reasoning": "Work-related project update...",
-            "tags": ["work", "project", "update"],
-            "entities": {
-                "people": ["John Doe"],
-                "projects": ["Q1 Project"],
-                "dates": ["2025-01-15"]
-            },
-            "omnifocus_task": {
-                "title": "Review Q1 project update",
-                "note": "...",
-                "defer_date": "2025-01-16",
-                "due_date": "2025-01-20",
-                "tags": ["work"]
-            },
-            "needs_full_content": false
-        }
+        Supports two formats:
+        1. New multi-options format (with "options" array)
+        2. Legacy single-action format (backward compatible)
 
         Args:
             response: Claude response text
@@ -729,20 +710,65 @@ class AIRouter:
             json_str = response[json_start:json_end]
             data = json.loads(json_str)
 
-            # Normalize enum values to lowercase (AI sometimes returns uppercase)
-            if 'action' in data and isinstance(data['action'], str):
-                data['action'] = data['action'].lower()
+            # Normalize category to lowercase
             if 'category' in data and isinstance(data['category'], str):
                 data['category'] = data['category'].lower()
-            if 'priority' in data and isinstance(data['priority'], str):
-                data['priority'] = data['priority'].lower()
+
+            # Check if this is the new multi-options format
+            if 'options' in data and isinstance(data['options'], list) and data['options']:
+                # Parse options
+                parsed_options = []
+                recommended_option = None
+
+                for opt in data['options']:
+                    # Normalize action to lowercase
+                    if 'action' in opt and isinstance(opt['action'], str):
+                        opt['action'] = opt['action'].lower()
+
+                    parsed_options.append(opt)
+
+                    # Find recommended option
+                    if opt.get('is_recommended', False):
+                        recommended_option = opt
+
+                # If no explicit recommended, use first option
+                if not recommended_option and parsed_options:
+                    recommended_option = parsed_options[0]
+                    parsed_options[0]['is_recommended'] = True
+
+                # Populate main fields from recommended option
+                data['options'] = parsed_options
+                data['action'] = recommended_option['action']
+                data['confidence'] = recommended_option['confidence']
+                data['reasoning'] = recommended_option['reasoning']
+                data['destination'] = recommended_option.get('destination')
+
+            else:
+                # Legacy single-action format
+                if 'action' in data and isinstance(data['action'], str):
+                    data['action'] = data['action'].lower()
+                if 'priority' in data and isinstance(data['priority'], str):
+                    data['priority'] = data['priority'].lower()
+
+                # Create a single option from the legacy format
+                data['options'] = [{
+                    'action': data['action'],
+                    'destination': data.get('destination'),
+                    'confidence': data['confidence'],
+                    'reasoning': data['reasoning'],
+                    'is_recommended': True
+                }]
 
             # Create EmailAnalysis from parsed data
             analysis = EmailAnalysis(**data)
 
             logger.debug(
                 "Successfully parsed analysis response",
-                extra={"email_id": metadata.id}
+                extra={
+                    "email_id": metadata.id,
+                    "options_count": len(analysis.options),
+                    "format": "multi-options" if len(data.get('options', [])) > 1 else "legacy"
+                }
             )
 
             return analysis

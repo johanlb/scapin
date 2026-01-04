@@ -838,3 +838,67 @@ class IMAPClient:
         except Exception as e:
             logger.error(f"Failed to move email: {e}", exc_info=True)
             return False
+
+    def add_flag(self, msg_id: int, folder: str, flag: str = "\\Flagged") -> bool:
+        """
+        Add a flag to an email
+
+        Args:
+            msg_id: Email message ID
+            folder: Folder containing the email
+            flag: IMAP flag to add (default: \\Flagged)
+
+        Returns:
+            True if successful
+        """
+        if self._connection is None:
+            raise RuntimeError("Not connected to IMAP server")
+
+        try:
+            # Select the folder
+            self._connection.select(folder)
+
+            # Add the flag
+            result = self._connection.store(str(msg_id).encode(), '+FLAGS', flag)
+            if result[0] != 'OK':
+                logger.error(f"Failed to add flag {flag} to email {msg_id}")
+                return False
+
+            logger.info(f"Added flag {flag} to email {msg_id} in {folder}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to add flag: {e}", exc_info=True)
+            return False
+
+    def remove_flag(self, msg_id: int, folder: str, flag: str = "\\Flagged") -> bool:
+        """
+        Remove a flag from an email
+
+        Args:
+            msg_id: Email message ID
+            folder: Folder containing the email
+            flag: IMAP flag to remove (default: \\Flagged)
+
+        Returns:
+            True if successful
+        """
+        if self._connection is None:
+            raise RuntimeError("Not connected to IMAP server")
+
+        try:
+            # Select the folder
+            self._connection.select(folder)
+
+            # Remove the flag
+            result = self._connection.store(str(msg_id).encode(), '-FLAGS', flag)
+            if result[0] != 'OK':
+                logger.error(f"Failed to remove flag {flag} from email {msg_id}")
+                return False
+
+            logger.info(f"Removed flag {flag} from email {msg_id} in {folder}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to remove flag: {e}", exc_info=True)
+            return False

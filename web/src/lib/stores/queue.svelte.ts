@@ -90,9 +90,13 @@ async function loadMore(): Promise<void> {
 	}
 }
 
-async function approve(itemId: string): Promise<boolean> {
+async function approve(
+	itemId: string,
+	modifiedAction?: string,
+	modifiedCategory?: string
+): Promise<boolean> {
 	try {
-		const updated = await approveQueueItem(itemId);
+		const updated = await approveQueueItem(itemId, modifiedAction, modifiedCategory);
 		// Update the item in state
 		state.items = state.items.map((item) => (item.id === itemId ? updated : item));
 		// Refresh stats
@@ -121,6 +125,22 @@ async function reject(itemId: string, reason?: string): Promise<boolean> {
 function removeFromList(itemId: string): void {
 	state.items = state.items.filter((item) => item.id !== itemId);
 	state.total = Math.max(0, state.total - 1);
+}
+
+function moveToEnd(itemId: string): void {
+	const idx = state.items.findIndex((item) => item.id === itemId);
+	if (idx >= 0 && idx < state.items.length - 1) {
+		const item = state.items[idx];
+		state.items = [...state.items.slice(0, idx), ...state.items.slice(idx + 1), item];
+	}
+}
+
+async function fetchStats(): Promise<void> {
+	try {
+		state.stats = await getQueueStats();
+	} catch (err) {
+		console.error('Failed to fetch stats:', err);
+	}
 }
 
 async function refresh(): Promise<void> {
@@ -170,10 +190,12 @@ export const queueStore = {
 		return pendingCount;
 	},
 	fetchQueue,
+	fetchStats,
 	loadMore,
 	approve,
 	reject,
 	removeFromList,
+	moveToEnd,
 	refresh,
 	clearError
 };

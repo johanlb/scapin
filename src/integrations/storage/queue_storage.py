@@ -106,6 +106,17 @@ class QueueStorage:
                 "confidence": analysis.confidence,
                 "category": analysis.category.value if analysis.category else None,
                 "reasoning": analysis.reasoning or "",
+                "summary": analysis.summary,
+                "options": [
+                    {
+                        "action": opt.action.value,
+                        "destination": opt.destination,
+                        "confidence": opt.confidence,
+                        "reasoning": opt.reasoning,
+                        "is_recommended": opt.is_recommended,
+                    }
+                    for opt in analysis.options
+                ] if analysis.options else [],
             },
             "content": {
                 "preview": content_preview[:200],  # Limit to 200 chars

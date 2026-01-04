@@ -29,6 +29,10 @@ from src.utils import now_utc
 
 logger = get_logger("trivelin.calendar_processor")
 
+# Default limit for processing - prevents overwhelming the system
+# Items are always processed oldest-first to handle backlog chronologically
+DEFAULT_PROCESSING_LIMIT = 20
+
 
 @dataclass
 class CalendarProcessingResult:
@@ -174,13 +178,13 @@ class CalendarProcessor:
 
     async def poll_and_process(
         self,
-        limit: Optional[int] = None,
+        limit: int = DEFAULT_PROCESSING_LIMIT,
     ) -> CalendarProcessingSummary:
         """
         Poll for events and process them
 
         Args:
-            limit: Maximum events to process (default: 100)
+            limit: Maximum events to process (default: 20)
 
         Returns:
             Summary of processing results

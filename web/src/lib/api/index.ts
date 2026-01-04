@@ -39,6 +39,7 @@ export type {
 	TokenResponse,
 	AuthCheckResponse,
 	// Queue types
+	ActionOption,
 	QueueItem,
 	QueueItemMetadata,
 	QueueItemAnalysis,

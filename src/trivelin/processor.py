@@ -28,6 +28,11 @@ from src.utils import now_utc
 
 logger = get_logger("email_processor")
 
+# Default limit for processing - prevents overwhelming the system
+# This applies to all channels (email, teams, calendar)
+# Items are always processed oldest-first to handle backlog chronologically
+DEFAULT_PROCESSING_LIMIT = 20
+
 
 class EmailProcessor:
     """
@@ -208,7 +213,7 @@ class EmailProcessor:
 
     def process_inbox(
         self,
-        limit: Optional[int] = None,
+        limit: int = DEFAULT_PROCESSING_LIMIT,
         auto_execute: bool = False,
         confidence_threshold: Optional[int] = None,
         unread_only: bool = False,
@@ -218,7 +223,7 @@ class EmailProcessor:
         Process emails from inbox
 
         Args:
-            limit: Maximum number of emails to process
+            limit: Maximum number of emails to process (default: 20)
             auto_execute: Automatically execute high-confidence decisions
             confidence_threshold: Minimum confidence for auto-execution
             unread_only: Only process unread emails (UNSEEN flag)
@@ -485,6 +490,16 @@ class EmailProcessor:
                 if self.config.email.get_enabled_accounts()
                 else None,
             )
+
+            # Flag the email to prevent reimport on next run
+            # Uses \\Flagged which is filtered out by unflagged_only=True
+            try:
+                self.imap_client.add_flag(
+                    msg_id=metadata.id,
+                    folder=metadata.folder or self.config.email.inbox_folder
+                )
+            except Exception as e:
+                logger.warning(f"Failed to flag email {metadata.id}: {e}")
 
             logger.info(
                 "Queuing email for manual review",

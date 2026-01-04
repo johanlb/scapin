@@ -54,13 +54,19 @@ async function initialize(): Promise<void> {
 		}
 	} catch (err) {
 		if (err instanceof ApiError && err.status === 401) {
-			// Token is invalid
+			// Token is invalid or missing - auth is required
 			apiLogout();
 			state.isAuthenticated = false;
 			state.user = null;
+			state.authRequired = true;
+		} else if (err instanceof ApiError && err.status === 0) {
+			// Network error - server unreachable, assume auth required
+			console.error('Server unreachable:', err);
+			state.authRequired = true;
 		} else {
-			// Network error - assume auth is required
+			// Other error - assume auth is required
 			console.error('Failed to check auth status:', err);
+			state.authRequired = true;
 		}
 	} finally {
 		state.loading = false;

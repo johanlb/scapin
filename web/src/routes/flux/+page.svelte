@@ -1,55 +1,226 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { Card, Badge, Button } from '$lib/components/ui';
+	import { onMount, onDestroy } from 'svelte';
+	import { Card, Button, Input } from '$lib/components/ui';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
-	import type { QueueItem } from '$lib/stores';
+	import { approveQueueItem, rejectQueueItem } from '$lib/api';
+	import type { QueueItem, ActionOption } from '$lib/api';
 
 	// Load queue on mount
 	onMount(async () => {
 		await queueStore.fetchQueue('pending');
+		await queueStore.fetchStats();
+		document.addEventListener('keydown', handleKeyboard);
 	});
 
-	type StatusFilter = 'pending' | 'approved' | 'rejected' | 'all';
+	onDestroy(() => {
+		document.removeEventListener('keydown', handleKeyboard);
+	});
+
+	type StatusFilter = 'pending' | 'approved' | 'rejected';
 	let activeFilter: StatusFilter = $state('pending');
+	let currentIndex: number = $state(0);
+	let customInstruction: string = $state('');
+	let isProcessing: boolean = $state(false);
+	let showCustomInput: boolean = $state(false);
+	let showLevel3: boolean = $state(false);
+
+	// Current item in single-item view
+	const currentItem = $derived(
+		activeFilter === 'pending' && queueStore.items.length > 0
+			? queueStore.items[currentIndex] || null
+			: null
+	);
 
 	async function changeFilter(filter: StatusFilter) {
 		activeFilter = filter;
-		await queueStore.fetchQueue(filter === 'all' ? '' : filter);
+		currentIndex = 0;
+		customInstruction = '';
+		showCustomInput = false;
+		await queueStore.fetchQueue(filter);
 	}
 
-	async function handleApprove(item: QueueItem) {
-		const success = await queueStore.approve(item.id);
-		if (success) {
-			// Remove from list if viewing pending
-			if (activeFilter === 'pending') {
-				queueStore.removeFromList(item.id);
+	function handleKeyboard(e: KeyboardEvent) {
+		// Only handle in pending single-item view
+		if (activeFilter !== 'pending' || !currentItem || isProcessing) return;
+
+		// Don't handle if user is typing in input
+		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+		const options = currentItem.analysis.options || [];
+
+		switch (e.key) {
+			case '1':
+				if (options[0]) handleSelectOption(currentItem, options[0]);
+				break;
+			case '2':
+				if (options[1]) handleSelectOption(currentItem, options[1]);
+				break;
+			case '3':
+				if (options[2]) handleSelectOption(currentItem, options[2]);
+				break;
+			case 's':
+			case 'S':
+				handleSkip();
+				break;
+			case 'z':
+			case 'Z':
+				handleSnooze();
+				break;
+			case 'd':
+			case 'D':
+				handleDelete(currentItem);
+				break;
+			case 'r':
+			case 'R':
+				handleReject(currentItem);
+				break;
+			case 'i':
+			case 'I':
+				showCustomInput = !showCustomInput;
+				break;
+			case 'v':
+			case 'V':
+				showLevel3 = !showLevel3;
+				break;
+			case 'Escape':
+				showCustomInput = false;
+				showLevel3 = false;
+				customInstruction = '';
+				break;
+		}
+	}
+
+	async function handleSelectOption(item: QueueItem, option: ActionOption) {
+		if (isProcessing) return;
+		isProcessing = true;
+
+		try {
+			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, option.destination);
+			queueStore.removeFromList(item.id);
+
+			// Move to next or reset
+			if (currentIndex >= queueStore.items.length) {
+				currentIndex = Math.max(0, queueStore.items.length - 1);
 			}
+			customInstruction = '';
+			showCustomInput = false;
+		} finally {
+			isProcessing = false;
+		}
+	}
+
+	async function handleCustomInstruction(item: QueueItem) {
+		if (isProcessing || !customInstruction.trim()) return;
+		isProcessing = true;
+
+		try {
+			// For custom instruction, we approve with the instruction as reasoning
+			await approveQueueItem(item.id, 'custom', item.analysis.category || undefined);
+			queueStore.removeFromList(item.id);
+
+			if (currentIndex >= queueStore.items.length) {
+				currentIndex = Math.max(0, queueStore.items.length - 1);
+			}
+			customInstruction = '';
+			showCustomInput = false;
+		} finally {
+			isProcessing = false;
 		}
 	}
 
 	async function handleReject(item: QueueItem) {
-		const success = await queueStore.reject(item.id);
-		if (success) {
-			// Remove from list if viewing pending
-			if (activeFilter === 'pending') {
-				queueStore.removeFromList(item.id);
+		if (isProcessing) return;
+		isProcessing = true;
+
+		try {
+			await rejectQueueItem(item.id);
+			queueStore.removeFromList(item.id);
+
+			if (currentIndex >= queueStore.items.length) {
+				currentIndex = Math.max(0, queueStore.items.length - 1);
 			}
+			customInstruction = '';
+			showCustomInput = false;
+		} finally {
+			isProcessing = false;
 		}
+	}
+
+	async function handleDelete(item: QueueItem) {
+		if (isProcessing) return;
+		isProcessing = true;
+
+		try {
+			// Approve with delete action
+			await approveQueueItem(item.id, 'delete', item.analysis.category || undefined);
+			queueStore.removeFromList(item.id);
+
+			if (currentIndex >= queueStore.items.length) {
+				currentIndex = Math.max(0, queueStore.items.length - 1);
+			}
+			customInstruction = '';
+			showCustomInput = false;
+		} finally {
+			isProcessing = false;
+		}
+	}
+
+	function handleSkip() {
+		// Move to next item without action
+		if (currentIndex < queueStore.items.length - 1) {
+			currentIndex++;
+		} else {
+			currentIndex = 0; // Loop back to start
+		}
+		customInstruction = '';
+		showCustomInput = false;
+		showLevel3 = false;
+	}
+
+	function handleSnooze() {
+		// Move item to end of queue and go to next
+		if (queueStore.items.length > 1) {
+			const item = queueStore.items[currentIndex];
+			queueStore.moveToEnd(item.id);
+			// Index stays same but item changes
+		}
+		customInstruction = '';
+		showCustomInput = false;
+		showLevel3 = false;
 	}
 
 	function getActionLabel(action: string): string {
 		const labels: Record<string, string> = {
-			archive: 'Archiver',
+			archive: 'Classer',
 			delete: 'Supprimer',
 			reply: 'Répondre',
 			forward: 'Transférer',
 			flag: 'Signaler',
 			task: 'Créer tâche',
 			defer: 'Reporter',
-			ignore: 'Ignorer'
+			ignore: 'Ignorer',
+			queue: 'À décider',
+			review: 'À revoir',
+			pending: 'En attente'
 		};
 		return labels[action] || action;
+	}
+
+	function getActionIcon(action: string): string {
+		const icons: Record<string, string> = {
+			archive: '📥',
+			delete: '🗑️',
+			reply: '✉️',
+			forward: '⬆️',
+			flag: '🚩',
+			task: '✅',
+			defer: '⏰',
+			ignore: '🚫',
+			queue: '❓',
+			review: '👁️'
+		};
+		return icons[action] || '❓';
 	}
 
 	function getActionColor(action: string): string {
@@ -57,109 +228,107 @@
 			archive: 'var(--color-success)',
 			delete: 'var(--color-urgency-urgent)',
 			reply: 'var(--color-accent)',
-			task: 'var(--color-event-omnifocus)'
+			task: 'var(--color-event-omnifocus)',
+			queue: 'var(--color-warning)',
+			review: 'var(--color-warning)',
+			pending: 'var(--color-warning)'
 		};
 		return colors[action] || 'var(--color-text-secondary)';
 	}
 
-	function getConfidenceLabel(confidence: number): string {
-		if (confidence >= 0.9) return 'Très sûr';
-		if (confidence >= 0.7) return 'Probable';
-		if (confidence >= 0.5) return 'Incertain';
-		return 'Douteux';
+	function getCategoryLabel(category: string | null): string {
+		if (!category) return '';
+		const labels: Record<string, string> = {
+			work: 'Travail',
+			personal: 'Personnel',
+			finance: 'Finances',
+			shopping: 'Achats',
+			newsletter: 'Newsletter',
+			social: 'Social',
+			spam: 'Indésirable'
+		};
+		return labels[category.toLowerCase()] || category;
 	}
 
 	function getConfidenceColor(confidence: number): string {
-		if (confidence >= 0.9) return 'var(--color-success)';
-		if (confidence >= 0.7) return 'var(--color-warning)';
+		if (confidence >= 90) return 'var(--color-success)';
+		if (confidence >= 70) return 'var(--color-warning)';
 		return 'var(--color-urgency-urgent)';
+	}
+
+	function getConfidenceExplanation(confidence: number): string {
+		if (confidence >= 90) return 'Scapin est très confiant mais préfère votre aval';
+		if (confidence >= 70) return 'Scapin hésite entre plusieurs options';
+		return 'Scapin manque d\'éléments pour décider seul';
 	}
 
 	const stats = $derived(queueStore.stats);
 </script>
 
 <div class="p-4 md:p-6 max-w-4xl mx-auto">
-	<!-- Header -->
+	<!-- Header with Scapin tone -->
 	<header class="mb-6">
 		<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-			Le Courrier du jour
+			Le Courrier, Monsieur
 		</h1>
 		<p class="text-[var(--color-text-secondary)] mt-1">
 			{#if queueStore.loading}
-				Consultation des plis en attente...
-			{:else if queueStore.total > 0}
+				Je consulte vos plis...
+			{:else if activeFilter === 'pending' && queueStore.total > 0}
 				{queueStore.total} pli{queueStore.total > 1 ? 's' : ''} requièrent votre attention
+			{:else if activeFilter === 'pending'}
+				Point de pli en attente, Monsieur
+			{:else if activeFilter === 'approved'}
+				Voici les plis que vous avez traités
 			{:else}
-				Aucun pli en attente de révision
+				Voici les plis que vous avez écartés
 			{/if}
 		</p>
-		{#if queueStore.error}
-			<p class="text-xs text-[var(--color-urgency-urgent)] mt-1">
-				{queueStore.error}
-			</p>
-		{/if}
 	</header>
 
-	<!-- Stats bar -->
-	{#if stats}
-		<section class="grid grid-cols-3 gap-2 mb-5">
-			<Card padding="sm">
-				<div class="text-center">
-					<p class="text-xl font-bold text-[var(--color-warning)]">
-						{stats.by_status?.pending ?? 0}
-					</p>
-					<p class="text-xs text-[var(--color-text-tertiary)]">En attente</p>
-				</div>
-			</Card>
-			<Card padding="sm">
-				<div class="text-center">
-					<p class="text-xl font-bold text-[var(--color-success)]">
-						{stats.by_status?.approved ?? 0}
-					</p>
-					<p class="text-xs text-[var(--color-text-tertiary)]">Approuvés</p>
-				</div>
-			</Card>
-			<Card padding="sm">
-				<div class="text-center">
-					<p class="text-xl font-bold text-[var(--color-urgency-urgent)]">
-						{stats.by_status?.rejected ?? 0}
-					</p>
-					<p class="text-xs text-[var(--color-text-tertiary)]">Rejetés</p>
-				</div>
-			</Card>
-		</section>
-	{/if}
-
-	<!-- Filters -->
-	<section class="mb-6 flex flex-wrap gap-2">
-		<Button
-			variant={activeFilter === 'pending' ? 'primary' : 'secondary'}
-			size="sm"
+	<!-- Stats as clickable filters -->
+	<section class="grid grid-cols-3 gap-2 mb-6">
+		<button
+			class="rounded-xl p-3 text-center transition-all border-2"
+			class:border-[var(--color-accent)]={activeFilter === 'pending'}
+			class:bg-[var(--color-bg-secondary)]={activeFilter === 'pending'}
+			class:border-transparent={activeFilter !== 'pending'}
+			class:hover:border-[var(--color-border)]={activeFilter !== 'pending'}
 			onclick={() => changeFilter('pending')}
 		>
-			En attente
-		</Button>
-		<Button
-			variant={activeFilter === 'approved' ? 'primary' : 'secondary'}
-			size="sm"
+			<p class="text-xl font-bold text-[var(--color-warning)]">
+				{stats?.by_status?.pending ?? 0}
+			</p>
+			<p class="text-xs text-[var(--color-text-tertiary)]">À votre attention</p>
+		</button>
+
+		<button
+			class="rounded-xl p-3 text-center transition-all border-2"
+			class:border-[var(--color-accent)]={activeFilter === 'approved'}
+			class:bg-[var(--color-bg-secondary)]={activeFilter === 'approved'}
+			class:border-transparent={activeFilter !== 'approved'}
+			class:hover:border-[var(--color-border)]={activeFilter !== 'approved'}
 			onclick={() => changeFilter('approved')}
 		>
-			Approuvés
-		</Button>
-		<Button
-			variant={activeFilter === 'rejected' ? 'primary' : 'secondary'}
-			size="sm"
+			<p class="text-xl font-bold text-[var(--color-success)]">
+				{stats?.by_status?.approved ?? 0}
+			</p>
+			<p class="text-xs text-[var(--color-text-tertiary)]">Traités</p>
+		</button>
+
+		<button
+			class="rounded-xl p-3 text-center transition-all border-2"
+			class:border-[var(--color-accent)]={activeFilter === 'rejected'}
+			class:bg-[var(--color-bg-secondary)]={activeFilter === 'rejected'}
+			class:border-transparent={activeFilter !== 'rejected'}
+			class:hover:border-[var(--color-border)]={activeFilter !== 'rejected'}
 			onclick={() => changeFilter('rejected')}
 		>
-			Rejetés
-		</Button>
-		<Button
-			variant={activeFilter === 'all' ? 'primary' : 'secondary'}
-			size="sm"
-			onclick={() => changeFilter('all')}
-		>
-			Tous
-		</Button>
+			<p class="text-xl font-bold text-[var(--color-urgency-urgent)]">
+				{stats?.by_status?.rejected ?? 0}
+			</p>
+			<p class="text-xs text-[var(--color-text-tertiary)]">Écartés</p>
+		</button>
 	</section>
 
 	<!-- Loading state -->
@@ -169,133 +338,404 @@
 				class="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
 			></div>
 		</div>
+
+	<!-- Empty state -->
 	{:else if queueStore.items.length === 0}
-		<!-- Empty state -->
 		<Card padding="lg">
 			<div class="text-center py-8">
 				<p class="text-4xl mb-3">
-					{#if activeFilter === 'pending'}
-						<span>&#x1F389;</span>
-					{:else if activeFilter === 'approved'}
-						<span>&#x2705;</span>
-					{:else if activeFilter === 'rejected'}
-						<span>&#x274C;</span>
-					{:else}
-						<span>&#x1F4ED;</span>
+					{#if activeFilter === 'pending'}🎉
+					{:else if activeFilter === 'approved'}✅
+					{:else}🚫
 					{/if}
 				</p>
 				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
 					{#if activeFilter === 'pending'}
 						Tout est en ordre, Monsieur
 					{:else if activeFilter === 'approved'}
-						Aucun pli approuvé
-					{:else if activeFilter === 'rejected'}
-						Aucun pli rejeté
+						Aucun pli traité pour l'instant
 					{:else}
-						La boîte est vide
+						Aucun pli écarté
 					{/if}
 				</h3>
 				<p class="text-sm text-[var(--color-text-secondary)]">
 					{#if activeFilter === 'pending'}
-						Aucun courrier ne requiert votre attention
+						Aucun courrier ne requiert votre décision
 					{:else}
 						Lancez le traitement des emails pour alimenter la file
 					{/if}
 				</p>
 			</div>
 		</Card>
-	{:else}
-		<!-- Queue items -->
-		<section class="space-y-4">
-			{#each queueStore.items as item (item.id)}
-				<Card padding="lg">
-					<div class="space-y-3">
-						<!-- Header row -->
-						<div class="flex items-start justify-between gap-3">
-							<div class="flex-1 min-w-0">
-								<div class="flex flex-wrap items-center gap-2 mb-1">
-									<Badge variant="source" source="email" />
-									<span
-										class="text-xs px-2 py-0.5 rounded-full"
-										style="background-color: color-mix(in srgb, {getActionColor(
-											item.analysis.action
-										)} 20%, transparent); color: {getActionColor(item.analysis.action)}"
-									>
-										{getActionLabel(item.analysis.action)}
-									</span>
-									<span class="text-xs text-[var(--color-text-tertiary)]">
-										{formatRelativeTime(item.queued_at)}
-									</span>
-								</div>
-								<h3 class="text-lg font-semibold text-[var(--color-text-primary)] truncate">
-									{item.metadata.subject}
-								</h3>
-							</div>
-							<!-- Status badge for non-pending -->
-							{#if item.status !== 'pending'}
-								<span
-									class="text-xs px-2 py-1 rounded-full shrink-0"
-									class:bg-green-100={item.status === 'approved'}
-									class:text-green-700={item.status === 'approved'}
-									class:bg-red-100={item.status === 'rejected'}
-									class:text-red-700={item.status === 'rejected'}
-								>
-									{item.status === 'approved' ? 'Approuvé' : 'Rejeté'}
-								</span>
-							{/if}
-						</div>
 
-						<!-- Sender -->
-						<p class="text-sm text-[var(--color-text-secondary)]">
-							De : <span class="font-medium">{item.metadata.from_name || item.metadata.from_address}</span>
-							{#if item.metadata.from_name}
-								<span class="text-[var(--color-text-tertiary)]">&lt;{item.metadata.from_address}&gt;</span>
+	<!-- SINGLE ITEM VIEW for pending items -->
+	{:else if activeFilter === 'pending' && currentItem}
+		{@const options = currentItem.analysis.options || []}
+		{@const hasOptions = options.length > 0}
+
+		<Card padding="lg">
+			<div class="space-y-5">
+				<!-- Progress indicator -->
+				<div class="flex items-center justify-between text-xs text-[var(--color-text-tertiary)]">
+					<span>Pli {currentIndex + 1} sur {queueStore.items.length}</span>
+					<div class="flex gap-1">
+						{#each queueStore.items as _, idx}
+							<div
+								class="w-2 h-2 rounded-full transition-colors"
+								class:bg-[var(--color-accent)]={idx === currentIndex}
+								class:bg-[var(--color-border)]={idx !== currentIndex}
+							></div>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Why in queue - Scapin explanation -->
+				<div class="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-bg-tertiary)]">
+					<span class="text-lg">🎭</span>
+					<p class="text-xs text-[var(--color-text-secondary)] italic">
+						{getConfidenceExplanation(currentItem.analysis.confidence)}
+						<span class="font-medium" style="color: {getConfidenceColor(currentItem.analysis.confidence)}">
+							({currentItem.analysis.confidence}% de confiance)
+						</span>
+					</p>
+				</div>
+
+				<!-- Email header -->
+				<div>
+					<h2 class="text-xl font-bold text-[var(--color-text-primary)] mb-2">
+						{currentItem.metadata.subject}
+					</h2>
+					<div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+						<span>{currentItem.metadata.from_name || currentItem.metadata.from_address}</span>
+						<span class="text-[var(--color-text-tertiary)]">•</span>
+						<span class="text-[var(--color-text-tertiary)]">
+							{#if currentItem.metadata.date}
+								{formatRelativeTime(currentItem.metadata.date)}
+							{:else}
+								{formatRelativeTime(currentItem.queued_at)}
 							{/if}
+						</span>
+						{#if currentItem.analysis.category}
+							<span class="px-2 py-0.5 rounded-full text-xs bg-[var(--color-bg-tertiary)]">
+								{getCategoryLabel(currentItem.analysis.category)}
+							</span>
+						{/if}
+					</div>
+				</div>
+
+				<!-- AI Summary -->
+				{#if currentItem.analysis.summary}
+					<div class="p-4 rounded-lg bg-[var(--color-bg-secondary)] border-l-4 border-[var(--color-accent)]">
+						<p class="text-[var(--color-text-primary)]">
+							{currentItem.analysis.summary}
+						</p>
+					</div>
+				{/if}
+
+				<!-- Email content - enriched when showLevel3 -->
+				{#if currentItem.content?.preview}
+					{#if showLevel3}
+						<!-- Level 3: Full content visible directly -->
+						<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-64 overflow-y-auto border border-[var(--color-border)]">
+							{currentItem.content.preview}
+						</div>
+					{:else}
+						<!-- Normal: Collapsible preview -->
+						<details class="group">
+							<summary class="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] cursor-pointer flex items-center gap-1">
+								<span class="group-open:rotate-90 transition-transform">▶</span>
+								Voir le contenu du pli
+							</summary>
+							<div class="mt-2 p-3 rounded-lg bg-[var(--color-bg-tertiary)] text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-48 overflow-y-auto">
+								{currentItem.content.preview}
+							</div>
+						</details>
+					{/if}
+				{/if}
+
+				<!-- Metadata enrichment when showLevel3 -->
+				{#if showLevel3}
+					<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--color-text-tertiary)] p-2 rounded-lg bg-[var(--color-bg-secondary)]">
+						<span>📧 {currentItem.metadata.from_address}</span>
+						<span>📁 {currentItem.metadata.folder || 'INBOX'}</span>
+						{#if currentItem.metadata.has_attachments}
+							<span>📎 Pièces jointes</span>
+						{/if}
+						<span>🕐 Analysé {formatRelativeTime(currentItem.queued_at)}</span>
+					</div>
+				{/if}
+
+				<!-- Action options - CLICK TO VALIDATE -->
+				{#if hasOptions}
+					<div class="space-y-3">
+						<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide">
+							Choisissez une action <span class="font-normal">(clic = validation immédiate)</span>
 						</p>
 
-						<!-- Preview -->
-						{#if item.content?.preview}
-							<p class="text-sm text-[var(--color-text-tertiary)] line-clamp-2">
-								{item.content.preview}
+						<div class="grid gap-2">
+							{#each options as option, idx}
+								<button
+									class="w-full text-left p-4 rounded-xl border-2 border-[var(--color-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-secondary)] transition-all group disabled:opacity-50"
+									disabled={isProcessing}
+									onclick={() => handleSelectOption(currentItem, option)}
+								>
+									<div class="flex items-center gap-3">
+										<!-- Keyboard shortcut -->
+										<div class="w-8 h-8 rounded-lg bg-[var(--color-bg-tertiary)] group-hover:bg-[var(--color-accent)] group-hover:text-white flex items-center justify-center text-sm font-mono font-bold transition-colors">
+											{idx + 1}
+										</div>
+
+										<!-- Action icon -->
+										<div
+											class="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
+											style="background-color: color-mix(in srgb, {getActionColor(option.action)} 20%, transparent)"
+										>
+											{getActionIcon(option.action)}
+										</div>
+
+										<!-- Option content - enriched when showLevel3 -->
+										<div class="flex-1 min-w-0">
+											<div class="flex items-center gap-2">
+												<span
+													class="font-semibold"
+													style="color: {getActionColor(option.action)}"
+												>
+													{getActionLabel(option.action)}
+												</span>
+												{#if option.is_recommended}
+													<span class="text-xs px-1.5 py-0.5 rounded bg-[var(--color-accent)] text-white">
+														Recommandé
+													</span>
+												{/if}
+												<span
+													class="text-xs ml-auto"
+													style="color: {getConfidenceColor(option.confidence)}"
+												>
+													{option.confidence}%
+												</span>
+											</div>
+											<!-- Show detailed reasoning when Level 3, otherwise short -->
+											<p class="text-xs text-[var(--color-text-secondary)] mt-0.5" class:text-sm={showLevel3 && option.reasoning_detailed}>
+												{#if showLevel3 && option.reasoning_detailed}
+													{option.reasoning_detailed}
+												{:else}
+													{option.reasoning}
+												{/if}
+											</p>
+											{#if option.destination}
+												<p class="text-xs text-[var(--color-text-tertiary)] mt-0.5">
+													→ {option.destination}
+												</p>
+											{/if}
+										</div>
+									</div>
+								</button>
+							{/each}
+						</div>
+					</div>
+				{:else}
+					<!-- Fallback for items without options -->
+					<div class="p-4 rounded-lg bg-[var(--color-bg-tertiary)]">
+						<div class="flex items-center gap-2 mb-2">
+							<span class="text-xl">{getActionIcon(currentItem.analysis.action)}</span>
+							<span class="font-semibold" style="color: {getActionColor(currentItem.analysis.action)}">
+								{getActionLabel(currentItem.analysis.action)}
+							</span>
+							<span class="text-xs" style="color: {getConfidenceColor(currentItem.analysis.confidence)}">
+								{currentItem.analysis.confidence}%
+							</span>
+						</div>
+						{#if currentItem.analysis.reasoning}
+							<p class="text-sm text-[var(--color-text-secondary)]">
+								{currentItem.analysis.reasoning}
 							</p>
 						{/if}
-
-						<!-- Analysis -->
-						<div
-							class="flex items-center gap-4 text-sm p-2 rounded-lg bg-[var(--color-bg-tertiary)]"
+						<Button
+							variant="primary"
+							size="sm"
+							class="mt-3"
+							onclick={() => handleSelectOption(currentItem, {
+								action: currentItem.analysis.action,
+								confidence: currentItem.analysis.confidence,
+								reasoning: currentItem.analysis.reasoning,
+								reasoning_detailed: null,
+								destination: null,
+								is_recommended: true
+							})}
+							disabled={isProcessing}
 						>
-							<div class="flex items-center gap-1">
-								<span class="text-[var(--color-text-tertiary)]">Confiance :</span>
-								<span style="color: {getConfidenceColor(item.analysis.confidence)}">
-									{Math.round(item.analysis.confidence * 100)}%
+							Valider cette action
+						</Button>
+					</div>
+				{/if}
+
+				<!-- Custom instruction toggle -->
+				{#if showCustomInput}
+					<div class="space-y-2 p-3 rounded-lg border border-[var(--color-border)]">
+						<label for="custom-instruction" class="text-xs font-medium text-[var(--color-text-secondary)]">
+							Votre instruction, Monsieur :
+						</label>
+						<Input
+							id="custom-instruction"
+							placeholder="Ex: Classer dans Travail/Projets/2026"
+							bind:value={customInstruction}
+						/>
+						<div class="flex gap-2">
+							<Button
+								variant="primary"
+								size="sm"
+								onclick={() => handleCustomInstruction(currentItem)}
+								disabled={isProcessing || !customInstruction.trim()}
+							>
+								Exécuter
+							</Button>
+							<Button
+								variant="secondary"
+								size="sm"
+								onclick={() => { showCustomInput = false; customInstruction = ''; }}
+							>
+								Annuler
+							</Button>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Bottom actions - Always available -->
+				<div class="pt-4 border-t border-[var(--color-border)] space-y-3">
+					<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide">
+						Actions rapides
+					</p>
+					<div class="flex flex-wrap gap-2">
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={handleSkip}
+							disabled={isProcessing || queueStore.items.length <= 1}
+						>
+							<span class="mr-1">⏭️</span> Passer
+							<span class="ml-1 text-xs opacity-60 font-mono">S</span>
+						</Button>
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={handleSnooze}
+							disabled={isProcessing || queueStore.items.length <= 1}
+						>
+							<span class="mr-1">💤</span> Plus tard
+							<span class="ml-1 text-xs opacity-60 font-mono">Z</span>
+						</Button>
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={() => handleDelete(currentItem)}
+							disabled={isProcessing}
+						>
+							<span class="mr-1">🗑️</span> Supprimer
+							<span class="ml-1 text-xs opacity-60 font-mono">D</span>
+						</Button>
+						<Button
+							variant={showLevel3 ? 'primary' : 'secondary'}
+							size="sm"
+							onclick={() => showLevel3 = !showLevel3}
+						>
+							<span class="mr-1">{showLevel3 ? '📖' : '📋'}</span>
+							{showLevel3 ? 'Vue simple' : 'Enrichir'}
+							<span class="ml-1 text-xs opacity-60 font-mono">V</span>
+						</Button>
+						{#if !showCustomInput}
+							<Button
+								variant="secondary"
+								size="sm"
+								onclick={() => showCustomInput = true}
+								disabled={isProcessing}
+							>
+								<span class="mr-1">✏️</span> Autre
+								<span class="ml-1 text-xs opacity-60 font-mono">I</span>
+							</Button>
+						{/if}
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={() => handleReject(currentItem)}
+							disabled={isProcessing}
+						>
+							<span class="mr-1">🚫</span> Ignorer
+							<span class="ml-1 text-xs opacity-60 font-mono">R</span>
+						</Button>
+					</div>
+				</div>
+
+				<!-- Keyboard shortcuts help -->
+				<div class="text-xs text-center text-[var(--color-text-tertiary)] pt-3 flex flex-wrap justify-center gap-x-3 gap-y-1">
+					<span>
+						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">1</span>
+						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-0.5">2</span>
+						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-0.5">3</span>
+						<span class="ml-1">options</span>
+					</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span> passer</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">Z</span> reporter</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">D</span> supprimer</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">V</span> enrichir</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">I</span> autre</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span> ignorer</span>
+				</div>
+			</div>
+		</Card>
+
+	<!-- LIST VIEW for other filters (approved, rejected, auto) -->
+	{:else}
+		<section class="space-y-3">
+			{#each queueStore.items as item (item.id)}
+				<Card padding="md">
+					<div class="flex items-start gap-3">
+						<!-- Action icon -->
+						<div
+							class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+							style="background-color: color-mix(in srgb, {getActionColor(item.analysis.action)} 20%, transparent)"
+						>
+							{getActionIcon(item.analysis.action)}
+						</div>
+
+						<div class="flex-1 min-w-0">
+							<!-- Subject -->
+							<h3 class="font-medium text-[var(--color-text-primary)] truncate">
+								{item.metadata.subject}
+							</h3>
+
+							<!-- Sender and date -->
+							<p class="text-xs text-[var(--color-text-secondary)]">
+								{item.metadata.from_name || item.metadata.from_address}
+								<span class="text-[var(--color-text-tertiary)]">
+									• {item.metadata.date ? formatRelativeTime(item.metadata.date) : formatRelativeTime(item.queued_at)}
 								</span>
-							</div>
-							{#if item.analysis.category}
-								<div class="flex items-center gap-1">
-									<span class="text-[var(--color-text-tertiary)]">Catégorie :</span>
-									<span class="text-[var(--color-text-primary)]">{item.analysis.category}</span>
-								</div>
+							</p>
+
+							<!-- Summary -->
+							{#if item.analysis.summary}
+								<p class="text-xs text-[var(--color-text-tertiary)] mt-1 line-clamp-2">
+									{item.analysis.summary}
+								</p>
 							{/if}
 						</div>
 
-						<!-- Reasoning -->
-						{#if item.analysis.reasoning}
-							<p class="text-xs text-[var(--color-text-tertiary)] italic">
-								"{item.analysis.reasoning}"
-							</p>
-						{/if}
-
-						<!-- Actions (only for pending items) -->
-						{#if item.status === 'pending'}
-							<div class="flex gap-2 pt-2 border-t border-[var(--color-border)]">
-								<Button variant="primary" size="sm" onclick={() => handleApprove(item)}>
-									Approuver
-								</Button>
-								<Button variant="secondary" size="sm" onclick={() => handleReject(item)}>
-									Rejeter
-								</Button>
-							</div>
-						{/if}
+						<!-- Status indicator -->
+						<div class="shrink-0 text-right">
+							<span
+								class="text-xs px-2 py-1 rounded-full"
+								class:bg-green-100={item.status === 'approved'}
+								class:text-green-700={item.status === 'approved'}
+								class:bg-red-100={item.status === 'rejected'}
+								class:text-red-700={item.status === 'rejected'}
+							>
+								{getActionLabel(item.analysis.action)}
+							</span>
+							{#if item.reviewed_at}
+								<p class="text-xs text-[var(--color-text-tertiary)] mt-1">
+									{formatRelativeTime(item.reviewed_at)}
+								</p>
+							{/if}
+						</div>
 					</div>
 				</Card>
 			{/each}

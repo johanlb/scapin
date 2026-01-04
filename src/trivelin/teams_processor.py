@@ -29,6 +29,10 @@ from src.utils import now_utc
 
 logger = get_logger("trivelin.teams_processor")
 
+# Default limit for processing - prevents overwhelming the system
+# Items are always processed oldest-first to handle backlog chronologically
+DEFAULT_PROCESSING_LIMIT = 20
+
 
 @dataclass
 class TeamsProcessingResult:
@@ -170,13 +174,13 @@ class TeamsProcessor:
 
     async def poll_and_process(
         self,
-        limit: Optional[int] = None,
+        limit: int = DEFAULT_PROCESSING_LIMIT,
     ) -> TeamsProcessingSummary:
         """
         Poll for new messages and process them
 
         Args:
-            limit: Maximum messages to process (default: config value)
+            limit: Maximum messages to process (default: 20)
 
         Returns:
             Summary of processing results

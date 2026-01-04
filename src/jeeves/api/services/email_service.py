@@ -92,12 +92,17 @@ class EmailService:
 
         processor = EmailProcessor()
 
-        results = processor.process_inbox(
-            limit=limit,
-            auto_execute=auto_execute,
-            confidence_threshold=confidence_threshold,
-            unread_only=unread_only,
-        )
+        # Build kwargs, omitting None values to use processor defaults
+        kwargs: dict[str, Any] = {
+            "auto_execute": auto_execute,
+            "unread_only": unread_only,
+        }
+        if limit is not None:
+            kwargs["limit"] = limit
+        if confidence_threshold is not None:
+            kwargs["confidence_threshold"] = confidence_threshold
+
+        results = processor.process_inbox(**kwargs)
 
         return {
             "total_processed": len(results),

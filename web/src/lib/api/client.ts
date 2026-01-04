@@ -512,11 +512,22 @@ interface QueueItemMetadata {
 	folder: string | null;
 }
 
+interface ActionOption {
+	action: string;
+	destination: string | null;
+	confidence: number;
+	reasoning: string;
+	reasoning_detailed: string | null;
+	is_recommended: boolean;
+}
+
 interface QueueItemAnalysis {
 	action: string;
 	confidence: number;
 	category: string | null;
 	reasoning: string;
+	summary: string | null;
+	options: ActionOption[];
 }
 
 interface QueueItem {
@@ -577,13 +588,15 @@ export async function getQueueStats(): Promise<QueueStats> {
 export async function approveQueueItem(
 	itemId: string,
 	modifiedAction?: string,
-	modifiedCategory?: string
+	modifiedCategory?: string,
+	destination?: string | null
 ): Promise<QueueItem> {
 	return fetchApi<QueueItem>(`/queue/${itemId}/approve`, {
 		method: 'POST',
 		body: JSON.stringify({
 			modified_action: modifiedAction,
-			modified_category: modifiedCategory
+			modified_category: modifiedCategory,
+			destination: destination
 		})
 	});
 }
@@ -591,12 +604,24 @@ export async function approveQueueItem(
 export async function modifyQueueItem(
 	itemId: string,
 	action: string,
-	category?: string,
-	reasoning?: string
+	options?: {
+		destination?: string;
+		category?: string;
+		reasoning?: string;
+		selectedOptionIndex?: number;
+		customInstruction?: string;
+	}
 ): Promise<QueueItem> {
 	return fetchApi<QueueItem>(`/queue/${itemId}/modify`, {
 		method: 'POST',
-		body: JSON.stringify({ action, category, reasoning })
+		body: JSON.stringify({
+			action,
+			destination: options?.destination,
+			category: options?.category,
+			reasoning: options?.reasoning,
+			selected_option_index: options?.selectedOptionIndex,
+			custom_instruction: options?.customInstruction
+		})
 	});
 }
 
@@ -951,6 +976,7 @@ export type {
 	Calibration,
 	PaginatedResponse,
 	// Queue types
+	ActionOption,
 	QueueItem,
 	QueueItemMetadata,
 	QueueItemAnalysis,

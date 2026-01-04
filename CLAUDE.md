@@ -469,6 +469,20 @@ STORAGE_DIR=./data
 LOG_FILE=./logs/scapin.log
 ```
 
+### Règles de Traitement
+
+**Contraintes appliquées à tous les canaux** (Email, Teams, Calendar) :
+
+| Règle | Valeur | Justification |
+|-------|--------|---------------|
+| **Limite par batch** | 20 items | Évite de surcharger le système et l'IA |
+| **Ordre de traitement** | Plus anciens en premier | Gère le backlog chronologiquement |
+
+Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de chaque processeur :
+- `src/trivelin/processor.py` (Email)
+- `src/trivelin/teams_processor.py` (Teams)
+- `src/trivelin/calendar_processor.py` (Calendar)
+
 ### Commandes de Test
 
 ```bash
