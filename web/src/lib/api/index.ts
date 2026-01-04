@@ -14,6 +14,14 @@ export {
 	// Briefing
 	getMorningBriefing,
 	getPreMeetingBriefing,
+	// Queue
+	listQueueItems,
+	getQueueItem,
+	getQueueStats,
+	approveQueueItem,
+	modifyQueueItem,
+	rejectQueueItem,
+	deleteQueueItem,
 	// Error
 	ApiError
 } from './client';
@@ -29,5 +37,11 @@ export type {
 	AttendeeContext,
 	PreMeetingBriefing,
 	TokenResponse,
-	AuthCheckResponse
+	AuthCheckResponse,
+	// Queue types
+	QueueItem,
+	QueueItemMetadata,
+	QueueItemAnalysis,
+	QueueStats,
+	PaginatedResponse
 } from './client';
