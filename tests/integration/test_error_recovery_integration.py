@@ -304,10 +304,13 @@ class TestErrorFiltering:
 
     def test_filter_by_resolved_status(self, integrated_system):
         """Test filtering by resolved status"""
+        import time
+
         error_store = integrated_system["error_store"]
         error_manager = integrated_system["error_manager"]
 
         # Create resolved and unresolved errors
+        # Add small delay between recordings to ensure unique millisecond timestamps
         error_ids = []
         for i in range(5):
             error = error_manager.record_error(
@@ -324,8 +327,10 @@ class TestErrorFiltering:
                 error.resolved_at = datetime.now()
                 error_store.update_error(error)
 
+            # Small delay to ensure unique error IDs (millisecond-based)
+            time.sleep(0.002)
+
         # Small delay to ensure all writes complete
-        import time
         time.sleep(0.1)
 
         # Filter resolved
