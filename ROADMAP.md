@@ -1244,10 +1244,14 @@ Intégrer les messages LinkedIn avec filtrage agressif (beaucoup de spam/prospec
 **Commande** : `scapin serve [--host] [--port] [--reload]`
 **Documentation** : `http://localhost:8000/docs` (OpenAPI/Swagger)
 
-#### Prochaines Extensions (optionnelles)
-- Routers email, calendar, teams, journal, queue
-- Authentification JWT
-- WebSockets temps réel
+#### Extensions Complétées ✅
+
+| Extension | Statut | Phase |
+|-----------|--------|-------|
+| Routers Queue, Email, Calendar, Teams | ✅ | 0.7.1 |
+| Router Journal | ✅ | 1.6 |
+| Authentification JWT | ✅ | 0.8 |
+| WebSockets temps réel | ✅ | 0.8 |
 
 ### Phase 0.8 : Interface Web (SvelteKit) ✅
 

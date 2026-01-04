@@ -243,14 +243,43 @@ BRIEFING__SHOW_CONFIDENCE=true
 **Commande** : `scapin serve [--host] [--port] [--reload]`
 
 **Endpoints disponibles** :
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | API info |
-| `GET /api/health` | Health check avec status composants |
-| `GET /api/stats` | Statistiques de traitement |
-| `GET /api/config` | Configuration (secrets masqués) |
-| `GET /api/briefing/morning` | Briefing du matin |
-| `GET /api/briefing/meeting/{id}` | Briefing pré-réunion |
+
+| Groupe | Endpoint | Description |
+|--------|----------|-------------|
+| **System** | `GET /` | API info |
+| | `GET /api/health` | Health check avec status composants |
+| | `GET /api/stats` | Statistiques de traitement |
+| | `GET /api/config` | Configuration (secrets masqués) |
+| **Auth** | `POST /api/auth/login` | Login avec PIN |
+| | `GET /api/auth/check` | Vérifier token |
+| **Briefing** | `GET /api/briefing/morning` | Briefing du matin |
+| | `GET /api/briefing/meeting/{id}` | Briefing pré-réunion |
+| **Journal** | `GET /api/journal/{date}` | Obtenir entrée journal |
+| | `GET /api/journal/list` | Lister entrées |
+| | `POST /api/journal/answer` | Soumettre réponse |
+| **Queue** | `GET /api/queue` | Lister items en attente |
+| | `GET /api/queue/stats` | Statistiques queue |
+| | `GET /api/queue/{id}` | Détails item |
+| | `POST /api/queue/{id}/approve` | Approuver item |
+| | `POST /api/queue/{id}/modify` | Modifier action |
+| | `POST /api/queue/{id}/reject` | Rejeter item |
+| | `DELETE /api/queue/{id}` | Supprimer item |
+| **Email** | `GET /api/email/accounts` | Lister comptes |
+| | `GET /api/email/stats` | Statistiques email |
+| | `POST /api/email/process` | Traiter inbox |
+| | `POST /api/email/analyze` | Analyser email |
+| | `POST /api/email/execute` | Exécuter action |
+| **Calendar** | `GET /api/calendar/events` | Lister événements |
+| | `GET /api/calendar/events/{id}` | Détails événement |
+| | `GET /api/calendar/today` | Événements du jour |
+| | `POST /api/calendar/events/{id}/respond` | Répondre invitation |
+| | `POST /api/calendar/poll` | Synchroniser calendrier |
+| **Teams** | `GET /api/teams/chats` | Lister chats |
+| | `GET /api/teams/chats/{id}/messages` | Messages d'un chat |
+| | `POST /api/teams/chats/{chat_id}/messages/{msg_id}/reply` | Répondre message |
+| | `POST /api/teams/chats/{chat_id}/messages/{msg_id}/flag` | Flaguer message |
+| | `POST /api/teams/poll` | Synchroniser Teams |
+| | `GET /api/teams/stats` | Statistiques Teams |
 
 **Usage** :
 ```bash
@@ -260,11 +289,6 @@ scapin serve --reload           # Mode dev avec auto-reload
 ```
 
 **Documentation** : `http://localhost:8000/docs` (OpenAPI/Swagger)
-
-**Prochaines étapes (optionnelles)** :
-- Routers email, calendar, teams, journal, queue
-- Authentification JWT
-- WebSockets temps réel
 
 ### Phase 0.8 : Interface Web (SvelteKit) ✅
 
@@ -343,11 +367,11 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1414+ tests, 95% couverture, 100% pass rate
+**Global** : 1488+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1414 | ✅ |
+| Backend tests | 1488 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 

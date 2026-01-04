@@ -477,6 +477,428 @@ export async function exportJournal(
 	});
 }
 
+// ============================================================================
+// QUEUE TYPES
+// ============================================================================
+
+interface QueueItemMetadata {
+	id: string;
+	subject: string;
+	from_address: string;
+	from_name: string;
+	date: string | null;
+	has_attachments: boolean;
+	folder: string | null;
+}
+
+interface QueueItemAnalysis {
+	action: string;
+	confidence: number;
+	category: string | null;
+	reasoning: string;
+}
+
+interface QueueItem {
+	id: string;
+	account_id: string | null;
+	queued_at: string;
+	metadata: QueueItemMetadata;
+	analysis: QueueItemAnalysis;
+	content: { preview: string };
+	status: string;
+	reviewed_at: string | null;
+	review_decision: string | null;
+}
+
+interface QueueStats {
+	total: number;
+	by_status: Record<string, number>;
+	by_account: Record<string, number>;
+	oldest_item: string | null;
+	newest_item: string | null;
+}
+
+// ============================================================================
+// QUEUE API FUNCTIONS
+// ============================================================================
+
+export async function listQueueItems(
+	page = 1,
+	pageSize = 20,
+	status = 'pending',
+	accountId?: string
+): Promise<PaginatedResponse<QueueItem[]>> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize),
+		status
+	});
+	if (accountId) params.set('account_id', accountId);
+
+	const url = `${API_BASE}/queue?${params}`;
+	const response = await fetch(url, {
+		headers: {
+			'Content-Type': 'application/json',
+			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
+		}
+	});
+	return response.json();
+}
+
+export async function getQueueItem(itemId: string): Promise<QueueItem> {
+	return fetchApi<QueueItem>(`/queue/${itemId}`);
+}
+
+export async function getQueueStats(): Promise<QueueStats> {
+	return fetchApi<QueueStats>('/queue/stats');
+}
+
+export async function approveQueueItem(
+	itemId: string,
+	modifiedAction?: string,
+	modifiedCategory?: string
+): Promise<QueueItem> {
+	return fetchApi<QueueItem>(`/queue/${itemId}/approve`, {
+		method: 'POST',
+		body: JSON.stringify({
+			modified_action: modifiedAction,
+			modified_category: modifiedCategory
+		})
+	});
+}
+
+export async function modifyQueueItem(
+	itemId: string,
+	action: string,
+	category?: string,
+	reasoning?: string
+): Promise<QueueItem> {
+	return fetchApi<QueueItem>(`/queue/${itemId}/modify`, {
+		method: 'POST',
+		body: JSON.stringify({ action, category, reasoning })
+	});
+}
+
+export async function rejectQueueItem(itemId: string, reason?: string): Promise<QueueItem> {
+	return fetchApi<QueueItem>(`/queue/${itemId}/reject`, {
+		method: 'POST',
+		body: JSON.stringify({ reason })
+	});
+}
+
+export async function deleteQueueItem(itemId: string): Promise<{ deleted: string }> {
+	return fetchApi<{ deleted: string }>(`/queue/${itemId}`, {
+		method: 'DELETE'
+	});
+}
+
+// ============================================================================
+// EMAIL TYPES
+// ============================================================================
+
+interface EmailAccount {
+	name: string;
+	email: string;
+	enabled: boolean;
+	inbox_folder: string;
+}
+
+interface EmailStats {
+	emails_processed: number;
+	emails_auto_executed: number;
+	emails_archived: number;
+	emails_deleted: number;
+	emails_queued: number;
+	emails_skipped: number;
+	tasks_created: number;
+	average_confidence: number;
+	processing_mode: string;
+}
+
+interface ProcessedEmail {
+	metadata: QueueItemMetadata;
+	analysis: QueueItemAnalysis;
+	processed_at: string;
+	executed: boolean;
+}
+
+interface ProcessInboxResult {
+	total_processed: number;
+	auto_executed: number;
+	queued: number;
+	skipped: number;
+	emails: ProcessedEmail[];
+}
+
+// ============================================================================
+// EMAIL API FUNCTIONS
+// ============================================================================
+
+export async function getEmailAccounts(): Promise<EmailAccount[]> {
+	return fetchApi<EmailAccount[]>('/email/accounts');
+}
+
+export async function getEmailStats(): Promise<EmailStats> {
+	return fetchApi<EmailStats>('/email/stats');
+}
+
+export async function processInbox(
+	limit?: number,
+	autoExecute = false,
+	confidenceThreshold?: number,
+	unreadOnly = false
+): Promise<ProcessInboxResult> {
+	return fetchApi<ProcessInboxResult>('/email/process', {
+		method: 'POST',
+		body: JSON.stringify({
+			limit,
+			auto_execute: autoExecute,
+			confidence_threshold: confidenceThreshold,
+			unread_only: unreadOnly
+		})
+	});
+}
+
+export async function analyzeEmail(emailId: string, folder = 'INBOX'): Promise<ProcessedEmail> {
+	return fetchApi<ProcessedEmail>('/email/analyze', {
+		method: 'POST',
+		body: JSON.stringify({ email_id: emailId, folder })
+	});
+}
+
+export async function executeEmailAction(
+	emailId: string,
+	action: string,
+	destination?: string
+): Promise<{ email_id: string; action: string; executed: boolean }> {
+	return fetchApi<{ email_id: string; action: string; executed: boolean }>('/email/execute', {
+		method: 'POST',
+		body: JSON.stringify({ email_id: emailId, action, destination })
+	});
+}
+
+// ============================================================================
+// CALENDAR TYPES
+// ============================================================================
+
+interface CalendarAttendee {
+	email: string;
+	name: string | null;
+	response_status: string;
+	is_organizer: boolean;
+}
+
+interface CalendarEvent {
+	id: string;
+	title: string;
+	start: string;
+	end: string;
+	location: string | null;
+	is_online: boolean;
+	meeting_url: string | null;
+	organizer: string | null;
+	attendees: CalendarAttendee[];
+	is_all_day: boolean;
+	is_recurring: boolean;
+	description: string | null;
+	status: string;
+}
+
+interface TodayEvents {
+	date: string;
+	total_events: number;
+	meetings: number;
+	all_day_events: number;
+	events: CalendarEvent[];
+}
+
+interface CalendarPollResult {
+	events_fetched: number;
+	events_new: number;
+	events_updated: number;
+	polled_at: string;
+}
+
+// ============================================================================
+// CALENDAR API FUNCTIONS
+// ============================================================================
+
+export async function listCalendarEvents(
+	startDate?: string,
+	endDate?: string,
+	page = 1,
+	pageSize = 20
+): Promise<PaginatedResponse<CalendarEvent[]>> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize)
+	});
+	if (startDate) params.set('start_date', startDate);
+	if (endDate) params.set('end_date', endDate);
+
+	const url = `${API_BASE}/calendar/events?${params}`;
+	const response = await fetch(url, {
+		headers: {
+			'Content-Type': 'application/json',
+			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
+		}
+	});
+	return response.json();
+}
+
+export async function getCalendarEvent(eventId: string): Promise<CalendarEvent> {
+	return fetchApi<CalendarEvent>(`/calendar/events/${encodeURIComponent(eventId)}`);
+}
+
+export async function getTodayEvents(): Promise<TodayEvents> {
+	return fetchApi<TodayEvents>('/calendar/today');
+}
+
+export async function respondToCalendarEvent(
+	eventId: string,
+	response: 'accept' | 'decline' | 'tentative',
+	message?: string
+): Promise<{ event_id: string; response: string; sent: boolean }> {
+	return fetchApi<{ event_id: string; response: string; sent: boolean }>(
+		`/calendar/events/${encodeURIComponent(eventId)}/respond`,
+		{
+			method: 'POST',
+			body: JSON.stringify({ response, message })
+		}
+	);
+}
+
+export async function pollCalendar(): Promise<CalendarPollResult> {
+	return fetchApi<CalendarPollResult>('/calendar/poll', { method: 'POST' });
+}
+
+// ============================================================================
+// TEAMS TYPES
+// ============================================================================
+
+interface TeamsChat {
+	id: string;
+	topic: string | null;
+	chat_type: string;
+	created_at: string | null;
+	last_message_at: string | null;
+	member_count: number;
+	unread_count: number;
+}
+
+interface TeamsSender {
+	id: string;
+	display_name: string;
+	email: string | null;
+}
+
+interface TeamsMessage {
+	id: string;
+	chat_id: string;
+	sender: TeamsSender;
+	content: string;
+	content_preview: string;
+	created_at: string;
+	is_read: boolean;
+	importance: string;
+	has_mentions: boolean;
+	attachments_count: number;
+}
+
+interface TeamsStats {
+	total_chats: number;
+	unread_chats: number;
+	messages_processed: number;
+	messages_flagged: number;
+	last_poll: string | null;
+}
+
+interface TeamsPollResult {
+	messages_fetched: number;
+	messages_new: number;
+	chats_checked: number;
+	polled_at: string;
+}
+
+// ============================================================================
+// TEAMS API FUNCTIONS
+// ============================================================================
+
+export async function listTeamsChats(page = 1, pageSize = 20): Promise<PaginatedResponse<TeamsChat[]>> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize)
+	});
+
+	const url = `${API_BASE}/teams/chats?${params}`;
+	const response = await fetch(url, {
+		headers: {
+			'Content-Type': 'application/json',
+			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
+		}
+	});
+	return response.json();
+}
+
+export async function listTeamsMessages(
+	chatId: string,
+	page = 1,
+	pageSize = 20,
+	since?: string
+): Promise<PaginatedResponse<TeamsMessage[]>> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize)
+	});
+	if (since) params.set('since', since);
+
+	const url = `${API_BASE}/teams/chats/${encodeURIComponent(chatId)}/messages?${params}`;
+	const response = await fetch(url, {
+		headers: {
+			'Content-Type': 'application/json',
+			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
+		}
+	});
+	return response.json();
+}
+
+export async function replyToTeamsMessage(
+	chatId: string,
+	messageId: string,
+	content: string
+): Promise<{ chat_id: string; message_id: string; replied: boolean }> {
+	return fetchApi<{ chat_id: string; message_id: string; replied: boolean }>(
+		`/teams/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/reply`,
+		{
+			method: 'POST',
+			body: JSON.stringify({ content })
+		}
+	);
+}
+
+export async function flagTeamsMessage(
+	chatId: string,
+	messageId: string,
+	flag = true,
+	reason?: string
+): Promise<{ chat_id: string; message_id: string; flagged: boolean }> {
+	return fetchApi<{ chat_id: string; message_id: string; flagged: boolean }>(
+		`/teams/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/flag`,
+		{
+			method: 'POST',
+			body: JSON.stringify({ flag, reason })
+		}
+	);
+}
+
+export async function pollTeams(): Promise<TeamsPollResult> {
+	return fetchApi<TeamsPollResult>('/teams/poll', { method: 'POST' });
+}
+
+export async function getTeamsStats(): Promise<TeamsStats> {
+	return fetchApi<TeamsStats>('/teams/stats');
+}
+
 // Export types for use in components
 export type {
 	ApiResponse,
@@ -504,7 +926,28 @@ export type {
 	MonthlyReview,
 	SourceCalibration,
 	Calibration,
-	PaginatedResponse
+	PaginatedResponse,
+	// Queue types
+	QueueItem,
+	QueueItemMetadata,
+	QueueItemAnalysis,
+	QueueStats,
+	// Email types
+	EmailAccount,
+	EmailStats,
+	ProcessedEmail,
+	ProcessInboxResult,
+	// Calendar types
+	CalendarAttendee,
+	CalendarEvent,
+	TodayEvents,
+	CalendarPollResult,
+	// Teams types
+	TeamsChat,
+	TeamsSender,
+	TeamsMessage,
+	TeamsStats,
+	TeamsPollResult
 };
 
 export { ApiError };
