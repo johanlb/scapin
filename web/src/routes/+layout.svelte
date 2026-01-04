@@ -4,8 +4,23 @@
 	import { CommandPalette } from '$lib/components/ui';
 	import { showCommandPalette, openCommandPalette, closeCommandPalette } from '$lib/stores';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
 	let { children } = $props();
+
+	// Register service worker for PWA
+	onMount(() => {
+		if (browser && 'serviceWorker' in navigator) {
+			navigator.serviceWorker.register('/sw.js')
+				.then((registration) => {
+					console.log('[PWA] Service worker registered:', registration.scope);
+				})
+				.catch((error) => {
+					console.error('[PWA] Service worker registration failed:', error);
+				});
+		}
+	});
 
 	function handleKeydown(event: KeyboardEvent) {
 		// Cmd+K (Mac) or Ctrl+K (Windows/Linux)
@@ -38,6 +53,11 @@
 	<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+	<meta name="description" content="Scapin - Votre valet de l'esprit, gardien cognitif personnel" />
+	<!-- PWA -->
+	<link rel="manifest" href="/manifest.json" />
+	<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+	<link rel="apple-touch-icon" href="/icons/icon.svg" />
 	<title>Scapin</title>
 </svelte:head>
 

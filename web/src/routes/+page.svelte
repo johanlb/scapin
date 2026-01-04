@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Card, Badge, PullToRefresh, SwipeableCard } from '$lib/components/ui';
 	import { formatRelativeTime } from '$lib/utils/formatters';
+	import { briefingStore } from '$lib/stores';
 	import type { ScapinEvent } from '$lib/types';
 
-	// Mock data for development
-	let mockEvents = $state<ScapinEvent[]>([
+	// Mock data for development (fallback when API unavailable)
+	const mockEvents: ScapinEvent[] = [
 		{
 			id: '1',
 			source: 'email',
@@ -24,7 +26,7 @@
 			id: '2',
 			source: 'calendar',
 			title: 'Réunion équipe produit',
-			summary: 'Point hebdomadaire avec l\'équipe - salle Voltaire',
+			summary: "Point hebdomadaire avec l'équipe - salle Voltaire",
 			occurred_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
 			status: 'pending',
 			urgency: 'high',
@@ -43,23 +45,79 @@
 			confidence: 'medium',
 			suggested_actions: [{ id: '1', type: 'reply', label: 'Répondre', confidence: 0.85 }]
 		}
-	]);
+	];
 
-	const stats = {
+	const mockStats = {
 		emails_pending: 12,
 		teams_unread: 5,
 		meetings_today: 3,
 		tasks_due: 7
 	};
 
+	// Local state for events (will be populated from API or mock)
+	let events = $state<ScapinEvent[]>(mockEvents);
+	let stats = $state(mockStats);
+	let usingMockData = $state(true);
+
+	// Load data on mount
+	onMount(async () => {
+		await loadBriefingData();
+	});
+
+	async function loadBriefingData(): Promise<void> {
+		await briefingStore.fetchBriefing();
+
+		if (briefingStore.briefing && briefingStore.stats) {
+			// Transform API data to ScapinEvent format
+			const apiEvents: ScapinEvent[] = [
+				...briefingStore.briefing.urgent_items.map(transformBriefingItem),
+				...briefingStore.briefing.calendar_today.map(transformBriefingItem),
+				...briefingStore.briefing.emails_pending.map(transformBriefingItem),
+				...briefingStore.briefing.teams_unread.map(transformBriefingItem)
+			];
+
+			if (apiEvents.length > 0) {
+				events = apiEvents;
+				usingMockData = false;
+			}
+
+			stats = {
+				emails_pending: briefingStore.briefing.emails_pending.length,
+				teams_unread: briefingStore.briefing.teams_unread.length,
+				meetings_today: briefingStore.briefing.meetings_today,
+				tasks_due: 0
+			};
+		}
+	}
+
+	function transformBriefingItem(item: {
+		id: string;
+		type: string;
+		title: string;
+		summary: string;
+		urgency: string;
+		timestamp: string;
+		source: string;
+	}): ScapinEvent {
+		return {
+			id: item.id,
+			source: item.type as ScapinEvent['source'],
+			title: item.title,
+			summary: item.summary,
+			occurred_at: item.timestamp,
+			status: 'pending',
+			urgency: item.urgency as ScapinEvent['urgency'],
+			confidence: 'high',
+			suggested_actions: []
+		};
+	}
+
 	async function handleRefresh(): Promise<void> {
-		// Simulate API call
-		await new Promise(resolve => setTimeout(resolve, 1000));
-		console.log('Refreshed!');
+		await loadBriefingData();
 	}
 
 	function archiveEvent(eventId: string) {
-		mockEvents = mockEvents.filter(e => e.id !== eventId);
+		events = events.filter((e) => e.id !== eventId);
 		console.log('Archived:', eventId);
 	}
 
@@ -75,8 +133,12 @@
 		return 'Bonsoir Monsieur';
 	}
 
-	const urgentEvents = $derived(mockEvents.filter(e => e.urgency === 'urgent' || e.urgency === 'high'));
-	const otherEvents = $derived(mockEvents.filter(e => e.urgency !== 'urgent' && e.urgency !== 'high'));
+	const urgentEvents = $derived(
+		events.filter((e) => e.urgency === 'urgent' || e.urgency === 'high')
+	);
+	const otherEvents = $derived(
+		events.filter((e) => e.urgency !== 'urgent' && e.urgency !== 'high')
+	);
 </script>
 
 <PullToRefresh onrefresh={handleRefresh}>
@@ -87,138 +149,187 @@
 				{getGreeting()}
 			</h1>
 			<p class="text-[var(--color-text-secondary)] mt-1">
-				Voici l'état des affaires en ce {new Date().toLocaleDateString('fr-FR', {
-					weekday: 'long',
-					day: 'numeric',
-					month: 'long'
-				})}
+				{#if briefingStore.loading}
+					Chargement du briefing...
+				{:else}
+					Voici l'état des affaires en ce {new Date().toLocaleDateString('fr-FR', {
+						weekday: 'long',
+						day: 'numeric',
+						month: 'long'
+					})}
+				{/if}
 			</p>
+			{#if briefingStore.error}
+				<p class="text-xs text-[var(--color-urgency-urgent)] mt-1">
+					{briefingStore.error}
+				</p>
+			{/if}
+			{#if usingMockData && !briefingStore.loading}
+				<p class="text-xs text-[var(--color-text-tertiary)] mt-1">
+					Données de démonstration (serveur hors ligne)
+				</p>
+			{/if}
 		</header>
 
 		<!-- Quick Stats -->
 		<section class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
 			<Card padding="sm">
 				<div class="text-center">
-					<p class="text-xl md:text-2xl font-bold text-[var(--color-event-email)]">{stats.emails_pending}</p>
+					<p class="text-xl md:text-2xl font-bold text-[var(--color-event-email)]">
+						{stats.emails_pending}
+					</p>
 					<p class="text-xs text-[var(--color-text-tertiary)]">Emails</p>
 				</div>
 			</Card>
 			<Card padding="sm">
 				<div class="text-center">
-					<p class="text-xl md:text-2xl font-bold text-[var(--color-event-teams)]">{stats.teams_unread}</p>
+					<p class="text-xl md:text-2xl font-bold text-[var(--color-event-teams)]">
+						{stats.teams_unread}
+					</p>
 					<p class="text-xs text-[var(--color-text-tertiary)]">Teams</p>
 				</div>
 			</Card>
 			<Card padding="sm">
 				<div class="text-center">
-					<p class="text-xl md:text-2xl font-bold text-[var(--color-event-calendar)]">{stats.meetings_today}</p>
+					<p class="text-xl md:text-2xl font-bold text-[var(--color-event-calendar)]">
+						{stats.meetings_today}
+					</p>
 					<p class="text-xs text-[var(--color-text-tertiary)]">Réunions</p>
 				</div>
 			</Card>
 			<Card padding="sm">
 				<div class="text-center">
-					<p class="text-xl md:text-2xl font-bold text-[var(--color-event-omnifocus)]">{stats.tasks_due}</p>
+					<p class="text-xl md:text-2xl font-bold text-[var(--color-event-omnifocus)]">
+						{stats.tasks_due}
+					</p>
 					<p class="text-xs text-[var(--color-text-tertiary)]">Tâches</p>
 				</div>
 			</Card>
 		</section>
 
-		<!-- Urgent Items -->
-		{#if urgentEvents.length > 0}
-			<section class="mb-5">
-				<h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2">
-					<span>🔔</span> Affaires pressantes
-				</h2>
-				<div class="space-y-2">
-					{#each urgentEvents as event (event.id)}
-						<SwipeableCard
-							leftAction={{
-								icon: '📦',
-								label: 'Classer',
-								color: 'var(--color-text-tertiary)',
-								action: () => archiveEvent(event.id)
-							}}
-							rightAction={{
-								icon: '↩️',
-								label: 'Répondre',
-								color: 'var(--color-accent)',
-								action: () => replyToEvent(event.id)
-							}}
-						>
-							<button
-								type="button"
-								onclick={() => console.log('Navigate to', event.id)}
-								class="w-full text-left p-3"
+		<!-- Loading state -->
+		{#if briefingStore.loading}
+			<div class="flex justify-center py-8">
+				<div
+					class="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
+				></div>
+			</div>
+		{:else}
+			<!-- Urgent Items -->
+			{#if urgentEvents.length > 0}
+				<section class="mb-5">
+					<h2
+						class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2"
+					>
+						<span>🔔</span> Affaires pressantes
+					</h2>
+					<div class="space-y-2">
+						{#each urgentEvents as event (event.id)}
+							<SwipeableCard
+								leftAction={{
+									icon: '📦',
+									label: 'Classer',
+									color: 'var(--color-text-tertiary)',
+									action: () => archiveEvent(event.id)
+								}}
+								rightAction={{
+									icon: '↩️',
+									label: 'Répondre',
+									color: 'var(--color-accent)',
+									action: () => replyToEvent(event.id)
+								}}
 							>
-								<div class="flex items-start gap-3">
-									<div class="flex-1 min-w-0">
-										<div class="flex flex-wrap items-center gap-1.5 mb-1">
-											<Badge variant="source" source={event.source} />
-											<Badge variant="urgency" urgency={event.urgency} />
-											<span class="text-xs text-[var(--color-text-tertiary)]">
-												{formatRelativeTime(event.occurred_at)}
-											</span>
+								<button
+									type="button"
+									onclick={() => console.log('Navigate to', event.id)}
+									class="w-full text-left p-3"
+								>
+									<div class="flex items-start gap-3">
+										<div class="flex-1 min-w-0">
+											<div class="flex flex-wrap items-center gap-1.5 mb-1">
+												<Badge variant="source" source={event.source} />
+												<Badge variant="urgency" urgency={event.urgency} />
+												<span class="text-xs text-[var(--color-text-tertiary)]">
+													{formatRelativeTime(event.occurred_at)}
+												</span>
+											</div>
+											<h3
+												class="text-sm font-semibold text-[var(--color-text-primary)] truncate"
+											>
+												{event.title}
+											</h3>
+											<p class="text-sm text-[var(--color-text-secondary)] line-clamp-1">
+												{event.summary}
+											</p>
+											{#if event.sender}
+												<p class="text-xs text-[var(--color-text-tertiary)] mt-1 truncate">
+													De : {event.sender}
+												</p>
+											{/if}
 										</div>
-										<h3 class="text-sm font-semibold text-[var(--color-text-primary)] truncate">{event.title}</h3>
-										<p class="text-sm text-[var(--color-text-secondary)] line-clamp-1">{event.summary}</p>
-										{#if event.sender}
-											<p class="text-xs text-[var(--color-text-tertiary)] mt-1 truncate">De : {event.sender}</p>
-										{/if}
+										<span class="text-[var(--color-text-tertiary)] shrink-0">→</span>
 									</div>
-									<span class="text-[var(--color-text-tertiary)] shrink-0">→</span>
-								</div>
-							</button>
-						</SwipeableCard>
-					{/each}
-				</div>
-			</section>
-		{/if}
+								</button>
+							</SwipeableCard>
+						{/each}
+					</div>
+				</section>
+			{/if}
 
-		<!-- Other Pending -->
-		{#if otherEvents.length > 0}
-			<section>
-				<h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2">
-					<span>📌</span> À votre attention
-				</h2>
-				<div class="space-y-2">
-					{#each otherEvents as event (event.id)}
-						<SwipeableCard
-							leftAction={{
-								icon: '📦',
-								label: 'Classer',
-								color: 'var(--color-text-tertiary)',
-								action: () => archiveEvent(event.id)
-							}}
-							rightAction={{
-								icon: '↩️',
-								label: 'Répondre',
-								color: 'var(--color-accent)',
-								action: () => replyToEvent(event.id)
-							}}
-						>
-							<button
-								type="button"
-								onclick={() => console.log('Navigate to', event.id)}
-								class="w-full text-left p-3"
+			<!-- Other Pending -->
+			{#if otherEvents.length > 0}
+				<section>
+					<h2
+						class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2"
+					>
+						<span>📌</span> À votre attention
+					</h2>
+					<div class="space-y-2">
+						{#each otherEvents as event (event.id)}
+							<SwipeableCard
+								leftAction={{
+									icon: '📦',
+									label: 'Classer',
+									color: 'var(--color-text-tertiary)',
+									action: () => archiveEvent(event.id)
+								}}
+								rightAction={{
+									icon: '↩️',
+									label: 'Répondre',
+									color: 'var(--color-accent)',
+									action: () => replyToEvent(event.id)
+								}}
 							>
-								<div class="flex items-start gap-3">
-									<div class="flex-1 min-w-0">
-										<div class="flex flex-wrap items-center gap-1.5 mb-1">
-											<Badge variant="source" source={event.source} />
-											<span class="text-xs text-[var(--color-text-tertiary)]">
-												{formatRelativeTime(event.occurred_at)}
-											</span>
+								<button
+									type="button"
+									onclick={() => console.log('Navigate to', event.id)}
+									class="w-full text-left p-3"
+								>
+									<div class="flex items-start gap-3">
+										<div class="flex-1 min-w-0">
+											<div class="flex flex-wrap items-center gap-1.5 mb-1">
+												<Badge variant="source" source={event.source} />
+												<span class="text-xs text-[var(--color-text-tertiary)]">
+													{formatRelativeTime(event.occurred_at)}
+												</span>
+											</div>
+											<h3
+												class="text-sm font-semibold text-[var(--color-text-primary)] truncate"
+											>
+												{event.title}
+											</h3>
+											<p class="text-sm text-[var(--color-text-secondary)] line-clamp-1">
+												{event.summary}
+											</p>
 										</div>
-										<h3 class="text-sm font-semibold text-[var(--color-text-primary)] truncate">{event.title}</h3>
-										<p class="text-sm text-[var(--color-text-secondary)] line-clamp-1">{event.summary}</p>
+										<span class="text-[var(--color-text-tertiary)] shrink-0">→</span>
 									</div>
-									<span class="text-[var(--color-text-tertiary)] shrink-0">→</span>
-								</div>
-							</button>
-						</SwipeableCard>
-					{/each}
-				</div>
-			</section>
+								</button>
+							</SwipeableCard>
+						{/each}
+					</div>
+				</section>
+			{/if}
 		{/if}
 
 		<!-- Empty state hint for swipe gestures (mobile only) -->

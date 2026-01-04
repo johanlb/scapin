@@ -1288,6 +1288,7 @@ Focus sur :
 - Notifications push (briefings)
 - Validation rapide (queue)
 - Journaling simplifié
+- **Deeplinks** : URLs d'action pour intégration OmniFocus, annotations, et outils tiers (ex: `scapin://task/123/complete`)
 
 ---
 

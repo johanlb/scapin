@@ -494,6 +494,62 @@ web/
 
 ---
 
+### Session 2026-01-04 (Suite) — Phase 0.8 Connexion API + PWA
+
+**Focus** : Connexion frontend-backend, PWA, configuration environnement
+
+**Accomplissements** :
+1. ✅ **Design Liquid Glass** (Apple WWDC 2025) - Implémenté 3 niveaux
+   - CSS foundations: glass layers, blur, spring animations
+   - Components: Card, Button, Sidebar, MobileNav avec variants glass
+   - Polish: ambient gradient, glow shadows
+2. ✅ **PWA Setup** - manifest.json, service worker, icône SVG
+3. ✅ **Client API** - `$lib/api/client.ts` typé, gestion d'erreurs
+4. ✅ **Store Briefing** - `$lib/stores/briefing.svelte.ts` avec Svelte 5 runes
+5. ✅ **Routes dynamiques** - `/flux/[id]`, `/notes/[...path]`
+6. ✅ **Proxy Vite** - `/api/*` → backend FastAPI (port 8000)
+7. ✅ **Configuration environnement** :
+   - `.env.example` avec documentation complète
+   - `.env` pour développement
+   - `config/defaults.yaml` avec valeurs par défaut
+8. ✅ **Tests** - 8 tests unitaires pour client API (vitest)
+9. ✅ **Deeplinks** - Ajouté au plan Phase 0.9 (ROADMAP.md)
+
+**Fichiers créés/modifiés** :
+```
+web/
+├── src/lib/api/
+│   ├── client.ts              # Client API typé
+│   ├── index.ts               # Exports
+│   └── __tests__/client.test.ts  # 8 tests
+├── src/lib/stores/
+│   └── briefing.svelte.ts     # Store avec Svelte 5 runes
+├── src/routes/
+│   ├── flux/[id]/+page.svelte # Détail email/message
+│   └── notes/[...path]/+page.svelte # Détail note
+├── static/
+│   ├── manifest.json          # PWA manifest
+│   ├── sw.js                  # Service worker
+│   └── icons/icon.svg         # Icône app
+└── vite.config.ts             # Proxy API
+
+scapin/
+├── .env.example               # Documentation variables
+├── .env                       # Config développement
+└── config/defaults.yaml       # Valeurs par défaut
+```
+
+**Architecture connexion** :
+```
+Frontend (Vite:5173) ──proxy──> Backend (FastAPI:8000)
+        │                              │
+        └── /api/* ────────────────────┘
+```
+
+**Tests** : 8 tests client API passent (vitest)
+
+---
+
 ### Session 2026-01-03 (Suite 6) — Refactoring PKM → Scapin
 
 **Focus** : Suppression de toutes les références à "PKM" dans le codebase
