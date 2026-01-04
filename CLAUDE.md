@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 4 janvier 2026
+**Dernière mise à jour** : 5 janvier 2026
 **Projet** : Scapin (anciennement PKM System)  
 **Dépôt** : https://github.com/johanlb/scapin  
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -517,6 +517,50 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-05 (Suite 8) — Connexion Settings à l'API Config
+
+**Focus** : Connecter la page Réglages au endpoint `/api/config` pour afficher les statuts réels des intégrations
+
+**Accomplissements** :
+
+1. ✅ **Fix endpoint `/api/config`** (`src/jeeves/api/routers/system.py`)
+   - Bug corrigé : `config.ai.model` n'existait pas → valeur par défaut "claude-3-5-haiku"
+   - Ajout modèle `IntegrationStatus` avec id, name, icon, status, last_sync
+   - Construction dynamique des statuts d'intégration depuis la configuration réelle
+
+2. ✅ **Nouveau store config** (`web/src/lib/stores/config.svelte.ts`)
+   - Store Svelte 5 avec `$state` et `$derived`
+   - Fonction `fetchConfig()` avec gestion d'erreurs
+   - Getters réactifs : `integrations`, `emailAccounts`, `teamsEnabled`, etc.
+
+3. ✅ **Client API étendu** (`web/src/lib/api/client.ts`)
+   - Ajout types `IntegrationStatus` et `SystemConfig`
+   - Ajout fonction `getConfig(): Promise<SystemConfig>`
+   - Export des nouveaux types dans `index.ts`
+
+4. ✅ **Page Settings connectée** (`web/src/routes/settings/+page.svelte`)
+   - Remplacement données mockées par `configStore.integrations`
+   - Ajout état de chargement (spinner)
+   - Ajout affichage erreur si API indisponible
+   - Fix `lastSync` → `last_sync` (convention snake_case API)
+
+5. ✅ **Fix page principale** (`web/src/routes/+page.svelte`)
+   - Distinction entre 'mock' (serveur offline), 'api' (données réelles), 'api-empty' (aucun item)
+   - Message approprié selon la source des données
+
+**Statuts intégrations affichés** :
+| Intégration | Statut | Condition |
+|-------------|--------|-----------|
+| Courrier (IMAP) | connected | Compte email configuré |
+| Microsoft Teams | disconnected | `teams.enabled = false` |
+| Agenda | disconnected | `calendar.enabled = false` |
+| OmniFocus | disconnected | Non implémenté |
+
+**Commit** :
+- `f52c231` — feat(web): connect Settings page to /api/config endpoint
+
+---
 
 ### Session 2026-01-04 (Suite 7) — Intégration QueueStorage & Tests E2E API
 
@@ -1387,5 +1431,5 @@ Les Phases 0.8 (Web) et 0.9 (PWA Mobile) sont complètes. Prochaines étapes pos
 
 ---
 
-**Dernière mise à jour** : 4 janvier 2026 par Claude
+**Dernière mise à jour** : 5 janvier 2026 par Claude
 **Prochaine révision** : Début prochaine session
