@@ -518,6 +518,44 @@ LOG_FILE=./logs/scapin.log
 
 ## 📝 Notes de Session
 
+### Session 2026-01-04 (Suite 7) — Intégration QueueStorage & Tests E2E API
+
+**Focus** : Connexion du QueueStorage au processor et tests end-to-end du workflow email
+
+**Accomplissements** :
+
+1. ✅ **Intégration QueueStorage** (`src/trivelin/processor.py`)
+   - Import et initialisation de `get_queue_storage()`
+   - Appel `queue_storage.save_item()` lors du queuing pour revue manuelle
+   - Emails maintenant persistés dans `data/queue/`
+
+2. ✅ **Corrections API**
+   - `src/jeeves/api/routers/queue.py` : Conversion ID email int → str
+   - `src/jeeves/api/services/email_service.py` : Destination fallback pour delete action
+
+3. ✅ **Tests mocks mis à jour** (`tests/unit/test_email_processor.py`)
+   - Ajout `@patch('src.trivelin.processor.get_queue_storage')` sur 11 tests
+
+4. ✅ **Workflow E2E testé avec succès**
+   - `POST /api/email/process` → 2 emails analysés et queued
+   - `GET /api/queue` → Liste des items en attente
+   - `POST /api/queue/{id}/approve` → Approbation avec timestamp
+   - `POST /api/email/execute` → Exécution actions IMAP (delete → Trash, archive → Archive/2025/Work)
+   - `GET /api/queue/stats` → Statistiques par status/account
+
+5. ✅ **Configuration iCloud Mail fonctionnelle**
+   - Connexion IMAP imap.mail.me.com:993
+   - Création automatique des dossiers (Trash, Archive/2025/Work)
+
+**Commits** :
+- `7d7b321` — feat(trivelin): integrate QueueStorage into email processor
+- `be9cf29` — fix(api): convert email ID to string in queue router
+- `4d5cafd` — fix(api): use destination param for delete action with fallback
+
+**Tests** : 1488 passed, 53 skipped
+
+---
+
 ### Session 2026-01-04 (Suite 6) — Phase 1.6 Journaling Complet COMPLET
 
 **Focus** : Journaling multi-source avec calibration Sganarelle
