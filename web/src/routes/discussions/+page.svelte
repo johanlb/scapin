@@ -57,10 +57,10 @@
 <div class="p-4 md:p-6 max-w-4xl mx-auto">
 	<header class="mb-6">
 		<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-			💬 Discussions
+			💬 Conversations
 		</h1>
 		<p class="text-[var(--color-text-secondary)] mt-1">
-			Vos conversations actives
+			Vos échanges en cours
 		</p>
 	</header>
 

@@ -17,29 +17,29 @@
 
 	const pageSuggestions: Record<string, Suggestion[]> = {
 		'/': [
-			{ label: 'Résumer ma journée', query: 'Résume les éléments importants de ma journée', icon: '📋' },
-			{ label: 'Préparer réunion', query: 'Aide-moi à préparer ma prochaine réunion', icon: '🎯' },
-			{ label: 'Emails urgents', query: 'Quels emails nécessitent une réponse urgente ?', icon: '⚡' }
+			{ label: 'Résumez ma journée', query: 'Faites-moi un résumé de ma journée', icon: '📋' },
+			{ label: 'Préparez ma réunion', query: 'Préparez ma prochaine réunion', icon: '🎯' },
+			{ label: 'Affaires pressantes', query: 'Quelles affaires requièrent mon attention ?', icon: '⚡' }
 		],
 		'/flux': [
-			{ label: 'Filtrer par urgence', query: 'Montre-moi uniquement les éléments urgents', icon: '🔴' },
-			{ label: 'Archiver traités', query: 'Archive les éléments que j\'ai traités', icon: '📦' },
-			{ label: 'Résumer non lus', query: 'Résume les messages non lus', icon: '📨' }
+			{ label: 'Affaires pressantes', query: 'Montrez-moi uniquement les affaires pressantes', icon: '🔴' },
+			{ label: 'Classer les traités', query: 'Classez les éléments que j\'ai traités', icon: '📦' },
+			{ label: 'Résumer les nouvelles', query: 'Résumez les messages non lus', icon: '📨' }
 		],
 		'/notes': [
-			{ label: 'Chercher note', query: 'Cherche dans mes notes...', icon: '🔍' },
-			{ label: 'Créer note', query: 'Crée une nouvelle note sur...', icon: '✏️' },
-			{ label: 'Résumer projet', query: 'Résume les notes du projet...', icon: '📑' }
+			{ label: 'Chercher un carnet', query: 'Cherchez dans mes carnets...', icon: '🔍' },
+			{ label: 'Nouveau carnet', query: 'Créez un nouveau carnet sur...', icon: '✏️' },
+			{ label: 'Résumer un projet', query: 'Résumez les carnets du projet...', icon: '📑' }
 		],
 		'/settings': [
-			{ label: 'Vérifier connexions', query: 'Vérifie l\'état de mes intégrations', icon: '🔗' },
-			{ label: 'Optimiser', query: 'Comment optimiser mes paramètres ?', icon: '⚙️' }
+			{ label: 'État des connexions', query: 'Vérifiez l\'état de mes intégrations', icon: '🔗' },
+			{ label: 'Optimiser', query: 'Comment optimiser mes réglages ?', icon: '⚙️' }
 		]
 	};
 
 	const defaultSuggestions: Suggestion[] = [
-		{ label: 'Aide', query: 'Que peux-tu faire pour m\'aider ?', icon: '❓' },
-		{ label: 'Briefing', query: 'Donne-moi un résumé de la situation', icon: '📊' }
+		{ label: 'Que savez-vous faire ?', query: 'Que pouvez-vous faire pour moi ?', icon: '❓' },
+		{ label: 'Faites le point', query: 'Donnez-moi un résumé de la situation', icon: '📊' }
 	];
 
 	let suggestions = $derived(
@@ -113,21 +113,21 @@
 <!-- Desktop: Fixed right panel -->
 <aside
 	class="fixed right-0 top-0 h-full w-72 bg-[var(--color-bg-secondary)] border-l border-[var(--color-border-light)] hidden lg:flex flex-col z-40"
-	aria-label="Assistant Scapin"
+	aria-label="Scapin"
 >
 	<!-- Header -->
 	<div class="px-3 py-2.5 border-b border-[var(--color-border-light)] flex items-center gap-2">
 		<span class="text-lg">🎭</span>
 		<div class="flex-1">
-			<h2 class="text-sm font-semibold text-[var(--color-text-primary)]">Assistant Scapin</h2>
+			<h2 class="text-sm font-semibold text-[var(--color-text-primary)]">Scapin</h2>
 		</div>
-		<span class="w-2 h-2 rounded-full bg-[var(--color-success)]" title="Connecté"></span>
+		<span class="w-2 h-2 rounded-full bg-[var(--color-success)]" title="À l'écoute"></span>
 	</div>
 
 	<!-- Messages area -->
 	<div class="flex-1 p-3 overflow-y-auto" role="log" aria-live="polite">
 		<div class="text-center text-[var(--color-text-tertiary)] text-xs py-4">
-			<p class="mb-3">👋 Comment puis-je vous aider ?</p>
+			<p class="mb-3">À votre service, Monsieur. Que puis-je faire ?</p>
 		</div>
 
 		<!-- Contextual suggestions -->
@@ -151,7 +151,7 @@
 		<div class="flex gap-1.5">
 			<Input
 				type="text"
-				placeholder="Votre message..."
+				placeholder="Vos instructions..."
 				bind:value={message}
 				onkeydown={handleKeydown}
 				class="flex-1 text-sm"
@@ -174,11 +174,11 @@
 			onclick={togglePanel}
 			class="fixed right-4 z-50 w-14 h-14 rounded-full bg-[var(--color-accent)] text-white shadow-lg flex items-center justify-center text-xl touch-active"
 			style="bottom: calc(80px + var(--safe-area-bottom));"
-			aria-label="Ouvrir le chat"
+			aria-label="Appeler Scapin"
 			aria-expanded={isOpen}
 			aria-controls="mobile-chat-panel"
 		>
-			💬
+			🎭
 		</button>
 	{/if}
 
@@ -213,8 +213,8 @@
 			<!-- Header -->
 			<div class="px-4 pb-3 flex items-center justify-between">
 				<div class="flex items-center gap-2">
-					<h2 id="chat-panel-title" class="font-semibold">Assistant Scapin</h2>
-					<span class="w-2 h-2 rounded-full bg-[var(--color-success)]" title="Connecté"></span>
+					<h2 id="chat-panel-title" class="font-semibold">Scapin</h2>
+					<span class="w-2 h-2 rounded-full bg-[var(--color-success)]" title="À l'écoute"></span>
 				</div>
 				<button
 					type="button"
@@ -229,7 +229,7 @@
 			<!-- Messages + Suggestions -->
 			<div class="flex-1 p-4 overflow-y-auto min-h-[200px]" role="log" aria-live="polite">
 				<div class="text-center text-[var(--color-text-tertiary)] text-sm mb-4">
-					<p>👋 Comment puis-je vous aider ?</p>
+					<p>À votre service, Monsieur. Que puis-je faire ?</p>
 				</div>
 
 				<!-- Contextual suggestions -->
@@ -252,7 +252,7 @@
 				<div class="flex gap-2">
 					<Input
 						type="text"
-						placeholder="Votre message..."
+						placeholder="Vos instructions..."
 						bind:value={message}
 						bind:inputRef={mobileInputRef}
 						onkeydown={handleKeydown}

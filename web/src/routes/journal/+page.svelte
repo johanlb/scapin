@@ -52,13 +52,13 @@
 			📖 Journal
 		</h1>
 		<p class="text-[var(--color-text-secondary)] mt-1">
-			Votre réflexion quotidienne assistée par Scapin
+			Scapin prend note pour vous, Monsieur
 		</p>
 	</header>
 
 	<section class="mb-6">
 		<Button variant="primary" onclick={() => console.log('New entry')}>
-			+ Nouvelle entrée
+			✏️ Consigner
 		</Button>
 	</section>
 

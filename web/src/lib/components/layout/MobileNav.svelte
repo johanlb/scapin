@@ -9,10 +9,10 @@
 	}
 
 	const navItems: NavItem[] = [
-		{ href: '/', label: 'Briefing', icon: '☀️' },
-		{ href: '/flux', label: 'Flux', icon: '📥' },
-		{ href: '/notes', label: 'Notes', icon: '📝' },
-		{ href: '/chat', label: 'Chat', icon: '💬' },
+		{ href: '/', label: 'Rapport', icon: '☀️' },
+		{ href: '/flux', label: 'Courrier', icon: '📜' },
+		{ href: '/notes', label: 'Carnets', icon: '📝' },
+		{ href: '/chat', label: 'Scapin', icon: '🎭' },
 		{ href: '/settings', label: 'Réglages', icon: '⚙️' }
 	];
 

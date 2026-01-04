@@ -78,11 +78,11 @@
 
 	function getTypeLabel(type: SearchResult['type']): string {
 		const labels: Record<SearchResult['type'], string> = {
-			note: 'Note',
+			note: 'Carnet',
 			email: 'Email',
 			event: 'Événement',
 			task: 'Tâche',
-			discussion: 'Discussion'
+			discussion: 'Conversation'
 		};
 		return labels[type];
 	}
@@ -124,7 +124,7 @@
 				bind:this={inputRef}
 				bind:value={query}
 				type="text"
-				placeholder="Rechercher notes, emails, événements..."
+				placeholder="Rechercher carnets, emails, événements..."
 				class="flex-1 bg-transparent text-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] outline-none"
 			/>
 			<kbd class="hidden md:inline-flex px-2 py-1 text-xs text-[var(--color-text-tertiary)] bg-[var(--color-bg-secondary)] rounded-md">
@@ -136,7 +136,7 @@
 		<div class="max-h-[50vh] overflow-y-auto">
 			{#if results.length === 0}
 				<div class="p-8 text-center">
-					<p class="text-[var(--color-text-tertiary)]">Aucun résultat pour "{query}"</p>
+					<p class="text-[var(--color-text-tertiary)]">Je ne trouve rien de tel dans vos papiers, Monsieur</p>
 				</div>
 			{:else}
 				<div class="p-2">

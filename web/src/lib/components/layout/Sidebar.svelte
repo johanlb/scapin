@@ -9,12 +9,12 @@
 	}
 
 	const navItems: NavItem[] = [
-		{ href: '/', label: 'Briefing', icon: '☀️' },
-		{ href: '/flux', label: 'Flux', icon: '📥' },
-		{ href: '/notes', label: 'Notes', icon: '📝' },
-		{ href: '/discussions', label: 'Discussions', icon: '💬' },
+		{ href: '/', label: 'Rapport', icon: '☀️' },
+		{ href: '/flux', label: 'Courrier', icon: '📜' },
+		{ href: '/notes', label: 'Carnets', icon: '📝' },
+		{ href: '/discussions', label: 'Conversations', icon: '💬' },
 		{ href: '/journal', label: 'Journal', icon: '📖' },
-		{ href: '/stats', label: 'Stats', icon: '📊' },
+		{ href: '/stats', label: 'Registres', icon: '📊' },
 		{ href: '/settings', label: 'Réglages', icon: '⚙️' }
 	];
 

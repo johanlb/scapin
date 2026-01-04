@@ -20,10 +20,10 @@
 <div class="p-4 md:p-6 max-w-4xl mx-auto">
 	<header class="mb-6">
 		<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-			📊 Statistiques
+			📊 Vos Registres
 		</h1>
 		<p class="text-[var(--color-text-secondary)] mt-1">
-			Aperçu de votre activité cette semaine
+			Ce que j'ai observé de votre semaine, Monsieur
 		</p>
 	</header>
 
@@ -79,14 +79,14 @@
 	<!-- Insights -->
 	<section>
 		<h2 class="text-xl font-semibold text-[var(--color-text-primary)] mb-4">
-			💡 Insights Scapin
+			🕯️ Observations de votre valet
 		</h2>
 		<div class="space-y-4">
 			<Card padding="lg">
 				<div class="flex items-start gap-3">
-					<span class="text-2xl">🎯</span>
+					<span class="text-2xl">🏆</span>
 					<div>
-						<h3 class="font-semibold text-[var(--color-text-primary)]">Productivité en hausse</h3>
+						<h3 class="font-semibold text-[var(--color-text-primary)]">Belle semaine, Monsieur</h3>
 						<p class="text-[var(--color-text-secondary)]">
 							Vous avez complété 8% de tâches de plus que la semaine dernière.
 							Vos créneaux du matin semblent les plus productifs.
@@ -96,12 +96,12 @@
 			</Card>
 			<Card padding="lg">
 				<div class="flex items-start gap-3">
-					<span class="text-2xl">⚠️</span>
+					<span class="text-2xl">🔔</span>
 					<div>
-						<h3 class="font-semibold text-[var(--color-text-primary)]">Attention aux interruptions</h3>
+						<h3 class="font-semibold text-[var(--color-text-primary)]">Permettez que je vous signale...</h3>
 						<p class="text-[var(--color-text-secondary)]">
 							15 interruptions cette semaine, principalement entre 14h et 16h.
-							Envisagez de bloquer ce créneau pour du travail deep focus.
+							Si je puis me permettre, bloquez ce créneau pour vos travaux de fond.
 						</p>
 					</div>
 				</div>

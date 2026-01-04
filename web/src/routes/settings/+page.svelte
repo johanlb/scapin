@@ -14,10 +14,10 @@
 	}
 
 	const integrations: Integration[] = [
-		{ id: 'email', name: 'Email (IMAP)', icon: '📧', status: 'connected', lastSync: 'il y a 2 min' },
+		{ id: 'email', name: 'Courrier (IMAP)', icon: '✉️', status: 'connected', lastSync: 'il y a 2 min' },
 		{ id: 'teams', name: 'Microsoft Teams', icon: '💬', status: 'connected', lastSync: 'il y a 5 min' },
-		{ id: 'calendar', name: 'Calendrier', icon: '📅', status: 'syncing' },
-		{ id: 'omnifocus', name: 'OmniFocus', icon: '✅', status: 'disconnected' }
+		{ id: 'calendar', name: 'Agenda', icon: '📅', status: 'syncing' },
+		{ id: 'omnifocus', name: 'OmniFocus', icon: '⚡', status: 'disconnected' }
 	];
 
 	function getStatusColor(status: Integration['status']): string {
@@ -149,9 +149,9 @@
 								</div>
 							</div>
 							{#if integration.status === 'disconnected'}
-								<Button variant="primary" size="sm">Connecter</Button>
+								<Button variant="primary" size="sm">Établir</Button>
 							{:else}
-								<Button variant="secondary" size="sm">Configurer</Button>
+								<Button variant="secondary" size="sm">Ajuster</Button>
 							{/if}
 						</div>
 					</Card>
@@ -166,8 +166,8 @@
 			</h2>
 			<Card padding="lg">
 				<div class="text-center">
-					<h3 class="text-xl font-bold text-[var(--color-text-primary)] mb-1">Scapin</h3>
-					<p class="text-sm text-[var(--color-text-secondary)] mb-1">Gardien Cognitif Personnel</p>
+					<h3 class="text-xl font-bold text-[var(--color-text-primary)] mb-1">🎭 Scapin</h3>
+					<p class="text-sm text-[var(--color-text-secondary)] mb-1">Votre valet de l'esprit</p>
 					<p class="text-xs text-[var(--color-text-tertiary)]">Version 0.8.0</p>
 				</div>
 			</Card>

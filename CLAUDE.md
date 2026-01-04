@@ -28,6 +28,7 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | 🎯 **Document fondateur** — Le *pourquoi* | Toujours, pour comprendre l'âme du projet |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Le *comment* technique | Implémentation des modules |
 | **[ROADMAP.md](ROADMAP.md)** | Le *quand* | Priorisation des tâches |
+| **[UI_VOCABULARY.md](docs/UI_VOCABULARY.md)** | 🎭 **Vocabulaire UI** — Mapping termes UI ↔ technique | Traitement requêtes utilisateur, génération réponses |
 | **Ce fichier (CLAUDE.md)** | État actuel | Démarrage de session |
 
 ### Les 5 Principes Directeurs

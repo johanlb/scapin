@@ -88,10 +88,10 @@
 
 	function getSourceIcon(source: string): string {
 		const icons: Record<string, string> = {
-			email: '📧',
+			email: '✉️',
 			teams: '💬',
 			calendar: '📅',
-			omnifocus: '✅'
+			omnifocus: '⚡'
 		};
 		return icons[source] || '📄';
 	}
@@ -101,10 +101,10 @@
 	<!-- Header -->
 	<header class="mb-6">
 		<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-			📥 Flux d'événements
+			📜 Le Courrier du jour
 		</h1>
 		<p class="text-[var(--color-text-secondary)] mt-1">
-			Tous vos messages et notifications en un seul endroit
+			Les nouvelles qui vous parviennent, Monsieur
 		</p>
 	</header>
 
@@ -122,7 +122,7 @@
 			size="sm"
 			onclick={() => activeFilter = 'email'}
 		>
-			📧 Emails ({allEvents.filter(e => e.source === 'email').length})
+			✉️ Lettres ({allEvents.filter(e => e.source === 'email').length})
 		</Button>
 		<Button
 			variant={activeFilter === 'teams' ? 'primary' : 'secondary'}
@@ -136,14 +136,14 @@
 			size="sm"
 			onclick={() => activeFilter = 'calendar'}
 		>
-			📅 Calendrier ({allEvents.filter(e => e.source === 'calendar').length})
+			📅 Agenda ({allEvents.filter(e => e.source === 'calendar').length})
 		</Button>
 		<Button
 			variant={activeFilter === 'omnifocus' ? 'primary' : 'secondary'}
 			size="sm"
 			onclick={() => activeFilter = 'omnifocus'}
 		>
-			✅ Tâches ({allEvents.filter(e => e.source === 'omnifocus').length})
+			⚡ Tâches ({allEvents.filter(e => e.source === 'omnifocus').length})
 		</Button>
 	</section>
 
@@ -188,9 +188,12 @@
 		{#if filteredEvents.length === 0}
 			<Card padding="lg">
 				<div class="text-center py-8">
-					<p class="text-2xl mb-2">🎉</p>
+					<p class="text-2xl mb-2">📭</p>
 					<p class="text-lg text-[var(--color-text-secondary)]">
-						Aucun événement dans cette catégorie
+						Point d'affaires ici, Monsieur
+					</p>
+					<p class="text-sm text-[var(--color-text-tertiary)] mt-1">
+						Vos obligations sont ailleurs
 					</p>
 				</div>
 			</Card>

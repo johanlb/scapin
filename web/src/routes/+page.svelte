@@ -70,9 +70,9 @@
 
 	function getGreeting(): string {
 		const hour = new Date().getHours();
-		if (hour < 12) return 'Bonjour';
-		if (hour < 18) return 'Bon après-midi';
-		return 'Bonsoir';
+		if (hour < 12) return 'Bonjour Monsieur';
+		if (hour < 18) return 'Bon après-midi Monsieur';
+		return 'Bonsoir Monsieur';
 	}
 
 	const urgentEvents = $derived(mockEvents.filter(e => e.urgency === 'urgent' || e.urgency === 'high'));
@@ -84,10 +84,10 @@
 		<!-- Header -->
 		<header class="mb-6">
 			<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-				{getGreeting()} 👋
+				{getGreeting()}
 			</h1>
 			<p class="text-[var(--color-text-secondary)] mt-1">
-				Voici votre briefing du {new Date().toLocaleDateString('fr-FR', {
+				Voici l'état des affaires en ce {new Date().toLocaleDateString('fr-FR', {
 					weekday: 'long',
 					day: 'numeric',
 					month: 'long'
@@ -127,14 +127,14 @@
 		{#if urgentEvents.length > 0}
 			<section class="mb-5">
 				<h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2">
-					<span>🔴</span> Actions urgentes
+					<span>🔔</span> Affaires pressantes
 				</h2>
 				<div class="space-y-2">
 					{#each urgentEvents as event (event.id)}
 						<SwipeableCard
 							leftAction={{
 								icon: '📦',
-								label: 'Archiver',
+								label: 'Classer',
 								color: 'var(--color-text-tertiary)',
 								action: () => archiveEvent(event.id)
 							}}
@@ -178,14 +178,14 @@
 		{#if otherEvents.length > 0}
 			<section>
 				<h2 class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2">
-					<span>📋</span> À traiter
+					<span>📌</span> À votre attention
 				</h2>
 				<div class="space-y-2">
 					{#each otherEvents as event (event.id)}
 						<SwipeableCard
 							leftAction={{
 								icon: '📦',
-								label: 'Archiver',
+								label: 'Classer',
 								color: 'var(--color-text-tertiary)',
 								action: () => archiveEvent(event.id)
 							}}

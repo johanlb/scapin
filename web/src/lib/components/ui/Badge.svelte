@@ -36,10 +36,10 @@
 	};
 
 	const urgencyLabels: Record<UrgencyLevel, string> = {
-		urgent: 'Urgent',
-		high: 'Haute',
-		medium: 'Moyenne',
-		low: 'Basse'
+		urgent: 'Pressant',
+		high: 'Important',
+		medium: 'Courant',
+		low: 'À loisir'
 	};
 
 	const classes = $derived.by(() => {

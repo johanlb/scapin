@@ -171,20 +171,20 @@
 	<!-- Header -->
 	<header class="mb-6">
 		<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-			📝 Notes
+			📝 Carnets
 		</h1>
 		<p class="text-[var(--color-text-secondary)] mt-1">
-			Votre base de connaissances personnelle
+			Vos notes et documents classés
 		</p>
 	</header>
 
 	<!-- Quick Actions -->
 	<section class="mb-6 flex flex-wrap gap-3">
 		<Button variant="primary" onclick={() => console.log('New note')}>
-			+ Nouvelle note
+			✏️ Rédiger
 		</Button>
 		<Button variant="secondary" onclick={() => console.log('Import')}>
-			📥 Importer
+			📥 Recevoir
 		</Button>
 		<Button
 			variant="secondary"
