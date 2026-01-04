@@ -106,17 +106,24 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <!-- Backdrop -->
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
 	class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center pt-[15vh]"
+	role="button"
+	tabindex="-1"
+	aria-label="Fermer la recherche"
 	onclick={onclose}
+	onkeydown={(e) => e.key === 'Enter' && onclose()}
 >
 	<!-- Modal -->
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 	<div
 		class="w-full max-w-xl mx-4 glass-prominent rounded-3xl shadow-2xl overflow-hidden
 			animate-fluid glass-glow"
+		role="dialog"
+		tabindex="-1"
+		aria-modal="true"
+		aria-label="Recherche globale"
 		onclick={(e) => e.stopPropagation()}
+		onkeydown={(e) => e.stopPropagation()}
 	>
 		<!-- Search Input -->
 		<div class="flex items-center gap-3 p-4 border-b border-[var(--glass-border-subtle)]">
