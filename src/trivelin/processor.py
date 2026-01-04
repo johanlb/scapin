@@ -21,6 +21,7 @@ from src.core.schemas import (
 )
 from src.core.state_manager import get_state_manager
 from src.integrations.email.imap_client import IMAPClient
+from src.integrations.storage.queue_storage import get_queue_storage
 from src.monitoring.logger import get_logger
 from src.sancho.router import AIModel, get_ai_router
 from src.utils import now_utc
@@ -52,6 +53,7 @@ class EmailProcessor:
         self.ai_router = get_ai_router(self.config.ai)
         self.event_bus = get_event_bus()
         self.error_manager = get_error_manager()
+        self.queue_storage = get_queue_storage()
         self._shutdown_requested = False
 
         # Setup graceful shutdown handlers
@@ -473,10 +475,22 @@ class EmailProcessor:
                 metadata={"executed": True}
             ))
         else:
+            # Save to queue storage for manual review
+            content_preview = content.plain_text[:200] if content.plain_text else ""
+            queue_item_id = self.queue_storage.save_item(
+                metadata=metadata,
+                analysis=analysis,
+                content_preview=content_preview,
+                account_id=self.config.email.get_enabled_accounts()[0].account_id
+                if self.config.email.get_enabled_accounts()
+                else None,
+            )
+
             logger.info(
                 "Queuing email for manual review",
                 extra={
                     "email_id": metadata.id,
+                    "queue_item_id": queue_item_id,
                     "confidence": analysis.confidence,
                     "threshold": confidence_threshold
                 }

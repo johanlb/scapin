@@ -69,7 +69,8 @@ class TestEmailProcessorInit:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
-    def test_init(self, mock_get_router, mock_imap, mock_get_state, mock_get_config, mock_config):
+    @patch('src.trivelin.processor.get_queue_storage')
+    def test_init(self, mock_get_queue, mock_get_router, mock_imap, mock_get_state, mock_get_config, mock_config):
         """Test processor initialization"""
         local_mock_config = MagicMock()
         local_mock_config.email = MagicMock()
@@ -82,6 +83,7 @@ class TestEmailProcessorInit:
         mock_get_state.assert_called_once()
         mock_imap.assert_called_once_with(local_mock_config.email)
         mock_get_router.assert_called_once_with(local_mock_config.ai)
+        mock_get_queue.assert_called_once()
 
 
 class TestProcessInbox:
@@ -91,8 +93,10 @@ class TestProcessInbox:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_process_inbox_success(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -139,8 +143,10 @@ class TestProcessInbox:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_process_inbox_empty(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -167,8 +173,10 @@ class TestProcessInbox:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_process_inbox_with_limit(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -203,8 +211,10 @@ class TestProcessSingleEmail:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_process_single_email_success(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -240,8 +250,10 @@ class TestProcessSingleEmail:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_process_single_email_already_processed(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -266,8 +278,10 @@ class TestProcessSingleEmail:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_process_single_email_analysis_failure(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -300,8 +314,10 @@ class TestExecuteAction:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_execute_archive_action(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -341,8 +357,10 @@ class TestExecuteAction:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_execute_delete_action(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -381,8 +399,10 @@ class TestExecuteAction:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_execute_task_action(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
@@ -427,8 +447,10 @@ class TestGetProcessingStats:
     @patch('src.trivelin.processor.get_state_manager')
     @patch('src.trivelin.processor.IMAPClient')
     @patch('src.trivelin.processor.get_ai_router')
+    @patch('src.trivelin.processor.get_queue_storage')
     def test_get_processing_stats(
         self,
+        mock_get_queue,
         mock_get_router,
         mock_imap_class,
         mock_get_state,
