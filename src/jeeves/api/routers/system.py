@@ -177,8 +177,8 @@ async def get_config_endpoint(
     for account in config.email.get_enabled_accounts():
         email_accounts.append(
             {
-                "name": account.name,
-                "email": account.email_address,
+                "name": account.account_id,
+                "email": account.imap_username,
                 "enabled": account.enabled,
                 # Password is masked
             }

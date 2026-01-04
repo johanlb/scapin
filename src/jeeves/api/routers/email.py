@@ -122,7 +122,7 @@ async def process_inbox(
         emails = [
             ProcessedEmailResponse(
                 metadata=EmailMetadataResponse(
-                    id=e["metadata"]["id"],
+                    id=str(e["metadata"]["id"]),
                     subject=e["metadata"]["subject"],
                     from_address=e["metadata"]["from_address"],
                     from_name=e["metadata"].get("from_name"),

@@ -20,8 +20,8 @@ def mock_config() -> MagicMock:
 
     # Email config
     account = MagicMock()
-    account.name = "test"
-    account.email_address = "test@example.com"
+    account.account_id = "test"
+    account.imap_username = "test@example.com"
     account.enabled = True
     config.email.get_enabled_accounts.return_value = [account]
 
@@ -57,8 +57,8 @@ class TestHealthEndpoint:
             # Set up return value for direct call
             mock_config = MagicMock()
             account = MagicMock()
-            account.name = "test"
-            account.email_address = "test@example.com"
+            account.account_id = "test"
+            account.imap_username = "test@example.com"
             account.enabled = True
             mock_config.email.get_enabled_accounts.return_value = [account]
             mock_config.teams.enabled = True
@@ -83,7 +83,9 @@ class TestHealthEndpoint:
         ) as mock_get_config:
             mock_config = MagicMock()
             account = MagicMock()
-            account.name = "test"
+            account.account_id = "test"
+            account.imap_username = "test@example.com"
+            account.enabled = True
             mock_config.email.get_enabled_accounts.return_value = [account]
             mock_config.teams.enabled = True
             mock_config.calendar.enabled = True
