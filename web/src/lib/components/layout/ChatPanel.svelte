@@ -112,16 +112,16 @@
 
 <!-- Desktop: Fixed right panel -->
 <aside
-	class="fixed right-0 top-0 h-full w-72 bg-[var(--color-bg-secondary)] border-l border-[var(--color-border-light)] hidden lg:flex flex-col z-40"
+	class="fixed right-0 top-0 h-full w-72 glass-prominent hidden lg:flex flex-col z-40"
 	aria-label="Scapin"
 >
 	<!-- Header -->
-	<div class="px-3 py-2.5 border-b border-[var(--color-border-light)] flex items-center gap-2">
+	<div class="px-3 py-2.5 border-b border-[var(--glass-border-subtle)] flex items-center gap-2">
 		<span class="text-lg">🎭</span>
 		<div class="flex-1">
 			<h2 class="text-sm font-semibold text-[var(--color-text-primary)]">Scapin</h2>
 		</div>
-		<span class="w-2 h-2 rounded-full bg-[var(--color-success)]" title="À l'écoute"></span>
+		<span class="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" title="À l'écoute"></span>
 	</div>
 
 	<!-- Messages area -->
@@ -137,7 +137,11 @@
 				<button
 					type="button"
 					onclick={() => handleSuggestionClick(suggestion.query)}
-					class="w-full text-left px-3 py-2 rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-primary)] border border-transparent hover:border-[var(--color-border)] transition-all text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] flex items-center gap-2"
+					class="w-full text-left px-3 py-2 rounded-xl
+						glass-subtle hover:glass
+						transition-all duration-[var(--transition-fast)] ease-[var(--spring-responsive)]
+						text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]
+						flex items-center gap-2 liquid-press"
 				>
 					<span>{suggestion.icon}</span>
 					<span>{suggestion.label}</span>
@@ -147,7 +151,7 @@
 	</div>
 
 	<!-- Input area -->
-	<div class="p-2 border-t border-[var(--color-border-light)]">
+	<div class="p-2 border-t border-[var(--glass-border-subtle)]">
 		<div class="flex gap-1.5">
 			<Input
 				type="text"
@@ -172,7 +176,11 @@
 	{#if !isOpen}
 		<button
 			onclick={togglePanel}
-			class="fixed right-4 z-50 w-14 h-14 rounded-full bg-[var(--color-accent)] text-white shadow-lg flex items-center justify-center text-xl touch-active"
+			class="fixed right-4 z-50 w-14 h-14 rounded-full bg-[var(--color-accent)] text-white
+				shadow-[0_4px_20px_rgba(0,122,255,0.4),inset_0_1px_0_rgba(255,255,255,0.2)]
+				flex items-center justify-center text-xl liquid-press
+				hover:shadow-[0_6px_28px_rgba(0,122,255,0.5)] hover:scale-105
+				transition-all duration-[var(--transition-fast)] ease-[var(--spring-bouncy)]"
 			style="bottom: calc(80px + var(--safe-area-bottom));"
 			aria-label="Appeler Scapin"
 			aria-expanded={isOpen}
@@ -187,7 +195,7 @@
 		<!-- Backdrop -->
 		<button
 			type="button"
-			class="fixed inset-0 bg-black/40 z-40"
+			class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
 			onclick={closePanel}
 			aria-label="Fermer le chat"
 			tabindex="-1"
@@ -201,7 +209,7 @@
 			aria-modal="true"
 			aria-labelledby="chat-panel-title"
 			tabindex="-1"
-			class="fixed bottom-0 left-0 right-0 bg-[var(--color-bg-primary)] rounded-t-3xl z-50 max-h-[80vh] flex flex-col"
+			class="fixed bottom-0 left-0 right-0 glass-prominent rounded-t-3xl z-50 max-h-[80vh] flex flex-col"
 			style="padding-bottom: var(--safe-area-bottom);"
 			onkeydown={handlePanelKeydown}
 		>
@@ -238,7 +246,11 @@
 						<button
 							type="button"
 							onclick={() => handleSuggestionClick(suggestion.query)}
-							class="w-full text-left px-4 py-3 rounded-xl bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-tertiary)] border border-[var(--color-border-light)] transition-all text-sm text-[var(--color-text-secondary)] flex items-center gap-3"
+							class="w-full text-left px-4 py-3 rounded-xl
+								glass hover:glass-prominent
+								transition-all duration-[var(--transition-fast)] ease-[var(--spring-responsive)]
+								text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]
+								flex items-center gap-3 liquid-press"
 						>
 							<span class="text-lg">{suggestion.icon}</span>
 							<span>{suggestion.label}</span>
@@ -248,7 +260,7 @@
 			</div>
 
 			<!-- Input -->
-			<div class="p-4 border-t border-[var(--color-border-light)]">
+			<div class="p-4 border-t border-[var(--glass-border-subtle)]">
 				<div class="flex gap-2">
 					<Input
 						type="text"

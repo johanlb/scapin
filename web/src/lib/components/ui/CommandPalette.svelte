@@ -108,17 +108,18 @@
 <!-- Backdrop -->
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
-	class="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-[15vh]"
+	class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center pt-[15vh]"
 	onclick={onclose}
 >
 	<!-- Modal -->
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 	<div
-		class="w-full max-w-xl mx-4 bg-[var(--color-bg-primary)] rounded-2xl shadow-2xl overflow-hidden"
+		class="w-full max-w-xl mx-4 glass-prominent rounded-3xl shadow-2xl overflow-hidden
+			animate-fluid glass-glow"
 		onclick={(e) => e.stopPropagation()}
 	>
 		<!-- Search Input -->
-		<div class="flex items-center gap-3 p-4 border-b border-[var(--color-border)]">
+		<div class="flex items-center gap-3 p-4 border-b border-[var(--glass-border-subtle)]">
 			<span class="text-xl text-[var(--color-text-tertiary)]">🔍</span>
 			<input
 				bind:this={inputRef}
@@ -127,7 +128,7 @@
 				placeholder="Rechercher carnets, emails, événements..."
 				class="flex-1 bg-transparent text-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] outline-none"
 			/>
-			<kbd class="hidden md:inline-flex px-2 py-1 text-xs text-[var(--color-text-tertiary)] bg-[var(--color-bg-secondary)] rounded-md">
+			<kbd class="hidden md:inline-flex px-2 py-1 text-xs text-[var(--color-text-tertiary)] glass-subtle rounded-lg">
 				ESC
 			</kbd>
 		</div>
@@ -148,7 +149,12 @@
 					{#each results as result, index (result.id)}
 						<button
 							type="button"
-							class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors {index === selectedIndex ? 'bg-[var(--color-accent)]/10' : 'hover:bg-[var(--color-bg-secondary)]'}"
+							class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left
+								transition-all duration-[var(--transition-fast)] ease-[var(--spring-responsive)]
+								liquid-press
+								{index === selectedIndex
+								? 'glass-subtle shadow-[inset_0_0_0_1px_var(--color-accent)]/20'
+								: 'hover:bg-[var(--glass-tint)]'}"
 							onclick={() => { onselect(result); onclose(); }}
 							onmouseenter={() => selectedIndex = index}
 						>
@@ -176,21 +182,21 @@
 		</div>
 
 		<!-- Footer -->
-		<div class="flex items-center justify-between px-4 py-3 border-t border-[var(--color-border)] text-xs text-[var(--color-text-tertiary)]">
+		<div class="flex items-center justify-between px-4 py-3 border-t border-[var(--glass-border-subtle)] text-xs text-[var(--color-text-tertiary)]">
 			<div class="flex items-center gap-4">
 				<span class="flex items-center gap-1">
-					<kbd class="px-1.5 py-0.5 bg-[var(--color-bg-secondary)] rounded">↑</kbd>
-					<kbd class="px-1.5 py-0.5 bg-[var(--color-bg-secondary)] rounded">↓</kbd>
+					<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">↑</kbd>
+					<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">↓</kbd>
 					naviguer
 				</span>
 				<span class="flex items-center gap-1">
-					<kbd class="px-1.5 py-0.5 bg-[var(--color-bg-secondary)] rounded">↵</kbd>
+					<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">↵</kbd>
 					ouvrir
 				</span>
 			</div>
 			<span class="hidden md:block">
-				<kbd class="px-1.5 py-0.5 bg-[var(--color-bg-secondary)] rounded">⌘</kbd>
-				<kbd class="px-1.5 py-0.5 bg-[var(--color-bg-secondary)] rounded">K</kbd>
+				<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">⌘</kbd>
+				<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">K</kbd>
 				pour ouvrir
 			</span>
 		</div>

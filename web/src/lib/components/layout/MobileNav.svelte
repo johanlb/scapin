@@ -29,7 +29,7 @@
 </script>
 
 <nav
-	class="fixed bottom-0 left-0 right-0 glass border-t border-[var(--glass-border)] md:hidden z-50"
+	class="fixed bottom-0 left-0 right-0 glass-prominent border-t border-[var(--glass-border-subtle)] md:hidden z-50"
 	style="padding-bottom: var(--safe-area-bottom);"
 	aria-label="Navigation mobile"
 >
@@ -40,11 +40,21 @@
 				href={item.href}
 				onclick={handleClick}
 				aria-current={active ? 'page' : undefined}
-				class="flex flex-col items-center justify-center flex-1 py-2 touch-target transition-all
-                       {active ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-tertiary)]'}"
+				class="flex flex-col items-center justify-center flex-1 py-2 touch-target liquid-press
+					transition-all duration-[var(--transition-fast)] ease-[var(--spring-responsive)]
+					{active
+					? 'text-[var(--color-accent)]'
+					: 'text-[var(--color-text-tertiary)] active:text-[var(--color-text-primary)]'}"
 			>
-				<span class="text-xl mb-0.5" aria-hidden="true">{item.icon}</span>
+				<span
+					class="text-xl mb-0.5 transition-transform duration-[var(--transition-fast)] ease-[var(--spring-bouncy)]
+						{active ? 'scale-110' : ''}"
+					aria-hidden="true"
+				>{item.icon}</span>
 				<span class="text-[10px] font-medium">{item.label}</span>
+				{#if active}
+					<span class="absolute bottom-1 w-1 h-1 rounded-full bg-[var(--color-accent)]"></span>
+				{/if}
 			</a>
 		{/each}
 	</div>

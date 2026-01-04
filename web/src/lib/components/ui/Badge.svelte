@@ -12,7 +12,7 @@
 
 	let { variant = 'default', source, urgency, class: className = '', children }: Props = $props();
 
-	const baseClasses = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium';
+	const baseClasses = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium backdrop-blur-sm';
 
 	const sourceColors: Record<EventSource, string> = {
 		email: 'bg-[var(--color-event-email)]/10 text-[var(--color-event-email)]',

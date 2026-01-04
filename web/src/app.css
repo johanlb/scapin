@@ -29,10 +29,48 @@
   --color-event-calendar: #ff9500;
   --color-event-omnifocus: #8e44ad;
 
-  /* Glassmorphism */
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.18);
-  --glass-blur: 20px;
+  /* ========== Liquid Glass System ========== */
+
+  /* Glass Layers - Multi-depth transparency */
+  --glass-tint: rgba(255, 255, 255, 0.08);
+  --glass-subtle: rgba(255, 255, 255, 0.45);
+  --glass-regular: rgba(255, 255, 255, 0.65);
+  --glass-prominent: rgba(255, 255, 255, 0.82);
+  --glass-solid: rgba(255, 255, 255, 0.95);
+
+  /* Glass Borders */
+  --glass-border-subtle: rgba(255, 255, 255, 0.12);
+  --glass-border-regular: rgba(255, 255, 255, 0.22);
+  --glass-border-prominent: rgba(255, 255, 255, 0.35);
+
+  /* Blur Levels */
+  --glass-blur-sm: 8px;
+  --glass-blur-md: 16px;
+  --glass-blur-lg: 24px;
+  --glass-blur-xl: 40px;
+
+  /* Light & Refraction */
+  --glass-highlight: rgba(255, 255, 255, 0.5);
+  --glass-highlight-soft: rgba(255, 255, 255, 0.25);
+  --glass-refract: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.1) 40%,
+    rgba(255, 255, 255, 0.05) 60%,
+    rgba(255, 255, 255, 0.2) 100%
+  );
+
+  /* Specular Gradient */
+  --glass-specular: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0) 50%
+  );
+
+  /* Legacy compatibility */
+  --glass-bg: var(--glass-regular);
+  --glass-border: var(--glass-border-regular);
+  --glass-blur: var(--glass-blur-md);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -59,15 +97,24 @@
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
 
-  /* Animation */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 350ms ease;
+  /* ========== Liquid Glass Animations ========== */
 
-  /* Spring curves (approximation CSS) */
-  --spring-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  --spring-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --spring-snappy: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Timing */
+  --transition-instant: 100ms;
+  --transition-fast: 180ms;
+  --transition-normal: 280ms;
+  --transition-slow: 400ms;
+  --transition-gentle: 600ms;
+
+  /* Spring Curves - Liquid Glass Physics */
+  --spring-responsive: cubic-bezier(0.2, 0, 0, 1);      /* Quick response */
+  --spring-fluid: cubic-bezier(0.4, 0, 0.2, 1);         /* Material-like */
+  --spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);   /* Playful overshoot */
+  --spring-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Gentle ease */
+  --spring-snappy: cubic-bezier(0.22, 1, 0.36, 1);      /* Quick settle */
+
+  /* Legacy */
+  --spring-bounce: var(--spring-bouncy);
 }
 
 /* Dark Mode */
@@ -82,8 +129,35 @@
     --color-border: #38383a;
     --color-border-light: #48484a;
 
-    --glass-bg: rgba(28, 28, 30, 0.72);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    /* Liquid Glass - Dark Mode */
+    --glass-tint: rgba(255, 255, 255, 0.04);
+    --glass-subtle: rgba(45, 45, 48, 0.65);
+    --glass-regular: rgba(38, 38, 41, 0.78);
+    --glass-prominent: rgba(32, 32, 35, 0.88);
+    --glass-solid: rgba(28, 28, 30, 0.96);
+
+    --glass-border-subtle: rgba(255, 255, 255, 0.06);
+    --glass-border-regular: rgba(255, 255, 255, 0.12);
+    --glass-border-prominent: rgba(255, 255, 255, 0.18);
+
+    --glass-highlight: rgba(255, 255, 255, 0.15);
+    --glass-highlight-soft: rgba(255, 255, 255, 0.08);
+    --glass-refract: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.04) 40%,
+      rgba(255, 255, 255, 0.02) 60%,
+      rgba(255, 255, 255, 0.08) 100%
+    );
+    --glass-specular: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0) 50%
+    );
+
+    /* Legacy */
+    --glass-bg: var(--glass-regular);
+    --glass-border: var(--glass-border-regular);
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -117,16 +191,114 @@ body {
 }
 
 /* ============================================
-   Utility Classes
-   Note: Prefixed with 'scapin-' to avoid conflicts with Tailwind
+   Liquid Glass Utility Classes
    ============================================ */
 
+/* Base Glass Variants */
 .glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
+  background: var(--glass-regular);
+  backdrop-filter: blur(var(--glass-blur-md));
+  -webkit-backdrop-filter: blur(var(--glass-blur-md));
+  border: 1px solid var(--glass-border-regular);
 }
+
+.glass-subtle {
+  background: var(--glass-subtle);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+  border: 1px solid var(--glass-border-subtle);
+}
+
+.glass-prominent {
+  background: var(--glass-prominent);
+  backdrop-filter: blur(var(--glass-blur-lg));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg));
+  border: 1px solid var(--glass-border-prominent);
+}
+
+.glass-solid {
+  background: var(--glass-solid);
+  backdrop-filter: blur(var(--glass-blur-xl));
+  -webkit-backdrop-filter: blur(var(--glass-blur-xl));
+  border: 1px solid var(--glass-border-prominent);
+}
+
+/* Glass with Specular Highlight */
+.glass-specular {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-specular::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-specular);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Glass with Light Refraction Effect */
+.glass-refract {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-refract::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass-refract);
+  pointer-events: none;
+  opacity: 0.6;
+  z-index: 1;
+  transition: opacity var(--transition-normal) var(--spring-fluid);
+}
+
+.glass-refract:hover::after {
+  opacity: 1;
+}
+
+/* Interactive Glass - Responds to hover/tap */
+.glass-interactive {
+  transition:
+    background var(--transition-fast) var(--spring-responsive),
+    border-color var(--transition-fast) var(--spring-responsive),
+    transform var(--transition-fast) var(--spring-bouncy),
+    box-shadow var(--transition-normal) var(--spring-fluid);
+}
+
+.glass-interactive:hover {
+  background: var(--glass-prominent);
+  border-color: var(--glass-border-prominent);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 var(--glass-highlight-soft);
+}
+
+.glass-interactive:active {
+  transform: scale(0.98);
+  background: var(--glass-solid);
+}
+
+/* Glass Glow Effect */
+.glass-glow {
+  box-shadow:
+    0 0 0 1px var(--glass-border-subtle),
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+.glass-glow:hover {
+  box-shadow:
+    0 0 0 1px var(--glass-border-regular),
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    0 0 30px rgba(255, 255, 255, 0.15);
+}
+
+/* ============================================
+   Touch & Interaction Utilities
+   ============================================ */
 
 /* Touch-friendly tap targets (Apple HIG: 44x44pt minimum) */
 .touch-target {
@@ -134,9 +306,26 @@ body {
   min-width: 44px;
 }
 
-/* Spring animations */
+/* Fluid Spring Animations */
+.animate-fluid {
+  transition: all var(--transition-normal) var(--spring-fluid);
+}
+
+.animate-responsive {
+  transition: all var(--transition-fast) var(--spring-responsive);
+}
+
+.animate-bouncy {
+  transition: transform var(--transition-normal) var(--spring-bouncy);
+}
+
+.animate-smooth {
+  transition: all var(--transition-slow) var(--spring-smooth);
+}
+
+/* Legacy spring animations */
 .animate-spring-bounce {
-  transition: transform 0.5s var(--spring-bounce);
+  transition: transform 0.5s var(--spring-bouncy);
 }
 
 .animate-spring-smooth {
@@ -150,7 +339,16 @@ body {
 /* Active state for touch feedback */
 .touch-active:active {
   transform: scale(0.97);
-  opacity: 0.8;
+}
+
+/* Liquid press effect */
+.liquid-press:active {
+  transform: scale(0.96);
+  transition: transform var(--transition-instant) var(--spring-responsive);
+}
+
+.liquid-press:not(:active) {
+  transition: transform var(--transition-normal) var(--spring-bouncy);
 }
 
 /* ============================================
@@ -168,8 +366,37 @@ body {
     scroll-behavior: auto !important;
   }
 
-  .touch-active:active {
+  .touch-active:active,
+  .liquid-press:active,
+  .glass-interactive:active {
     transform: none;
+  }
+
+  /* Disable refraction animations */
+  .glass-refract::after {
+    opacity: 0.8;
+    transition: none;
+  }
+}
+
+/* High contrast mode - reduce transparency for accessibility */
+@media (prefers-contrast: more) {
+  :root {
+    --glass-subtle: rgba(255, 255, 255, 0.85);
+    --glass-regular: rgba(255, 255, 255, 0.92);
+    --glass-prominent: rgba(255, 255, 255, 0.96);
+    --glass-solid: rgba(255, 255, 255, 1);
+    --glass-border-regular: rgba(0, 0, 0, 0.3);
+  }
+}
+
+@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
+  :root {
+    --glass-subtle: rgba(28, 28, 30, 0.92);
+    --glass-regular: rgba(28, 28, 30, 0.96);
+    --glass-prominent: rgba(28, 28, 30, 0.98);
+    --glass-solid: rgba(28, 28, 30, 1);
+    --glass-border-regular: rgba(255, 255, 255, 0.3);
   }
 }
 

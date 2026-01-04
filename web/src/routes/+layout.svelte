@@ -41,12 +41,19 @@
 	<title>Scapin</title>
 </svelte:head>
 
-<div class="min-h-screen min-h-[100dvh] bg-[var(--color-bg-primary)] overflow-x-hidden">
+<div class="min-h-screen min-h-[100dvh] bg-[var(--color-bg-primary)] overflow-x-hidden relative">
+	<!-- Ambient Background Gradient (Liquid Glass ambiance) -->
+	<div
+		class="fixed inset-0 pointer-events-none opacity-30 dark:opacity-20"
+		style="background: radial-gradient(ellipse 80% 50% at 50% -20%, var(--color-accent), transparent),
+			radial-gradient(ellipse 60% 40% at 100% 100%, var(--color-event-omnifocus), transparent);"
+	></div>
+
 	<!-- Desktop Sidebar (collapsed by default: w-16, expanded: w-56) -->
 	<Sidebar />
 
 	<!-- Main Content - adapts to sidebar and chat panel -->
-	<main class="md:ml-16 lg:mr-72 pb-20 md:pb-0 transition-all duration-300">
+	<main class="md:ml-16 lg:mr-72 pb-20 md:pb-0 transition-[margin] duration-[var(--transition-normal)] ease-[var(--spring-fluid)] relative z-10">
 		{@render children()}
 	</main>
 

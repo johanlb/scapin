@@ -80,15 +80,20 @@
 	}
 </script>
 
-<div class="relative overflow-hidden rounded-xl {className}">
+<div class="relative overflow-hidden rounded-2xl {className}">
 	<!-- Left action background (swipe right to reveal) -->
 	{#if rightAction}
 		<div
-			class="absolute inset-y-0 left-0 flex items-center justify-start pl-4 transition-opacity"
-			style="background-color: {rightAction.color}; width: {Math.max(offsetX, 0)}px; opacity: {rightProgress}"
+			class="absolute inset-y-0 left-0 flex items-center justify-start pl-4
+				transition-opacity duration-[var(--transition-fast)] ease-[var(--spring-responsive)]"
+			style="background: linear-gradient(90deg, {rightAction.color}, {rightAction.color}dd);
+				width: {Math.max(offsetX, 0)}px; opacity: {rightProgress}"
 		>
 			{#if rightProgress > 0.3}
-				<span class="text-white text-lg">{rightAction.icon}</span>
+				<span
+					class="text-white text-lg transition-transform duration-[var(--transition-fast)] ease-[var(--spring-bouncy)]"
+					style="transform: scale({0.8 + rightProgress * 0.4})"
+				>{rightAction.icon}</span>
 			{/if}
 		</div>
 	{/if}
@@ -96,11 +101,16 @@
 	<!-- Right action background (swipe left to reveal) -->
 	{#if leftAction}
 		<div
-			class="absolute inset-y-0 right-0 flex items-center justify-end pr-4 transition-opacity"
-			style="background-color: {leftAction.color}; width: {Math.max(-offsetX, 0)}px; opacity: {leftProgress}"
+			class="absolute inset-y-0 right-0 flex items-center justify-end pr-4
+				transition-opacity duration-[var(--transition-fast)] ease-[var(--spring-responsive)]"
+			style="background: linear-gradient(-90deg, {leftAction.color}, {leftAction.color}dd);
+				width: {Math.max(-offsetX, 0)}px; opacity: {leftProgress}"
 		>
 			{#if leftProgress > 0.3}
-				<span class="text-white text-lg">{leftAction.icon}</span>
+				<span
+					class="text-white text-lg transition-transform duration-[var(--transition-fast)] ease-[var(--spring-bouncy)]"
+					style="transform: scale({0.8 + leftProgress * 0.4})"
+				>{leftAction.icon}</span>
 			{/if}
 		</div>
 	{/if}
@@ -108,8 +118,10 @@
 	<!-- Card content -->
 	<div
 		bind:this={cardRef}
-		class="relative bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] transition-transform"
-		style="transform: translateX({offsetX}px)"
+		class="relative glass border border-[var(--glass-border-regular)] rounded-2xl
+			transition-[transform,box-shadow] duration-[var(--transition-fast)] ease-[var(--spring-responsive)]"
+		style="transform: translateX({offsetX}px) scale({1 - Math.abs(offsetX) * 0.0005});
+			box-shadow: {Math.abs(offsetX) > 10 ? '0 4px 20px rgba(0,0,0,0.1)' : 'none'};"
 		ontouchstart={handleTouchStart}
 		ontouchmove={handleTouchMove}
 		ontouchend={handleTouchEnd}

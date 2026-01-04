@@ -2,9 +2,10 @@
 	import type { Snippet } from 'svelte';
 
 	interface Props {
-		variant?: 'default' | 'glass' | 'elevated';
+		variant?: 'default' | 'glass' | 'glass-subtle' | 'glass-prominent' | 'elevated';
 		padding?: 'none' | 'sm' | 'md' | 'lg';
 		interactive?: boolean;
+		specular?: boolean;
 		class?: string;
 		onclick?: () => void;
 		children?: Snippet;
@@ -14,18 +15,21 @@
 		variant = 'default',
 		padding = 'md',
 		interactive = false,
+		specular = false,
 		class: className = '',
 		onclick,
 		children,
 		...restProps
 	}: Props = $props();
 
-	const baseClasses = 'rounded-xl overflow-hidden transition-all duration-200 ease-out';
+	const baseClasses = 'rounded-2xl overflow-hidden';
 
 	const variantClasses = {
 		default: 'bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)]',
 		glass: 'glass',
-		elevated: 'bg-[var(--color-bg-primary)] shadow-[var(--shadow-md)]'
+		'glass-subtle': 'glass-subtle',
+		'glass-prominent': 'glass-prominent',
+		elevated: 'bg-[var(--color-bg-primary)] shadow-[var(--shadow-md)] glass-glow'
 	};
 
 	const paddingClasses = {
@@ -35,18 +39,21 @@
 		lg: 'p-4'
 	};
 
-	// Use $derived to react to prop changes
+	// Liquid Glass interactive styles
 	const interactiveClasses = $derived(
 		interactive
-			? 'cursor-pointer hover:bg-[var(--color-bg-tertiary)] hover:border-[var(--color-border)] hover:shadow-sm active:scale-[0.99] active:shadow-none'
-			: ''
+			? 'glass-interactive liquid-press cursor-pointer'
+			: 'animate-fluid'
 	);
+
+	// Specular highlight effect
+	const specularClass = $derived(specular ? 'glass-specular' : '');
 </script>
 
 {#if onclick}
 	<button
 		type="button"
-		class="{baseClasses} {variantClasses[variant]} {paddingClasses[padding]} {interactiveClasses} {className} w-full text-left"
+		class="{baseClasses} {variantClasses[variant]} {paddingClasses[padding]} {interactiveClasses} {specularClass} {className} w-full text-left"
 		{onclick}
 		{...restProps}
 	>
@@ -54,7 +61,7 @@
 	</button>
 {:else}
 	<div
-		class="{baseClasses} {variantClasses[variant]} {paddingClasses[padding]} {interactiveClasses} {className}"
+		class="{baseClasses} {variantClasses[variant]} {paddingClasses[padding]} {interactiveClasses} {specularClass} {className}"
 		{...restProps}
 	>
 		{#if children}{@render children()}{/if}
