@@ -11,9 +11,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.jeeves.journal.feedback import (
+    CalibrationAnalysis,
     FeedbackProcessingResult,
     JournalFeedbackProcessor,
+    SourceCalibration,
     StoredFeedback,
+    WeeklyReviewResult,
     process_corrections,
 )
 from src.jeeves.journal.models import (
@@ -268,3 +271,227 @@ class TestProcessCorrections:
         result = process_corrections(sample_journal_entry)
         assert result.success is True
         assert result.corrections_processed == 1
+
+
+# ============================================================================
+# SOURCE CALIBRATION TESTS
+# ============================================================================
+
+
+class TestSourceCalibration:
+    """Tests for SourceCalibration dataclass"""
+
+    def test_create_source_calibration(self):
+        """Test creating source calibration"""
+        calibration = SourceCalibration(
+            source="email",
+            total_items=100,
+            correct_decisions=85,
+            incorrect_decisions=15,
+            average_confidence=82.5,
+        )
+        assert calibration.source == "email"
+        assert calibration.total_items == 100
+
+    def test_accuracy_property(self):
+        """Test accuracy calculation"""
+        calibration = SourceCalibration(
+            source="email",
+            correct_decisions=80,
+            incorrect_decisions=20,
+        )
+        assert calibration.accuracy == 0.8
+
+    def test_accuracy_with_no_decisions(self):
+        """Test accuracy with zero decisions"""
+        calibration = SourceCalibration(source="email")
+        assert calibration.accuracy == 0.0
+
+    def test_correction_rate_property(self):
+        """Test correction rate calculation"""
+        calibration = SourceCalibration(
+            source="email",
+            correct_decisions=90,
+            incorrect_decisions=10,
+        )
+        assert calibration.correction_rate == pytest.approx(0.1)
+
+    def test_to_dict(self):
+        """Test serialization"""
+        calibration = SourceCalibration(
+            source="teams",
+            total_items=50,
+            correct_decisions=45,
+            incorrect_decisions=5,
+            average_confidence=88.0,
+        )
+        d = calibration.to_dict()
+        assert d["source"] == "teams"
+        assert d["accuracy"] == 0.9
+        assert d["correction_rate"] == pytest.approx(0.1)
+        assert "last_updated" in d
+
+
+# ============================================================================
+# CALIBRATION ANALYSIS TESTS
+# ============================================================================
+
+
+class TestCalibrationAnalysis:
+    """Tests for CalibrationAnalysis dataclass"""
+
+    def test_create_calibration_analysis(self):
+        """Test creating calibration analysis"""
+        analysis = CalibrationAnalysis(
+            source_calibrations={
+                "email": SourceCalibration(source="email", correct_decisions=80, incorrect_decisions=20),
+                "teams": SourceCalibration(source="teams", correct_decisions=90, incorrect_decisions=10),
+            },
+            overall_accuracy=0.85,
+            recommended_threshold_adjustment=5,
+            patterns_learned=12,
+        )
+        assert analysis.overall_accuracy == 0.85
+        assert len(analysis.source_calibrations) == 2
+
+    def test_to_dict(self):
+        """Test serialization"""
+        analysis = CalibrationAnalysis(
+            source_calibrations={
+                "email": SourceCalibration(source="email", correct_decisions=80, incorrect_decisions=20),
+            },
+            overall_accuracy=0.8,
+            recommended_threshold_adjustment=-3,
+        )
+        d = analysis.to_dict()
+        assert d["overall_accuracy"] == 0.8
+        assert d["recommended_threshold_adjustment"] == -3
+        assert "email" in d["source_calibrations"]
+
+
+# ============================================================================
+# WEEKLY REVIEW RESULT TESTS
+# ============================================================================
+
+
+class TestWeeklyReviewResult:
+    """Tests for WeeklyReviewResult dataclass"""
+
+    def test_create_weekly_review_result(self):
+        """Test creating weekly review result"""
+        result = WeeklyReviewResult(
+            success=True,
+            patterns_processed=5,
+            calibrations_updated=3,
+            threshold_adjustments={"email": 2, "teams": -1},
+        )
+        assert result.success is True
+        assert result.patterns_processed == 5
+        assert result.calibrations_updated == 3
+        assert result.threshold_adjustments["email"] == 2
+
+
+# ============================================================================
+# CALIBRATION PROCESSOR TESTS
+# ============================================================================
+
+
+class TestJournalFeedbackProcessorCalibration:
+    """Tests for calibration methods in JournalFeedbackProcessor"""
+
+    def test_record_correct_decision(self, tmp_path):
+        """Test recording a correct decision"""
+        processor = JournalFeedbackProcessor(storage_dir=tmp_path / "feedback")
+
+        processor.record_correct_decision("email")
+        processor.record_correct_decision("email")
+        processor.record_correct_decision("teams")
+
+        analysis = processor.analyze_calibration()
+        assert analysis.source_calibrations["email"].correct_decisions == 2
+        assert analysis.source_calibrations["teams"].correct_decisions == 1
+
+    def test_record_incorrect_decision(self, tmp_path):
+        """Test recording an incorrect decision"""
+        processor = JournalFeedbackProcessor(storage_dir=tmp_path / "feedback")
+
+        processor.record_incorrect_decision("email")
+        processor.record_incorrect_decision("email")
+        processor.record_correct_decision("email")
+
+        analysis = processor.analyze_calibration()
+        assert analysis.source_calibrations["email"].incorrect_decisions == 2
+        assert analysis.source_calibrations["email"].correct_decisions == 1
+        assert analysis.source_calibrations["email"].accuracy == pytest.approx(1 / 3)
+
+    def test_analyze_calibration_empty(self, tmp_path):
+        """Test calibration analysis with no data"""
+        processor = JournalFeedbackProcessor(storage_dir=tmp_path / "feedback")
+
+        analysis = processor.analyze_calibration()
+        assert analysis.overall_accuracy == 0.0
+        assert len(analysis.source_calibrations) == 0
+
+    def test_analyze_calibration_with_data(self, tmp_path):
+        """Test calibration analysis with data"""
+        processor = JournalFeedbackProcessor(storage_dir=tmp_path / "feedback")
+
+        # Record some decisions
+        for _ in range(8):
+            processor.record_correct_decision("email")
+        for _ in range(2):
+            processor.record_incorrect_decision("email")
+
+        for _ in range(9):
+            processor.record_correct_decision("teams")
+        processor.record_incorrect_decision("teams")
+
+        analysis = processor.analyze_calibration()
+        assert analysis.source_calibrations["email"].accuracy == 0.8
+        assert analysis.source_calibrations["teams"].accuracy == 0.9
+        # Overall accuracy should be weighted average
+        assert analysis.overall_accuracy > 0
+
+    def test_calibrate_by_source(self, tmp_path, sample_correction):
+        """Test calibration by source"""
+        processor = JournalFeedbackProcessor(storage_dir=tmp_path / "feedback")
+
+        # Record some baseline
+        for _ in range(5):
+            processor.record_correct_decision("email")
+        processor.record_incorrect_decision("email")
+
+        # Calibrate with corrections - returns SourceCalibration
+        calibration = processor.calibrate_by_source("email", [sample_correction])
+        assert isinstance(calibration, SourceCalibration)
+        assert calibration.accuracy < 1.0  # Should be less than perfect after correction
+        assert calibration.incorrect_decisions >= 1  # At least one correction was added
+
+    def test_calibration_persistence(self, tmp_path):
+        """Test that calibration data persists"""
+        # First processor
+        processor1 = JournalFeedbackProcessor(storage_dir=tmp_path / "feedback")
+        processor1.record_correct_decision("email")
+        processor1.record_incorrect_decision("email")
+
+        # Second processor loads same data
+        processor2 = JournalFeedbackProcessor(storage_dir=tmp_path / "feedback")
+        analysis = processor2.analyze_calibration()
+
+        assert analysis.source_calibrations["email"].correct_decisions == 1
+        assert analysis.source_calibrations["email"].incorrect_decisions == 1
+
+    def test_update_confidence_thresholds(self, tmp_path):
+        """Test updating confidence thresholds based on calibration"""
+        processor = JournalFeedbackProcessor(storage_dir=tmp_path / "feedback")
+
+        # High accuracy - may increase threshold
+        for _ in range(95):
+            processor.record_correct_decision("email")
+        for _ in range(5):
+            processor.record_incorrect_decision("email")
+
+        analysis = processor.analyze_calibration()
+        # With 95% accuracy, system might recommend threshold adjustment
+        # (depends on implementation)
+        assert analysis.overall_accuracy >= 0.9

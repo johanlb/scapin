@@ -312,20 +312,42 @@ cd web && npm run check   # Vérifier les types
 | Page Share | `web/src/routes/share/+page.svelte` | ✅ |
 | Page Handle | `web/src/routes/handle/+page.svelte` | ✅ |
 
+### Phase 1.6 : Journaling Complet Multi-Source ✅
+
+**Statut** : COMPLÉTÉ (4 janvier 2026)
+
+| Module | Fichier | État |
+|--------|---------|------|
+| Multi-source models | `src/jeeves/journal/models.py` | ✅ |
+| Providers (Teams, Calendar, OmniFocus) | `src/jeeves/journal/providers/` | ✅ |
+| Reviews (Weekly, Monthly) | `src/jeeves/journal/reviews.py` | ✅ |
+| Calibration Sganarelle | `src/jeeves/journal/feedback.py` | ✅ |
+| API Router Journal | `src/jeeves/api/routers/journal.py` | ✅ |
+| Service Journal | `src/jeeves/api/services/journal_service.py` | ✅ |
+| Frontend Journal | `web/src/routes/journal/+page.svelte` | ✅ |
+| Tests | 38 nouveaux tests | ✅ |
+
+**Fonctionnalités** :
+- Journaling multi-source : Email, Teams, Calendar, OmniFocus
+- Questions enrichies avec catégories pattern/preference/calibration
+- Revues hebdomadaires et mensuelles avec détection de patterns
+- Calibration par source avec tracking de précision
+- API REST complète pour le journal
+- Frontend avec tabs multi-sources et corrections inline
+
 ### Phases à venir
 
 | Phase | Nom | Priorité | Focus |
 |-------|-----|----------|-------|
-| **1.6** | Journaling Complet | 🟡 MOYENNE | Multi-source |
 | **2.5** | IA Multi-Provider | 🟢 BASSE | Consensus |
 
 ### Suite des Tests
 
-**Global** : 1385+ tests, 95% couverture, 100% pass rate
+**Global** : 1413+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1376 | ✅ |
+| Backend tests | 1413 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
@@ -471,6 +493,52 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-04 (Suite 6) — Phase 1.6 Journaling Complet COMPLET
+
+**Focus** : Journaling multi-source avec calibration Sganarelle
+
+**Accomplissements** :
+
+1. ✅ **Modèles multi-source** (`src/jeeves/journal/models.py`)
+   - TeamsSummary, CalendarSummary, OmniFocusSummary
+   - Extension JournalEntry avec tous les champs multi-source
+
+2. ✅ **Providers multi-source** (`src/jeeves/journal/providers/`)
+   - TeamsHistoryProvider, CalendarHistoryProvider, OmniFocusHistoryProvider
+   - MultiSourceProvider agrégateur
+
+3. ✅ **Revues hebdomadaires/mensuelles** (`src/jeeves/journal/reviews.py`)
+   - WeeklyReview avec détection patterns et score productivité
+   - MonthlyReview avec tendances et progression objectifs
+
+4. ✅ **Calibration Sganarelle étendue** (`src/jeeves/journal/feedback.py`)
+   - SourceCalibration par source (email, teams, calendar)
+   - CalibrationAnalysis avec recommandations seuils
+   - Méthodes record_correct/incorrect_decision, analyze_calibration
+
+5. ✅ **API Journal** (`src/jeeves/api/routers/journal.py`)
+   - GET /api/journal/{date}, /list, /weekly/{week}, /monthly/{month}
+   - POST /answer, /correction, /complete, /export
+
+6. ✅ **Frontend Journal** (`web/src/routes/journal/+page.svelte`)
+   - Tabs multi-sources (Email, Teams, Calendar, OmniFocus)
+   - Questions interactives et corrections inline
+   - Fix Badge variants → custom styled spans
+
+7. ✅ **Tests** (+38 nouveaux)
+   - test_journal_models.py : 56 tests (multi-source)
+   - test_journal_feedback.py : 26 tests (calibration)
+
+**Corrections** :
+- Fix `{@const}` invalid placement Svelte
+- Fix Badge variant type errors ("warning", "success")
+- Fix WeeklyReviewResult field name (patterns_processed)
+- Fix calibrate_by_source return type assertion
+
+**Tests** : 1413 tests (1413 backend + 8 frontend), svelte-check 0 errors
+
+---
 
 ### Session 2026-01-04 (Suite 5) — Phase 0.9 PWA Mobile COMPLET
 

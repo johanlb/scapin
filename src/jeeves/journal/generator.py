@@ -15,13 +15,16 @@ from typing import Any, Optional, Protocol
 
 from src.core.events.universal_event import now_utc
 from src.jeeves.journal.models import (
+    CalendarSummary,
     DecisionSummary,
     EmailSummary,
     JournalEntry,
     JournalQuestion,
     JournalStatus,
+    OmniFocusSummary,
     QuestionCategory,
     TaskSummary,
+    TeamsSummary,
 )
 from src.monitoring.logger import get_logger
 
@@ -58,6 +61,19 @@ class ProcessingHistoryProvider(Protocol):
 
     def get_known_entities(self) -> set[str]:
         """Get set of known entity identifiers (emails, names)"""
+        ...
+
+    # Multi-source methods (optional - return empty if not implemented)
+    def get_teams_messages(self, target_date: date) -> list[dict[str, Any]]:
+        """Get Teams messages processed on the target date"""
+        ...
+
+    def get_calendar_events(self, target_date: date) -> list[dict[str, Any]]:
+        """Get Calendar events on the target date"""
+        ...
+
+    def get_omnifocus_items(self, target_date: date) -> list[dict[str, Any]]:
+        """Get OmniFocus task activity on the target date"""
         ...
 
 
@@ -134,6 +150,19 @@ class JsonFileHistoryProvider:
         """Get path to processing log file for date"""
         return self.data_dir / "logs" / f"processing_{target_date.isoformat()}.json"
 
+    # Multi-source methods (return empty - use specific providers)
+    def get_teams_messages(self, _target_date: date) -> list[dict[str, Any]]:
+        """Not implemented - use TeamsHistoryProvider"""
+        return []
+
+    def get_calendar_events(self, _target_date: date) -> list[dict[str, Any]]:
+        """Not implemented - use CalendarHistoryProvider"""
+        return []
+
+    def get_omnifocus_items(self, _target_date: date) -> list[dict[str, Any]]:
+        """Not implemented - use OmniFocusHistoryProvider"""
+        return []
+
 
 # ============================================================================
 # JOURNAL GENERATOR
@@ -157,6 +186,20 @@ class JournalGeneratorConfig:
 
     # Minimum confidence to ask verification
     verification_confidence_max: int = 90
+
+    # Pattern-based questions (from weekly reviews)
+    ask_pattern_confirmation: bool = True
+
+    # Preference learning questions
+    ask_preference_learning: bool = True
+
+    # Calibration check questions (when accuracy drops)
+    ask_calibration_check: bool = True
+    calibration_accuracy_threshold: float = 0.85  # Ask if below 85%
+
+    # Priority review questions (for overdue/flagged items)
+    ask_priority_review: bool = True
+    priority_overdue_days: int = 3  # Ask about items overdue > 3 days
 
 
 class JournalGenerator:
@@ -200,19 +243,39 @@ class JournalGenerator:
         """
         logger.info(f"Generating journal for {target_date}")
 
-        # Fetch processing history
+        # Fetch processing history (email)
         raw_emails = self.history_provider.get_processed_emails(target_date)
         raw_tasks = self.history_provider.get_created_tasks(target_date)
         raw_decisions = self.history_provider.get_decisions(target_date)
         known_entities = self.history_provider.get_known_entities()
 
+        # Fetch multi-source data
+        raw_teams = self._safe_get(
+            lambda: self.history_provider.get_teams_messages(target_date)
+        )
+        raw_calendar = self._safe_get(
+            lambda: self.history_provider.get_calendar_events(target_date)
+        )
+        raw_omnifocus = self._safe_get(
+            lambda: self.history_provider.get_omnifocus_items(target_date)
+        )
+
         # Convert to model objects
         emails = self._convert_emails(raw_emails)
         tasks = self._convert_tasks(raw_tasks)
         decisions = self._convert_decisions(raw_decisions)
+        teams_messages = self._convert_teams_messages(raw_teams)
+        calendar_events = self._convert_calendar_events(raw_calendar)
+        omnifocus_items = self._convert_omnifocus_items(raw_omnifocus)
 
-        # Generate questions
-        questions = self._generate_questions(emails, known_entities)
+        # Generate questions (now with multi-source context)
+        questions = self._generate_questions(
+            emails=emails,
+            known_entities=known_entities,
+            teams_messages=teams_messages,
+            calendar_events=calendar_events,
+            omnifocus_items=omnifocus_items,
+        )
 
         # Create journal entry
         entry = JournalEntry(
@@ -223,13 +286,28 @@ class JournalGenerator:
             decisions=decisions,
             questions=questions,
             status=JournalStatus.DRAFT,
+            teams_messages=teams_messages,
+            calendar_events=calendar_events,
+            omnifocus_items=omnifocus_items,
         )
 
         logger.info(
-            f"Journal generated: {len(emails)} emails, {len(tasks)} tasks, {len(questions)} questions"
+            f"Journal generated: {len(emails)} emails, {len(teams_messages)} teams, "
+            f"{len(calendar_events)} calendar, {len(omnifocus_items)} omnifocus, "
+            f"{len(questions)} questions"
         )
 
         return entry
+
+    def _safe_get(self, func: callable) -> list[dict[str, Any]]:
+        """Safely call a provider method, returning empty list on error"""
+        try:
+            return func()
+        except (AttributeError, NotImplementedError):
+            return []
+        except Exception as e:
+            logger.debug(f"Provider method failed: {e}")
+            return []
 
     def _convert_emails(self, raw_emails: list[dict[str, Any]]) -> list[EmailSummary]:
         """Convert raw email data to EmailSummary objects"""
@@ -321,10 +399,128 @@ class JournalGenerator:
 
         return summaries
 
+    def _convert_teams_messages(self, raw_messages: list[dict[str, Any]]) -> list[TeamsSummary]:
+        """Convert raw Teams message data to TeamsSummary objects"""
+        summaries = []
+        for raw in raw_messages:
+            try:
+                # Parse timestamp
+                processed_at = raw.get("processed_at")
+                if isinstance(processed_at, str):
+                    processed_at = datetime.fromisoformat(processed_at)
+                elif processed_at is None:
+                    processed_at = now_utc()
+
+                summary = TeamsSummary(
+                    message_id=raw.get("message_id", str(uuid.uuid4())),
+                    chat_name=raw.get("chat_name", "(unknown chat)"),
+                    sender=raw.get("sender", "unknown"),
+                    preview=raw.get("preview", ""),
+                    action=raw.get("action", "read"),
+                    confidence=raw.get("confidence", 0),
+                    processed_at=processed_at,
+                )
+                summaries.append(summary)
+            except Exception as e:
+                logger.warning(f"Failed to convert Teams message: {e}")
+                continue
+
+        return summaries
+
+    def _convert_calendar_events(self, raw_events: list[dict[str, Any]]) -> list[CalendarSummary]:
+        """Convert raw Calendar event data to CalendarSummary objects"""
+        summaries = []
+        for raw in raw_events:
+            try:
+                # Parse timestamps
+                start_time = raw.get("start_time")
+                if isinstance(start_time, str):
+                    start_time = datetime.fromisoformat(start_time)
+                elif start_time is None:
+                    start_time = now_utc()
+
+                end_time = raw.get("end_time")
+                if isinstance(end_time, str):
+                    end_time = datetime.fromisoformat(end_time)
+                elif end_time is None:
+                    end_time = start_time
+
+                processed_at = raw.get("processed_at")
+                if isinstance(processed_at, str):
+                    processed_at = datetime.fromisoformat(processed_at)
+                elif processed_at is None:
+                    processed_at = now_utc()
+
+                summary = CalendarSummary(
+                    event_id=raw.get("event_id", str(uuid.uuid4())),
+                    title=raw.get("title", "(no title)"),
+                    start_time=start_time,
+                    end_time=end_time,
+                    action=raw.get("action", "attended"),
+                    attendees=raw.get("attendees", []),
+                    location=raw.get("location"),
+                    is_online=raw.get("is_online", False),
+                    notes=raw.get("notes"),
+                    response_status=raw.get("response_status"),
+                    processed_at=processed_at,
+                )
+                summaries.append(summary)
+            except Exception as e:
+                logger.warning(f"Failed to convert Calendar event: {e}")
+                continue
+
+        return summaries
+
+    def _convert_omnifocus_items(self, raw_items: list[dict[str, Any]]) -> list[OmniFocusSummary]:
+        """Convert raw OmniFocus item data to OmniFocusSummary objects"""
+        summaries = []
+        for raw in raw_items:
+            try:
+                # Parse timestamps
+                completed_at = raw.get("completed_at")
+                if isinstance(completed_at, str):
+                    completed_at = datetime.fromisoformat(completed_at)
+
+                due_date = raw.get("due_date")
+                if isinstance(due_date, str):
+                    # Handle both date and datetime strings
+                    try:
+                        due_date = datetime.fromisoformat(due_date)
+                    except ValueError:
+                        due_date = datetime.fromisoformat(due_date + "T00:00:00")
+
+                processed_at = raw.get("processed_at")
+                if isinstance(processed_at, str):
+                    processed_at = datetime.fromisoformat(processed_at)
+                elif processed_at is None:
+                    processed_at = now_utc()
+
+                summary = OmniFocusSummary(
+                    task_id=raw.get("task_id", str(uuid.uuid4())),
+                    title=raw.get("title", "(untitled)"),
+                    project=raw.get("project"),
+                    status=raw.get("status", "unknown"),
+                    tags=raw.get("tags", []),
+                    completed_at=completed_at,
+                    due_date=due_date,
+                    flagged=raw.get("flagged", False),
+                    estimated_minutes=raw.get("estimated_minutes"),
+                    processed_at=processed_at,
+                )
+                summaries.append(summary)
+            except Exception as e:
+                logger.warning(f"Failed to convert OmniFocus item: {e}")
+                continue
+
+        return summaries
+
     def _generate_questions(
         self,
         emails: list[EmailSummary],
         known_entities: set[str],
+        teams_messages: Optional[list[TeamsSummary]] = None,
+        calendar_events: Optional[list[CalendarSummary]] = None,
+        omnifocus_items: Optional[list[OmniFocusSummary]] = None,
     ) -> list[JournalQuestion]:
         """
         Generate questions based on processing results
@@ -333,8 +529,15 @@ class JournalGenerator:
         1. Low-confidence decisions (need verification)
         2. New senders (need classification)
         3. Action verification for automated decisions
+        4. Pattern confirmation (from detected patterns)
+        5. Preference learning (recurring behaviors)
+        6. Calibration check (when accuracy drops)
+        7. Priority review (overdue/flagged items)
         """
         questions: list[JournalQuestion] = []
+        teams_messages = teams_messages or []
+        calendar_events = calendar_events or []
+        omnifocus_items = omnifocus_items or []
 
         # 1. Questions for low-confidence decisions
         low_confidence_emails = [
@@ -362,6 +565,30 @@ class JournalGenerator:
             for email in verification_candidates[:2]:  # Limit to 2
                 question = self._create_verification_question(email)
                 questions.append(question)
+
+        # 4. Pattern confirmation questions
+        if self.config.ask_pattern_confirmation:
+            pattern_questions = self._generate_pattern_questions(
+                emails, teams_messages, omnifocus_items
+            )
+            questions.extend(pattern_questions[:2])  # Limit to 2
+
+        # 5. Preference learning questions
+        if self.config.ask_preference_learning:
+            preference_questions = self._generate_preference_questions(
+                calendar_events, omnifocus_items
+            )
+            questions.extend(preference_questions[:2])  # Limit to 2
+
+        # 6. Calibration check questions
+        if self.config.ask_calibration_check:
+            calibration_questions = self._generate_calibration_questions(emails)
+            questions.extend(calibration_questions[:1])  # Limit to 1
+
+        # 7. Priority review questions
+        if self.config.ask_priority_review:
+            priority_questions = self._generate_priority_questions(omnifocus_items)
+            questions.extend(priority_questions[:2])  # Limit to 2
 
         # Sort by priority and limit
         questions.sort(key=lambda q: q.priority)
@@ -420,3 +647,313 @@ class JournalGenerator:
                 seen.add(sender)
 
         return new_senders
+
+    # =========================================================================
+    # NEW QUESTION TYPES (Pattern, Preference, Calibration, Priority)
+    # =========================================================================
+
+    def _generate_pattern_questions(
+        self,
+        emails: list[EmailSummary],
+        teams_messages: list[TeamsSummary],
+        omnifocus_items: list[OmniFocusSummary],
+    ) -> list[JournalQuestion]:
+        """
+        Generate pattern confirmation questions
+
+        Detects patterns like:
+        - High-volume sender always archived
+        - Tasks from certain projects always deferred
+        - Recurring category actions
+        """
+        questions = []
+
+        # Pattern: High-volume sender with consistent action
+        sender_actions: dict[str, dict[str, int]] = {}
+        for email in emails:
+            sender = email.from_address
+            action = email.action
+            if sender not in sender_actions:
+                sender_actions[sender] = {}
+            sender_actions[sender][action] = sender_actions[sender].get(action, 0) + 1
+
+        for sender, actions in sender_actions.items():
+            total = sum(actions.values())
+            if total >= 3:  # At least 3 emails from this sender
+                dominant_action = max(actions, key=actions.get)
+                if actions[dominant_action] / total >= 0.8:  # 80%+ same action
+                    questions.append(JournalQuestion(
+                        question_id=str(uuid.uuid4()),
+                        category=QuestionCategory.PATTERN_CONFIRM,
+                        question_text=(
+                            f"Scapin remarque que les emails de {sender} sont souvent "
+                            f"'{dominant_action}' ({actions[dominant_action]}/{total}). "
+                            "Faut-il appliquer cette regle automatiquement ?"
+                        ),
+                        context="Pattern detecte. Automatiser cette action reduirait le temps de traitement.",
+                        options=(
+                            "Oui, toujours appliquer",
+                            "Oui, avec confirmation",
+                            "Non, je decide au cas par cas",
+                        ),
+                        related_entity=sender,
+                        priority=4,
+                    ))
+
+        # Pattern: Teams chat with high activity
+        chat_activity: dict[str, int] = {}
+        for msg in teams_messages:
+            chat_activity[msg.chat_name] = chat_activity.get(msg.chat_name, 0) + 1
+
+        for chat_name, count in chat_activity.items():
+            if count >= 5:  # At least 5 messages in this chat
+                questions.append(JournalQuestion(
+                    question_id=str(uuid.uuid4()),
+                    category=QuestionCategory.PATTERN_CONFIRM,
+                    question_text=(
+                        f"La conversation Teams '{chat_name}' a eu {count} messages aujourd'hui. "
+                        "Faut-il suivre cette conversation de plus pres ?"
+                    ),
+                    context="Chat actif. Scapin peut prioriser les notifications de ce chat.",
+                    options=(
+                        "Oui, notifications prioritaires",
+                        "Non, importance normale",
+                        "Ignorer ce chat",
+                    ),
+                    related_entity=chat_name,
+                    priority=5,
+                ))
+
+        # Pattern: OmniFocus project with many completions
+        project_stats: dict[str, int] = {}
+        for item in omnifocus_items:
+            if item.status == "completed" and item.project:
+                project_stats[item.project] = project_stats.get(item.project, 0) + 1
+
+        for project, count in project_stats.items():
+            if count >= 5:  # At least 5 completions from this project
+                questions.append(JournalQuestion(
+                    question_id=str(uuid.uuid4()),
+                    category=QuestionCategory.PATTERN_CONFIRM,
+                    question_text=(
+                        f"Le projet '{project}' a eu {count} taches completees aujourd'hui. "
+                        "Est-ce un projet prioritaire a suivre de pres ?"
+                    ),
+                    context="Beaucoup d'activite sur ce projet. Scapin peut le prioriser.",
+                    options=(
+                        "Oui, priorite haute",
+                        "Priorite normale",
+                        "Baisser la priorite",
+                    ),
+                    related_entity=project,
+                    priority=5,
+                ))
+
+        return questions
+
+    def _generate_preference_questions(
+        self,
+        calendar_events: list[CalendarSummary],
+        omnifocus_items: list[OmniFocusSummary],
+    ) -> list[JournalQuestion]:
+        """
+        Generate preference learning questions
+
+        Learns preferences about:
+        - Meeting preparation time
+        - Task scheduling preferences
+        - Focus time blocks
+        """
+        questions = []
+
+        # Preference: Meeting preparation needs
+        meetings_with_many_attendees = [
+            e for e in calendar_events
+            if len(e.attendees) >= 3 and e.action == "attended"
+        ]
+        if meetings_with_many_attendees:
+            meeting = meetings_with_many_attendees[0]
+            questions.append(JournalQuestion(
+                question_id=str(uuid.uuid4()),
+                category=QuestionCategory.PREFERENCE_LEARN,
+                question_text=(
+                    f"Avant la reunion '{meeting.title}' ({len(meeting.attendees)} participants), "
+                    "combien de temps de preparation preferez-vous ?"
+                ),
+                context="Scapin peut vous envoyer un rappel avec contexte avant les reunions.",
+                options=(
+                    "5 minutes",
+                    "15 minutes",
+                    "30 minutes",
+                    "Pas de rappel necessaire",
+                ),
+                related_entity=meeting.event_id,
+                priority=5,
+            ))
+
+        # Preference: Task estimation accuracy
+        estimated_tasks = [
+            t for t in omnifocus_items
+            if t.estimated_minutes and t.status == "completed"
+        ]
+        if len(estimated_tasks) >= 3:
+            questions.append(JournalQuestion(
+                question_id=str(uuid.uuid4()),
+                category=QuestionCategory.PREFERENCE_LEARN,
+                question_text=(
+                    f"Vous avez complete {len(estimated_tasks)} taches estimees aujourd'hui. "
+                    "Vos estimations de temps sont-elles generalement precises ?"
+                ),
+                context="Aide Scapin a mieux planifier votre charge de travail.",
+                options=(
+                    "Oui, generalement precises",
+                    "Souvent sous-estimees",
+                    "Souvent sur-estimees",
+                    "Tres variables",
+                ),
+                priority=6,
+            ))
+
+        return questions
+
+    def _generate_calibration_questions(
+        self,
+        emails: list[EmailSummary],
+    ) -> list[JournalQuestion]:
+        """
+        Generate calibration check questions
+
+        Asks about accuracy when:
+        - Average confidence is low
+        - Many different actions were taken
+        """
+        questions = []
+
+        if not emails:
+            return questions
+
+        # Check average confidence
+        avg_confidence = sum(e.confidence for e in emails) / len(emails)
+        if avg_confidence < self.config.calibration_accuracy_threshold * 100:
+            questions.append(JournalQuestion(
+                question_id=str(uuid.uuid4()),
+                category=QuestionCategory.CALIBRATION_CHECK,
+                question_text=(
+                    f"La confiance moyenne des decisions aujourd'hui etait de "
+                    f"{avg_confidence:.0f}%. Voulez-vous revoir les seuils d'automatisation ?"
+                ),
+                context=(
+                    f"Seuil actuel: {self.config.low_confidence_threshold}%. "
+                    "Ajuster les seuils peut ameliorer la precision."
+                ),
+                options=(
+                    "Augmenter le seuil (plus prudent)",
+                    "Diminuer le seuil (plus automatise)",
+                    "Garder tel quel",
+                ),
+                priority=3,
+            ))
+
+        # Check action diversity (many different actions = uncertainty)
+        action_counts = {}
+        for email in emails:
+            action_counts[email.action] = action_counts.get(email.action, 0) + 1
+
+        if len(action_counts) >= 4 and len(emails) >= 10:
+            actions_summary = ", ".join(
+                f"{action}({count})" for action, count in sorted(
+                    action_counts.items(), key=lambda x: -x[1]
+                )[:4]
+            )
+            questions.append(JournalQuestion(
+                question_id=str(uuid.uuid4()),
+                category=QuestionCategory.CALIBRATION_CHECK,
+                question_text=(
+                    f"Beaucoup d'actions differentes aujourd'hui: {actions_summary}. "
+                    "Y a-t-il une action que Scapin devrait prioriser ?"
+                ),
+                context="Aide Scapin a mieux comprendre vos priorites.",
+                options=(
+                    "Focus sur les taches",
+                    "Focus sur l'archivage",
+                    "Focus sur la lecture",
+                    "Equilibrer les actions",
+                ),
+                priority=4,
+            ))
+
+        return questions
+
+    def _generate_priority_questions(
+        self,
+        omnifocus_items: list[OmniFocusSummary],
+    ) -> list[JournalQuestion]:
+        """
+        Generate priority review questions
+
+        Asks about:
+        - Overdue tasks
+        - Flagged but not worked on
+        - Long-standing tasks
+        """
+        questions = []
+        now = now_utc()
+
+        # Find overdue items
+        overdue_items = [
+            item for item in omnifocus_items
+            if item.status == "overdue" or (
+                item.due_date and
+                item.due_date < now and
+                item.status not in ("completed", "dropped")
+            )
+        ]
+
+        # Question for overdue items
+        if overdue_items:
+            oldest = min(overdue_items, key=lambda x: x.due_date or now)
+            days_overdue = (now - oldest.due_date).days if oldest.due_date else 0
+
+            if days_overdue >= self.config.priority_overdue_days:
+                questions.append(JournalQuestion(
+                    question_id=str(uuid.uuid4()),
+                    category=QuestionCategory.PRIORITY_REVIEW,
+                    question_text=(
+                        f"La tache '{oldest.title[:50]}' est en retard de {days_overdue} jours. "
+                        "Que voulez-vous faire ?"
+                    ),
+                    context=f"Projet: {oldest.project or 'Aucun'}. Total taches en retard: {len(overdue_items)}.",
+                    options=(
+                        "Reporter a demain",
+                        "Reporter a la semaine prochaine",
+                        "Annuler cette tache",
+                        "La faire maintenant (priorite haute)",
+                    ),
+                    related_entity=oldest.task_id,
+                    priority=2,  # High priority
+                ))
+
+        # Question for flagged items not completed
+        flagged_pending = [
+            item for item in omnifocus_items
+            if item.flagged and item.status not in ("completed", "dropped")
+        ]
+
+        if len(flagged_pending) >= 3:
+            questions.append(JournalQuestion(
+                question_id=str(uuid.uuid4()),
+                category=QuestionCategory.PRIORITY_REVIEW,
+                question_text=(
+                    f"Vous avez {len(flagged_pending)} taches marquees importantes en attente. "
+                    "Voulez-vous revoir leurs priorites ?"
+                ),
+                context="Les taches marquees sont censees etre prioritaires.",
+                options=(
+                    "Oui, ouvrir OmniFocus",
+                    "Lister dans le journal",
+                    "Non, je m'en occupe",
+                ),
+                priority=3,
+            ))
+
+        return questions

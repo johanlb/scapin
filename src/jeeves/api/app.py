@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.jeeves.api.models.responses import APIResponse
-from src.jeeves.api.routers import auth_router, briefing_router, system_router
+from src.jeeves.api.routers import auth_router, briefing_router, journal_router, system_router
 from src.jeeves.api.websocket import ws_router
 from src.monitoring.logger import get_logger
 
@@ -80,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
     app.include_router(system_router, prefix="/api", tags=["System"])
     app.include_router(briefing_router, prefix="/api/briefing", tags=["Briefing"])
+    app.include_router(journal_router, prefix="/api/journal", tags=["Journal"])
     app.include_router(ws_router, prefix="/ws", tags=["WebSocket"])
 
     # Root endpoint

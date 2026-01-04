@@ -10,14 +10,17 @@ from datetime import date, datetime, timezone
 import pytest
 
 from src.jeeves.journal.models import (
+    CalendarSummary,
     Correction,
     DecisionSummary,
     EmailSummary,
     JournalEntry,
     JournalQuestion,
     JournalStatus,
+    OmniFocusSummary,
     QuestionCategory,
     TaskSummary,
+    TeamsSummary,
 )
 
 # ============================================================================
@@ -502,3 +505,378 @@ class TestEnums:
         assert QuestionCategory.LOW_CONFIDENCE.value == "low_confidence"
         assert QuestionCategory.CLARIFICATION.value == "clarification"
         assert QuestionCategory.ACTION_VERIFY.value == "action_verify"
+
+    def test_question_category_new_values(self):
+        """Test new question category values for pattern learning"""
+        assert QuestionCategory.PATTERN_CONFIRM.value == "pattern_confirm"
+        assert QuestionCategory.PREFERENCE_LEARN.value == "preference_learn"
+        assert QuestionCategory.CALIBRATION_CHECK.value == "calibration_check"
+        assert QuestionCategory.PRIORITY_REVIEW.value == "priority_review"
+
+
+# ============================================================================
+# TEAMS SUMMARY TESTS
+# ============================================================================
+
+
+@pytest.fixture
+def sample_teams_summary(sample_datetime):
+    """Sample Teams message summary"""
+    return TeamsSummary(
+        message_id="teams-001",
+        chat_name="Project Alpha",
+        sender="Alice Smith",
+        preview="Can you review the latest changes?",
+        action="flagged",
+        confidence=78,
+        processed_at=sample_datetime,
+        chat_type="group",
+        importance="high",
+    )
+
+
+class TestTeamsSummary:
+    """Tests for TeamsSummary"""
+
+    def test_create_teams_summary(self, sample_teams_summary):
+        """Test creating teams summary"""
+        assert sample_teams_summary.message_id == "teams-001"
+        assert sample_teams_summary.chat_name == "Project Alpha"
+        assert sample_teams_summary.sender == "Alice Smith"
+        assert sample_teams_summary.confidence == 78
+
+    def test_teams_summary_to_dict(self, sample_teams_summary):
+        """Test teams summary serialization"""
+        d = sample_teams_summary.to_dict()
+        assert d["message_id"] == "teams-001"
+        assert d["chat_name"] == "Project Alpha"
+        assert d["chat_type"] == "group"
+        assert d["importance"] == "high"
+
+    def test_teams_summary_validation_confidence(self, sample_datetime):
+        """Test teams summary validates confidence range"""
+        with pytest.raises(ValueError, match="confidence must be 0-100"):
+            TeamsSummary(
+                message_id="teams-002",
+                chat_name="Test Chat",
+                sender="Test User",
+                preview="Test message",
+                action="read",
+                confidence=200,
+                processed_at=sample_datetime,
+            )
+
+    def test_teams_summary_validation_message_id(self, sample_datetime):
+        """Test teams summary requires message_id"""
+        with pytest.raises(ValueError, match="message_id is required"):
+            TeamsSummary(
+                message_id="",
+                chat_name="Test Chat",
+                sender="Test User",
+                preview="Test message",
+                action="read",
+                confidence=50,
+                processed_at=sample_datetime,
+            )
+
+    def test_teams_summary_optional_fields(self, sample_datetime):
+        """Test teams summary without optional fields"""
+        summary = TeamsSummary(
+            message_id="teams-003",
+            chat_name="Test",
+            sender="User",
+            preview="Message",
+            action="read",
+            confidence=90,
+            processed_at=sample_datetime,
+        )
+        assert summary.chat_type is None
+        assert summary.importance is None
+
+
+# ============================================================================
+# CALENDAR SUMMARY TESTS
+# ============================================================================
+
+
+@pytest.fixture
+def sample_calendar_summary(sample_datetime):
+    """Sample calendar event summary"""
+    return CalendarSummary(
+        event_id="cal-001",
+        title="Team Standup",
+        start_time=sample_datetime,
+        end_time=sample_datetime.replace(hour=11, minute=0),
+        action="attended",
+        processed_at=sample_datetime,
+        attendees=("Alice", "Bob", "Charlie"),
+        location="Room 101",
+        is_online=False,
+        notes="Discussed sprint progress",
+        response_status="accepted",
+    )
+
+
+class TestCalendarSummary:
+    """Tests for CalendarSummary"""
+
+    def test_create_calendar_summary(self, sample_calendar_summary):
+        """Test creating calendar summary"""
+        assert sample_calendar_summary.event_id == "cal-001"
+        assert sample_calendar_summary.title == "Team Standup"
+        assert len(sample_calendar_summary.attendees) == 3
+
+    def test_calendar_summary_duration_minutes(self, sample_calendar_summary):
+        """Test duration calculation"""
+        assert sample_calendar_summary.duration_minutes == 30
+
+    def test_calendar_summary_to_dict(self, sample_calendar_summary):
+        """Test calendar summary serialization"""
+        d = sample_calendar_summary.to_dict()
+        assert d["event_id"] == "cal-001"
+        assert d["title"] == "Team Standup"
+        assert d["duration_minutes"] == 30
+        assert d["attendees"] == ["Alice", "Bob", "Charlie"]
+
+    def test_calendar_summary_validation_event_id(self, sample_datetime):
+        """Test calendar summary requires event_id"""
+        with pytest.raises(ValueError, match="event_id is required"):
+            CalendarSummary(
+                event_id="",
+                title="Test Event",
+                start_time=sample_datetime,
+                end_time=sample_datetime,
+                action="pending",
+                processed_at=sample_datetime,
+            )
+
+    def test_calendar_summary_validation_title(self, sample_datetime):
+        """Test calendar summary requires title"""
+        with pytest.raises(ValueError, match="title is required"):
+            CalendarSummary(
+                event_id="cal-003",
+                title="",
+                start_time=sample_datetime,
+                end_time=sample_datetime,
+                action="pending",
+                processed_at=sample_datetime,
+            )
+
+    def test_calendar_summary_default_attendees(self, sample_datetime):
+        """Test default attendees tuple"""
+        summary = CalendarSummary(
+            event_id="cal-004",
+            title="Solo Event",
+            start_time=sample_datetime,
+            end_time=sample_datetime.replace(hour=12),
+            action="attended",
+            processed_at=sample_datetime,
+        )
+        assert summary.attendees == ()
+        assert len(summary.attendees) == 0
+
+
+# ============================================================================
+# OMNIFOCUS SUMMARY TESTS
+# ============================================================================
+
+
+@pytest.fixture
+def sample_omnifocus_summary(sample_datetime):
+    """Sample OmniFocus task summary"""
+    return OmniFocusSummary(
+        task_id="of-001",
+        title="Review PR #123",
+        status="completed",
+        processed_at=sample_datetime,
+        project="Code Reviews",
+        tags=("urgent", "dev"),
+        completed_at=sample_datetime,
+        due_date=sample_datetime.replace(hour=17),
+        flagged=True,
+        estimated_minutes=30,
+    )
+
+
+class TestOmniFocusSummary:
+    """Tests for OmniFocusSummary"""
+
+    def test_create_omnifocus_summary(self, sample_omnifocus_summary):
+        """Test creating omnifocus summary"""
+        assert sample_omnifocus_summary.task_id == "of-001"
+        assert sample_omnifocus_summary.title == "Review PR #123"
+        assert sample_omnifocus_summary.status == "completed"
+        assert sample_omnifocus_summary.flagged is True
+
+    def test_omnifocus_summary_to_dict(self, sample_omnifocus_summary):
+        """Test omnifocus summary serialization"""
+        d = sample_omnifocus_summary.to_dict()
+        assert d["task_id"] == "of-001"
+        assert d["project"] == "Code Reviews"
+        assert d["tags"] == ["urgent", "dev"]
+        assert d["flagged"] is True
+        assert d["estimated_minutes"] == 30
+
+    def test_omnifocus_summary_validation_task_id(self, sample_datetime):
+        """Test omnifocus summary requires task_id"""
+        with pytest.raises(ValueError, match="task_id is required"):
+            OmniFocusSummary(
+                task_id="",
+                title="Test Task",
+                status="created",
+                processed_at=sample_datetime,
+            )
+
+    def test_omnifocus_summary_validation_title(self, sample_datetime):
+        """Test omnifocus summary requires title"""
+        with pytest.raises(ValueError, match="title is required"):
+            OmniFocusSummary(
+                task_id="of-002",
+                title="",
+                status="created",
+                processed_at=sample_datetime,
+            )
+
+    def test_omnifocus_summary_minimal(self, sample_datetime):
+        """Test omnifocus summary with minimal fields"""
+        summary = OmniFocusSummary(
+            task_id="of-003",
+            title="Simple Task",
+            status="created",
+            processed_at=sample_datetime,
+        )
+        assert summary.project is None
+        assert summary.tags == ()
+        assert summary.completed_at is None
+        assert summary.flagged is False
+
+
+# ============================================================================
+# MULTI-SOURCE JOURNAL ENTRY TESTS
+# ============================================================================
+
+
+class TestJournalEntryMultiSource:
+    """Tests for JournalEntry with multi-source data"""
+
+    def test_journal_entry_with_teams(
+        self,
+        sample_email_summary,
+        sample_task_summary,
+        sample_decision_summary,
+        sample_question,
+        sample_teams_summary,
+        sample_datetime,
+    ):
+        """Test journal entry with Teams messages"""
+        entry = JournalEntry(
+            journal_date=date(2026, 1, 2),
+            created_at=sample_datetime,
+            emails_processed=[sample_email_summary],
+            tasks_created=[sample_task_summary],
+            decisions=[sample_decision_summary],
+            questions=[sample_question],
+            teams_messages=[sample_teams_summary],
+        )
+        assert len(entry.teams_messages) == 1
+        assert entry.teams_messages[0].chat_name == "Project Alpha"
+
+    def test_journal_entry_with_calendar(
+        self,
+        sample_email_summary,
+        sample_task_summary,
+        sample_decision_summary,
+        sample_question,
+        sample_calendar_summary,
+        sample_datetime,
+    ):
+        """Test journal entry with calendar events"""
+        entry = JournalEntry(
+            journal_date=date(2026, 1, 2),
+            created_at=sample_datetime,
+            emails_processed=[sample_email_summary],
+            tasks_created=[sample_task_summary],
+            decisions=[sample_decision_summary],
+            questions=[sample_question],
+            calendar_events=[sample_calendar_summary],
+        )
+        assert len(entry.calendar_events) == 1
+        assert entry.calendar_events[0].title == "Team Standup"
+
+    def test_journal_entry_with_omnifocus(
+        self,
+        sample_email_summary,
+        sample_task_summary,
+        sample_decision_summary,
+        sample_question,
+        sample_omnifocus_summary,
+        sample_datetime,
+    ):
+        """Test journal entry with OmniFocus items"""
+        entry = JournalEntry(
+            journal_date=date(2026, 1, 2),
+            created_at=sample_datetime,
+            emails_processed=[sample_email_summary],
+            tasks_created=[sample_task_summary],
+            decisions=[sample_decision_summary],
+            questions=[sample_question],
+            omnifocus_items=[sample_omnifocus_summary],
+        )
+        assert len(entry.omnifocus_items) == 1
+        assert entry.omnifocus_items[0].title == "Review PR #123"
+
+    def test_journal_entry_to_dict_with_multi_source(
+        self,
+        sample_email_summary,
+        sample_teams_summary,
+        sample_calendar_summary,
+        sample_omnifocus_summary,
+        sample_datetime,
+    ):
+        """Test journal entry serialization with multi-source data"""
+        entry = JournalEntry(
+            journal_date=date(2026, 1, 2),
+            created_at=sample_datetime,
+            emails_processed=[sample_email_summary],
+            tasks_created=[],
+            decisions=[],
+            questions=[],
+            teams_messages=[sample_teams_summary],
+            calendar_events=[sample_calendar_summary],
+            omnifocus_items=[sample_omnifocus_summary],
+        )
+        d = entry.to_dict()
+        assert len(d["teams_messages"]) == 1
+        assert len(d["calendar_events"]) == 1
+        assert len(d["omnifocus_items"]) == 1
+        assert d["summary"]["total_teams_messages"] == 1
+        assert d["summary"]["total_calendar_events"] == 1
+        assert d["summary"]["total_omnifocus_items"] == 1
+
+    def test_journal_entry_to_markdown_with_multi_source(
+        self,
+        sample_email_summary,
+        sample_teams_summary,
+        sample_calendar_summary,
+        sample_omnifocus_summary,
+        sample_datetime,
+    ):
+        """Test journal entry markdown with multi-source data"""
+        entry = JournalEntry(
+            journal_date=date(2026, 1, 2),
+            created_at=sample_datetime,
+            emails_processed=[sample_email_summary],
+            tasks_created=[],
+            decisions=[],
+            questions=[],
+            teams_messages=[sample_teams_summary],
+            calendar_events=[sample_calendar_summary],
+            omnifocus_items=[sample_omnifocus_summary],
+        )
+        md = entry.to_markdown()
+        assert "## Messages Teams" in md
+        assert "Project Alpha" in md
+        assert "## Evenements Calendrier" in md
+        assert "Team Standup" in md
+        assert "## Taches OmniFocus" in md
+        assert "Review PR #123" in md

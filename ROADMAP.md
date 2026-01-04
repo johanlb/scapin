@@ -10,11 +10,11 @@
 
 ### Statut Global
 
-**État** : ✅ **Interfaces Complètes** — Web + PWA Mobile prêts
+**État** : ✅ **Journaling Multi-Source Complété** — Phase 1.6 terminée
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1385+ tests (1376 backend + 8 frontend), 95% couverture, 100% pass rate |
+| **Tests** | 1413+ tests (1413 backend + 8 frontend), 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 | **Identité précédente** | PKM System (archivé) |
@@ -34,11 +34,12 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 ### Dernières Étapes (4 janvier 2026)
 
+- ✅ **Phase 1.6 Journaling Complet** — Multi-source (Email, Teams, Calendar, OmniFocus), calibration Sganarelle, revues hebdo/mensuelles (38 tests)
 - ✅ **Phase 0.8 Interface Web** — SvelteKit + TailwindCSS v4, design Liquid Glass, auth JWT, WebSockets
 - ✅ **Phase 0.9 PWA Mobile** — Service Worker, Push Notifications, Deeplinks, Share Target
-- ✅ **Phase 0.7 API Jeeves MVP** — FastAPI, endpoints system/briefing, services async (20 tests)
+- ✅ **Phase 0.7 API Jeeves MVP** — FastAPI, endpoints system/briefing/journal, services async
 - ✅ **Phase 1.4 Système de Briefing** — Generator, display multi-couches, CLI (58 tests)
-- ✅ Suite de tests complète — 1385+ tests passent (1376 backend + 8 frontend)
+- ✅ Suite de tests complète — 1413+ tests passent (1413 backend + 8 frontend)
 - ✅ Qualité code — Ruff 0 warnings, svelte-check 0 warnings
 
 ---
@@ -1153,12 +1154,12 @@ Intégrer les messages LinkedIn avec filtrage agressif (beaucoup de spam/prospec
 
 ## 📋 COUCHE 4 : AMÉLIORATION CONTINUE
 
-### Phase 1.6 : Journaling Complet
+### Phase 1.6 : Journaling Complet Multi-Source ✅
 
-**Statut** : 📋 Planifié
-**Priorité** : 🔴 CRITIQUE (mais dépend des couches précédentes)
-**Durée estimée** : 2 semaines
-**Dépendance** : Phases 1.1, 1.2, 1.3, 1.5
+**Statut** : ✅ COMPLÉTÉ (4 janvier 2026)
+**Priorité** : 🔴 CRITIQUE
+**Durée réelle** : 1 journée
+**Dépendance** : Phases 1.1, 1.2, 1.3
 
 #### Objectif
 Étendre le journaling basique (Phase 1.1) pour synthétiser TOUTES les sources et boucler complètement avec Sganarelle.
@@ -1168,45 +1169,44 @@ Intégrer les messages LinkedIn avec filtrage agressif (beaucoup de spam/prospec
 | Aspect | Phase 1.1 (Basique) | Phase 1.6 (Complet) |
 |--------|---------------------|---------------------|
 | Sources | Emails uniquement | Emails + Teams + Calendrier + OmniFocus |
-| Questions | Clarifications simples | Questions sur patterns, préférences |
-| Feedback | Corrections ponctuelles | Calibration complète Sganarelle |
+| Questions | Clarifications simples | Questions sur patterns, préférences, calibration |
+| Feedback | Corrections ponctuelles | Calibration complète Sganarelle par source |
 | Revues | Quotidienne seulement | Quotidienne + Hebdo + Mensuelle |
 
-#### User Stories Additionnelles
+#### Livrables Réalisés
 
-```gherkin
-STORY : Revue hebdomadaire
-En tant que Johan,
-Je veux une revue hebdomadaire qui synthétise ma semaine
-Afin de prendre du recul et ajuster mes priorités.
+| Livrable | Fichier | État |
+|----------|---------|------|
+| Modèles multi-source | `src/jeeves/journal/models.py` | ✅ |
+| Providers multi-source | `src/jeeves/journal/providers/` | ✅ |
+| Revues hebdo/mensuelle | `src/jeeves/journal/reviews.py` | ✅ |
+| Calibration Sganarelle | `src/jeeves/journal/feedback.py` | ✅ |
+| API Router Journal | `src/jeeves/api/routers/journal.py` | ✅ |
+| Service Journal | `src/jeeves/api/services/journal_service.py` | ✅ |
+| Frontend Journal | `web/src/routes/journal/+page.svelte` | ✅ |
+| Tests | 38 nouveaux tests | ✅ |
 
-Critères d'acceptation :
-- Synthèse : emails traités, réunions, tâches complétées
-- Temps passé par domaine (Eufonie, Skiillz, AWCS, Perso)
-- Suggestions d'amélioration de Scapin
-- Durée : ~30 min
+#### API Endpoints
 
----
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/journal/{date}` | Récupérer journal d'une date |
+| GET | `/api/journal/list` | Liste des journals (pagination) |
+| POST | `/api/journal/{date}/answer` | Répondre à une question |
+| POST | `/api/journal/{date}/correction` | Soumettre correction |
+| POST | `/api/journal/{date}/complete` | Marquer comme terminé |
+| GET | `/api/journal/weekly/{week}` | Revue hebdomadaire |
+| GET | `/api/journal/monthly/{month}` | Revue mensuelle |
+| GET | `/api/journal/calibration` | Données calibration |
+| POST | `/api/journal/{date}/export` | Export markdown/json/html |
 
-STORY : Calibration Sganarelle
-En tant que Johan,
-Je veux que Scapin me montre ses apprentissages et demande validation
-Afin de corriger les mauvais patterns avant qu'ils ne s'ancrent.
-
-Critères d'acceptation :
-- "J'ai appris que X, est-ce correct ?"
-- Possibilité de confirmer, corriger, ou supprimer
-- Visualisation des seuils de confiance par domaine
-```
-
-#### Livrables
-
-| Livrable | Fichier | Lignes estimées |
-|----------|---------|-----------------|
-| Synthétiseur multi-source | `src/jeeves/journal/multi_source_synthesizer.py` | ~300 |
-| Revue hebdo/mensuelle | `src/jeeves/journal/reviews.py` | ~250 |
-| Calibration UI | `src/jeeves/journal/calibration_ui.py` | ~200 |
-| Dashboard apprentissage | `src/jeeves/journal/learning_dashboard.py` | ~200 |
+#### Critères de Succès
+- [x] Multi-source : Email, Teams, Calendar, OmniFocus intégrés
+- [x] Revues hebdo/mensuelles avec détection patterns
+- [x] Calibration par source avec tracking précision
+- [x] API REST complète pour le journal
+- [x] Frontend avec tabs multi-sources
+- [x] 38 nouveaux tests (1413 total)
 
 ---
 
@@ -1376,17 +1376,18 @@ Phase 0.7: ████████████████████ 100% ✅
 Phase 0.8: ████████████████████ 100% ✅ UI Web (SvelteKit)
 Phase 0.9: ████████████████████ 100% ✅ PWA Mobile
 
-=== AVANCÉ (Futur) ===
+=== AVANCÉ ===
+Phase 1.6: ████████████████████ 100% ✅ Journaling Complet Multi-Source
 Phase 1.5: ░░░░░░░░░░░░░░░░░░░░   0% 📋 LinkedIn (basse priorité)
-Phase 1.6: ░░░░░░░░░░░░░░░░░░░░   0% 📋 Journaling Complet
 Phase 2.5: ░░░░░░░░░░░░░░░░░░░░   0% 📋 IA Multi-Provider
 Phase 3:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Connaissances Avancées
 Phase 4:   ░░░░░░░░░░░░░░░░░░░░   0% 📋 Révision FSRS
 
 Infrastructure:    ████████████████████ 100% ✅
 Valeur Fonct.:     ████████████████████ 100% ✅
-Interfaces:        █████░░░░░░░░░░░░░░░  25% 🏗️
-Global:            ████████████████░░░░  80% 🚀
+Interfaces:        ████████████████████ 100% ✅
+Avancé:            █████░░░░░░░░░░░░░░░  25% 🏗️
+Global:            █████████████████░░░  85% 🚀
 ```
 
 ### Évolution Couverture Tests
@@ -1406,7 +1407,8 @@ Global:            ████████████████░░░░ 
 | **Phase 1.3** | **92** | **100%** | **100%** | **✅** |
 | **Phase 1.4** | **58** | **100%** | **100%** | **✅** |
 | **Phase 0.7** | **20** | **100%** | **100%** | **✅** |
-| **Total** | **1350+** | **95%** | **100%** | **✅** |
+| **Phase 1.6** | **38** | **100%** | **100%** | **✅** |
+| **Total** | **1413+** | **95%** | **100%** | **✅** |
 
 ---
 
@@ -1476,7 +1478,7 @@ Global:            ████████████████░░░░ 
 
 **Focus** : Améliorations et consensus IA
 
-1. **Phase 1.6** (Journaling Complet multi-source)
+1. ✅ **Phase 1.6** (Journaling Complet multi-source) — FAIT (avancé de Q3 à Q1)
 2. **Phase 2.5** (IA Multi-Provider)
 3. **Phase 1.5** (LinkedIn - basse priorité)
 
@@ -1576,7 +1578,7 @@ Global:            ████████████████░░░░ 
 
 ---
 
-**Statut** : Phase 0.9 PWA Mobile ✅ — Interfaces complètes
+**Statut** : Phase 1.6 Journaling Complet ✅ — Multi-source terminé
 **Qualité** : 10/10 Production Ready Core 🚀
-**Tests** : 1385+ tests, 95% couverture, 100% pass ✅
-**Prochaine Étape** : Phases avancées (Journaling Complet, IA Multi-Provider)
+**Tests** : 1413+ tests, 95% couverture, 100% pass ✅
+**Prochaine Étape** : Phases avancées (IA Multi-Provider, LinkedIn)

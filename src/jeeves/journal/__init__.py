@@ -2,12 +2,15 @@
 Journal Module
 
 Daily journaling with feedback loop to Sganarelle.
+Multi-source support: Email, Teams, Calendar, OmniFocus.
+Weekly and monthly reviews with pattern detection.
 
 Workflow:
 1. `scapin journal` command
 2. JournalGenerator creates draft from day's processing
 3. JournalInteractive collects user answers and corrections
 4. FeedbackProcessor sends corrections to Sganarelle
+5. ReviewGenerator creates weekly/monthly summaries
 
 Example:
     >>> from src.jeeves.journal import JournalGenerator, JournalInteractive
@@ -18,8 +21,11 @@ Example:
 """
 
 from src.jeeves.journal.feedback import (
+    CalibrationAnalysis,
     FeedbackProcessingResult,
     JournalFeedbackProcessor,
+    SourceCalibration,
+    WeeklyReviewResult,
     process_corrections,
 )
 from src.jeeves.journal.generator import (
@@ -28,14 +34,26 @@ from src.jeeves.journal.generator import (
 )
 from src.jeeves.journal.interactive import JournalInteractive
 from src.jeeves.journal.models import (
+    CalendarSummary,
     Correction,
     DecisionSummary,
     EmailSummary,
     JournalEntry,
     JournalQuestion,
     JournalStatus,
+    OmniFocusSummary,
     QuestionCategory,
     TaskSummary,
+    TeamsSummary,
+)
+from src.jeeves.journal.reviews import (
+    DetectedPattern,
+    MonthlyReview,
+    PatternType,
+    ReviewGenerator,
+    ReviewGeneratorConfig,
+    ReviewType,
+    WeeklyReview,
 )
 
 __all__ = [
@@ -48,6 +66,10 @@ __all__ = [
     "TaskSummary",
     "DecisionSummary",
     "Correction",
+    # Multi-source models
+    "TeamsSummary",
+    "CalendarSummary",
+    "OmniFocusSummary",
     # Generator
     "JournalGenerator",
     "JournalGeneratorConfig",
@@ -57,4 +79,16 @@ __all__ = [
     "JournalFeedbackProcessor",
     "FeedbackProcessingResult",
     "process_corrections",
+    # Calibration
+    "SourceCalibration",
+    "CalibrationAnalysis",
+    "WeeklyReviewResult",
+    # Reviews
+    "ReviewGenerator",
+    "ReviewGeneratorConfig",
+    "ReviewType",
+    "WeeklyReview",
+    "MonthlyReview",
+    "DetectedPattern",
+    "PatternType",
 ]
