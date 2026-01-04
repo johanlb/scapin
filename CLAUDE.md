@@ -550,6 +550,39 @@ Frontend (Vite:5173) ──proxy──> Backend (FastAPI:8000)
 
 ---
 
+### Session 2026-01-04 (Suite 2) — Tests E2E et Accessibilité
+
+**Focus** : Validation complète du stack, tests PWA mobile, corrections accessibilité
+
+**Accomplissements** :
+1. ✅ **Tests complets** - 1351 tests passent (8 web + 1343 backend)
+2. ✅ **Démarrage serveurs** - Backend (8000) + Frontend (5173) fonctionnels
+3. ✅ **Test API live** :
+   - `GET /api/health` → "healthy", version 0.7.0
+   - `GET /api/briefing/morning` → Données vides (config dev)
+   - Proxy Vite fonctionne correctement
+4. ✅ **PWA mobile** - Exposé sur réseau (`--host`), testable sur iPhone
+5. ✅ **Corrections accessibilité** (CommandPalette.svelte) :
+   - Backdrop : `role="button"` + `aria-label` + `onkeydown`
+   - Modal : `role="dialog"` + `aria-modal` + `tabindex="-1"`
+   - HTML : `lang="fr"` + favicon SVG + theme-color
+
+**Fichiers modifiés** :
+- `web/src/lib/components/ui/CommandPalette.svelte` — ARIA roles
+- `web/src/app.html` — lang, favicon, theme-color
+
+**Commits** :
+- `ace3273` — feat(web): connect API client, add PWA support
+- `5e7b027` — fix(a11y): add ARIA roles and labels to CommandPalette
+
+**Tests PWA iOS** :
+```
+http://192.168.101.120:5173
+Safari → Partage → Sur l'écran d'accueil → Ajouter
+```
+
+---
+
 ### Session 2026-01-03 (Suite 6) — Refactoring PKM → Scapin
 
 **Focus** : Suppression de toutes les références à "PKM" dans le codebase
