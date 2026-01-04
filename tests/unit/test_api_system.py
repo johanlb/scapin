@@ -74,7 +74,7 @@ class TestHealthEndpoint:
         assert data["data"]["status"] in ["healthy", "degraded", "unhealthy"]
         assert "checks" in data["data"]
         assert "uptime_seconds" in data["data"]
-        assert data["data"]["version"] == "0.7.0"
+        assert data["data"]["version"] == "0.8.0"
 
     def test_health_includes_checks(self, client: TestClient) -> None:
         """Test health endpoint includes individual checks"""
@@ -204,6 +204,6 @@ class TestRootEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Scapin API"
-        assert data["version"] == "0.7.0"
+        assert data["version"] == "0.8.0"
         assert data["docs"] == "/docs"
         assert data["health"] == "/api/health"

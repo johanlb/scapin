@@ -266,9 +266,9 @@ scapin serve --reload           # Mode dev avec auto-reload
 - Authentification JWT
 - WebSockets temps réel
 
-### Phase 0.8 : Interface Web (SvelteKit) 🚧
+### Phase 0.8 : Interface Web (SvelteKit) ✅
 
-**Statut** : EN COURS (4 janvier 2026)
+**Statut** : COMPLÉTÉ (4 janvier 2026)
 
 | Module | Fichier | État |
 |--------|---------|------|
@@ -286,8 +286,11 @@ scapin serve --reload           # Mode dev avec auto-reload
 | Sync Apple Notes | `web/src/routes/notes/+page.svelte` | ✅ |
 | PullToRefresh mobile | `web/src/lib/components/ui/PullToRefresh.svelte` | ✅ |
 | SwipeableCard gestures | `web/src/lib/components/ui/SwipeableCard.svelte` | ✅ |
-| Client API + Auth JWT | - | ⏳ |
-| WebSockets temps réel | - | ⏳ |
+| Auth JWT (backend) | `src/jeeves/api/auth/` | ✅ |
+| Auth JWT (frontend) | `web/src/lib/stores/auth.svelte.ts` | ✅ |
+| Page Login | `web/src/routes/login/+page.svelte` | ✅ |
+| WebSockets (backend) | `src/jeeves/api/websocket/` | ✅ |
+| WebSockets (frontend) | `web/src/lib/stores/websocket.svelte.ts` | ✅ |
 
 **Commandes** :
 ```bash
@@ -454,6 +457,50 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-04 (Suite 3) — Phase 0.8 Auth JWT + WebSockets COMPLET
+
+**Focus** : Finalisation Phase 0.8 avec authentification JWT et WebSockets temps réel
+
+**Accomplissements** :
+
+**Backend Auth (JWT)** :
+1. ✅ `src/core/config_manager.py` — Ajout AuthConfig
+2. ✅ `src/jeeves/api/auth/__init__.py` — Module auth
+3. ✅ `src/jeeves/api/auth/jwt_handler.py` — Création/vérification tokens JWT (python-jose)
+4. ✅ `src/jeeves/api/auth/password.py` — Hash bcrypt PIN (passlib remplacé par bcrypt direct pour compatibilité Python 3.13)
+5. ✅ `src/jeeves/api/routers/auth.py` — Endpoints POST /api/auth/login, GET /api/auth/check
+6. ✅ `src/jeeves/api/deps.py` — Dependency get_current_user avec HTTPBearer
+7. ✅ 23 tests unitaires (jwt_handler, auth_router)
+
+**Backend WebSockets** :
+1. ✅ `src/jeeves/api/websocket/manager.py` — ConnectionManager avec EventBus bridge
+2. ✅ `src/jeeves/api/websocket/router.py` — Endpoint WS /ws/live?token=xxx
+3. ✅ 11 tests unitaires (websocket_manager)
+
+**Frontend Auth** :
+1. ✅ `web/src/lib/api/client.ts` — Token storage, Bearer header, login/logout/checkAuth
+2. ✅ `web/src/lib/stores/auth.svelte.ts` — Auth store Svelte 5 runes
+3. ✅ `web/src/routes/login/+page.svelte` — Page login avec keypad PIN mobile
+4. ✅ `web/src/routes/+layout.svelte` — Auth guard, redirect vers /login
+
+**Frontend WebSockets** :
+1. ✅ `web/src/lib/stores/websocket.svelte.ts` — WS store avec auto-reconnect
+2. ✅ Intégration dans layout — Connect après auth
+
+**Configuration** :
+```bash
+AUTH__ENABLED=true
+AUTH__JWT_SECRET_KEY=change-this-to-32-chars-minimum
+AUTH__JWT_EXPIRE_MINUTES=10080  # 7 jours
+AUTH__PIN_HASH=$2b$12$...  # bcrypt hash du PIN
+```
+
+**Tests** : 34 nouveaux tests, 1376 total (1 skip pré-existant)
+
+**Commits** : Phase 0.8 complète
+
+---
 
 ### Session 2026-01-04 — Phase 0.8 Interface Web Complète
 
@@ -1096,19 +1143,19 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Continuer Phase 0.8 — Interface Web
+### Phase 0.9 — PWA Mobile
 
-L'interface web est fonctionnelle avec toutes les pages et composants UI. Prochaines priorités :
+La Phase 0.8 est complète avec l'interface web, auth JWT et WebSockets. Prochaines étapes :
 
-1. **Connecter l'API backend** — Remplacer les mock data par de vrais appels API
-2. **Authentification JWT** — Sécuriser les endpoints
-3. **WebSockets temps réel** — Notifications push, mises à jour live
-4. **Implémenter sync Apple Notes** — Connecter le bouton au backend
+1. **Service Worker avancé** — Cache offline, background sync
+2. **Push Notifications** — Notifications système via WebSocket events
+3. **App Icons** — Génération de tous les formats (Android, iOS)
+4. **Deeplinks** — Ouvrir l'app depuis des liens emails
 
-### Extensions API (optionnel)
+### Extensions optionnelles
 
 - Routers email, calendar, teams, journal, queue
-- WebSockets temps réel
+- Sync Apple Notes (backend)
 
 ---
 

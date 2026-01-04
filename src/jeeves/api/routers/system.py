@@ -132,7 +132,7 @@ async def health_check() -> APIResponse[HealthResponse]:
             status=overall_status,
             checks=checks,
             uptime_seconds=uptime,
-            version="0.7.0",
+            version="0.8.0",
         ),
         timestamp=datetime.now(timezone.utc),
     )

@@ -613,6 +613,38 @@ class BriefingConfig(BaseModel):
     )
 
 
+class AuthConfig(BaseModel):
+    """
+    Configuration for JWT authentication
+
+    Single-user system using PIN code (4-6 digits) for quick mobile access.
+    """
+
+    enabled: bool = Field(
+        True,
+        description="Enable authentication (disable for development)"
+    )
+    jwt_secret_key: str = Field(
+        "change-this-secret-key-in-production-min-32-chars",
+        min_length=32,
+        description="Secret key for JWT signing (min 32 characters)"
+    )
+    jwt_algorithm: str = Field(
+        "HS256",
+        description="JWT signing algorithm"
+    )
+    jwt_expire_minutes: int = Field(
+        60 * 24 * 7,  # 7 days
+        ge=60,
+        le=60 * 24 * 30,
+        description="JWT token expiration in minutes (default: 7 days)"
+    )
+    pin_hash: str = Field(
+        "",
+        description="Bcrypt hash of the PIN code (4-6 digits)"
+    )
+
+
 class ScapinConfig(BaseSettings):
     """
     Configuration principale Scapin
@@ -644,6 +676,7 @@ class ScapinConfig(BaseSettings):
     teams: TeamsConfig = Field(default_factory=TeamsConfig)
     calendar: CalendarConfig = Field(default_factory=CalendarConfig)
     briefing: BriefingConfig = Field(default_factory=BriefingConfig)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
 
 
 class ConfigManager:

@@ -1,9 +1,19 @@
 // API Client exports
 export {
+	// Auth
+	login,
+	checkAuth,
+	logout,
+	setAuthToken,
+	getAuthToken,
+	clearAuthToken,
+	// System
 	getHealth,
 	getStats,
+	// Briefing
 	getMorningBriefing,
 	getPreMeetingBriefing,
+	// Error
 	ApiError
 } from './client';
 
@@ -14,5 +24,7 @@ export type {
 	BriefingItem,
 	MorningBriefing,
 	AttendeeContext,
-	PreMeetingBriefing
+	PreMeetingBriefing,
+	TokenResponse,
+	AuthCheckResponse
 } from './client';

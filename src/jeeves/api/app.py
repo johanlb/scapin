@@ -13,7 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.jeeves.api.models.responses import APIResponse
-from src.jeeves.api.routers import briefing_router, system_router
+from src.jeeves.api.routers import auth_router, briefing_router, system_router
+from src.jeeves.api.websocket import ws_router
 from src.monitoring.logger import get_logger
 
 logger = get_logger("jeeves.api")
@@ -41,7 +42,7 @@ def create_app() -> FastAPI:
             "Exposes email processing, briefings, calendar, Teams, "
             "and journal functionality via REST endpoints."
         ),
-        version="0.7.0",
+        version="0.8.0",
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
@@ -76,8 +77,10 @@ def create_app() -> FastAPI:
         )
 
     # Include routers
+    app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
     app.include_router(system_router, prefix="/api", tags=["System"])
     app.include_router(briefing_router, prefix="/api/briefing", tags=["Briefing"])
+    app.include_router(ws_router, prefix="/ws", tags=["WebSocket"])
 
     # Root endpoint
     @app.get("/", include_in_schema=False)
@@ -85,9 +88,10 @@ def create_app() -> FastAPI:
         """Root endpoint with API info"""
         return {
             "name": "Scapin API",
-            "version": "0.7.0",
+            "version": "0.8.0",
             "docs": "/docs",
             "health": "/api/health",
+            "auth": "/api/auth/login",
         }
 
     return app

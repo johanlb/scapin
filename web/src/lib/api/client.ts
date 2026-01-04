@@ -5,11 +5,55 @@
 
 const API_BASE = '/api';
 
+// Auth token storage
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null): void {
+	authToken = token;
+	if (token) {
+		localStorage.setItem('scapin_token', token);
+	} else {
+		localStorage.removeItem('scapin_token');
+	}
+}
+
+export function getAuthToken(): string | null {
+	if (authToken) return authToken;
+	if (typeof localStorage !== 'undefined') {
+		authToken = localStorage.getItem('scapin_token');
+	}
+	return authToken;
+}
+
+export function clearAuthToken(): void {
+	authToken = null;
+	if (typeof localStorage !== 'undefined') {
+		localStorage.removeItem('scapin_token');
+	}
+}
+
 interface ApiResponse<T> {
 	success: boolean;
 	data: T | null;
 	error: string | null;
 	timestamp: string;
+}
+
+// Auth types
+interface LoginRequest {
+	pin: string;
+}
+
+interface TokenResponse {
+	access_token: string;
+	token_type: string;
+	expires_in: number;
+}
+
+interface AuthCheckResponse {
+	authenticated: boolean;
+	user: string;
+	auth_required: boolean;
 }
 
 interface HealthCheck {
@@ -93,13 +137,21 @@ class ApiError extends Error {
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
 	const url = `${API_BASE}${endpoint}`;
 
+	// Build headers with optional auth token
+	const headers: HeadersInit = {
+		'Content-Type': 'application/json',
+		...options?.headers
+	};
+
+	const token = getAuthToken();
+	if (token) {
+		(headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+	}
+
 	try {
 		const response = await fetch(url, {
 			...options,
-			headers: {
-				'Content-Type': 'application/json',
-				...options?.headers
-			}
+			headers
 		});
 
 		if (!response.ok) {
@@ -125,6 +177,25 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 		// Network error or other fetch failure
 		throw new ApiError(0, error instanceof Error ? error.message : 'Network error');
 	}
+}
+
+// Auth endpoints
+export async function login(pin: string): Promise<TokenResponse> {
+	const response = await fetchApi<TokenResponse>('/auth/login', {
+		method: 'POST',
+		body: JSON.stringify({ pin })
+	});
+	// Store the token
+	setAuthToken(response.access_token);
+	return response;
+}
+
+export async function checkAuth(): Promise<AuthCheckResponse> {
+	return fetchApi<AuthCheckResponse>('/auth/check');
+}
+
+export function logout(): void {
+	clearAuthToken();
 }
 
 // System endpoints
@@ -154,7 +225,9 @@ export type {
 	BriefingItem,
 	MorningBriefing,
 	AttendeeContext,
-	PreMeetingBriefing
+	PreMeetingBriefing,
+	TokenResponse,
+	AuthCheckResponse
 };
 
 export { ApiError };
