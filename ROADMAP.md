@@ -1526,6 +1526,31 @@ Global:            █████████████████░░░ 
 
 ---
 
+## 💡 Backlog / Idées Futures
+
+### Interface Queue (Flux)
+
+| Idée | Description | Priorité |
+|------|-------------|----------|
+| **Bouton "Réanalyser"** | Ajouter un bouton pour relancer l'analyse IA sur un item de queue | Moyenne |
+| **Liens vers notes liées** | Afficher les notes PKM liées à l'expéditeur/sujet en Level 3 | Basse |
+
+### Améliorations IA
+
+| Idée | Description | Priorité |
+|------|-------------|----------|
+| **Multi-provider consensus** | Utiliser plusieurs providers IA et voter | Basse |
+| **Apprentissage des corrections** | Ajuster les seuils basé sur les corrections utilisateur | Moyenne |
+
+### Intégrations
+
+| Idée | Description | Priorité |
+|------|-------------|----------|
+| **LinkedIn** | Importer et traiter les messages LinkedIn | Basse |
+| **Apple Notes sync** | Synchronisation bidirectionnelle avec Apple Notes | Moyenne |
+
+---
+
 ## 🔗 Ressources
 
 - **Dépôt GitHub** : https://github.com/johanlb/scapin
