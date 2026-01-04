@@ -880,6 +880,56 @@ python scapin.py serve --reload
 
 ## 🤝 Travailler avec Claude Code
 
+### Méthodologie de Développement
+
+**Workflow structuré pour chaque session de codage :**
+
+#### Phase 1 : Planification
+Au début de chaque session, définir un découpage clair :
+- Identifier les morceaux distincts à implémenter
+- Prioriser par dépendances et valeur
+- Créer une todo list avec les items
+
+#### Phase 2 : Cycle par Morceau
+Pour **chaque morceau** du découpage :
+
+| Étape | Action | Objectif |
+|-------|--------|----------|
+| **1. Code** | Implémentation de haute qualité | Code propre, typé, documenté |
+| **2. Analyse** | Revue critique du code produit | Identifier améliorations possibles |
+| **3. Amélioration** | Refactoring et optimisations | Code production-ready |
+| **4. Tests** | Écrire/mettre à jour les tests | Couverture complète |
+| **5. Correction** | Corriger les problèmes détectés | 0 erreurs, 0 warnings |
+| **6. Revue finale** | Seconde analyse qualité | Derniers ajustements |
+| **7. UX** | Vérifier avec screenshots | Valider rendu visuel |
+| **8. Documentation** | Documenter les changements | Traçabilité complète |
+| **9. Commit** | Commit atomique | Changement isolé et décrit |
+
+#### Phase 3 : Consolidation
+Une fois **tous les morceaux** traités :
+- Passe générale sur la qualité du code
+- Exécution complète des tests
+- Vérification UX globale
+- Revue de la documentation
+- Commit final et push
+
+```
+Session Start
+     ↓
+[Découpage en morceaux]
+     ↓
+┌─────────────────────────────────┐
+│  Pour chaque morceau :          │
+│  Code → Analyse → Amélioration  │
+│  → Tests → Corrections          │
+│  → Revue → UX → Doc → Commit    │
+└─────────────────────────────────┘
+     ↓
+[Passe générale qualité]
+     ↓
+Commit final + Push
+```
+
 ### Chargement du Contexte
 
 **Toujours commencer par** :
