@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 3 janvier 2026  
+**Dernière mise à jour** : 4 janvier 2026
 **Projet** : Scapin (anciennement PKM System)  
 **Dépôt** : https://github.com/johanlb/scapin  
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -265,11 +265,40 @@ scapin serve --reload           # Mode dev avec auto-reload
 - Authentification JWT
 - WebSockets temps réel
 
+### Phase 0.8 : Interface Web (SvelteKit) 🚧
+
+**Statut** : EN COURS (4 janvier 2026)
+
+| Module | Fichier | État |
+|--------|---------|------|
+| Setup SvelteKit + TailwindCSS v4 | `web/` | ✅ |
+| Design System (Button, Card, Badge, Input) | `web/src/lib/components/ui/` | ✅ |
+| Layout (Sidebar, MobileNav, ChatPanel) | `web/src/lib/components/layout/` | ✅ |
+| Page Briefing (home) | `web/src/routes/+page.svelte` | ✅ |
+| Page Flux | `web/src/routes/flux/+page.svelte` | ✅ |
+| Page Notes (arbre dossiers, épinglées) | `web/src/routes/notes/+page.svelte` | ✅ |
+| Page Discussions | `web/src/routes/discussions/+page.svelte` | ✅ |
+| Page Journal | `web/src/routes/journal/+page.svelte` | ✅ |
+| Page Stats | `web/src/routes/stats/+page.svelte` | ✅ |
+| Page Settings | `web/src/routes/settings/+page.svelte` | ✅ |
+| Recherche globale (Cmd+K) | `web/src/lib/components/ui/CommandPalette.svelte` | ✅ |
+| Sync Apple Notes | `web/src/routes/notes/+page.svelte` | ✅ |
+| PullToRefresh mobile | `web/src/lib/components/ui/PullToRefresh.svelte` | ✅ |
+| SwipeableCard gestures | `web/src/lib/components/ui/SwipeableCard.svelte` | ✅ |
+| Client API + Auth JWT | - | ⏳ |
+| WebSockets temps réel | - | ⏳ |
+
+**Commandes** :
+```bash
+cd web && npm run dev     # Démarrer en mode développement
+cd web && npm run build   # Build production
+cd web && npm run check   # Vérifier les types
+```
+
 ### Phases à venir
 
 | Phase | Nom | Priorité | Focus |
 |-------|-----|----------|-------|
-| **0.8** | Interface Web (SvelteKit) | 🟡 MOYENNE | Dashboard web |
 | **0.9** | PWA Mobile | 🟢 BASSE | App mobile |
 
 ### Suite des Tests
@@ -424,6 +453,45 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-04 — Phase 0.8 Interface Web Complète
+
+**Focus** : Implémentation complète de l'interface web SvelteKit
+
+**Accomplissements** :
+1. ✅ Setup projet SvelteKit + TailwindCSS v4
+2. ✅ Design system complet (Button, Card, Badge, Input, PullToRefresh, SwipeableCard, CommandPalette)
+3. ✅ Layout responsive (Sidebar collapsible, MobileNav, ChatPanel avec suggestions contextuelles)
+4. ✅ 7 pages fonctionnelles : Briefing, Flux, Notes, Discussions, Journal, Stats, Settings
+5. ✅ Recherche globale unifiée (Cmd+K / Ctrl+K) avec navigation clavier
+6. ✅ Page Notes avec arbre de dossiers et notes épinglées
+7. ✅ Bouton sync Apple Notes avec état de chargement
+8. ✅ Gestes mobiles : pull-to-refresh, swipe cards
+9. ✅ Indicateurs de statut (dots colorés, animations)
+10. ✅ Build production sans erreurs
+
+**Architecture web** :
+```
+web/
+├── src/
+│   ├── lib/
+│   │   ├── components/
+│   │   │   ├── ui/          # Button, Card, Badge, CommandPalette...
+│   │   │   └── layout/      # Sidebar, MobileNav, ChatPanel
+│   │   ├── stores/          # UI state (showCommandPalette)
+│   │   ├── types/           # TypeScript interfaces
+│   │   └── utils/           # formatters
+│   └── routes/              # Pages SvelteKit
+├── static/                  # Assets statiques
+└── package.json
+```
+
+**Technologies** :
+- SvelteKit 2.x avec Svelte 5 ($state, $derived, $effect, $props)
+- TailwindCSS v4 (CSS-first, variables CSS)
+- TypeScript strict mode
+
+---
 
 ### Session 2026-01-03 (Suite 6) — Refactoring PKM → Scapin
 
@@ -888,32 +956,18 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Phase 0.8 — Interface Web (SvelteKit)
+### Continuer Phase 0.8 — Interface Web
 
-Phases 1.4 (Briefing) et 0.7 (API MVP) sont **complétées** ✅. Prochaines priorités :
+L'interface web est fonctionnelle avec toutes les pages et composants UI. Prochaines priorités :
 
-📖 **Plan détaillé** : [`docs/plans/phase-0.8-web/`](docs/plans/phase-0.8-web/00-index.md)
-
-Le plan est découpé en 10 documents couvrant :
-- Vision event-centric et principes UX
-- Architecture technique (SvelteKit + TailwindCSS)
-- Design system (couleurs, typographie, composants)
-- Mockups ASCII détaillés (Briefing, Flux, Notes, Discussions, Stats)
-- ~50 nouveaux endpoints API nécessaires
-- 20 étapes d'implémentation ordonnées
-- Critères de succès (checklist)
-
-**Étapes prioritaires** :
-1. Setup projet SvelteKit + TailwindCSS
-2. Design system (composants de base)
-3. Layout principal (sidebar + chat panel)
-4. Client API + Auth JWT
-5. Page Briefing (home)
+1. **Connecter l'API backend** — Remplacer les mock data par de vrais appels API
+2. **Authentification JWT** — Sécuriser les endpoints
+3. **WebSockets temps réel** — Notifications push, mises à jour live
+4. **Implémenter sync Apple Notes** — Connecter le bouton au backend
 
 ### Extensions API (optionnel)
 
 - Routers email, calendar, teams, journal, queue
-- Authentification JWT
 - WebSockets temps réel
 
 ---
@@ -931,5 +985,5 @@ Le plan est découpé en 10 documents couvrant :
 
 ---
 
-**Dernière mise à jour** : 3 janvier 2026 par Claude  
+**Dernière mise à jour** : 4 janvier 2026 par Claude
 **Prochaine révision** : Début prochaine session
