@@ -302,6 +302,53 @@ class IMAPClient:
                 finally:
                     self._connection = None
 
+    def list_folders(self, pattern: str = "*") -> list[str]:
+        """
+        List all IMAP folders
+
+        Args:
+            pattern: Folder pattern to match (default: "*" for all)
+
+        Returns:
+            List of folder names, sorted alphabetically
+        """
+        if self._connection is None:
+            raise RuntimeError("Not connected to IMAP server. Use connect() context manager.")
+
+        try:
+            status, folder_data = self._connection.list('""', pattern)
+            if status != 'OK':
+                logger.error("Failed to list IMAP folders")
+                return []
+
+            folders = []
+            for item in folder_data:
+                if item is None:
+                    continue
+                # Parse folder response: (flags) "delimiter" "folder_name"
+                # Example: b'(\\HasNoChildren) "/" "Archive/2024"'
+                try:
+                    if isinstance(item, bytes):
+                        item = item.decode('utf-8')
+                    # Extract folder name (last quoted string)
+                    parts = item.rsplit('"', 2)
+                    if len(parts) >= 2:
+                        folder_name = parts[-2]
+                        # Skip system folders that start with [
+                        if not folder_name.startswith('['):
+                            folders.append(folder_name)
+                except Exception as e:
+                    logger.debug(f"Failed to parse folder: {item}, error: {e}")
+                    continue
+
+            folders.sort()
+            logger.debug(f"Listed {len(folders)} IMAP folders")
+            return folders
+
+        except Exception as e:
+            logger.error(f"Error listing IMAP folders: {e}", exc_info=True)
+            return []
+
     def fetch_emails(
         self,
         folder: str = "INBOX",

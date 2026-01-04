@@ -286,7 +286,8 @@ class AIRouter:
         metadata: EmailMetadata,
         content: EmailContent,
         model: AIModel = AIModel.CLAUDE_HAIKU,
-        max_retries: int = 3
+        max_retries: int = 3,
+        existing_folders: list[str] | None = None
     ) -> Optional[EmailAnalysis]:
         """
         Analyze email with AI
@@ -296,6 +297,7 @@ class AIRouter:
             content: Email content
             model: AI model to use
             max_retries: Maximum retry attempts
+            existing_folders: List of existing IMAP folders for destination suggestions
 
         Returns:
             EmailAnalysis or None if analysis fails
@@ -318,7 +320,8 @@ class AIRouter:
                 to_addresses=", ".join(metadata.to_addresses),
                 body=content.plain_text or content.preview or "",
                 has_attachments=metadata.has_attachments,
-                date=metadata.date.isoformat()
+                date=metadata.date.isoformat(),
+                existing_folders=existing_folders or []
             )
         except Exception as e:
             logger.error(f"Failed to render email analysis prompt: {e}", exc_info=True)

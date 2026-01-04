@@ -131,7 +131,8 @@ class EmailProcessor:
         self,
         metadata: EmailMetadata,
         content: EmailContent,
-        _auto_execute: bool = False
+        _auto_execute: bool = False,
+        existing_folders: list[str] | None = None
     ) -> Optional[EmailAnalysis]:
         """
         Analyze email using cognitive pipeline or legacy single-pass
@@ -147,6 +148,7 @@ class EmailProcessor:
             metadata: Email metadata
             content: Email content
             auto_execute: Whether to auto-execute actions (passed to pipeline)
+            existing_folders: List of existing IMAP folders for destination suggestions
 
         Returns:
             EmailAnalysis or None if analysis fails
@@ -207,7 +209,8 @@ class EmailProcessor:
         analysis = self.ai_router.analyze_email(
             metadata,
             content,
-            model=AIModel.CLAUDE_HAIKU
+            model=AIModel.CLAUDE_HAIKU,
+            existing_folders=existing_folders
         )
         return analysis
 
@@ -269,6 +272,10 @@ class EmailProcessor:
             # CRITICAL FIX: Keep IMAP connection open for entire session
             # This prevents connection exhaustion (one connection for all operations)
             with self.imap_client.connect():
+                # Get existing folders for AI destination suggestions
+                existing_folders = self.imap_client.list_folders()
+                logger.debug(f"Found {len(existing_folders)} existing IMAP folders")
+
                 emails = self.imap_client.fetch_emails(
                     folder=self.config.email.inbox_folder,
                     limit=limit,
@@ -310,7 +317,8 @@ class EmailProcessor:
                             auto_execute=auto_execute,
                             confidence_threshold=confidence_threshold,
                             current=idx,
-                            total=len(emails)
+                            total=len(emails),
+                            existing_folders=existing_folders
                         )
 
                         if processed:
@@ -375,7 +383,8 @@ class EmailProcessor:
         auto_execute: bool = False,
         confidence_threshold: int = 90,
         current: Optional[int] = None,
-        total: Optional[int] = None
+        total: Optional[int] = None,
+        existing_folders: list[str] | None = None
     ) -> Optional[ProcessedEmail]:
         """
         Process a single email
@@ -385,6 +394,7 @@ class EmailProcessor:
             content: Email content
             auto_execute: Auto-execute high-confidence decisions
             confidence_threshold: Minimum confidence for auto-execution
+            existing_folders: List of existing IMAP folders for destination suggestions
 
         Returns:
             ProcessedEmail or None if processing fails
@@ -427,7 +437,7 @@ class EmailProcessor:
             )
 
         # Analyze email with AI (cognitive pipeline or legacy)
-        analysis = self._analyze_email(metadata, content, auto_execute)
+        analysis = self._analyze_email(metadata, content, auto_execute, existing_folders)
 
         if not analysis:
             logger.warning(f"Failed to analyze email {metadata.id}")

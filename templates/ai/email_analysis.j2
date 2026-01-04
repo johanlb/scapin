@@ -73,6 +73,18 @@ Analyse cet email et propose PLUSIEURS options d'action. Réponds en JSON avec c
 - **DEFER** : À traiter plus tard (reporter)
 - **QUEUE** : Confiance faible, nécessite révision humaine
 
+{% if existing_folders and existing_folders|length > 0 %}
+**DOSSIERS EXISTANTS (UTILISER EN PRIORITÉ) :**
+{% for folder in existing_folders %}
+- {{ folder }}
+{% endfor %}
+
+⚠️ **IMPORTANT pour les destinations :**
+- TOUJOURS vérifier si un dossier existant correspond AVANT d'en suggérer un nouveau
+- Utiliser les dossiers existants quand ils sont pertinents (même partiellement)
+- Ne créer un nouveau chemin que si aucun dossier existant ne convient
+{% endif %}
+
 **CATÉGORIES (OBLIGATOIRE - choisir UNE valeur exacte) :**
 - **work** : Professionnel, collègues, projets
 - **personal** : Amis, famille, personnel
