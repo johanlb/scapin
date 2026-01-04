@@ -14,7 +14,7 @@
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1413+ tests (1413 backend + 8 frontend), 95% couverture, 100% pass rate |
+| **Tests** | 1414+ tests (1414 backend + 8 frontend), 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 | **Identité précédente** | PKM System (archivé) |
@@ -39,7 +39,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 - ✅ **Phase 0.9 PWA Mobile** — Service Worker, Push Notifications, Deeplinks, Share Target
 - ✅ **Phase 0.7 API Jeeves MVP** — FastAPI, endpoints system/briefing/journal, services async
 - ✅ **Phase 1.4 Système de Briefing** — Generator, display multi-couches, CLI (58 tests)
-- ✅ Suite de tests complète — 1413+ tests passent (1413 backend + 8 frontend)
+- ✅ Suite de tests complète — 1414+ tests passent (1414 backend + 8 frontend)
 - ✅ Qualité code — Ruff 0 warnings, svelte-check 0 warnings
 
 ---
@@ -1206,7 +1206,7 @@ Intégrer les messages LinkedIn avec filtrage agressif (beaucoup de spam/prospec
 - [x] Calibration par source avec tracking précision
 - [x] API REST complète pour le journal
 - [x] Frontend avec tabs multi-sources
-- [x] 38 nouveaux tests (1413 total)
+- [x] 38 nouveaux tests (1414 total)
 
 ---
 
@@ -1408,7 +1408,7 @@ Global:            █████████████████░░░ 
 | **Phase 1.4** | **58** | **100%** | **100%** | **✅** |
 | **Phase 0.7** | **20** | **100%** | **100%** | **✅** |
 | **Phase 1.6** | **38** | **100%** | **100%** | **✅** |
-| **Total** | **1413+** | **95%** | **100%** | **✅** |
+| **Total** | **1414+** | **95%** | **100%** | **✅** |
 
 ---
 
@@ -1580,5 +1580,5 @@ Global:            █████████████████░░░ 
 
 **Statut** : Phase 1.6 Journaling Complet ✅ — Multi-source terminé
 **Qualité** : 10/10 Production Ready Core 🚀
-**Tests** : 1413+ tests, 95% couverture, 100% pass ✅
+**Tests** : 1414+ tests, 95% couverture, 100% pass ✅
 **Prochaine Étape** : Phases avancées (IA Multi-Provider, LinkedIn)

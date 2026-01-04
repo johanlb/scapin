@@ -343,11 +343,11 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1413+ tests, 95% couverture, 100% pass rate
+**Global** : 1414+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1413 | ✅ |
+| Backend tests | 1414 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
@@ -536,7 +536,7 @@ LOG_FILE=./logs/scapin.log
 - Fix WeeklyReviewResult field name (patterns_processed)
 - Fix calibrate_by_source return type assertion
 
-**Tests** : 1413 tests (1413 backend + 8 frontend), svelte-check 0 errors
+**Tests** : 1414 tests (1414 backend + 8 frontend), svelte-check 0 errors
 
 ---
 
