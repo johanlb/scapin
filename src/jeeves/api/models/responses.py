@@ -150,6 +150,16 @@ class PreMeetingBriefingResponse(BaseModel):
     )
 
 
+class IntegrationStatus(BaseModel):
+    """Status of an integration"""
+
+    id: str = Field(..., description="Integration identifier")
+    name: str = Field(..., description="Human-readable name")
+    icon: str = Field(..., description="Icon emoji")
+    status: str = Field(..., description="connected, disconnected, syncing, or error")
+    last_sync: str | None = Field(None, description="Last sync time (relative)")
+
+
 class ConfigResponse(BaseModel):
     """Configuration response (with masked secrets)"""
 
@@ -157,7 +167,11 @@ class ConfigResponse(BaseModel):
         default_factory=list,
         description="Configured email accounts",
     )
-    ai_model: str = Field(..., description="AI model in use")
+    ai_model: str = Field("claude-3-5-haiku", description="AI model in use")
     teams_enabled: bool = Field(False, description="Teams integration enabled")
     calendar_enabled: bool = Field(False, description="Calendar integration enabled")
     briefing_enabled: bool = Field(False, description="Briefing system enabled")
+    integrations: list[IntegrationStatus] = Field(
+        default_factory=list,
+        description="Integration statuses for frontend",
+    )

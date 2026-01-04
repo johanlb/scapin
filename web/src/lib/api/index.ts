@@ -10,6 +10,7 @@ export {
 	// System
 	getHealth,
 	getStats,
+	getConfig,
 	// Briefing
 	getMorningBriefing,
 	getPreMeetingBriefing,
@@ -21,6 +22,8 @@ export type {
 	ApiResponse,
 	HealthStatus,
 	Stats,
+	IntegrationStatus,
+	SystemConfig,
 	BriefingItem,
 	MorningBriefing,
 	AttendeeContext,

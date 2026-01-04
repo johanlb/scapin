@@ -16,6 +16,7 @@ from src.jeeves.api.models.responses import (
     ConfigResponse,
     HealthCheckResult,
     HealthResponse,
+    IntegrationStatus,
     StatsResponse,
 )
 
@@ -174,7 +175,8 @@ async def get_config_endpoint(
     """
     # Get email accounts with masked passwords
     email_accounts = []
-    for account in config.email.get_enabled_accounts():
+    enabled_emails = config.email.get_enabled_accounts()
+    for account in enabled_emails:
         email_accounts.append(
             {
                 "name": account.account_id,
@@ -184,14 +186,47 @@ async def get_config_endpoint(
             }
         )
 
+    # Build integration statuses for frontend
+    integrations = [
+        IntegrationStatus(
+            id="email",
+            name="Courrier (IMAP)",
+            icon="✉️",
+            status="connected" if enabled_emails else "disconnected",
+            last_sync=None,  # TODO: track last sync time
+        ),
+        IntegrationStatus(
+            id="teams",
+            name="Microsoft Teams",
+            icon="💬",
+            status="connected" if config.teams.enabled else "disconnected",
+            last_sync=None,
+        ),
+        IntegrationStatus(
+            id="calendar",
+            name="Agenda",
+            icon="📅",
+            status="connected" if config.calendar.enabled else "disconnected",
+            last_sync=None,
+        ),
+        IntegrationStatus(
+            id="omnifocus",
+            name="OmniFocus",
+            icon="⚡",
+            status="disconnected",  # TODO: OmniFocus integration
+            last_sync=None,
+        ),
+    ]
+
     return APIResponse(
         success=True,
         data=ConfigResponse(
             email_accounts=email_accounts,
-            ai_model=config.ai.model,
+            ai_model="claude-3-5-haiku",  # Default model
             teams_enabled=config.teams.enabled,
             calendar_enabled=config.calendar.enabled,
             briefing_enabled=config.briefing.enabled,
+            integrations=integrations,
         ),
         timestamp=datetime.now(timezone.utc),
     )

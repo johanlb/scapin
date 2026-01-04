@@ -57,7 +57,7 @@
 	// Local state for events (will be populated from API or mock)
 	let events = $state<ScapinEvent[]>(mockEvents);
 	let stats = $state(mockStats);
-	let usingMockData = $state(true);
+	let dataSource = $state<'mock' | 'api' | 'api-empty'>('mock');
 
 	// Load data on mount
 	onMount(async () => {
@@ -78,7 +78,11 @@
 
 			if (apiEvents.length > 0) {
 				events = apiEvents;
-				usingMockData = false;
+				dataSource = 'api';
+			} else {
+				// API returned success but no items
+				events = [];
+				dataSource = 'api-empty';
 			}
 
 			stats = {
@@ -164,9 +168,14 @@
 					{briefingStore.error}
 				</p>
 			{/if}
-			{#if usingMockData && !briefingStore.loading}
+			{#if dataSource === 'mock' && !briefingStore.loading}
 				<p class="text-xs text-[var(--color-text-tertiary)] mt-1">
 					Données de démonstration (serveur hors ligne)
+				</p>
+			{/if}
+			{#if dataSource === 'api-empty' && !briefingStore.loading}
+				<p class="text-xs text-[var(--color-text-tertiary)] mt-1">
+					✓ Connecté — aucun élément en attente
 				</p>
 			{/if}
 		</header>
@@ -213,6 +222,17 @@
 				<div
 					class="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
 				></div>
+			</div>
+		{:else if dataSource === 'api-empty'}
+			<!-- Empty state when API returns no items -->
+			<div class="text-center py-12">
+				<p class="text-4xl mb-3">🎉</p>
+				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
+					Tout est en ordre, Monsieur
+				</h3>
+				<p class="text-sm text-[var(--color-text-secondary)]">
+					Aucune affaire pressante ne requiert votre attention
+				</p>
 			</div>
 		{:else}
 			<!-- Urgent Items -->

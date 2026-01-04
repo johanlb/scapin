@@ -79,6 +79,23 @@ interface Stats {
 	last_activity: string | null;
 }
 
+interface IntegrationStatus {
+	id: string;
+	name: string;
+	icon: string;
+	status: 'connected' | 'disconnected' | 'syncing' | 'error';
+	last_sync: string | null;
+}
+
+interface SystemConfig {
+	email_accounts: { name: string; email: string; enabled: boolean }[];
+	ai_model: string;
+	teams_enabled: boolean;
+	calendar_enabled: boolean;
+	briefing_enabled: boolean;
+	integrations: IntegrationStatus[];
+}
+
 interface BriefingItem {
 	id: string;
 	type: 'email' | 'teams' | 'calendar' | 'task';
@@ -205,6 +222,10 @@ export async function getHealth(): Promise<HealthStatus> {
 
 export async function getStats(): Promise<Stats> {
 	return fetchApi<Stats>('/stats');
+}
+
+export async function getConfig(): Promise<SystemConfig> {
+	return fetchApi<SystemConfig>('/config');
 }
 
 // Briefing endpoints
@@ -905,6 +926,8 @@ export type {
 	HealthCheck,
 	HealthStatus,
 	Stats,
+	IntegrationStatus,
+	SystemConfig,
 	BriefingItem,
 	MorningBriefing,
 	AttendeeContext,

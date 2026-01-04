@@ -1,10 +1,17 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Card, Button } from '$lib/components/ui';
-	import { notificationStore } from '$lib/stores';
+	import { notificationStore, configStore } from '$lib/stores';
+	import type { IntegrationStatus } from '$lib/stores';
 
 	let darkMode = $state('auto');
 	let language = $state('fr');
 	let requestingPermission = $state(false);
+
+	// Load config on mount
+	onMount(async () => {
+		await configStore.fetchConfig();
+	});
 
 	async function toggleNotifications() {
 		if (notificationStore.isGranted) {
@@ -18,36 +25,43 @@
 		}
 	}
 
-	interface Integration {
-		id: string;
-		name: string;
-		icon: string;
-		status: 'connected' | 'disconnected' | 'syncing' | 'error';
-		lastSync?: string;
-	}
-
-	const integrations: Integration[] = [
-		{ id: 'email', name: 'Courrier (IMAP)', icon: '✉️', status: 'connected', lastSync: 'il y a 2 min' },
-		{ id: 'teams', name: 'Microsoft Teams', icon: '💬', status: 'connected', lastSync: 'il y a 5 min' },
-		{ id: 'calendar', name: 'Agenda', icon: '📅', status: 'syncing' },
-		{ id: 'omnifocus', name: 'OmniFocus', icon: '⚡', status: 'disconnected' }
-	];
-
-	function getStatusColor(status: Integration['status']): string {
+	function getStatusColor(status: IntegrationStatus['status']): string {
 		switch (status) {
-			case 'connected': return 'bg-[var(--color-success)]';
-			case 'syncing': return 'bg-[var(--color-warning)] animate-pulse';
-			case 'error': return 'bg-[var(--color-error)]';
-			default: return 'bg-[var(--color-text-tertiary)]';
+			case 'connected':
+				return 'bg-[var(--color-success)]';
+			case 'syncing':
+				return 'bg-[var(--color-warning)] animate-pulse';
+			case 'error':
+				return 'bg-[var(--color-error)]';
+			default:
+				return 'bg-[var(--color-text-tertiary)]';
 		}
 	}
 
-	function getStatusLabel(status: Integration['status']): string {
+	function getStatusLabel(status: IntegrationStatus['status']): string {
 		switch (status) {
-			case 'connected': return 'Connecté';
-			case 'syncing': return 'Synchronisation...';
-			case 'error': return 'Erreur';
-			default: return 'Non connecté';
+			case 'connected':
+				return 'Connecté';
+			case 'syncing':
+				return 'Synchronisation...';
+			case 'error':
+				return 'Erreur';
+			default:
+				return 'Non connecté';
+		}
+	}
+
+	function handleIntegration(integration: IntegrationStatus) {
+		if (integration.status === 'disconnected') {
+			// TODO: Implement OAuth flow for each integration
+			alert(
+				`Configuration de ${integration.name} à venir.\n\nCette fonctionnalité nécessite une configuration OAuth dans les paramètres backend.`
+			);
+		} else {
+			// TODO: Open settings modal for connected integrations
+			alert(
+				`Paramètres de ${integration.name}\n\nStatut: ${getStatusLabel(integration.status)}\nDernière sync: ${integration.last_sync || 'N/A'}`
+			);
 		}
 	}
 </script>
@@ -153,8 +167,19 @@
 			<h2 class="text-lg font-semibold text-[var(--color-text-primary)] mb-3">
 				🔗 Intégrations
 			</h2>
-			<div class="space-y-2">
-				{#each integrations as integration}
+			{#if configStore.loading}
+				<div class="flex justify-center py-4">
+					<div
+						class="w-6 h-6 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
+					></div>
+				</div>
+			{:else if configStore.error}
+				<Card padding="md">
+					<p class="text-sm text-[var(--color-urgency-urgent)]">{configStore.error}</p>
+				</Card>
+			{:else}
+				<div class="space-y-2">
+					{#each configStore.integrations as integration}
 					<Card padding="md">
 						<div class="flex items-center justify-between gap-3">
 							<div class="flex items-center gap-3 min-w-0">
@@ -168,8 +193,8 @@
 										></span>
 									</div>
 									<p class="text-xs text-[var(--color-text-tertiary)] truncate">
-										{#if integration.status === 'connected' && integration.lastSync}
-											Sync {integration.lastSync}
+										{#if integration.status === 'connected' && integration.last_sync}
+											Sync {integration.last_sync}
 										{:else}
 											{getStatusLabel(integration.status)}
 										{/if}
@@ -177,14 +202,15 @@
 								</div>
 							</div>
 							{#if integration.status === 'disconnected'}
-								<Button variant="primary" size="sm">Établir</Button>
+								<Button variant="primary" size="sm" onclick={() => handleIntegration(integration)}>Établir</Button>
 							{:else}
-								<Button variant="secondary" size="sm">Ajuster</Button>
+								<Button variant="secondary" size="sm" onclick={() => handleIntegration(integration)}>Ajuster</Button>
 							{/if}
 						</div>
 					</Card>
 				{/each}
-			</div>
+				</div>
+			{/if}
 		</section>
 
 		<!-- About -->
