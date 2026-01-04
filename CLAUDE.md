@@ -307,13 +307,13 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1350+ tests, 95% couverture, 100% pass rate
+**Global** : 1377 tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Unit tests | 1288 | ✅ |
-| Integration tests | 65 | ✅ |
-| Skipped | 44 | ⏭️ |
+| Unit tests | 1366 | ✅ |
+| Integration tests | 64 | ✅ |
+| Skipped | 53 | ⏭️ |
 
 ### Qualité du Code
 
@@ -457,6 +457,41 @@ LOG_FILE=./logs/scapin.log
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-04 (Suite 4) — Corrections et Validation Phase 0.8
+
+**Focus** : Corrections bugs briefing + WebSocket proxy, validation complète
+
+**Corrections** :
+
+1. **Fix briefing parameter names** (`generator.py`)
+   - Problème : `DefaultBriefingDataProvider` utilisait `_limit`, `_include_in_progress`, `_days`
+   - Ces noms avec underscore cassaient les appels avec keyword arguments
+   - Solution : Renommage vers `limit`, `include_in_progress`, `days` + `# noqa: ARG002`
+   - Commit : `6d1d060`
+
+2. **Fix WebSocket proxy Vite** (`vite.config.ts`)
+   - Problème : Le proxy Vite ne transmettait que `/api`, pas `/ws`
+   - Solution : Ajout proxy `/ws` → `ws://localhost:8000` avec `ws: true`
+   - Commit : `5d4a935`
+
+3. **Installation websockets** (uvicorn)
+   - Problème : Uvicorn retournait "No supported WebSocket library detected"
+   - Solution : `pip install websockets` (inclus dans `uvicorn[standard]`)
+
+**Validation** :
+- ✅ Tests complets : 1377 passed, 53 skipped
+- ✅ Ruff : 0 warnings sur `src/`
+- ✅ Svelte-check : 0 errors, 0 warnings
+- ✅ WebSocket connecté et authentifié (logs backend)
+- ✅ UX : Dashboard fonctionnel après login PIN
+
+**Flow complet testé** :
+```
+Login (PIN 1234) → JWT Token → Dashboard → WebSocket connecté
+```
+
+---
 
 ### Session 2026-01-04 (Suite 3) — Phase 0.8 Auth JWT + WebSockets COMPLET
 
