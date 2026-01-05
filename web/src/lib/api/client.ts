@@ -1178,6 +1178,75 @@ export async function syncAppleNotes(): Promise<NoteSyncStatus> {
 }
 
 // ============================================================================
+// NOTES VERSION TYPES (Git Versioning)
+// ============================================================================
+
+interface NoteVersion {
+	version_id: string;
+	full_hash: string;
+	message: string;
+	timestamp: string;
+	author: string;
+}
+
+interface NoteVersionsResponse {
+	note_id: string;
+	versions: NoteVersion[];
+	total: number;
+}
+
+interface NoteVersionContent {
+	note_id: string;
+	version_id: string;
+	content: string;
+	timestamp: string;
+}
+
+interface NoteDiff {
+	note_id: string;
+	from_version: string;
+	to_version: string;
+	additions: number;
+	deletions: number;
+	diff_text: string;
+}
+
+// ============================================================================
+// NOTES VERSION API FUNCTIONS (Git Versioning)
+// ============================================================================
+
+export async function getNoteVersions(noteId: string, limit = 50): Promise<NoteVersionsResponse> {
+	return fetchApi<NoteVersionsResponse>(
+		`/notes/${encodeURIComponent(noteId)}/versions?limit=${limit}`
+	);
+}
+
+export async function getNoteVersionContent(
+	noteId: string,
+	versionId: string
+): Promise<NoteVersionContent> {
+	return fetchApi<NoteVersionContent>(
+		`/notes/${encodeURIComponent(noteId)}/versions/${encodeURIComponent(versionId)}`
+	);
+}
+
+export async function diffNoteVersions(
+	noteId: string,
+	v1: string,
+	v2: string
+): Promise<NoteDiff> {
+	const params = new URLSearchParams({ v1, v2 });
+	return fetchApi<NoteDiff>(`/notes/${encodeURIComponent(noteId)}/diff?${params}`);
+}
+
+export async function restoreNoteVersion(noteId: string, versionId: string): Promise<Note> {
+	return fetchApi<Note>(
+		`/notes/${encodeURIComponent(noteId)}/restore/${encodeURIComponent(versionId)}`,
+		{ method: 'POST' }
+	);
+}
+
+// ============================================================================
 // NOTES REVIEW API FUNCTIONS (SM-2 Spaced Repetition)
 // ============================================================================
 
@@ -1291,7 +1360,12 @@ export type {
 	ReviewWorkloadResponse,
 	RecordReviewResponse,
 	PostponeReviewResponse,
-	TriggerReviewResponse
+	TriggerReviewResponse,
+	// Notes Version types (Git)
+	NoteVersion,
+	NoteVersionsResponse,
+	NoteVersionContent,
+	NoteDiff
 };
 
 export { ApiError };

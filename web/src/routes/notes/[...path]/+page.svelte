@@ -3,13 +3,16 @@
 	import { Card, Badge } from '$lib/components/ui';
 	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
 	import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
+	import NoteHistory from '$lib/components/notes/NoteHistory.svelte';
 
 	// Get the note path from route params
 	const notePath = $derived($page.params.path);
 	const pathParts = $derived(notePath ? notePath.split('/') : []);
 
 	// Mock note data (will be fetched from API)
+	// TODO: Replace with actual API call using noteId from path
 	let note = $state({
+		id: 'reunion-projet-alpha-abc123', // Mock ID for history
 		title: 'Réunion Projet Alpha',
 		path: '',
 		content: `# Réunion Projet Alpha
@@ -46,6 +49,7 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 
 	let loading = $state(false);
 	let editing = $state(false);
+	let showHistory = $state(false);
 
 	function goBack() {
 		history.back();
@@ -71,6 +75,12 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 		note.updated_at = new Date().toISOString();
 		// Simulate API delay
 		await new Promise((resolve) => setTimeout(resolve, 300));
+	}
+
+	function handleRestore() {
+		// TODO: Reload note content from API after version restore
+		console.log('Note restored, reloading...');
+		// In production, this would reload the note from the API
 	}
 </script>
 
@@ -98,6 +108,13 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 					{/each}
 				</div>
 			</div>
+			<button
+				onclick={() => (showHistory = true)}
+				class="p-2 rounded-full hover:bg-[var(--glass-tint)] transition-colors"
+				title="Historique des versions"
+			>
+				<span class="text-xl">🕐</span>
+			</button>
 			<button
 				onclick={toggleEdit}
 				class="p-2 rounded-full hover:bg-[var(--glass-tint)] transition-colors"
@@ -190,3 +207,6 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 		</div>
 	{/if}
 </div>
+
+<!-- Version history modal -->
+<NoteHistory noteId={note.id} bind:open={showHistory} onRestore={handleRestore} />
