@@ -1016,6 +1016,64 @@ interface NoteSyncStatus {
 }
 
 // ============================================================================
+// NOTES REVIEW TYPES (SM-2 Spaced Repetition)
+// ============================================================================
+
+interface NoteReviewMetadata {
+	note_id: string;
+	note_type: string;
+	easiness_factor: number;
+	repetition_number: number;
+	interval_hours: number;
+	next_review: string | null;
+	last_quality: number | null;
+	review_count: number;
+	auto_enrich: boolean;
+	importance: string;
+}
+
+interface NotesDueResponse {
+	notes: NoteReviewMetadata[];
+	total: number;
+}
+
+interface ReviewStatsResponse {
+	total_notes: number;
+	by_type: Record<string, number>;
+	by_importance: Record<string, number>;
+	total_due: number;
+	reviewed_today: number;
+	avg_easiness_factor: number;
+}
+
+interface ReviewWorkloadResponse {
+	workload: Record<string, number>;
+	total_upcoming: number;
+}
+
+interface RecordReviewResponse {
+	note_id: string;
+	quality: number;
+	new_easiness_factor: number;
+	new_interval_hours: number;
+	new_repetition_number: number;
+	next_review: string;
+	quality_assessment: string;
+}
+
+interface PostponeReviewResponse {
+	note_id: string;
+	hours_postponed: number;
+	new_next_review: string;
+}
+
+interface TriggerReviewResponse {
+	note_id: string;
+	triggered: boolean;
+	next_review: string;
+}
+
+// ============================================================================
 // NOTES API FUNCTIONS
 // ============================================================================
 
@@ -1119,6 +1177,51 @@ export async function syncAppleNotes(): Promise<NoteSyncStatus> {
 	return fetchApi<NoteSyncStatus>('/notes/sync', { method: 'POST' });
 }
 
+// ============================================================================
+// NOTES REVIEW API FUNCTIONS (SM-2 Spaced Repetition)
+// ============================================================================
+
+export async function getNotesDue(limit = 50, noteType?: string): Promise<NotesDueResponse> {
+	const params = new URLSearchParams({ limit: String(limit) });
+	if (noteType) params.set('note_type', noteType);
+	return fetchApi<NotesDueResponse>(`/notes/reviews/due?${params}`);
+}
+
+export async function getReviewStats(): Promise<ReviewStatsResponse> {
+	return fetchApi<ReviewStatsResponse>('/notes/reviews/stats');
+}
+
+export async function getReviewWorkload(days = 7): Promise<ReviewWorkloadResponse> {
+	return fetchApi<ReviewWorkloadResponse>(`/notes/reviews/workload?days=${days}`);
+}
+
+export async function getNoteReviewMetadata(noteId: string): Promise<NoteReviewMetadata> {
+	return fetchApi<NoteReviewMetadata>(`/notes/${encodeURIComponent(noteId)}/metadata`);
+}
+
+export async function recordReview(noteId: string, quality: number): Promise<RecordReviewResponse> {
+	return fetchApi<RecordReviewResponse>(`/notes/${encodeURIComponent(noteId)}/review`, {
+		method: 'POST',
+		body: JSON.stringify({ quality })
+	});
+}
+
+export async function postponeReview(
+	noteId: string,
+	hours: number
+): Promise<PostponeReviewResponse> {
+	return fetchApi<PostponeReviewResponse>(`/notes/${encodeURIComponent(noteId)}/postpone`, {
+		method: 'POST',
+		body: JSON.stringify({ hours })
+	});
+}
+
+export async function triggerReview(noteId: string): Promise<TriggerReviewResponse> {
+	return fetchApi<TriggerReviewResponse>(`/notes/${encodeURIComponent(noteId)}/trigger`, {
+		method: 'POST'
+	});
+}
+
 // Export types for use in components
 export type {
 	ApiResponse,
@@ -1180,7 +1283,15 @@ export type {
 	NoteSearchResponse,
 	WikilinkInfo,
 	NoteLinks,
-	NoteSyncStatus
+	NoteSyncStatus,
+	// Notes Review types (SM-2)
+	NoteReviewMetadata,
+	NotesDueResponse,
+	ReviewStatsResponse,
+	ReviewWorkloadResponse,
+	RecordReviewResponse,
+	PostponeReviewResponse,
+	TriggerReviewResponse
 };
 
 export { ApiError };

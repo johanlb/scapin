@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { Card, Badge, PullToRefresh, SwipeableCard } from '$lib/components/ui';
+	import ProgressRing from '$lib/components/ui/ProgressRing.svelte';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { briefingStore } from '$lib/stores';
+	import { notesReviewStore } from '$lib/stores/notes-review.svelte';
 	import type { ScapinEvent } from '$lib/types';
 
 	// Mock data for development (fallback when API unavailable)
@@ -61,7 +64,7 @@
 
 	// Load data on mount
 	onMount(async () => {
-		await loadBriefingData();
+		await Promise.all([loadBriefingData(), notesReviewStore.fetchStats()]);
 	});
 
 	async function loadBriefingData(): Promise<void> {
@@ -215,6 +218,43 @@
 				</div>
 			</Card>
 		</section>
+
+		<!-- Notes Review Widget -->
+		{#if notesReviewStore.stats && notesReviewStore.stats.total_due > 0}
+			<section class="mb-5">
+				<h2
+					class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2"
+				>
+					<span>📝</span> Notes a reviser
+				</h2>
+				<Card interactive onclick={() => goto('/notes/review')}>
+					<div class="flex items-center justify-between p-3">
+						<div>
+							<p class="text-lg font-semibold text-[var(--color-text-primary)]">
+								{notesReviewStore.stats.total_due} notes
+							</p>
+							<p class="text-xs text-[var(--color-text-tertiary)]">
+								{notesReviewStore.stats.reviewed_today} revisees aujourd'hui
+							</p>
+						</div>
+						<div class="flex items-center gap-3">
+							<ProgressRing
+								percent={notesReviewStore.stats.total_notes > 0
+									? Math.round(
+											((notesReviewStore.stats.total_notes - notesReviewStore.stats.total_due) /
+												notesReviewStore.stats.total_notes) *
+												100
+										)
+									: 100}
+								size={48}
+								color="primary"
+							/>
+							<span class="text-[var(--color-text-tertiary)]">→</span>
+						</div>
+					</div>
+				</Card>
+			</section>
+		{/if}
 
 		<!-- Loading state -->
 		{#if briefingStore.loading}

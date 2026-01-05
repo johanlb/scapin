@@ -543,6 +543,50 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-05 (Suite 13) — UI Notes Review (SM-2)
+
+**Focus** : Interface utilisateur complète pour la révision des notes avec SM-2
+
+**Accomplissements** :
+
+1. ✅ **API Client étendu** (`web/src/lib/api/client.ts`)
+   - 7 types ajoutés : NoteReviewMetadata, NotesDueResponse, ReviewStatsResponse, etc.
+   - 7 fonctions API : getNotesDue, getReviewStats, getReviewWorkload, recordReview, etc.
+
+2. ✅ **Store Svelte 5** (`web/src/lib/stores/notes-review.svelte.ts`)
+   - État réactif avec $state et $derived
+   - Actions : fetchDueNotes, submitReview, postponeCurrentNote, navigation
+   - Gestion session : progress, reviewedThisSession
+
+3. ✅ **Composants UI** (3 nouveaux)
+   - `ProgressRing.svelte` — Cercle SVG animé pour progression
+   - `QualityRating.svelte` — 6 boutons (0-5) avec emojis et raccourcis clavier
+   - `ReviewCard.svelte` — Carte note avec métadonnées SM-2
+
+4. ✅ **Widget Dashboard** (`web/src/routes/+page.svelte`)
+   - Affichage conditionnel si notes dues > 0
+   - ProgressRing avec pourcentage de notes à jour
+   - Navigation vers page révision
+
+5. ✅ **Page Révision** (`web/src/routes/notes/review/+page.svelte`)
+   - Mode fullscreen focus
+   - États : Loading, Empty, Review, Complete
+   - Raccourcis clavier : 1-6 (noter), ←→ (naviguer), s (reporter), Esc (quitter)
+   - Feedback visuel après chaque révision
+
+**Tests** : svelte-check 0 errors, 26 tests API passent
+
+**Fichiers créés** :
+```
+web/src/lib/stores/notes-review.svelte.ts
+web/src/lib/components/ui/ProgressRing.svelte
+web/src/lib/components/notes/QualityRating.svelte
+web/src/lib/components/notes/ReviewCard.svelte
+web/src/routes/notes/review/+page.svelte
+```
+
+---
+
 ### Session 2026-01-05 (Suite 12) — API Notes Review
 
 **Focus** : Création des endpoints API pour exposer le système de révision SM-2

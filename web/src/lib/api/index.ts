@@ -22,6 +22,14 @@ export {
 	modifyQueueItem,
 	rejectQueueItem,
 	deleteQueueItem,
+	// Notes Review
+	getNotesDue,
+	getReviewStats,
+	getReviewWorkload,
+	getNoteReviewMetadata,
+	recordReview,
+	postponeReview,
+	triggerReview,
 	// Error
 	ApiError
 } from './client';
@@ -44,5 +52,13 @@ export type {
 	QueueItemMetadata,
 	QueueItemAnalysis,
 	QueueStats,
-	PaginatedResponse
+	PaginatedResponse,
+	// Notes Review types
+	NoteReviewMetadata,
+	NotesDueResponse,
+	ReviewStatsResponse,
+	ReviewWorkloadResponse,
+	RecordReviewResponse,
+	PostponeReviewResponse,
+	TriggerReviewResponse
 } from './client';
