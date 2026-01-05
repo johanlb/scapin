@@ -222,7 +222,7 @@ async def get_config_endpoint(
         success=True,
         data=ConfigResponse(
             email_accounts=email_accounts,
-            ai_model="claude-3-5-haiku",  # Default model
+            ai_model=getattr(config.ai, "model", "claude-3-5-haiku"),
             teams_enabled=config.teams.enabled,
             calendar_enabled=config.calendar.enabled,
             briefing_enabled=config.briefing.enabled,

@@ -945,6 +945,180 @@ export async function getTeamsStats(): Promise<TeamsStats> {
 	return fetchApi<TeamsStats>('/teams/stats');
 }
 
+// ============================================================================
+// NOTES TYPES
+// ============================================================================
+
+interface NoteEntity {
+	type: string;
+	value: string;
+	confidence: number;
+}
+
+interface Note {
+	id: string;
+	title: string;
+	content: string;
+	excerpt: string;
+	path: string;
+	tags: string[];
+	entities: NoteEntity[];
+	created_at: string;
+	updated_at: string;
+	pinned: boolean;
+	metadata: Record<string, unknown>;
+}
+
+interface FolderNode {
+	name: string;
+	path: string;
+	note_count: number;
+	children: FolderNode[];
+}
+
+interface NotesTree {
+	folders: FolderNode[];
+	pinned: Note[];
+	recent: Note[];
+	total_notes: number;
+}
+
+interface NoteSearchResult {
+	note: Note;
+	score: number;
+	highlights: string[];
+}
+
+interface NoteSearchResponse {
+	query: string;
+	results: NoteSearchResult[];
+	total: number;
+}
+
+interface WikilinkInfo {
+	text: string;
+	target_id: string | null;
+	target_title: string | null;
+	exists: boolean;
+}
+
+interface NoteLinks {
+	note_id: string;
+	outgoing: WikilinkInfo[];
+	incoming: WikilinkInfo[];
+}
+
+interface NoteSyncStatus {
+	last_sync: string | null;
+	syncing: boolean;
+	notes_synced: number;
+	errors: string[];
+}
+
+// ============================================================================
+// NOTES API FUNCTIONS
+// ============================================================================
+
+export async function getNotesTree(recentLimit = 10): Promise<NotesTree> {
+	return fetchApi<NotesTree>(`/notes/tree?recent_limit=${recentLimit}`);
+}
+
+export async function listNotes(
+	page = 1,
+	pageSize = 20,
+	path?: string,
+	tags?: string[],
+	pinnedOnly = false
+): Promise<PaginatedResponse<Note[]>> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize)
+	});
+	if (path) params.set('path', path);
+	if (tags?.length) params.set('tags', tags.join(','));
+	if (pinnedOnly) params.set('pinned', 'true');
+
+	const url = `${API_BASE}/notes?${params}`;
+	const response = await fetch(url, {
+		headers: {
+			'Content-Type': 'application/json',
+			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
+		}
+	});
+	return response.json();
+}
+
+export async function getNote(noteId: string): Promise<Note> {
+	return fetchApi<Note>(`/notes/${encodeURIComponent(noteId)}`);
+}
+
+export async function getNoteLinks(noteId: string): Promise<NoteLinks> {
+	return fetchApi<NoteLinks>(`/notes/${encodeURIComponent(noteId)}/links`);
+}
+
+export async function createNote(
+	title: string,
+	content: string,
+	path = '',
+	tags: string[] = [],
+	pinned = false
+): Promise<Note> {
+	return fetchApi<Note>('/notes', {
+		method: 'POST',
+		body: JSON.stringify({ title, content, path, tags, pinned })
+	});
+}
+
+export async function updateNote(
+	noteId: string,
+	updates: {
+		title?: string;
+		content?: string;
+		path?: string;
+		tags?: string[];
+		pinned?: boolean;
+	}
+): Promise<Note> {
+	return fetchApi<Note>(`/notes/${encodeURIComponent(noteId)}`, {
+		method: 'PATCH',
+		body: JSON.stringify(updates)
+	});
+}
+
+export async function toggleNotePin(noteId: string): Promise<Note> {
+	return fetchApi<Note>(`/notes/${encodeURIComponent(noteId)}/pin`, {
+		method: 'POST'
+	});
+}
+
+export async function deleteNote(noteId: string): Promise<void> {
+	await fetchApi<null>(`/notes/${encodeURIComponent(noteId)}`, {
+		method: 'DELETE'
+	});
+}
+
+export async function searchNotes(
+	query: string,
+	tags?: string[],
+	limit = 20
+): Promise<NoteSearchResponse> {
+	const params = new URLSearchParams({
+		q: query,
+		limit: String(limit)
+	});
+	if (tags?.length) params.set('tags', tags.join(','));
+
+	return fetchApi<NoteSearchResponse>(`/notes/search?${params}`);
+}
+
+export async function getNoteSyncStatus(): Promise<NoteSyncStatus> {
+	return fetchApi<NoteSyncStatus>('/notes/sync/status');
+}
+
+export async function syncAppleNotes(): Promise<NoteSyncStatus> {
+	return fetchApi<NoteSyncStatus>('/notes/sync', { method: 'POST' });
+}
+
 // Export types for use in components
 export type {
 	ApiResponse,
@@ -996,7 +1170,17 @@ export type {
 	TeamsSender,
 	TeamsMessage,
 	TeamsStats,
-	TeamsPollResult
+	TeamsPollResult,
+	// Notes types
+	Note,
+	NoteEntity,
+	FolderNode,
+	NotesTree,
+	NoteSearchResult,
+	NoteSearchResponse,
+	WikilinkInfo,
+	NoteLinks,
+	NoteSyncStatus
 };
 
 export { ApiError };
