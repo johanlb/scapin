@@ -543,6 +543,62 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-05 (Suite 15) — UI Components Sprint 1
+
+**Focus** : Implémentation des composants UI réutilisables (Modal, Toast, Tabs, ConfidenceBar, Skeleton)
+
+**Accomplissements** :
+
+1. ✅ **Modal.svelte** (~180 lignes)
+   - Dialog avec glass design et animations spring
+   - Fermeture via Escape, backdrop click, ou bouton
+   - Focus trap et scroll lock
+   - Variantes de taille : sm, md, lg, full
+
+2. ✅ **Système Toast** (~200 lignes)
+   - `toast.svelte.ts` — Store avec auto-dismiss et gestion des timeouts
+   - `Toast.svelte` — Notification individuelle (success/error/warning/info)
+   - `ToastContainer.svelte` — Positionnement et empilement
+   - Limite 5 toasts, durées personnalisables
+
+3. ✅ **Tabs.svelte** (~170 lignes)
+   - 3 variantes : default (segmented), pills, underline
+   - Navigation clavier complète (flèches, Home, End)
+   - Support tabs désactivés et badges
+   - ARIA tablist/tab/tabpanel
+
+4. ✅ **ConfidenceBar.svelte** (~80 lignes)
+   - Affichage confiance IA (0-1)
+   - Couleurs adaptatives selon le niveau
+   - Labels en français (Confiance, Probable, Possible, Incertain, Faible)
+
+5. ✅ **Skeleton.svelte** (~80 lignes)
+   - 5 variantes : text, avatar, card, rectangular, circular
+   - Animation shimmer avec support prefers-reduced-motion
+   - Support multi-lignes pour text
+
+**Corrections appliquées (revue code)** :
+- `Tabs.svelte` : Scope le querySelector au composant (évite collision avec autres Tabs)
+- `toast.svelte.ts` : Gestion propre des timeouts (clear sur dismiss/clear)
+
+**Tests** : svelte-check 0 errors, 0 warnings
+
+**Fichiers créés** :
+```
+web/src/lib/components/ui/Modal.svelte
+web/src/lib/components/ui/Toast.svelte
+web/src/lib/components/ui/ToastContainer.svelte
+web/src/lib/components/ui/Tabs.svelte
+web/src/lib/components/ui/ConfidenceBar.svelte
+web/src/lib/components/ui/Skeleton.svelte
+web/src/lib/stores/toast.svelte.ts
+```
+
+**Commits** :
+- `b65c509` — feat(web): add UI components - Modal, Toast, Tabs, ConfidenceBar, Skeleton
+
+---
+
 ### Session 2026-01-05 (Suite 14) — Markdown Editor
 
 **Focus** : Implémentation d'un éditeur Markdown complet pour les notes

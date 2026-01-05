@@ -26,6 +26,7 @@ const MAX_TOASTS = 5;
 function createToastStore() {
 	let toasts = $state<Toast[]>([]);
 	let counter = 0;
+	const timeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
 	function add(type: ToastType, message: string, options: ToastOptions = {}) {
 		const id = `toast-${++counter}`;
@@ -43,19 +44,29 @@ function createToastStore() {
 
 		// Auto-dismiss if duration > 0
 		if (toast.duration && toast.duration > 0) {
-			setTimeout(() => {
+			const timeoutId = setTimeout(() => {
 				dismiss(id);
 			}, toast.duration);
+			timeouts.set(id, timeoutId);
 		}
 
 		return id;
 	}
 
 	function dismiss(id: string) {
+		// Clear timeout if exists
+		const timeoutId = timeouts.get(id);
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+			timeouts.delete(id);
+		}
 		toasts = toasts.filter((t) => t.id !== id);
 	}
 
 	function clear() {
+		// Clear all timeouts
+		timeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+		timeouts.clear();
 		toasts = [];
 	}
 

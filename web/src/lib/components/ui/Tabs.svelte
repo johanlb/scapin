@@ -73,6 +73,8 @@
 		onchange?.(tabId);
 	}
 
+	let tablistRef = $state<HTMLDivElement | null>(null);
+
 	function handleKeydown(e: KeyboardEvent, index: number) {
 		const enabledTabs = tabs.filter((t) => !t.disabled);
 		const currentEnabledIndex = enabledTabs.findIndex((t) => t.id === tabs[index].id);
@@ -95,10 +97,9 @@
 		if (newIndex >= 0) {
 			const newTab = enabledTabs[newIndex];
 			handleTabClick(newTab.id);
-			// Focus the new tab button
-			const tabButtons = document.querySelectorAll('[role="tab"]');
-			const targetIndex = tabs.findIndex((t) => t.id === newTab.id);
-			(tabButtons[targetIndex] as HTMLButtonElement)?.focus();
+			// Focus the new tab button (scoped to this component)
+			const tabButton = tablistRef?.querySelector(`#tab-${newTab.id}`) as HTMLButtonElement | null;
+			tabButton?.focus();
 		}
 	}
 </script>
@@ -106,6 +107,7 @@
 <div class="tabs-component {className}">
 	<!-- Tab List -->
 	<div
+		bind:this={tablistRef}
 		class="flex {fullWidth ? 'w-full' : 'w-fit'} {config.container}"
 		role="tablist"
 		aria-orientation="horizontal"
