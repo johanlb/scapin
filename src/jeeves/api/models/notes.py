@@ -307,3 +307,34 @@ class TriggerReviewResponse(BaseModel):
     note_id: str = Field(..., description="Note identifier")
     triggered: bool = Field(..., description="Whether review was triggered")
     next_review: datetime = Field(..., description="Next review time (now)")
+
+
+# =============================================================================
+# Folder Management Models
+# =============================================================================
+
+
+class FolderCreateRequest(BaseModel):
+    """Request to create a new folder"""
+
+    path: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Folder path (e.g., 'Clients/ABC' or 'Projects/2026')",
+    )
+
+
+class FolderCreateResponse(BaseModel):
+    """Response after creating a folder"""
+
+    path: str = Field(..., description="Created folder path (relative)")
+    absolute_path: str = Field(..., description="Absolute path on filesystem")
+    created: bool = Field(..., description="Whether folder was created (False if existed)")
+
+
+class FolderListResponse(BaseModel):
+    """List of folders"""
+
+    folders: list[str] = Field(default_factory=list, description="Folder paths")
+    total: int = Field(0, description="Total number of folders")

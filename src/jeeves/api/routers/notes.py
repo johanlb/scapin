@@ -10,6 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.jeeves.api.deps import get_notes_review_service, get_notes_service
 from src.jeeves.api.models.notes import (
+    FolderCreateRequest,
+    FolderCreateResponse,
+    FolderListResponse,
     NoteCreateRequest,
     NoteDiffResponse,
     NoteLinksResponse,
@@ -155,6 +158,55 @@ async def sync_apple_notes(
         return APIResponse(
             success=True,
             data=status,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Folder Management Endpoints (MUST be before /{note_id} routes)
+# =============================================================================
+
+
+@router.post("/folders", response_model=APIResponse[FolderCreateResponse])
+async def create_folder(
+    request: FolderCreateRequest,
+    service: NotesService = Depends(get_notes_service),
+) -> APIResponse[FolderCreateResponse]:
+    """
+    Create a new folder in the notes directory
+
+    Creates nested folder structure as needed (e.g., 'Clients/ABC' creates both).
+    Returns success even if folder already exists.
+    """
+    try:
+        result = await service.create_folder(request.path)
+        return APIResponse(
+            success=True,
+            data=result,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/folders", response_model=APIResponse[FolderListResponse])
+async def list_folders(
+    service: NotesService = Depends(get_notes_service),
+) -> APIResponse[FolderListResponse]:
+    """
+    List all folders in the notes directory
+
+    Returns flat list of all folder paths, sorted alphabetically.
+    """
+    try:
+        result = await service.list_folders()
+        return APIResponse(
+            success=True,
+            data=result,
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:

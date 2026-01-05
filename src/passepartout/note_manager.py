@@ -661,6 +661,76 @@ class NoteManager:
             logger.error(f"Failed to read note {file_path}: {e}", exc_info=True)
             return None
 
+    def create_folder(self, path: str) -> Path:
+        """
+        Create a new folder in the notes directory
+
+        Args:
+            path: Folder path (e.g., 'Clients/ABC' or 'Projects/2026')
+
+        Returns:
+            Absolute path to the created folder
+
+        Raises:
+            ValueError: If path is invalid or contains traversal attempts
+        """
+        if not path or not path.strip():
+            raise ValueError("Folder path cannot be empty")
+
+        # Normalize path (remove leading/trailing slashes and whitespace)
+        clean_path = path.strip().strip("/")
+
+        if not clean_path:
+            raise ValueError("Folder path cannot be empty after normalization")
+
+        # Validate each path component
+        for part in clean_path.split("/"):
+            if not part or part in (".", ".."):
+                raise ValueError(f"Invalid path component: '{part}'")
+            # Check for forbidden characters
+            if re.search(r'[\\:*?"<>|\x00-\x1f\x7f]', part):
+                raise ValueError(f"Invalid characters in path component: '{part}'")
+
+        # Construct and validate full path
+        folder_path = (self.notes_dir / clean_path).resolve()
+
+        # Security check: ensure path is within notes_dir
+        notes_dir_resolved = self.notes_dir.resolve()
+        try:
+            folder_path.relative_to(notes_dir_resolved)
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid folder path: {path} would be outside notes directory"
+            ) from e
+
+        # Create folder structure
+        folder_path.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Created folder: {folder_path}")
+        return folder_path
+
+    def list_folders(self) -> list[str]:
+        """
+        List all folders in the notes directory
+
+        Returns:
+            List of folder paths relative to notes_dir
+        """
+        folders: list[str] = []
+        notes_dir_resolved = self.notes_dir.resolve()
+
+        for dirpath in notes_dir_resolved.rglob("*"):
+            if dirpath.is_dir():
+                try:
+                    rel_path = dirpath.relative_to(notes_dir_resolved)
+                    # Skip hidden directories
+                    if not any(part.startswith(".") for part in rel_path.parts):
+                        folders.append(str(rel_path))
+                except ValueError:
+                    continue
+
+        return sorted(folders)
+
     def __repr__(self) -> str:
         """String representation"""
         stats = self.vector_store.get_stats()

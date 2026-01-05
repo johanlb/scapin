@@ -15,6 +15,8 @@ from src.core.config_manager import ScapinConfig
 from src.jeeves.api.models.notes import (
     DiffChangeSection,
     EntityResponse,
+    FolderCreateResponse,
+    FolderListResponse,
     FolderNode,
     NoteDiffResponse,
     NoteLinksResponse,
@@ -728,4 +730,57 @@ class NotesService:
             syncing=False,
             notes_synced=0,
             errors=["Apple Notes sync not yet implemented"],
+        )
+
+    # =========================================================================
+    # Folder Management Methods
+    # =========================================================================
+
+    async def create_folder(self, path: str) -> FolderCreateResponse:
+        """
+        Create a new folder in the notes directory
+
+        Args:
+            path: Folder path (e.g., 'Clients/ABC')
+
+        Returns:
+            FolderCreateResponse with created folder info
+
+        Raises:
+            ValueError: If path is invalid
+        """
+        logger.info(f"Creating folder: {path}")
+        manager = self._get_manager()
+
+        # Normalize path for response
+        clean_path = path.strip().strip("/")
+
+        # Check if folder already exists
+        folder_path = (manager.notes_dir / clean_path).resolve()
+        existed = folder_path.exists()
+
+        # Create folder (will succeed even if exists)
+        absolute_path = manager.create_folder(path)
+
+        logger.info(f"Folder {'already existed' if existed else 'created'}: {clean_path}")
+        return FolderCreateResponse(
+            path=clean_path,
+            absolute_path=str(absolute_path),
+            created=not existed,
+        )
+
+    async def list_folders(self) -> FolderListResponse:
+        """
+        List all folders in the notes directory
+
+        Returns:
+            FolderListResponse with folder paths
+        """
+        logger.info("Listing folders")
+        manager = self._get_manager()
+
+        folders = manager.list_folders()
+        return FolderListResponse(
+            folders=folders,
+            total=len(folders),
         )

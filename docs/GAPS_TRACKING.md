@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Total items** : 124
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 18
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 19
 
 ---
 
@@ -32,7 +32,7 @@
 | ⬜ | Apple Notes Sync - synchronisation bidirectionnelle | Nice-to-have |
 | ⬜ | Entity Manager - gestion des entités extraites | Nice-to-have |
 | ⬜ | Relationship Manager - graphe NetworkX des relations | Nice-to-have |
-| ⬜ | API: POST /api/notes/folders - créer dossier | MVP |
+| ✅ | API: POST /api/notes/folders - créer dossier | MVP |
 | ✅ | UI: Éditeur Markdown complet | MVP |
 | ⬜ | UI: Bouton "Discuter de cette note" | Nice-to-have |
 | ⬜ | API: POST /api/capture - capture rapide | Nice-to-have |
@@ -304,9 +304,9 @@
 ## Progression
 
 ```
-MVP:          ███░░░░░░░░░░░░░░░░░ 15/63 (24%)
+MVP:          ████░░░░░░░░░░░░░░░░ 16/63 (25%)
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
-Total:        ███░░░░░░░░░░░░░░░░░ 18/116 (16%)
+Total:        ███░░░░░░░░░░░░░░░░░ 19/116 (16%)
 ```
 
 ---
@@ -323,6 +323,7 @@ Total:        ███░░░░░░░░░░░░░░░░░ 18/11
 | 2026-01-05 | UI Components complétés (5 items) - Modal, Tabs, Toast, ConfidenceBar, Skeleton |
 | 2026-01-05 | Éditeur Markdown complété - Preview live, wikilinks, toolbar, auto-save |
 | 2026-01-06 | **Stats API complétée (2 items)** - GET /api/stats/overview + /by-source |
+| 2026-01-06 | **POST /api/notes/folders complété** - création dossiers notes + GET /api/notes/folders |
 
 ---
 
