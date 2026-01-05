@@ -21,6 +21,7 @@ from src.jeeves.api.routers import (
     journal_router,
     notes_router,
     queue_router,
+    search_router,
     system_router,
     teams_router,
 )
@@ -96,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(calendar_router, prefix="/api/calendar", tags=["Calendar"])
     app.include_router(teams_router, prefix="/api/teams", tags=["Teams"])
     app.include_router(notes_router, prefix="/api/notes", tags=["Notes"])
+    app.include_router(search_router, prefix="/api/search", tags=["Search"])
     app.include_router(ws_router, prefix="/ws", tags=["WebSocket"])
 
     # Root endpoint

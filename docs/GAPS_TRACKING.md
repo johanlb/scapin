@@ -147,8 +147,8 @@
 ### Recherche API (3)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | GET /api/search - recherche globale multi-types | MVP |
-| ⬜ | GET /api/search/recent - recherches récentes | Nice-to-have |
+| ✅ | GET /api/search - recherche globale multi-types | MVP |
+| ✅ | GET /api/search/recent - recherches récentes | Nice-to-have |
 | ⬜ | POST /api/search/commands - exécuter commande | Nice-to-have |
 
 ### Stats API (5)
@@ -304,9 +304,9 @@
 ## Progression
 
 ```
-MVP:          █░░░░░░░░░░░░░░░░░░░ 5/63 (8%)
-Nice-to-have: ░░░░░░░░░░░░░░░░░░░░ 0/53 (0%)
-Total:        █░░░░░░░░░░░░░░░░░░░ 5/116 (4%)
+MVP:          █░░░░░░░░░░░░░░░░░░░ 6/63 (10%)
+Nice-to-have: █░░░░░░░░░░░░░░░░░░░ 1/53 (2%)
+Total:        █░░░░░░░░░░░░░░░░░░░ 7/116 (6%)
 ```
 
 ---
@@ -318,6 +318,7 @@ Total:        █░░░░░░░░░░░░░░░░░░░ 5/116
 | 2026-01-05 | Création initiale - Analyse complète des écarts vs specs |
 | 2026-01-05 | Seconde passe - Ajout 21 items (Intégrations, Cognitif, UI Components, Qualité) |
 | 2026-01-05 | Git Versioning complété (5 items) - backend + 4 endpoints API |
+| 2026-01-05 | Search API complétée (2 items) - GET /api/search + /api/search/recent |
 
 ---
 
