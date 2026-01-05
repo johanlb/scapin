@@ -8,6 +8,7 @@ from src.jeeves.api.routers.journal import router as journal_router
 from src.jeeves.api.routers.notes import router as notes_router
 from src.jeeves.api.routers.queue import router as queue_router
 from src.jeeves.api.routers.search import router as search_router
+from src.jeeves.api.routers.stats import router as stats_router
 from src.jeeves.api.routers.system import router as system_router
 from src.jeeves.api.routers.teams import router as teams_router
 
@@ -20,6 +21,7 @@ __all__ = [
     "notes_router",
     "queue_router",
     "search_router",
+    "stats_router",
     "system_router",
     "teams_router",
 ]

@@ -12,6 +12,8 @@ import {
 	restoreNoteVersion,
 	globalSearch,
 	getRecentSearches,
+	getStatsOverview,
+	getStatsBySource,
 	ApiError
 } from '../client';
 
@@ -515,6 +517,152 @@ describe('API Client', () => {
 					'/api/search/recent?limit=10',
 					expect.any(Object)
 				);
+			});
+		});
+	});
+
+	describe('Stats API', () => {
+		describe('getStatsOverview', () => {
+			it('should return stats overview on success', async () => {
+				const mockOverview = {
+					total_processed: 100,
+					total_pending: 10,
+					sources_active: 3,
+					uptime_seconds: 3600.0,
+					last_activity: '2026-01-05T10:00:00Z',
+					email_processed: 50,
+					email_queued: 5,
+					teams_messages: 30,
+					teams_unread: 3,
+					calendar_events_today: 3,
+					calendar_events_week: 10,
+					notes_due: 15,
+					notes_reviewed_today: 5
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockOverview,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await getStatsOverview();
+
+				expect(result).toEqual(mockOverview);
+				expect(result.total_processed).toBe(100);
+				expect(result.sources_active).toBe(3);
+				expect(mockFetch).toHaveBeenCalledWith('/api/stats/overview', expect.any(Object));
+			});
+
+			it('should throw ApiError on failure', async () => {
+				mockFetch.mockResolvedValueOnce({
+					ok: false,
+					status: 500,
+					json: () => Promise.resolve({ detail: 'Service unavailable' })
+				});
+
+				try {
+					await getStatsOverview();
+					expect.fail('Should have thrown');
+				} catch (error) {
+					expect(error).toBeInstanceOf(ApiError);
+					expect((error as ApiError).status).toBe(500);
+				}
+			});
+		});
+
+		describe('getStatsBySource', () => {
+			it('should return stats by source on success', async () => {
+				const mockBySource = {
+					email: {
+						emails_processed: 100,
+						emails_auto_executed: 80,
+						emails_archived: 60,
+						emails_deleted: 10,
+						emails_queued: 5,
+						emails_skipped: 5,
+						tasks_created: 10,
+						average_confidence: 0.85,
+						processing_mode: 'cognitive'
+					},
+					teams: {
+						total_chats: 20,
+						unread_chats: 3,
+						messages_processed: 50,
+						messages_flagged: 5,
+						last_poll: '2026-01-05T09:00:00Z'
+					},
+					calendar: null,
+					queue: {
+						total: 5,
+						by_status: { pending: 3, approved: 2 },
+						by_account: { work: 3, personal: 2 },
+						oldest_item: null,
+						newest_item: null
+					},
+					notes: {
+						total_notes: 200,
+						by_type: { projet: 50, personne: 30 },
+						by_importance: { high: 20, medium: 100 },
+						total_due: 15,
+						reviewed_today: 5,
+						avg_easiness_factor: 2.5
+					}
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockBySource,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await getStatsBySource();
+
+				expect(result).toEqual(mockBySource);
+				expect(result.email?.emails_processed).toBe(100);
+				expect(result.teams?.total_chats).toBe(20);
+				expect(result.calendar).toBeNull();
+				expect(result.notes?.total_notes).toBe(200);
+				expect(mockFetch).toHaveBeenCalledWith('/api/stats/by-source', expect.any(Object));
+			});
+
+			it('should handle all null sources', async () => {
+				const mockBySource = {
+					email: null,
+					teams: null,
+					calendar: null,
+					queue: null,
+					notes: null
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockBySource,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await getStatsBySource();
+
+				expect(result.email).toBeNull();
+				expect(result.teams).toBeNull();
+				expect(result.calendar).toBeNull();
+				expect(result.queue).toBeNull();
+				expect(result.notes).toBeNull();
 			});
 		});
 	});

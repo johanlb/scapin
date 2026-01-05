@@ -7,3 +7,4 @@ export { default as Modal } from './Modal.svelte';
 export { default as PullToRefresh } from './PullToRefresh.svelte';
 export { default as SwipeableCard } from './SwipeableCard.svelte';
 export { default as CommandPalette } from './CommandPalette.svelte';
+export { default as Skeleton } from './Skeleton.svelte';

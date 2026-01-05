@@ -79,6 +79,79 @@ interface Stats {
 	last_activity: string | null;
 }
 
+// ============================================================================
+// STATS OVERVIEW & BY-SOURCE TYPES
+// ============================================================================
+
+interface StatsOverview {
+	total_processed: number;
+	total_pending: number;
+	sources_active: number;
+	uptime_seconds: number;
+	last_activity: string | null;
+	email_processed: number;
+	email_queued: number;
+	teams_messages: number;
+	teams_unread: number;
+	calendar_events_today: number;
+	calendar_events_week: number;
+	notes_due: number;
+	notes_reviewed_today: number;
+}
+
+interface EmailStats {
+	emails_processed: number;
+	emails_auto_executed: number;
+	emails_archived: number;
+	emails_deleted: number;
+	emails_queued: number;
+	emails_skipped: number;
+	tasks_created: number;
+	average_confidence: number;
+	processing_mode: string;
+}
+
+interface TeamsStats {
+	total_chats: number;
+	unread_chats: number;
+	messages_processed: number;
+	messages_flagged: number;
+	last_poll: string | null;
+}
+
+interface CalendarStats {
+	events_today: number;
+	events_week: number;
+	meetings_online: number;
+	meetings_in_person: number;
+	last_poll: string | null;
+}
+
+interface QueueStats {
+	total: number;
+	by_status: Record<string, number>;
+	by_account: Record<string, number>;
+	oldest_item: string | null;
+	newest_item: string | null;
+}
+
+interface NotesReviewStats {
+	total_notes: number;
+	by_type: Record<string, number>;
+	by_importance: Record<string, number>;
+	total_due: number;
+	reviewed_today: number;
+	avg_easiness_factor: number;
+}
+
+interface StatsBySource {
+	email: EmailStats | null;
+	teams: TeamsStats | null;
+	calendar: CalendarStats | null;
+	queue: QueueStats | null;
+	notes: NotesReviewStats | null;
+}
+
 interface IntegrationStatus {
 	id: string;
 	name: string;
@@ -222,6 +295,14 @@ export async function getHealth(): Promise<HealthStatus> {
 
 export async function getStats(): Promise<Stats> {
 	return fetchApi<Stats>('/stats');
+}
+
+export async function getStatsOverview(): Promise<StatsOverview> {
+	return fetchApi<StatsOverview>('/stats/overview');
+}
+
+export async function getStatsBySource(): Promise<StatsBySource> {
+	return fetchApi<StatsBySource>('/stats/by-source');
 }
 
 export async function getConfig(): Promise<SystemConfig> {
@@ -1398,6 +1479,10 @@ export type {
 	HealthCheck,
 	HealthStatus,
 	Stats,
+	StatsOverview,
+	StatsBySource,
+	CalendarStats,
+	NotesReviewStats,
 	IntegrationStatus,
 	SystemConfig,
 	BriefingItem,
