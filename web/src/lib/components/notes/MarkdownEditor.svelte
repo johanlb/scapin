@@ -32,9 +32,6 @@
 	let saveTimeout: ReturnType<typeof setTimeout>;
 	let lastSavedContent = $state(content);
 
-	// Detect if mobile for default mode
-	const isMobile = $derived(typeof window !== 'undefined' && window.innerWidth < 768);
-
 	// Auto-save with debounce
 	$effect(() => {
 		if (onSave && content !== lastSavedContent) {
@@ -137,18 +134,18 @@
 	}
 
 	// Get save status text
-	const saveStatusText = $derived(() => {
+	function getSaveStatusText(): string {
 		switch (saveStatus) {
 			case 'saving':
 				return 'Enregistrement...';
 			case 'saved':
-				return 'Enregistr\u00e9';
+				return 'Enregistré';
 			case 'error':
 				return 'Erreur';
 			default:
 				return '';
 		}
-	});
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -205,7 +202,7 @@
 				{:else if saveStatus === 'error'}
 					<span>✗</span>
 				{/if}
-				{saveStatusText()}
+				{getSaveStatusText()}
 			</span>
 		{/if}
 	</div>

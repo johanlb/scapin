@@ -543,6 +543,52 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-05 (Suite 14) — Markdown Editor
+
+**Focus** : Implémentation d'un éditeur Markdown complet pour les notes
+
+**Accomplissements** :
+
+1. ✅ **Configuration Marked** (`web/src/lib/utils/markdown.ts`)
+   - Extension wikilinks `[[Note Title]]` custom
+   - Fonctions `renderMarkdown()`, `extractWikilinks()`
+   - Support GFM et line breaks
+
+2. ✅ **Composants Notes** (4 nouveaux)
+   - `MarkdownPreview.svelte` — Rendu HTML avec styles prose
+   - `EditorTextarea.svelte` — Textarea avec `insertText()`, `wrapSelection()`
+   - `MarkdownToolbar.svelte` — Boutons formatage + mode toggle
+   - `MarkdownEditor.svelte` — Composant principal avec auto-save
+
+3. ✅ **Fonctionnalités**
+   - Preview temps réel du markdown
+   - Wikilinks cliquables dans preview
+   - Raccourcis clavier : Cmd+B/I/E/K/W/S
+   - Auto-save avec debounce (1s)
+   - Modes : Écrire / Aperçu / Split
+   - Indicateur de statut (Enregistrement... / Enregistré)
+   - Layout responsive (mobile/desktop)
+
+4. ✅ **Intégration** (`web/src/routes/notes/[...path]/+page.svelte`)
+   - Remplacement textarea basique par MarkdownEditor
+   - Mode lecture avec MarkdownPreview
+
+**Tests** : svelte-check 0 errors, 0 warnings
+
+**Fichiers créés** :
+```
+web/src/lib/utils/markdown.ts
+web/src/lib/components/notes/MarkdownPreview.svelte
+web/src/lib/components/notes/EditorTextarea.svelte
+web/src/lib/components/notes/MarkdownToolbar.svelte
+web/src/lib/components/notes/MarkdownEditor.svelte
+```
+
+**Commits** :
+- `35a5ef7` — feat(web): implement Markdown Editor with live preview
+
+---
+
 ### Session 2026-01-05 (Suite 13) — UI Notes Review (SM-2)
 
 **Focus** : Interface utilisateur complète pour la révision des notes avec SM-2
