@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { Card, Badge, Button } from '$lib/components/ui';
+	import { Card, Badge } from '$lib/components/ui';
+	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
+	import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
 
 	// Get the note path from route params
 	const notePath = $derived($page.params.path);
@@ -61,6 +63,14 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 			hour: '2-digit',
 			minute: '2-digit'
 		});
+	}
+
+	async function handleSave(content: string): Promise<void> {
+		// TODO: Call API to save note
+		console.log('Saving note:', content.slice(0, 50) + '...');
+		note.updated_at = new Date().toISOString();
+		// Simulate API delay
+		await new Promise((resolve) => setTimeout(resolve, 300));
 	}
 </script>
 
@@ -127,66 +137,19 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 			</div>
 
 			<!-- Content -->
-			<Card variant="glass-subtle">
-				<div class="p-4 md:p-6">
-					{#if editing}
-						<textarea
-							bind:value={note.content}
-							class="w-full min-h-[400px] bg-transparent text-[var(--color-text-primary)]
-								font-mono text-sm leading-relaxed resize-y outline-none"
-						></textarea>
-					{:else}
-						<div class="prose prose-invert max-w-none">
-							<!-- Simple markdown rendering - would use a proper markdown parser -->
-							{#each note.content.split('\n') as line}
-								{#if line.startsWith('# ')}
-									<h1 class="text-xl font-bold text-[var(--color-text-primary)] mt-4 mb-2">
-										{line.slice(2)}
-									</h1>
-								{:else if line.startsWith('## ')}
-									<h2 class="text-lg font-semibold text-[var(--color-text-primary)] mt-4 mb-2">
-										{line.slice(3)}
-									</h2>
-								{:else if line.startsWith('### ')}
-									<h3 class="text-base font-semibold text-[var(--color-text-primary)] mt-3 mb-1">
-										{line.slice(4)}
-									</h3>
-								{:else if line.startsWith('- [ ]')}
-									<div class="flex items-center gap-2 py-0.5">
-										<input type="checkbox" disabled class="w-4 h-4 rounded" />
-										<span class="text-[var(--color-text-secondary)]">{line.slice(6)}</span>
-									</div>
-								{:else if line.startsWith('- [x]')}
-									<div class="flex items-center gap-2 py-0.5">
-										<input type="checkbox" checked disabled class="w-4 h-4 rounded" />
-										<span class="text-[var(--color-text-secondary)] line-through"
-											>{line.slice(6)}</span
-										>
-									</div>
-								{:else if line.startsWith('- ')}
-									<div class="flex items-start gap-2 py-0.5">
-										<span class="text-[var(--color-text-tertiary)]">•</span>
-										<span class="text-[var(--color-text-secondary)]">{line.slice(2)}</span>
-									</div>
-								{:else if line.match(/^\d+\. /)}
-									<div class="flex items-start gap-2 py-0.5">
-										<span class="text-[var(--color-text-tertiary)] font-mono text-sm"
-											>{line.match(/^\d+/)?.[0]}.</span
-										>
-										<span class="text-[var(--color-text-secondary)]"
-											>{line.replace(/^\d+\. /, '')}</span
-										>
-									</div>
-								{:else if line.trim() === ''}
-									<div class="h-2"></div>
-								{:else}
-									<p class="text-[var(--color-text-secondary)] py-0.5">{line}</p>
-								{/if}
-							{/each}
-						</div>
-					{/if}
-				</div>
-			</Card>
+			{#if editing}
+				<MarkdownEditor
+					bind:content={note.content}
+					onSave={handleSave}
+					placeholder="Commencez à écrire votre note..."
+				/>
+			{:else}
+				<Card variant="glass-subtle">
+					<div class="p-4 md:p-6">
+						<MarkdownPreview content={note.content} />
+					</div>
+				</Card>
+			{/if}
 
 			<!-- Related Items -->
 			<section>
