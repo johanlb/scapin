@@ -106,7 +106,7 @@ Feedback via prochain journaling → Amélioration système
 
 ---
 
-## 📊 État Actuel (3 janvier 2026)
+## 📊 État Actuel (5 janvier 2026)
 
 ### Phases Complétées
 
@@ -531,6 +531,59 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-05 (Suite 10) — Roadmap v3.1 Notes au Centre
+
+**Focus** : Révision complète de la roadmap pour prioriser les Notes et la qualité d'analyse
+
+**Contexte** :
+- Analyse comparative ROADMAP.md vs DESIGN_PHILOSOPHY.md vs GAPS_TRACKING.md
+- 116 items identifiés (63 MVP, 53 Nice-to-have)
+- Roadmap Q2-Q4 2026 obsolète (nous sommes en janvier 2026)
+
+**Décisions clés** :
+
+1. **Notes au centre de l'architecture**
+   - Chaque email enrichit les notes (entités extraites, proposed_notes)
+   - Chaque analyse est enrichie par le contexte des notes (Passepartout)
+   - Boucle bidirectionnelle Email ↔ Notes = cœur du système
+
+2. **Réorganisation en Sprints thématiques** (vs phases numérotées)
+   - Sprint 1 : Notes & Fondation Contexte (19 items)
+   - Sprint 2 : Qualité d'Analyse (14 items)
+   - Sprint 3 : Workflow & Actions (16 items)
+   - Sprint 4 : Temps Réel & UX (14 items)
+   - Sprint 5 : Qualité & Release (6 items)
+
+3. **Priorisation Notes dans Sprint 1** (vs UI Components seuls)
+   - Git Versioning backend + 4 endpoints API
+   - Éditeur Markdown complet
+   - Search API (clé pour retrouver le contexte)
+   - POST /api/notes/folders
+
+4. **Promotion d'items Nice-to-have → MVP**
+   - Extraction entités automatique
+   - extracted_entities dans EmailProcessingResult
+   - proposed_tasks et proposed_notes
+   - Bouton "Discuter de cette note"
+
+**Fichiers modifiés** :
+- `docs/GAPS_TRACKING.md` — Créé (116 items, 63 MVP, 53 Nice-to-have)
+- `ROADMAP.md` — Réécrit complet (v3.1 Notes au centre)
+
+**Commits** :
+- `5ac3fed` — docs: add comprehensive gap tracking document
+- `c017ddd` — docs(roadmap): v3.1 - Notes & Analyse au centre
+
+**Calendrier révisé** :
+- Sprint 1 : Janvier S2-S3
+- Sprint 2 : Janvier S4 - Février S5
+- Sprint 3 : Février S6-S7
+- Sprint 4 : Février S8 - Mars S9
+- Sprint 5 : Mars S10-S11
+- **Target v1.0 RC** : Mi-mars 2026
+
+---
 
 ### Session 2026-01-05 (Suite 9) — Flux Email Complet avec Actions IMAP
 
@@ -1460,17 +1513,22 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Phases Avancées
+### Sprint 1 : Notes & Fondation Contexte
 
-Les Phases 0.8 (Web) et 0.9 (PWA Mobile) sont complètes. Prochaines étapes possibles :
+**Priorité** : Les notes sont au cœur de la boucle cognitive (voir ROADMAP.md v3.1)
 
-1. **Phase 1.6** — Journaling Complet multi-source
-2. **Phase 2.5** — IA Multi-Provider avec consensus
+| Priorité | Item | Description |
+|----------|------|-------------|
+| 🔴 | Notes Git Versioning | Backend + 4 endpoints API (list, get, diff, restore) |
+| 🔴 | Éditeur Markdown | UI complète pour édition notes |
+| 🔴 | Search API | GET /api/search (multi-types) |
+| 🟠 | UI Components | Modal, Tabs, Toast, ConfidenceBar, Skeleton |
+| 🟠 | Stats API | GET /api/stats/overview, by-source |
+| 🟢 | Calendar | Bouton briefing pré-réunion, Détection conflits |
 
-### Extensions optionnelles
+### Référence
 
-- Routers email, calendar, teams, journal, queue
-- Sync Apple Notes (backend)
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète des 116 items (63 MVP, 53 Nice-to-have).
 
 ---
 
@@ -1480,7 +1538,8 @@ Les Phases 0.8 (Web) et 0.9 (PWA Mobile) sont complètes. Prochaines étapes pos
 |----------|-------------|----------|
 | **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | Principes philosophiques, fondements théoriques | 🔴 Critique |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Architecture technique, spécifications valets | 🟠 Haute |
-| **[ROADMAP.md](ROADMAP.md)** | Plan développement par phases | 🟡 Moyenne |
+| **[ROADMAP.md](ROADMAP.md)** | Plan développement par sprints | 🟡 Moyenne |
+| **[GAPS_TRACKING.md](docs/GAPS_TRACKING.md)** | Suivi des écarts specs vs implémentation | 🟡 Moyenne |
 | **[README.md](README.md)** | Vue d'ensemble projet | 🟢 Intro |
 | **[BREAKING_CHANGES.md](BREAKING_CHANGES.md)** | Changements cassants, migrations | 📋 Référence |
 | **[MIGRATION.md](MIGRATION.md)** | Migration PKM → Scapin | 📋 Référence |
