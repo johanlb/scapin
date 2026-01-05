@@ -212,10 +212,10 @@
 							<span>📌</span> Épinglées
 						</h2>
 						<div class="space-y-1">
-							{#each pinnedNotes as note (note.id)}
+							{#each pinnedNotes as note (note.note_id)}
 								<button
 									type="button"
-									onclick={() => console.log('Open note', note.id)}
+									onclick={() => console.log('Open note', note.note_id)}
 									class="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors"
 								>
 									<p class="text-sm text-[var(--color-text-primary)] truncate">{note.title}</p>
@@ -246,8 +246,8 @@
 								<span>📌</span> Notes épinglées
 							</h2>
 							<div class="space-y-2">
-								{#each pinnedNotes as note (note.id)}
-									<Card interactive onclick={() => console.log('Open note', note.id)} padding="md">
+								{#each pinnedNotes as note (note.note_id)}
+									<Card interactive onclick={() => console.log('Open note', note.note_id)} padding="md">
 										<h3 class="font-semibold text-[var(--color-text-primary)]">{note.title}</h3>
 										<p class="text-sm text-[var(--color-text-tertiary)] mt-1">{note.path}</p>
 									</Card>
@@ -267,7 +267,7 @@
 							<span>🕐</span> Notes récentes
 						</h2>
 						<div class="space-y-3">
-							{#each recentNotes as note (note.id)}
+							{#each recentNotes as note (note.note_id)}
 								{@render noteCard(note)}
 							{/each}
 						</div>
@@ -321,7 +321,7 @@
 {/snippet}
 
 {#snippet noteCard(note: Note)}
-	<Card interactive onclick={() => console.log('Open note', note.id)} padding="md">
+	<Card interactive onclick={() => console.log('Open note', note.note_id)} padding="md">
 		<div class="flex items-start gap-4">
 			<div class="flex-1 min-w-0">
 				<div class="flex flex-wrap items-center gap-2 mb-1">

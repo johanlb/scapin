@@ -956,7 +956,7 @@ interface NoteEntity {
 }
 
 interface Note {
-	id: string;
+	note_id: string;
 	title: string;
 	content: string;
 	excerpt: string;
