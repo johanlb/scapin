@@ -8,20 +8,31 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from src.jeeves.api.deps import get_notes_service
+from src.jeeves.api.deps import get_notes_review_service, get_notes_service
 from src.jeeves.api.models.notes import (
     NoteCreateRequest,
     NoteDiffResponse,
     NoteLinksResponse,
+    NoteMetadataResponse,
     NoteResponse,
+    NotesDueResponse,
     NoteSearchResponse,
     NotesTreeResponse,
     NoteSyncStatus,
     NoteUpdateRequest,
     NoteVersionContentResponse,
     NoteVersionsResponse,
+    PostponeReviewRequest,
+    PostponeReviewResponse,
+    RecordReviewRequest,
+    RecordReviewResponse,
+    ReviewConfigResponse,
+    ReviewStatsResponse,
+    ReviewWorkloadResponse,
+    TriggerReviewResponse,
 )
 from src.jeeves.api.models.responses import APIResponse, PaginatedResponse
+from src.jeeves.api.services.notes_review_service import NotesReviewService
 from src.jeeves.api.services.notes_service import NotesService
 
 router = APIRouter()
@@ -148,6 +159,102 @@ async def sync_apple_notes(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Review & Scheduling Endpoints (MUST be before /{note_id} routes)
+# =============================================================================
+
+
+@router.get("/reviews/due", response_model=APIResponse[NotesDueResponse])
+async def get_notes_due(
+    limit: int = Query(50, ge=1, le=200, description="Maximum notes to return"),
+    note_type: str | None = Query(None, description="Filter by note type"),
+    service: NotesReviewService = Depends(get_notes_review_service),
+) -> APIResponse[NotesDueResponse]:
+    """
+    Get notes due for review
+
+    Returns notes scheduled for review, ordered by priority.
+    Use the SM-2 algorithm for spaced repetition.
+    """
+    try:
+        due = await service.get_notes_due(limit=limit, note_type=note_type)
+        return APIResponse(
+            success=True,
+            data=due,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/reviews/stats", response_model=APIResponse[ReviewStatsResponse])
+async def get_review_stats(
+    service: NotesReviewService = Depends(get_notes_review_service),
+) -> APIResponse[ReviewStatsResponse]:
+    """
+    Get review statistics
+
+    Returns scheduling statistics including notes due,
+    reviewed today, and distribution by type.
+    """
+    try:
+        stats = await service.get_review_stats()
+        return APIResponse(
+            success=True,
+            data=stats,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/reviews/workload", response_model=APIResponse[ReviewWorkloadResponse])
+async def get_review_workload(
+    days: int = Query(7, ge=1, le=30, description="Days to forecast"),
+    service: NotesReviewService = Depends(get_notes_review_service),
+) -> APIResponse[ReviewWorkloadResponse]:
+    """
+    Estimate review workload for upcoming days
+
+    Returns estimated number of notes due per day
+    for planning purposes.
+    """
+    try:
+        workload = await service.estimate_workload(days=days)
+        return APIResponse(
+            success=True,
+            data=workload,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/reviews/configs", response_model=APIResponse[list[ReviewConfigResponse]])
+async def get_review_configs(
+    service: NotesReviewService = Depends(get_notes_review_service),
+) -> APIResponse[list[ReviewConfigResponse]]:
+    """
+    Get review configuration for all note types
+
+    Returns SM-2 parameters for each note type.
+    """
+    try:
+        configs = await service.get_review_configs()
+        return APIResponse(
+            success=True,
+            data=configs,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Note CRUD Endpoints (parameterized paths AFTER static paths)
+# =============================================================================
 
 
 @router.get("/{note_id}", response_model=APIResponse[NoteResponse])
@@ -436,6 +543,137 @@ async def delete_note(
         return APIResponse(
             success=True,
             data=None,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Note-specific Review Endpoints (parameterized paths)
+# =============================================================================
+
+
+@router.get("/{note_id}/metadata", response_model=APIResponse[NoteMetadataResponse])
+async def get_note_metadata(
+    note_id: str,
+    service: NotesReviewService = Depends(get_notes_review_service),
+) -> APIResponse[NoteMetadataResponse]:
+    """
+    Get review metadata for a note
+
+    Returns SM-2 scheduling parameters and review history.
+    """
+    try:
+        metadata = await service.get_note_metadata(note_id)
+        if metadata is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Metadata not found for note: {note_id}",
+            )
+        return APIResponse(
+            success=True,
+            data=metadata,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{note_id}/review", response_model=APIResponse[RecordReviewResponse])
+async def record_review(
+    note_id: str,
+    request: RecordReviewRequest,
+    service: NotesReviewService = Depends(get_notes_review_service),
+) -> APIResponse[RecordReviewResponse]:
+    """
+    Record a review for a note
+
+    Updates SM-2 scheduling based on review quality:
+    - 5: Perfect - no changes needed
+    - 4: Excellent - minor typo fixes only
+    - 3: Good - small additions/clarifications
+    - 2: Medium - moderate updates required
+    - 1: Poor - significant restructuring needed
+    - 0: Fail - major overhaul required
+
+    Quality < 3 resets the learning interval.
+    """
+    try:
+        result = await service.record_review(note_id, request.quality)
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Note not found: {note_id}",
+            )
+        return APIResponse(
+            success=True,
+            data=result,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{note_id}/postpone", response_model=APIResponse[PostponeReviewResponse])
+async def postpone_review(
+    note_id: str,
+    request: PostponeReviewRequest,
+    service: NotesReviewService = Depends(get_notes_review_service),
+) -> APIResponse[PostponeReviewResponse]:
+    """
+    Postpone a note's review
+
+    Delays the next review by the specified number of hours.
+    Useful when you need more time before reviewing.
+    """
+    try:
+        result = await service.postpone_review(note_id, request.hours)
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Note not found: {note_id}",
+            )
+        return APIResponse(
+            success=True,
+            data=result,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{note_id}/trigger", response_model=APIResponse[TriggerReviewResponse])
+async def trigger_immediate_review(
+    note_id: str,
+    service: NotesReviewService = Depends(get_notes_review_service),
+) -> APIResponse[TriggerReviewResponse]:
+    """
+    Trigger immediate review for a note
+
+    Sets the next review time to now, making the note
+    immediately appear in the review queue.
+    """
+    try:
+        result = await service.trigger_immediate_review(note_id)
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Note not found: {note_id}",
+            )
+        return APIResponse(
+            success=True,
+            data=result,
             timestamp=datetime.now(timezone.utc),
         )
     except HTTPException:

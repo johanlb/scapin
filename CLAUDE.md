@@ -281,6 +281,14 @@ BRIEFING__SHOW_CONFIDENCE=true
 | | `POST /api/teams/chats/{chat_id}/messages/{msg_id}/flag` | Flaguer message |
 | | `POST /api/teams/poll` | Synchroniser Teams |
 | | `GET /api/teams/stats` | Statistiques Teams |
+| **Notes** | `GET /api/notes/reviews/due` | Notes à réviser (SM-2) |
+| | `GET /api/notes/reviews/stats` | Statistiques révision |
+| | `GET /api/notes/reviews/workload` | Prévision charge |
+| | `GET /api/notes/reviews/configs` | Configs par type |
+| | `GET /api/notes/{id}/metadata` | Métadonnées SM-2 |
+| | `POST /api/notes/{id}/review` | Enregistrer révision (0-5) |
+| | `POST /api/notes/{id}/postpone` | Reporter révision |
+| | `POST /api/notes/{id}/trigger` | Déclencher révision immédiate |
 
 **Usage** :
 ```bash
@@ -368,11 +376,11 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1666+ tests, 95% couverture, 100% pass rate
+**Global** : 1692+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1666 | ✅ |
+| Backend tests | 1692 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
@@ -434,7 +442,9 @@ src/jeeves/api/deps.py                # Dependency injection
 src/jeeves/api/models/responses.py    # Pydantic response models
 src/jeeves/api/routers/system.py      # /api/health, /api/stats, /api/config
 src/jeeves/api/routers/briefing.py    # /api/briefing/* endpoints
-src/jeeves/api/services/briefing_service.py  # Async briefing service
+src/jeeves/api/routers/notes.py       # /api/notes/* endpoints (CRUD + review)
+src/jeeves/api/services/briefing_service.py      # Async briefing service
+src/jeeves/api/services/notes_review_service.py  # SM-2 review service
 ```
 
 **AI** (Sancho) :
@@ -532,6 +542,39 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-05 (Suite 12) — API Notes Review
+
+**Focus** : Création des endpoints API pour exposer le système de révision SM-2
+
+**Accomplissements** :
+
+1. ✅ **Service NotesReviewService** (`src/jeeves/api/services/notes_review_service.py`)
+   - Wrapper async autour de NoteScheduler
+   - Méthodes: get_notes_due, get_note_metadata, record_review, postpone_review, trigger_immediate_review, get_review_stats, estimate_workload, get_review_configs
+
+2. ✅ **8 nouveaux endpoints** dans `src/jeeves/api/routers/notes.py`
+   - GET `/api/notes/reviews/due` — Notes à réviser
+   - GET `/api/notes/reviews/stats` — Statistiques révision
+   - GET `/api/notes/reviews/workload` — Prévision charge (7j)
+   - GET `/api/notes/reviews/configs` — Configuration par type de note
+   - GET `/api/notes/{id}/metadata` — Métadonnées SM-2
+   - POST `/api/notes/{id}/review` — Enregistrer révision (quality 0-5)
+   - POST `/api/notes/{id}/postpone` — Reporter révision
+   - POST `/api/notes/{id}/trigger` — Déclencher révision immédiate
+
+3. ✅ **Bug corrigé** : Ordre des routes FastAPI
+   - Les routes statiques `/reviews/*` doivent être définies AVANT `/{note_id}`
+   - Sinon FastAPI matche "reviews" comme un note_id
+
+4. ✅ **26 tests unitaires** (`tests/unit/test_notes_review_api.py`)
+   - TestReviewModels (4 tests)
+   - TestNotesReviewService (11 tests)
+   - TestNotesReviewEndpoints (11 tests)
+
+**Tests** : 1692 passed, 53 skipped (0 failures)
+
+---
 
 ### Session 2026-01-05 (Suite 11) — Note Enrichment System Complet
 

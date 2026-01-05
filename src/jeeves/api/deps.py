@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.core.config_manager import ScapinConfig, get_config
 from src.jeeves.api.auth import JWTHandler, TokenData
 from src.jeeves.api.services.briefing_service import BriefingService
+from src.jeeves.api.services.notes_review_service import NotesReviewService
 from src.jeeves.api.services.notes_service import NotesService
 
 # HTTP Bearer security scheme
@@ -89,4 +90,11 @@ def get_notes_service() -> Generator[NotesService, None, None]:
     """Get notes service instance"""
     config = get_cached_config()
     service = NotesService(config=config)
+    yield service
+
+
+def get_notes_review_service() -> Generator[NotesReviewService, None, None]:
+    """Get notes review service instance"""
+    config = get_cached_config()
+    service = NotesReviewService(config=config)
     yield service
