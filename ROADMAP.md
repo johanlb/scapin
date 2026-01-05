@@ -1,6 +1,6 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 5 janvier 2026
+**Dernière mise à jour** : 6 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
 **Phase actuelle** : Sprint 1 — Notes & Fondation Contexte
 
@@ -140,33 +140,33 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 ## Sprint 1 : Notes & Fondation Contexte
 
-**Statut** : 📋 À démarrer
+**Statut** : 🟡 En cours (14/19 complétés)
 **Objectif** : Notes robustes et exploitables pour enrichir l'analyse
 **Items** : 19 MVP
 
 ### Livrables
 
-| Catégorie | Item | Priorité |
-|-----------|------|----------|
-| **Notes Git Versioning** | Backend historique des versions | MVP |
-| | API: GET /notes/{id}/versions | MVP |
-| | API: GET /notes/{id}/versions/{v} | MVP |
-| | API: GET /notes/{id}/diff?v1=X&v2=Y | MVP |
-| | API: POST /notes/{id}/restore/{v} | MVP |
-| **Notes UI** | Éditeur Markdown complet | MVP |
-| **Notes API** | POST /api/notes/folders | MVP |
-| **Search** | GET /api/search (multi-types) | MVP |
-| **UI Components** | Modal.svelte | MVP |
-| | Tabs.svelte | MVP |
-| | Toast.svelte | MVP |
-| | ConfidenceBar.svelte | MVP |
-| | Skeleton.svelte | MVP |
-| | Infinite Scroll + Virtualisation | MVP |
-| **Stats** | GET /api/stats/overview | MVP |
-| | GET /api/stats/by-source | MVP |
-| **Calendar** | Bouton briefing pré-réunion | MVP |
-| | Détection et alerte conflits | MVP |
-| **API** | GET /api/status | MVP |
+| Catégorie | Item | Priorité | Statut |
+|-----------|------|----------|--------|
+| **Notes Git Versioning** | Backend historique des versions | MVP | ✅ |
+| | API: GET /notes/{id}/versions | MVP | ✅ |
+| | API: GET /notes/{id}/versions/{v} | MVP | ✅ |
+| | API: GET /notes/{id}/diff?v1=X&v2=Y | MVP | ✅ |
+| | API: POST /notes/{id}/restore/{v} | MVP | ✅ |
+| **Notes UI** | Éditeur Markdown complet | MVP | ✅ |
+| **Notes API** | POST /api/notes/folders | MVP | ⬜ |
+| **Search** | GET /api/search (multi-types) | MVP | ✅ |
+| **UI Components** | Modal.svelte | MVP | ✅ |
+| | Tabs.svelte | MVP | ✅ |
+| | Toast.svelte | MVP | ✅ |
+| | ConfidenceBar.svelte | MVP | ✅ |
+| | Skeleton.svelte | MVP | ✅ |
+| | Infinite Scroll + Virtualisation | MVP | ⬜ |
+| **Stats** | GET /api/stats/overview | MVP | ✅ |
+| | GET /api/stats/by-source | MVP | ✅ |
+| **Calendar** | Bouton briefing pré-réunion | MVP | ⬜ |
+| | Détection et alerte conflits | MVP | ⬜ |
+| **API** | GET /api/status | MVP | ⬜ |
 
 ### Architecture Notes Git Versioning
 
@@ -469,7 +469,7 @@ Valeur Fonct.:     ████████████████████ 
 Interfaces:        ████████████████████ 100% ✅
 
 === MVP EN COURS ===
-Sprint 1 (Notes):  ░░░░░░░░░░░░░░░░░░░░   0% 📋
+Sprint 1 (Notes):  ██████████████░░░░░░  74% 🟡 (14/19)
 Sprint 2 (Analyse):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 3 (Actions):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -478,21 +478,21 @@ Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░ 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        ████████████░░░░░░░░  60% (phases complétées)
-                   → 63 items restants
+Global MVP:        █████████████░░░░░░░  66% (phases + Sprint 1)
+                   → 48 items restants (15 MVP complétés sur 63)
 ```
 
 ### Items par Sprint
 
-| Sprint | Items MVP | Statut |
-|--------|-----------|--------|
-| Sprint 1 | 19 | 📋 À démarrer |
-| Sprint 2 | 14 | 📋 Planifié |
-| Sprint 3 | 16 | 📋 Planifié |
-| Sprint 4 | 14 | 📋 Planifié |
-| Sprint 5 | 6 | 📋 Planifié |
-| **Total MVP** | **69** | — |
-| Phase 3.0 | 53 | 📋 Après MVP |
+| Sprint | Items MVP | Complétés | Statut |
+|--------|-----------|-----------|--------|
+| Sprint 1 | 19 | 14 | 🟡 74% |
+| Sprint 2 | 14 | 0 | 📋 Planifié |
+| Sprint 3 | 16 | 0 | 📋 Planifié |
+| Sprint 4 | 14 | 0 | 📋 Planifié |
+| Sprint 5 | 6 | 0 | 📋 Planifié |
+| **Total MVP** | **69** | **14** | 20% |
+| Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
 
@@ -549,6 +549,13 @@ Global MVP:        ████████████░░░░░░░░ 
 
 ## Historique des Versions
 
+- **v1.0.0-alpha.9** (2026-01-06) : Stats API
+  - ✅ GET /api/stats/overview - Vue globale agrégée
+  - ✅ GET /api/stats/by-source - Détails par source
+  - ✅ Frontend stats page connectée à l'API
+  - ✅ 12 tests backend + 4 tests frontend
+  - Total : 1692+ tests
+
 - **v1.0.0-alpha.8** (2026-01-05) : Note Enrichment System
   - ✅ SM-2 Spaced Repetition complet (7 modules Passepartout)
   - ✅ 75 nouveaux tests (total 1666+)
@@ -586,7 +593,7 @@ Global MVP:        ████████████░░░░░░░░ 
 
 ---
 
-**Statut** : Sprint 1 — Notes & Fondation Contexte
+**Statut** : Sprint 1 — Notes & Fondation Contexte (74% complété)
 **Qualité** : 10/10 Production Ready Core
-**Tests** : 1414+ tests, 95% couverture, 100% pass
-**Prochaine étape** : Implémenter Notes Git Versioning
+**Tests** : 1692+ tests, 95% couverture, 100% pass
+**Prochaine étape** : Finir Sprint 1 (5 items restants)

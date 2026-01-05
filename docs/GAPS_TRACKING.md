@@ -1,8 +1,8 @@
 # Suivi des Écarts — Scapin
 
-**Dernière mise à jour** : 5 janvier 2026
+**Dernière mise à jour** : 6 janvier 2026
 **Total items** : 124
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 16
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 18
 
 ---
 
@@ -33,7 +33,7 @@
 | ⬜ | Entity Manager - gestion des entités extraites | Nice-to-have |
 | ⬜ | Relationship Manager - graphe NetworkX des relations | Nice-to-have |
 | ⬜ | API: POST /api/notes/folders - créer dossier | MVP |
-| ⬜ | UI: Éditeur Markdown complet | MVP |
+| ✅ | UI: Éditeur Markdown complet | MVP |
 | ⬜ | UI: Bouton "Discuter de cette note" | Nice-to-have |
 | ⬜ | API: POST /api/capture - capture rapide | Nice-to-have |
 | ⬜ | API: GET /api/capture/inbox - inbox captures | Nice-to-have |
@@ -154,8 +154,8 @@
 ### Stats API (5)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | GET /api/stats/overview - vue globale KPIs | MVP |
-| ⬜ | GET /api/stats/by-source - répartition par source | MVP |
+| ✅ | GET /api/stats/overview - vue globale KPIs | MVP |
+| ✅ | GET /api/stats/by-source - répartition par source | MVP |
 | ⬜ | GET /api/stats/confidence - évolution confiance | Nice-to-have |
 | ⬜ | GET /api/stats/tokens + budget - consommation API | Nice-to-have |
 | ⬜ | GET /api/stats/learning - patterns Sganarelle | Nice-to-have |
@@ -262,11 +262,11 @@
 
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Modal.svelte (dialog générique) | MVP |
-| ⬜ | Tabs.svelte (navigation par onglets) | MVP |
-| ⬜ | Toast.svelte (notifications temporaires) | MVP |
-| ⬜ | ConfidenceBar.svelte (barre de confiance visuelle) | MVP |
-| ⬜ | Skeleton.svelte (loading placeholders) | MVP |
+| ✅ | Modal.svelte (dialog générique) | MVP |
+| ✅ | Tabs.svelte (navigation par onglets) | MVP |
+| ✅ | Toast.svelte (notifications temporaires) | MVP |
+| ✅ | ConfidenceBar.svelte (barre de confiance visuelle) | MVP |
+| ✅ | Skeleton.svelte (loading placeholders) | MVP |
 | ⬜ | Infinite Scroll + Virtualisation (listes longues) | MVP |
 
 ---
@@ -304,9 +304,9 @@
 ## Progression
 
 ```
-MVP:          █░░░░░░░░░░░░░░░░░░░ 6/63 (10%)
-Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 2/53 (4%)
-Total:        █░░░░░░░░░░░░░░░░░░░ 8/116 (7%)
+MVP:          ███░░░░░░░░░░░░░░░░░ 15/63 (24%)
+Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
+Total:        ███░░░░░░░░░░░░░░░░░ 18/116 (16%)
 ```
 
 ---
@@ -319,7 +319,10 @@ Total:        █░░░░░░░░░░░░░░░░░░░ 8/116
 | 2026-01-05 | Seconde passe - Ajout 21 items (Intégrations, Cognitif, UI Components, Qualité) |
 | 2026-01-05 | Git Versioning complété (5 items) - backend + 4 endpoints API |
 | 2026-01-05 | Search API complétée (2 items) - GET /api/search + /api/search/recent |
-| 2026-01-05 | **Note Enrichment System complété** - Révision espacée SM-2 (7 modules, 75 tests) |
+| 2026-01-05 | Note Enrichment System complété - Révision espacée SM-2 (7 modules, 75 tests) |
+| 2026-01-05 | UI Components complétés (5 items) - Modal, Tabs, Toast, ConfidenceBar, Skeleton |
+| 2026-01-05 | Éditeur Markdown complété - Preview live, wikilinks, toolbar, auto-save |
+| 2026-01-06 | **Stats API complétée (2 items)** - GET /api/stats/overview + /by-source |
 
 ---
 

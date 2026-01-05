@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 5 janvier 2026
+**Dernière mise à jour** : 6 janvier 2026
 **Projet** : Scapin (anciennement PKM System)  
 **Dépôt** : https://github.com/johanlb/scapin  
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -542,6 +542,66 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-06 — Stats API Implementation
+
+**Focus** : Implémentation de l'API Stats avec endpoints overview et by-source
+
+**Accomplissements** :
+
+1. ✅ **Models Stats** (`src/jeeves/api/models/stats.py` ~50 lignes)
+   - `StatsOverviewResponse` — Statistiques agrégées haut niveau
+   - `StatsBySourceResponse` — Détails par source (email, teams, calendar, queue, notes)
+
+2. ✅ **StatsService** (`src/jeeves/api/services/stats_service.py` ~300 lignes)
+   - Agrégation stats depuis EmailService, TeamsService, QueueService, NotesReviewService
+   - Lecture calendar stats depuis StateManager
+   - `get_overview()` et `get_by_source()` avec gestion d'erreurs gracieuse
+
+3. ✅ **Stats Router** (`src/jeeves/api/routers/stats.py` ~65 lignes)
+   - `GET /api/stats/overview` — Vue globale KPIs
+   - `GET /api/stats/by-source` — Stats détaillées par source
+
+4. ✅ **Frontend Types & Functions** (`client.ts` +80 lignes)
+   - Interfaces: `StatsOverview`, `StatsBySource`, `CalendarStats`, `NotesReviewStats`
+   - Fonctions: `getStatsOverview()`, `getStatsBySource()`
+
+5. ✅ **Page Stats connectée** (`+page.svelte` refait ~350 lignes)
+   - Remplacement données mock par API réelles
+   - Loading state avec Skeleton
+   - Error state avec bouton retry
+   - Affichage détails par source (email, teams, calendar, queue, notes)
+
+6. ✅ **Tests Backend** (`test_api_stats.py` 12 tests)
+   - TestStatsModels (3 tests)
+   - TestStatsService (3 tests)
+   - TestStatsOverviewEndpoint (3 tests)
+   - TestStatsBySourceEndpoint (3 tests)
+
+7. ✅ **Tests Frontend** (`client.test.ts` +4 tests)
+   - `getStatsOverview` success, error
+   - `getStatsBySource` success, null sources
+
+**Fichiers créés/modifiés** :
+```
+src/jeeves/api/models/stats.py              # NEW (~50 lignes)
+src/jeeves/api/services/stats_service.py    # NEW (~300 lignes)
+src/jeeves/api/routers/stats.py             # NEW (~65 lignes)
+src/jeeves/api/routers/__init__.py          # MODIFIED (export stats_router)
+src/jeeves/api/app.py                       # MODIFIED (register router)
+web/src/lib/api/client.ts                   # MODIFIED (+80 lignes)
+web/src/lib/components/ui/index.ts          # MODIFIED (export Skeleton)
+web/src/routes/stats/+page.svelte           # MODIFIED (~350 lignes)
+tests/unit/test_api_stats.py                # NEW (12 tests)
+web/src/lib/api/__tests__/client.test.ts    # MODIFIED (+4 tests)
+```
+
+**Tests** : 22 tests frontend, 12 tests backend stats, svelte-check 0 errors
+
+**Commits** :
+- `81492f3` — feat(api): implement Stats API with overview and by-source endpoints
+
+---
 
 ### Session 2026-01-05 (Suite 17) — Search API Frontend Integration
 
@@ -1858,27 +1918,33 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Sprint 1 : Notes & Fondation Contexte (Suite)
+### Sprint 1 : Finir (5 items restants)
 
-**Priorité** : Les notes sont au cœur de la boucle cognitive (voir ROADMAP.md v3.1)
+**Statut** : 74% complété (14/19 items)
 
-**Complété cette session** :
-- ✅ Note Enrichment System complet (SM-2, 7 modules, 75 tests)
+**Complété** :
+- ✅ Notes Git Versioning (5 endpoints)
+- ✅ Éditeur Markdown complet
+- ✅ Search API (2 endpoints)
+- ✅ UI Components (5/6) : Modal, Tabs, Toast, ConfidenceBar, Skeleton
+- ✅ Stats API (2 endpoints)
+- ✅ Note Enrichment System (SM-2)
+- ✅ API Notes Review (8 endpoints)
+- ✅ UI Notes Review
 
-**Prochaines étapes** :
+**Restant Sprint 1** :
 
 | Priorité | Item | Description |
 |----------|------|-------------|
-| 🔴 | API Notes Review | Endpoints pour exposer le système de révision |
-| 🔴 | UI Notes Review | Interface de révision dans le frontend |
-| 🔴 | Éditeur Markdown | UI complète pour édition notes |
-| 🟠 | UI Components | Modal, Tabs, Toast, ConfidenceBar, Skeleton |
-| 🟠 | Stats API | GET /api/stats/overview, by-source |
-| 🟢 | Calendar | Bouton briefing pré-réunion, Détection conflits |
+| 🔴 | POST /api/notes/folders | Créer dossiers notes |
+| 🔴 | Infinite Scroll | Virtualisation listes longues |
+| 🟠 | Calendar briefing button | Bouton briefing pré-réunion |
+| 🟠 | Calendar conflict detection | Alerte conflits calendrier |
+| 🟠 | GET /api/status | Status temps réel Scapin |
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète des 116 items (63 MVP, 52 Nice-to-have restants).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (48 MVP restants sur 63).
 
 ---
 
