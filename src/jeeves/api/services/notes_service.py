@@ -13,17 +13,23 @@ from typing import Any
 
 from src.core.config_manager import ScapinConfig
 from src.jeeves.api.models.notes import (
+    DiffChangeSection,
     EntityResponse,
     FolderNode,
+    NoteDiffResponse,
     NoteLinksResponse,
     NoteResponse,
     NoteSearchResponse,
     NoteSearchResult,
     NotesTreeResponse,
     NoteSyncStatus,
+    NoteVersionContentResponse,
+    NoteVersionResponse,
+    NoteVersionsResponse,
     WikilinkResponse,
 )
 from src.monitoring.logger import get_logger
+from src.passepartout.git_versioning import GitVersionManager
 from src.passepartout.note_manager import Note, NoteManager
 
 logger = get_logger("jeeves.api.services.notes")
@@ -117,10 +123,12 @@ class NotesService:
     Notes service for API endpoints
 
     Wraps NoteManager with API-specific logic.
+    Provides CRUD operations, search, and Git versioning.
     """
 
     config: ScapinConfig
     _note_manager: NoteManager | None = field(default=None, init=False)
+    _git_manager: GitVersionManager | None = field(default=None, init=False)
 
     def _get_manager(self) -> NoteManager:
         """Get or create NoteManager instance"""
@@ -133,6 +141,18 @@ class NotesService:
                 notes_dir = Path(notes_dir)
             self._note_manager = NoteManager(notes_dir, auto_index=True)
         return self._note_manager
+
+    def _get_git_manager(self) -> GitVersionManager:
+        """Get or create GitVersionManager instance"""
+        if self._git_manager is None:
+            # Use same notes directory as NoteManager
+            notes_dir = getattr(self.config, "notes_dir", None)
+            if notes_dir is None:
+                notes_dir = Path.home() / "Documents" / "Notes"
+            else:
+                notes_dir = Path(notes_dir)
+            self._git_manager = GitVersionManager(notes_dir)
+        return self._git_manager
 
     async def get_notes_tree(
         self,
@@ -490,6 +510,194 @@ class NotesService:
 
         current_pinned = note.metadata.get("pinned", False)
         return await self.update_note(note_id, pinned=not current_pinned)
+
+    # =========================================================================
+    # Git Versioning Methods
+    # =========================================================================
+
+    async def list_versions(
+        self,
+        note_id: str,
+        limit: int = 50,
+    ) -> NoteVersionsResponse | None:
+        """
+        List version history for a note
+
+        Args:
+            note_id: Note identifier
+            limit: Maximum versions to return
+
+        Returns:
+            NoteVersionsResponse or None if note not found
+        """
+        logger.info(f"Listing versions for note: {note_id}")
+        manager = self._get_manager()
+
+        # Verify note exists
+        note = manager.get_note(note_id)
+        if note is None:
+            return None
+
+        git_manager = self._get_git_manager()
+        filename = f"{note_id}.md"
+        versions = git_manager.list_versions(filename, limit=limit)
+
+        return NoteVersionsResponse(
+            note_id=note_id,
+            versions=[
+                NoteVersionResponse(
+                    version_id=v.version_id,
+                    full_hash=v.full_hash,
+                    message=v.message,
+                    timestamp=v.timestamp,
+                    author=v.author,
+                )
+                for v in versions
+            ],
+            total=len(versions),
+        )
+
+    async def get_version(
+        self,
+        note_id: str,
+        version_id: str,
+    ) -> NoteVersionContentResponse | None:
+        """
+        Get note content at a specific version
+
+        Args:
+            note_id: Note identifier
+            version_id: Git commit hash
+
+        Returns:
+            NoteVersionContentResponse or None if not found
+        """
+        logger.info(f"Getting version {version_id} of note {note_id}")
+        git_manager = self._get_git_manager()
+
+        filename = f"{note_id}.md"
+        content = git_manager.get_version(filename, version_id)
+
+        if content is None:
+            return None
+
+        # Get version metadata
+        versions = git_manager.list_versions(filename, limit=100)
+        version_info = next(
+            (v for v in versions if v.version_id == version_id[:7]),
+            None,
+        )
+
+        if version_info is None:
+            # Fallback timestamp
+            from datetime import datetime, timezone
+
+            timestamp = datetime.now(timezone.utc)
+        else:
+            timestamp = version_info.timestamp
+
+        return NoteVersionContentResponse(
+            note_id=note_id,
+            version_id=version_id,
+            content=content,
+            timestamp=timestamp,
+        )
+
+    async def diff_versions(
+        self,
+        note_id: str,
+        from_version: str,
+        to_version: str,
+    ) -> NoteDiffResponse | None:
+        """
+        Get diff between two versions of a note
+
+        Args:
+            note_id: Note identifier
+            from_version: Source version (older)
+            to_version: Target version (newer)
+
+        Returns:
+            NoteDiffResponse or None if versions not found
+        """
+        logger.info(f"Diffing note {note_id}: {from_version} -> {to_version}")
+        git_manager = self._get_git_manager()
+
+        filename = f"{note_id}.md"
+        diff = git_manager.diff(filename, from_version, to_version)
+
+        if diff is None:
+            return None
+
+        return NoteDiffResponse(
+            note_id=note_id,
+            from_version=from_version,
+            to_version=to_version,
+            additions=diff.additions,
+            deletions=diff.deletions,
+            diff_text=diff.diff_text,
+            changes=[
+                DiffChangeSection(
+                    header=change["header"],
+                    lines=change["lines"],
+                )
+                for change in diff.changes
+            ],
+        )
+
+    async def restore_version(
+        self,
+        note_id: str,
+        version_id: str,
+    ) -> NoteResponse | None:
+        """
+        Restore a note to a previous version
+
+        Args:
+            note_id: Note identifier
+            version_id: Version to restore to
+
+        Returns:
+            Updated NoteResponse or None if failed
+        """
+        logger.info(f"Restoring note {note_id} to version {version_id}")
+        manager = self._get_manager()
+        git_manager = self._get_git_manager()
+
+        # Verify note exists
+        note = manager.get_note(note_id)
+        if note is None:
+            return None
+
+        filename = f"{note_id}.md"
+        success = git_manager.restore(filename, version_id)
+
+        if not success:
+            return None
+
+        # Clear cache and reload note
+        if note_id in manager._note_cache:
+            del manager._note_cache[note_id]
+
+        # Re-index in vector store (content changed)
+        updated_note = manager.get_note(note_id)
+        if updated_note:
+            # Update vector store
+            manager.vector_store.remove(note_id)
+            search_text = f"{updated_note.title}\n\n{updated_note.content}"
+            manager.vector_store.add(
+                doc_id=note_id,
+                text=search_text,
+                metadata={
+                    "title": updated_note.title,
+                    "tags": updated_note.tags,
+                    "updated_at": updated_note.updated_at.isoformat(),
+                    "entities": [e.value for e in updated_note.entities],
+                },
+            )
+            return _note_to_response(updated_note)
+
+        return None
 
     async def get_sync_status(self) -> NoteSyncStatus:
         """

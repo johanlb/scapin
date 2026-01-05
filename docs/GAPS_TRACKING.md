@@ -20,11 +20,11 @@
 ### Git Versioning (5)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Git Versioning - historique des versions (backend) | MVP |
-| ⬜ | API: GET /notes/{id}/versions - liste versions | MVP |
-| ⬜ | API: GET /notes/{id}/versions/{v} - version spécifique | MVP |
-| ⬜ | API: GET /notes/{id}/diff?v1=X&v2=Y - diff entre versions | MVP |
-| ⬜ | API: POST /notes/{id}/restore/{v} - restaurer version | MVP |
+| ✅ | Git Versioning - historique des versions (backend) | MVP |
+| ✅ | API: GET /notes/{id}/versions - liste versions | MVP |
+| ✅ | API: GET /notes/{id}/versions/{v} - version spécifique | MVP |
+| ✅ | API: GET /notes/{id}/diff?v1=X&v2=Y - diff entre versions | MVP |
+| ✅ | API: POST /notes/{id}/restore/{v} - restaurer version | MVP |
 
 ### Fonctionnalités (8)
 | Status | Item | Priorité |
@@ -304,9 +304,9 @@
 ## Progression
 
 ```
-MVP:          ░░░░░░░░░░░░░░░░░░░░ 0/63 (0%)
+MVP:          █░░░░░░░░░░░░░░░░░░░ 5/63 (8%)
 Nice-to-have: ░░░░░░░░░░░░░░░░░░░░ 0/53 (0%)
-Total:        ░░░░░░░░░░░░░░░░░░░░ 0/116 (0%)
+Total:        █░░░░░░░░░░░░░░░░░░░ 5/116 (4%)
 ```
 
 ---
@@ -317,6 +317,7 @@ Total:        ░░░░░░░░░░░░░░░░░░░░ 0/116
 |------|--------|
 | 2026-01-05 | Création initiale - Analyse complète des écarts vs specs |
 | 2026-01-05 | Seconde passe - Ajout 21 items (Intégrations, Cognitif, UI Components, Qualité) |
+| 2026-01-05 | Git Versioning complété (5 items) - backend + 4 endpoints API |
 
 ---
 

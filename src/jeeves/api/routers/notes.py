@@ -11,12 +11,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.jeeves.api.deps import get_notes_service
 from src.jeeves.api.models.notes import (
     NoteCreateRequest,
+    NoteDiffResponse,
     NoteLinksResponse,
     NoteResponse,
     NoteSearchResponse,
     NotesTreeResponse,
     NoteSyncStatus,
     NoteUpdateRequest,
+    NoteVersionContentResponse,
+    NoteVersionsResponse,
 )
 from src.jeeves.api.models.responses import APIResponse, PaginatedResponse
 from src.jeeves.api.services.notes_service import NotesService
@@ -278,6 +281,143 @@ async def toggle_pin(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Git Versioning Endpoints
+# =============================================================================
+
+
+@router.get("/{note_id}/versions", response_model=APIResponse[NoteVersionsResponse])
+async def list_versions(
+    note_id: str,
+    limit: int = Query(50, ge=1, le=200, description="Maximum versions to return"),
+    service: NotesService = Depends(get_notes_service),
+) -> APIResponse[NoteVersionsResponse]:
+    """
+    List version history for a note
+
+    Returns list of commits that modified this note, most recent first.
+    """
+    try:
+        versions = await service.list_versions(note_id, limit=limit)
+        if versions is None:
+            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+
+        return APIResponse(
+            success=True,
+            data=versions,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/{note_id}/versions/{version_id}",
+    response_model=APIResponse[NoteVersionContentResponse],
+)
+async def get_version(
+    note_id: str,
+    version_id: str,
+    service: NotesService = Depends(get_notes_service),
+) -> APIResponse[NoteVersionContentResponse]:
+    """
+    Get note content at a specific version
+
+    Args:
+        note_id: Note identifier
+        version_id: Git commit hash (short or full)
+    """
+    try:
+        version = await service.get_version(note_id, version_id)
+        if version is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Version not found: {version_id} for note {note_id}",
+            )
+
+        return APIResponse(
+            success=True,
+            data=version,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{note_id}/diff", response_model=APIResponse[NoteDiffResponse])
+async def diff_versions(
+    note_id: str,
+    v1: str = Query(..., description="Source version (older)"),
+    v2: str = Query(..., description="Target version (newer)"),
+    service: NotesService = Depends(get_notes_service),
+) -> APIResponse[NoteDiffResponse]:
+    """
+    Get diff between two versions of a note
+
+    Shows what changed between v1 (older) and v2 (newer).
+    """
+    try:
+        diff = await service.diff_versions(note_id, v1, v2)
+        if diff is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not generate diff for note {note_id}: {v1} -> {v2}",
+            )
+
+        return APIResponse(
+            success=True,
+            data=diff,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post(
+    "/{note_id}/restore/{version_id}",
+    response_model=APIResponse[NoteResponse],
+)
+async def restore_version(
+    note_id: str,
+    version_id: str,
+    service: NotesService = Depends(get_notes_service),
+) -> APIResponse[NoteResponse]:
+    """
+    Restore a note to a previous version
+
+    Creates a new commit with the restored content,
+    preserving the full history.
+    """
+    try:
+        note = await service.restore_version(note_id, version_id)
+        if note is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not restore note {note_id} to version {version_id}",
+            )
+
+        return APIResponse(
+            success=True,
+            data=note,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# Delete Endpoint
+# =============================================================================
 
 
 @router.delete("/{note_id}", response_model=APIResponse[None])

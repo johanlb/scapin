@@ -131,3 +131,64 @@ class NoteSyncStatus(BaseModel):
     syncing: bool = Field(False, description="Currently syncing")
     notes_synced: int = Field(0, description="Number of notes synced")
     errors: list[str] = Field(default_factory=list, description="Sync errors")
+
+
+# =============================================================================
+# Git Versioning Models
+# =============================================================================
+
+
+class NoteVersionResponse(BaseModel):
+    """A version (commit) of a note"""
+
+    version_id: str = Field(..., description="Short commit hash (7 chars)")
+    full_hash: str = Field(..., description="Full commit hash")
+    message: str = Field(..., description="Commit message")
+    timestamp: datetime = Field(..., description="When version was created")
+    author: str = Field(..., description="Who made the change")
+
+
+class NoteVersionsResponse(BaseModel):
+    """List of versions for a note"""
+
+    note_id: str = Field(..., description="Note identifier")
+    versions: list[NoteVersionResponse] = Field(
+        default_factory=list, description="Version history, most recent first"
+    )
+    total: int = Field(0, description="Total number of versions")
+
+
+class NoteVersionContentResponse(BaseModel):
+    """Content of a note at a specific version"""
+
+    note_id: str = Field(..., description="Note identifier")
+    version_id: str = Field(..., description="Version identifier")
+    content: str = Field(..., description="Note content at this version")
+    timestamp: datetime = Field(..., description="When this version was created")
+
+
+class DiffChangeSection(BaseModel):
+    """A section of changes in a diff"""
+
+    header: str = Field(..., description="Diff header (e.g., @@ -1,3 +1,4 @@)")
+    lines: list[str] = Field(default_factory=list, description="Changed lines")
+
+
+class NoteDiffResponse(BaseModel):
+    """Diff between two versions of a note"""
+
+    note_id: str = Field(..., description="Note identifier")
+    from_version: str = Field(..., description="Source version ID (older)")
+    to_version: str = Field(..., description="Target version ID (newer)")
+    additions: int = Field(0, ge=0, description="Number of lines added")
+    deletions: int = Field(0, ge=0, description="Number of lines removed")
+    diff_text: str = Field("", description="Unified diff text")
+    changes: list[DiffChangeSection] = Field(
+        default_factory=list, description="Parsed change sections"
+    )
+
+
+class RestoreVersionRequest(BaseModel):
+    """Request to restore a note to a previous version"""
+
+    version_id: str = Field(..., description="Version to restore to")

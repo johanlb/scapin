@@ -17,6 +17,7 @@ import yaml
 from src.core.events import Entity
 from src.monitoring.logger import get_logger
 from src.passepartout.embeddings import EmbeddingGenerator
+from src.passepartout.git_versioning import GitVersionManager
 from src.passepartout.vector_store import VectorStore
 
 logger = get_logger("passepartout.note_manager")
@@ -79,7 +80,8 @@ class NoteManager:
         notes_dir: Path,
         vector_store: Optional[VectorStore] = None,
         embedder: Optional[EmbeddingGenerator] = None,
-        auto_index: bool = True
+        auto_index: bool = True,
+        git_enabled: bool = True,
     ):
         """
         Initialize note manager
@@ -89,6 +91,7 @@ class NoteManager:
             vector_store: VectorStore instance (creates new if None)
             embedder: EmbeddingGenerator instance (creates new if None)
             auto_index: Whether to automatically index existing notes on init
+            git_enabled: Whether to enable Git versioning
 
         Raises:
             ValueError: If notes_dir is invalid
@@ -103,6 +106,16 @@ class NoteManager:
             embedder=self.embedder
         )
 
+        # Initialize Git versioning if enabled
+        self.git: Optional[GitVersionManager] = None
+        if git_enabled:
+            try:
+                self.git = GitVersionManager(self.notes_dir)
+                logger.info("Git versioning enabled for notes")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Git versioning: {e}")
+                self.git = None
+
         # In-memory note cache: note_id → Note
         self._note_cache: dict[str, Note] = {}
 
@@ -110,7 +123,8 @@ class NoteManager:
             "Initialized NoteManager",
             extra={
                 "notes_dir": str(self.notes_dir),
-                "auto_index": auto_index
+                "auto_index": auto_index,
+                "git_enabled": self.git is not None,
             }
         )
 
@@ -184,6 +198,10 @@ class NoteManager:
 
         # Cache
         self._note_cache[note_id] = note
+
+        # Git commit
+        if self.git:
+            self.git.commit(f"{note_id}.md", "Create note", note_title=title)
 
         logger.info(
             "Created note",
@@ -293,6 +311,10 @@ class NoteManager:
             }
         )
 
+        # Git commit
+        if self.git:
+            self.git.commit(f"{note_id}.md", "Update note", note_title=note.title)
+
         logger.info(f"Updated note: {note_id}")
         return True
 
@@ -326,12 +348,9 @@ class NoteManager:
             file_path.unlink()
             logger.info(f"Deleted note file: {file_path}")
 
-            # Git commit
+            # Git commit deletion
             if self.git:
-                try:
-                    self.git.commit(f"Delete note: {note.title}")
-                except Exception as e:
-                    logger.warning(f"Git commit failed: {e}")
+                self.git.commit_delete(f"{note_id}.md", note_title=note.title)
 
         logger.info(f"Deleted note: {note_id}")
         return True
@@ -676,6 +695,6 @@ def get_note_manager(
         if notes_dir is None:
             notes_dir = Path.home() / "Documents" / "Notes"
 
-        _note_manager = NoteManager(notes_dir, git_enabled)
+        _note_manager = NoteManager(notes_dir, git_enabled=git_enabled)
 
     return _note_manager
