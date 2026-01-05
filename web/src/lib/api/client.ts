@@ -1247,6 +1247,107 @@ export async function restoreNoteVersion(noteId: string, versionId: string): Pro
 }
 
 // ============================================================================
+// GLOBAL SEARCH TYPES
+// ============================================================================
+
+type SearchResultType = 'note' | 'email' | 'calendar' | 'teams';
+
+interface SearchResultBase {
+	id: string;
+	type: SearchResultType;
+	title: string;
+	excerpt: string;
+	score: number;
+	timestamp: string;
+	metadata: Record<string, unknown>;
+}
+
+interface GlobalNoteSearchResult extends SearchResultBase {
+	type: 'note';
+	path: string;
+	tags: string[];
+}
+
+interface GlobalEmailSearchResult extends SearchResultBase {
+	type: 'email';
+	from_address: string;
+	from_name: string;
+	status: string;
+}
+
+interface GlobalCalendarSearchResult extends SearchResultBase {
+	type: 'calendar';
+	start: string;
+	end: string;
+	location: string;
+	organizer: string;
+}
+
+interface GlobalTeamsSearchResult extends SearchResultBase {
+	type: 'teams';
+	chat_id: string;
+	sender: string;
+}
+
+interface SearchResultsByType {
+	notes: GlobalNoteSearchResult[];
+	emails: GlobalEmailSearchResult[];
+	calendar: GlobalCalendarSearchResult[];
+	teams: GlobalTeamsSearchResult[];
+}
+
+interface SearchResultCounts {
+	notes: number;
+	emails: number;
+	calendar: number;
+	teams: number;
+}
+
+interface GlobalSearchResponse {
+	query: string;
+	results: SearchResultsByType;
+	total: number;
+	counts: SearchResultCounts;
+	search_time_ms: number;
+}
+
+interface RecentSearchItem {
+	query: string;
+	timestamp: string;
+	result_count: number;
+}
+
+interface RecentSearchesResponse {
+	searches: RecentSearchItem[];
+	total: number;
+}
+
+// ============================================================================
+// GLOBAL SEARCH API FUNCTIONS
+// ============================================================================
+
+export async function globalSearch(
+	query: string,
+	options?: {
+		types?: SearchResultType[];
+		limit?: number;
+		dateFrom?: string;
+		dateTo?: string;
+	}
+): Promise<GlobalSearchResponse> {
+	const params = new URLSearchParams({ q: query });
+	if (options?.types?.length) params.set('types', options.types.join(','));
+	if (options?.limit) params.set('limit', String(options.limit));
+	if (options?.dateFrom) params.set('date_from', options.dateFrom);
+	if (options?.dateTo) params.set('date_to', options.dateTo);
+	return fetchApi<GlobalSearchResponse>(`/search?${params}`);
+}
+
+export async function getRecentSearches(limit = 20): Promise<RecentSearchesResponse> {
+	return fetchApi<RecentSearchesResponse>(`/search/recent?limit=${limit}`);
+}
+
+// ============================================================================
 // NOTES REVIEW API FUNCTIONS (SM-2 Spaced Repetition)
 // ============================================================================
 
@@ -1365,7 +1466,19 @@ export type {
 	NoteVersion,
 	NoteVersionsResponse,
 	NoteVersionContent,
-	NoteDiff
+	NoteDiff,
+	// Global Search types
+	SearchResultType,
+	SearchResultBase,
+	GlobalNoteSearchResult,
+	GlobalEmailSearchResult,
+	GlobalCalendarSearchResult,
+	GlobalTeamsSearchResult,
+	SearchResultsByType,
+	SearchResultCounts,
+	GlobalSearchResponse,
+	RecentSearchItem,
+	RecentSearchesResponse
 };
 
 export { ApiError };

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { globalSearch, type GlobalSearchResponse } from '$lib/api/client';
 
 	interface SearchResult {
 		id: string;
@@ -21,28 +23,143 @@
 	let query = $state('');
 	let selectedIndex = $state(0);
 	let inputRef: HTMLInputElement;
+	let loading = $state(false);
+	let error = $state<string | null>(null);
+	let searchResults = $state<SearchResult[]>([]);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-	// Mock search results - would be replaced by actual search API
-	const allItems: SearchResult[] = [
-		{ id: '1', type: 'note', title: 'Architecture Scapin v2', subtitle: 'Projets/Scapin/Architecture', icon: '📝' },
-		{ id: '2', type: 'note', title: 'Guide déploiement v2.1', subtitle: 'Projets/Scapin/Documentation', icon: '📝' },
-		{ id: '3', type: 'email', title: 'RE: Proposition commerciale Q1', subtitle: 'De: Marie Dupont', icon: '📧' },
-		{ id: '4', type: 'event', title: 'Réunion équipe produit', subtitle: 'Dans 2h - Salle Voltaire', icon: '📅' },
-		{ id: '5', type: 'task', title: 'Préparer présentation Q2', subtitle: 'Due: Vendredi 17h', icon: '✅' },
-		{ id: '6', type: 'discussion', title: 'Discussion #projet-alpha', subtitle: 'Teams - Équipe Dev', icon: '💬' },
-		{ id: '7', type: 'note', title: 'API Design Guidelines', subtitle: 'Projets/Scapin/Documentation', icon: '📝' },
-		{ id: '8', type: 'email', title: 'Newsletter Tech Weekly', subtitle: 'De: Tech Weekly', icon: '📧' },
-		{ id: '9', type: 'note', title: 'Contacts Client ABC', subtitle: 'Clients/ABC', icon: '📝' },
-		{ id: '10', type: 'task', title: 'Review code PR #42', subtitle: 'Due: Aujourd\'hui', icon: '✅' }
+	// Recent items shown when no query (mock for now, could be from API)
+	const recentItems: SearchResult[] = [
+		{ id: 'recent-1', type: 'note', title: 'Dernière note consultée', subtitle: 'Notes récentes', icon: '📝' },
+		{ id: 'recent-2', type: 'email', title: 'Dernier email traité', subtitle: 'Courrier récent', icon: '📧' }
 	];
 
+	// Transform API response to SearchResult format
+	function transformApiResults(response: GlobalSearchResponse): SearchResult[] {
+		const results: SearchResult[] = [];
+
+		// Notes
+		for (const note of response.results.notes) {
+			results.push({
+				id: note.id,
+				type: 'note',
+				title: note.title,
+				subtitle: note.path || note.excerpt,
+				path: note.path,
+				icon: '📝'
+			});
+		}
+
+		// Emails
+		for (const email of response.results.emails) {
+			results.push({
+				id: email.id,
+				type: 'email',
+				title: email.title,
+				subtitle: `De: ${email.from_name || email.from_address}`,
+				icon: '📧'
+			});
+		}
+
+		// Calendar
+		for (const event of response.results.calendar) {
+			results.push({
+				id: event.id,
+				type: 'event',
+				title: event.title,
+				subtitle: event.location || formatEventTime(event.start),
+				icon: '📅'
+			});
+		}
+
+		// Teams
+		for (const msg of response.results.teams) {
+			results.push({
+				id: msg.id,
+				type: 'discussion',
+				title: msg.title,
+				subtitle: `De: ${msg.sender}`,
+				path: msg.chat_id,
+				icon: '💬'
+			});
+		}
+
+		// Sort by score (highest first)
+		return results.sort((a, b) => {
+			const scoreA = getScoreFromResponse(response, a.id);
+			const scoreB = getScoreFromResponse(response, b.id);
+			return scoreB - scoreA;
+		}).slice(0, 8);
+	}
+
+	function getScoreFromResponse(response: GlobalSearchResponse, id: string): number {
+		for (const note of response.results.notes) if (note.id === id) return note.score;
+		for (const email of response.results.emails) if (email.id === id) return email.score;
+		for (const event of response.results.calendar) if (event.id === id) return event.score;
+		for (const msg of response.results.teams) if (msg.id === id) return msg.score;
+		return 0;
+	}
+
+	function formatEventTime(isoString: string): string {
+		try {
+			const date = new Date(isoString);
+			return date.toLocaleString('fr-FR', {
+				day: 'numeric',
+				month: 'short',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch {
+			return isoString;
+		}
+	}
+
+	// Debounced search function
+	async function performSearch(searchQuery: string) {
+		if (searchQuery.length < 2) {
+			searchResults = [];
+			return;
+		}
+
+		loading = true;
+		error = null;
+
+		try {
+			const response = await globalSearch(searchQuery, { limit: 10 });
+			searchResults = transformApiResults(response);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Erreur de recherche';
+			searchResults = [];
+		} finally {
+			loading = false;
+		}
+	}
+
+	// Watch query changes with debounce
+	$effect(() => {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+
+		if (query.trim().length >= 2) {
+			debounceTimer = setTimeout(() => {
+				performSearch(query.trim());
+			}, 300);
+		} else {
+			searchResults = [];
+			loading = false;
+		}
+
+		return () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+		};
+	});
+
+	// Results to display
 	const results = $derived(
 		query.trim() === ''
-			? allItems.slice(0, 6) // Show recent items when no query
-			: allItems.filter(item =>
-					item.title.toLowerCase().includes(query.toLowerCase()) ||
-					(item.subtitle?.toLowerCase().includes(query.toLowerCase()) ?? false)
-				).slice(0, 8)
+			? recentItems
+			: searchResults
 	);
 
 	// Reset selection when results change
@@ -65,13 +182,45 @@
 			case 'Enter':
 				event.preventDefault();
 				if (results[selectedIndex]) {
-					onselect(results[selectedIndex]);
-					onclose();
+					navigateToResult(results[selectedIndex]);
 				}
 				break;
 			case 'Escape':
 				event.preventDefault();
 				onclose();
+				break;
+		}
+	}
+
+	// Navigate to the selected result
+	function navigateToResult(result: SearchResult) {
+		onselect(result);
+		onclose();
+
+		// Navigate based on result type
+		switch (result.type) {
+			case 'note':
+				if (result.path) {
+					goto(`/notes/${result.path}`);
+				} else {
+					goto(`/notes?id=${result.id}`);
+				}
+				break;
+			case 'email':
+				goto(`/flux/${result.id}`);
+				break;
+			case 'event':
+				goto(`/calendar?event=${result.id}`);
+				break;
+			case 'discussion':
+				if (result.path) {
+					goto(`/discussions?chat=${result.path}`);
+				} else {
+					goto(`/discussions?id=${result.id}`);
+				}
+				break;
+			case 'task':
+				goto(`/tasks/${result.id}`);
 				break;
 		}
 	}
@@ -142,9 +291,25 @@
 
 		<!-- Results -->
 		<div class="max-h-[50vh] overflow-y-auto">
-			{#if results.length === 0}
+			{#if loading}
+				<div class="flex justify-center py-8">
+					<div class="w-6 h-6 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"></div>
+				</div>
+			{:else if error}
+				<div class="p-8 text-center">
+					<p class="text-[var(--color-error)]">{error}</p>
+				</div>
+			{:else if query.trim().length >= 2 && results.length === 0}
 				<div class="p-8 text-center">
 					<p class="text-[var(--color-text-tertiary)]">Je ne trouve rien de tel dans vos papiers, Monsieur</p>
+				</div>
+			{:else if query.trim().length > 0 && query.trim().length < 2}
+				<div class="p-8 text-center">
+					<p class="text-[var(--color-text-tertiary)]">Tapez au moins 2 caractères pour rechercher</p>
+				</div>
+			{:else if results.length === 0}
+				<div class="p-8 text-center">
+					<p class="text-[var(--color-text-tertiary)]">Commencez à taper pour rechercher</p>
 				</div>
 			{:else}
 				<div class="p-2">
@@ -162,7 +327,7 @@
 								{index === selectedIndex
 								? 'glass-subtle shadow-[inset_0_0_0_1px_var(--color-accent)]/20'
 								: 'hover:bg-[var(--glass-tint)]'}"
-							onclick={() => { onselect(result); onclose(); }}
+							onclick={() => navigateToResult(result)}
 							onmouseenter={() => selectedIndex = index}
 						>
 							<span class="text-xl">{result.icon}</span>

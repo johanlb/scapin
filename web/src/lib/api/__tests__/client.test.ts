@@ -10,6 +10,8 @@ import {
 	getNoteVersionContent,
 	diffNoteVersions,
 	restoreNoteVersion,
+	globalSearch,
+	getRecentSearches,
 	ApiError
 } from '../client';
 
@@ -353,6 +355,165 @@ describe('API Client', () => {
 				expect(mockFetch).toHaveBeenCalledWith(
 					'/api/notes/note-123/restore/abc1234',
 					expect.objectContaining({ method: 'POST' })
+				);
+			});
+		});
+	});
+
+	describe('Global Search API', () => {
+		describe('globalSearch', () => {
+			it('should return search results on success', async () => {
+				const mockSearchResponse = {
+					query: 'test query',
+					results: {
+						notes: [
+							{
+								id: 'note-1',
+								type: 'note',
+								title: 'Test Note',
+								excerpt: 'This is a test note',
+								score: 0.95,
+								timestamp: '2026-01-05T10:00:00Z',
+								metadata: {},
+								path: '/notes/test',
+								tags: ['test']
+							}
+						],
+						emails: [
+							{
+								id: 'email-1',
+								type: 'email',
+								title: 'Test Email',
+								excerpt: 'Email content',
+								score: 0.85,
+								timestamp: '2026-01-05T09:00:00Z',
+								metadata: {},
+								from_address: 'test@example.com',
+								from_name: 'Test User',
+								status: 'pending'
+							}
+						],
+						calendar: [],
+						teams: []
+					},
+					total: 2,
+					counts: { notes: 1, emails: 1, calendar: 0, teams: 0 },
+					search_time_ms: 42
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockSearchResponse,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await globalSearch('test query');
+
+				expect(result).toEqual(mockSearchResponse);
+				expect(result.total).toBe(2);
+				expect(result.results.notes).toHaveLength(1);
+				expect(result.results.emails).toHaveLength(1);
+				expect(mockFetch).toHaveBeenCalledWith('/api/search?q=test+query', expect.any(Object));
+			});
+
+			it('should pass optional parameters', async () => {
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: {
+								query: 'test',
+								results: { notes: [], emails: [], calendar: [], teams: [] },
+								total: 0,
+								counts: { notes: 0, emails: 0, calendar: 0, teams: 0 },
+								search_time_ms: 10
+							},
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				await globalSearch('test', {
+					types: ['note', 'email'],
+					limit: 5,
+					dateFrom: '2026-01-01',
+					dateTo: '2026-01-05'
+				});
+
+				expect(mockFetch).toHaveBeenCalledWith(
+					'/api/search?q=test&types=note%2Cemail&limit=5&date_from=2026-01-01&date_to=2026-01-05',
+					expect.any(Object)
+				);
+			});
+
+			it('should throw ApiError on search failure', async () => {
+				mockFetch.mockResolvedValueOnce({
+					ok: false,
+					status: 400,
+					json: () => Promise.resolve({ detail: 'Invalid query' })
+				});
+
+				try {
+					await globalSearch('');
+					expect.fail('Should have thrown');
+				} catch (error) {
+					expect(error).toBeInstanceOf(ApiError);
+					expect((error as ApiError).status).toBe(400);
+				}
+			});
+		});
+
+		describe('getRecentSearches', () => {
+			it('should return recent searches on success', async () => {
+				const mockRecentSearches = {
+					searches: [
+						{ query: 'previous search', timestamp: '2026-01-05T09:00:00Z', result_count: 5 },
+						{ query: 'older search', timestamp: '2026-01-04T15:00:00Z', result_count: 3 }
+					],
+					total: 2
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockRecentSearches,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await getRecentSearches();
+
+				expect(result).toEqual(mockRecentSearches);
+				expect(result.searches).toHaveLength(2);
+				expect(mockFetch).toHaveBeenCalledWith('/api/search/recent?limit=20', expect.any(Object));
+			});
+
+			it('should use custom limit parameter', async () => {
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: { searches: [], total: 0 },
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				await getRecentSearches(10);
+
+				expect(mockFetch).toHaveBeenCalledWith(
+					'/api/search/recent?limit=10',
+					expect.any(Object)
 				);
 			});
 		});
