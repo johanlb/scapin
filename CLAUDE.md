@@ -543,6 +543,45 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-05 (Suite 17) — Search API Frontend Integration
+
+**Focus** : Intégration frontend de l'API de recherche globale avec CommandPalette
+
+**Accomplissements** :
+
+1. ✅ **Types Search** (`client.ts` +75 lignes)
+   - Types: `SearchResultType`, `GlobalNoteSearchResult`, `GlobalEmailSearchResult`, etc.
+   - Interfaces: `GlobalSearchResponse`, `SearchResultsByType`, `RecentSearchesResponse`
+
+2. ✅ **Fonctions API Search** (`client.ts` +20 lignes)
+   - `globalSearch(query, options)` — Recherche multi-source avec filtres
+   - `getRecentSearches(limit)` — Historique des recherches
+
+3. ✅ **CommandPalette.svelte** (~180 lignes modifiées)
+   - Connexion API avec debounce 300ms (après 2 caractères)
+   - Transformation résultats API → format d'affichage unifié
+   - Navigation par type: note → /notes, email → /flux, event → /calendar, teams → /discussions
+   - États visuels: spinner loading, message erreur, "Aucun résultat"
+   - Tri par score de pertinence
+
+4. ✅ **Tests** (+5 tests)
+   - `globalSearch` success, options, error
+   - `getRecentSearches` success, custom limit
+
+**Fichiers modifiés** :
+```
+web/src/lib/api/client.ts                         # +115 lignes (types + fonctions)
+web/src/lib/components/ui/CommandPalette.svelte   # +185 lignes (intégration API)
+web/src/lib/api/__tests__/client.test.ts          # +5 tests
+```
+
+**Tests** : 18 tests frontend passent, svelte-check 0 errors
+
+**Commits** :
+- `318d7ec` — feat(web): integrate Search API with CommandPalette
+
+---
+
 ### Session 2026-01-05 (Suite 16) — Notes Git Versioning UI
 
 **Focus** : Implémentation de l'interface utilisateur pour le versioning Git des notes
