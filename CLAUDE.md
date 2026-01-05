@@ -543,6 +543,57 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-05 (Suite 16) — Notes Git Versioning UI
+
+**Focus** : Implémentation de l'interface utilisateur pour le versioning Git des notes
+
+**Accomplissements** :
+
+1. ✅ **Types & API Client** (`client.ts` +76 lignes)
+   - Types: `NoteVersion`, `NoteVersionsResponse`, `NoteVersionContent`, `NoteDiff`
+   - Fonctions: `getNoteVersions()`, `getNoteVersionContent()`, `diffNoteVersions()`, `restoreNoteVersion()`
+
+2. ✅ **VersionDiff.svelte** (~110 lignes)
+   - Affichage diff unifié avec couleurs (vert additions, rouge deletions)
+   - Parsing du diff_text en lignes typées (addition, deletion, context, header)
+   - Stats header (+N / -N)
+
+3. ✅ **NoteHistory.svelte** (~260 lignes)
+   - Modal historique avec liste des versions
+   - Sélection de 2 versions pour comparaison
+   - Bouton restaurer avec confirmation
+   - Intégration VersionDiff pour affichage du diff
+
+4. ✅ **Intégration page note** (`+page.svelte` +20 lignes)
+   - Bouton historique (🕐) dans le header
+   - État `showHistory` et `handleRestore`
+
+5. ✅ **Export Modal** (`index.ts`)
+   - Ajout de Modal aux exports du barrel UI
+
+6. ✅ **Tests API** (+5 tests)
+   - `getNoteVersions`, `getNoteVersionContent`, `diffNoteVersions`, `restoreNoteVersion`
+
+**Corrections appliquées (revue code)** :
+- Variables `e` non utilisées dans catch blocks → `_e`
+
+**Tests** : 13 tests frontend passent, svelte-check 0 errors
+
+**Fichiers créés/modifiés** :
+```
+web/src/lib/api/client.ts                         # +76 lignes (types + fonctions)
+web/src/lib/components/notes/VersionDiff.svelte   # Nouveau (~110 lignes)
+web/src/lib/components/notes/NoteHistory.svelte   # Nouveau (~260 lignes)
+web/src/lib/components/ui/index.ts                # +1 ligne (export Modal)
+web/src/routes/notes/[...path]/+page.svelte       # +20 lignes
+web/src/lib/api/__tests__/client.test.ts          # +5 tests
+```
+
+**Commits** :
+- `22c8d43` — feat(web): add Notes Git Versioning UI
+
+---
+
 ### Session 2026-01-05 (Suite 15) — UI Components Sprint 1
 
 **Focus** : Implémentation des composants UI réutilisables (Modal, Toast, Tabs, ConfidenceBar, Skeleton)

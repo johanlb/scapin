@@ -94,7 +94,7 @@
 
 			diff = await diffNoteVersions(noteId, v1, v2);
 			showDiff = true;
-		} catch (e) {
+		} catch (_e) {
 			toastStore.error('Impossible de comparer les versions');
 		} finally {
 			loadingDiff = false;
@@ -116,7 +116,7 @@
 			confirmRestore = false;
 			open = false;
 			onRestore?.();
-		} catch (e) {
+		} catch (_e) {
 			toastStore.error('Impossible de restaurer la version');
 		} finally {
 			restoring = false;

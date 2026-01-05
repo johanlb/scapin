@@ -2,7 +2,16 @@
  * API Client Tests
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getHealth, getStats, getMorningBriefing, ApiError } from '../client';
+import {
+	getHealth,
+	getStats,
+	getMorningBriefing,
+	getNoteVersions,
+	getNoteVersionContent,
+	diffNoteVersions,
+	restoreNoteVersion,
+	ApiError
+} from '../client';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -188,6 +197,164 @@ describe('API Client', () => {
 			expect(error.message).toBe('Not found');
 			expect(error.name).toBe('ApiError');
 			expect(error instanceof Error).toBe(true);
+		});
+	});
+
+	describe('Notes Versioning API', () => {
+		describe('getNoteVersions', () => {
+			it('should return versions list on success', async () => {
+				const mockVersions = {
+					note_id: 'note-123',
+					versions: [
+						{
+							version_id: 'abc1234',
+							full_hash: 'abc1234567890',
+							message: 'Update note',
+							timestamp: '2026-01-05T10:00:00Z',
+							author: 'Johan'
+						}
+					],
+					total: 1
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockVersions,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await getNoteVersions('note-123');
+
+				expect(result).toEqual(mockVersions);
+				expect(mockFetch).toHaveBeenCalledWith(
+					'/api/notes/note-123/versions?limit=50',
+					expect.any(Object)
+				);
+			});
+
+			it('should use custom limit parameter', async () => {
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: { note_id: 'note-123', versions: [], total: 0 },
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				await getNoteVersions('note-123', 10);
+
+				expect(mockFetch).toHaveBeenCalledWith(
+					'/api/notes/note-123/versions?limit=10',
+					expect.any(Object)
+				);
+			});
+		});
+
+		describe('getNoteVersionContent', () => {
+			it('should return version content on success', async () => {
+				const mockContent = {
+					note_id: 'note-123',
+					version_id: 'abc1234',
+					content: '# My Note\n\nContent here',
+					timestamp: '2026-01-05T10:00:00Z'
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockContent,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await getNoteVersionContent('note-123', 'abc1234');
+
+				expect(result).toEqual(mockContent);
+				expect(mockFetch).toHaveBeenCalledWith(
+					'/api/notes/note-123/versions/abc1234',
+					expect.any(Object)
+				);
+			});
+		});
+
+		describe('diffNoteVersions', () => {
+			it('should return diff between two versions', async () => {
+				const mockDiff = {
+					note_id: 'note-123',
+					from_version: 'abc1234',
+					to_version: 'def5678',
+					additions: 5,
+					deletions: 2,
+					diff_text: '--- a/note\n+++ b/note\n@@ -1,3 +1,4 @@\n # Title\n-old line\n+new line\n+added line'
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockDiff,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await diffNoteVersions('note-123', 'abc1234', 'def5678');
+
+				expect(result).toEqual(mockDiff);
+				expect(mockFetch).toHaveBeenCalledWith(
+					'/api/notes/note-123/diff?v1=abc1234&v2=def5678',
+					expect.any(Object)
+				);
+			});
+		});
+
+		describe('restoreNoteVersion', () => {
+			it('should restore a version and return updated note', async () => {
+				const mockNote = {
+					note_id: 'note-123',
+					title: 'My Note',
+					content: '# Restored content',
+					excerpt: 'Restored content',
+					path: '/notes',
+					tags: [],
+					entities: [],
+					created_at: '2026-01-01T00:00:00Z',
+					updated_at: '2026-01-05T10:00:00Z',
+					pinned: false,
+					metadata: {}
+				};
+
+				mockFetch.mockResolvedValueOnce({
+					ok: true,
+					json: () =>
+						Promise.resolve({
+							success: true,
+							data: mockNote,
+							error: null,
+							timestamp: '2026-01-05T10:00:00Z'
+						})
+				});
+
+				const result = await restoreNoteVersion('note-123', 'abc1234');
+
+				expect(result).toEqual(mockNote);
+				expect(mockFetch).toHaveBeenCalledWith(
+					'/api/notes/note-123/restore/abc1234',
+					expect.objectContaining({ method: 'POST' })
+				);
+			});
 		});
 	});
 });
