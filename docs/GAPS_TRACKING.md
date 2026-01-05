@@ -1,8 +1,8 @@
 # Suivi des Écarts — Scapin
 
 **Dernière mise à jour** : 5 janvier 2026
-**Total items** : 116
-**MVP** : 63 | **Nice-to-have** : 53
+**Total items** : 124
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 16
 
 ---
 
@@ -243,7 +243,7 @@
 | Status | Item | Priorité |
 |--------|------|----------|
 | ⬜ | Multi-Provider Consensus (Pass 4, Phase 2.5) | Nice-to-have |
-| ⬜ | Révision espacée (connaissances critiques) | Nice-to-have |
+| ✅ | Révision espacée (connaissances critiques) | Nice-to-have |
 | ⬜ | Continuity Detector amélioré | Nice-to-have |
 
 ---
@@ -305,8 +305,8 @@
 
 ```
 MVP:          █░░░░░░░░░░░░░░░░░░░ 6/63 (10%)
-Nice-to-have: █░░░░░░░░░░░░░░░░░░░ 1/53 (2%)
-Total:        █░░░░░░░░░░░░░░░░░░░ 7/116 (6%)
+Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 2/53 (4%)
+Total:        █░░░░░░░░░░░░░░░░░░░ 8/116 (7%)
 ```
 
 ---
@@ -319,6 +319,7 @@ Total:        █░░░░░░░░░░░░░░░░░░░ 7/116
 | 2026-01-05 | Seconde passe - Ajout 21 items (Intégrations, Cognitif, UI Components, Qualité) |
 | 2026-01-05 | Git Versioning complété (5 items) - backend + 4 endpoints API |
 | 2026-01-05 | Search API complétée (2 items) - GET /api/search + /api/search/recent |
+| 2026-01-05 | **Note Enrichment System complété** - Révision espacée SM-2 (7 modules, 75 tests) |
 
 ---
 

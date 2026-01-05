@@ -117,13 +117,14 @@ Feedback via prochain journaling → Amélioration système
 | **2** | Expérience Interactive | 80% 🚧 | — |
 | **0.5** | Architecture Cognitive | ✅ | ~8000 lignes |
 | **0.6** | Refactoring Valet | ✅ | ~5200 lignes migrées |
+| **1.7** | Note Enrichment System | ✅ | ~2200 lignes |
 
 ### Modules Valets Implémentés
 
 | Valet | Module | Lignes | Statut |
 |-------|--------|--------|--------|
 | **Sancho** | `router.py`, `model_selector.py`, `templates.py`, `reasoning_engine.py`, `providers/` | ~2650 | ✅ |
-| **Passepartout** | `context_engine`, `embeddings`, `note_manager`, `vector_store` | ~2000 | ✅ |
+| **Passepartout** | `context_engine`, `embeddings`, `note_manager`, `vector_store`, `note_types`, `note_metadata`, `note_scheduler`, `note_reviewer`, `note_enricher`, `note_merger`, `background_worker` | ~4200 | ✅ |
 | **Planchet** | `planning_engine.py` | ~400 | ✅ |
 | **Figaro** | `orchestrator.py`, `actions/` | ~770 | ✅ |
 | **Sganarelle** | 8 modules (learning, feedback, calibration, patterns, etc.) | ~4100 | ✅ |
@@ -367,11 +368,11 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1488+ tests, 95% couverture, 100% pass rate
+**Global** : 1666+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1488 | ✅ |
+| Backend tests | 1666 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
@@ -531,6 +532,71 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-05 (Suite 11) — Note Enrichment System Complet
+
+**Focus** : Implémentation complète du système de révision espacée SM-2 pour les notes
+
+**Contexte** :
+- Document d'architecture créé en session précédente (`docs/plans/note-enrichment-system.md`)
+- Système "absolument primordial" — le cœur cognitif de Scapin
+- Algorithme SM-2 (SuperMemo) avec paramètres personnalisés
+
+**Accomplissements** :
+
+1. ✅ **7 modules Passepartout créés** (~2200 lignes)
+   - `note_types.py` — Enum NoteType, ImportanceLevel, ReviewConfig
+   - `note_metadata.py` — SQLite storage, EnrichmentRecord, NoteMetadata
+   - `note_scheduler.py` — SM-2 algorithm, SchedulingResult
+   - `note_reviewer.py` — ReviewAction, ReviewContext, NoteReviewer
+   - `note_enricher.py` — EnrichmentSource, EnrichmentPipeline
+   - `note_merger.py` — Three-way merge, MergeStrategy
+   - `background_worker.py` — 24/7 worker avec max 50 reviews/jour
+
+2. ✅ **75 tests unitaires**
+   - test_note_types.py — 22 tests
+   - test_note_metadata.py — 18 tests
+   - test_note_scheduler.py — 18 tests
+   - test_note_merger.py — 17 tests
+
+3. ✅ **Corrections Ruff**
+   - Imports inutilisés supprimés
+   - Arguments unused préfixés avec `_`
+   - Simplification conditions imbriquées
+
+**Décisions clés implémentées** :
+- **SM-2 Formula** : `EF' = EF + (0.1 - (5 - Q) × (0.08 + (5 - Q) × 0.02))`
+- **Intervalles** : I(1)=2h, I(2)=12h, I(n)=I(n-1)×EF
+- **Auto-apply threshold** : 0.90 (confiance)
+- **Max daily reviews** : 50
+- **Session duration** : 5 minutes max
+- **User wins conflicts** : Smart merge avec priorité utilisateur
+- **Type-specific intervals** : PROJET=2h, PERSONNE=2h, SOUVENIR=skip
+
+**Fichiers créés** :
+```
+src/passepartout/
+├── note_types.py          (~200 lignes)
+├── note_metadata.py       (~500 lignes)
+├── note_scheduler.py      (~250 lignes)
+├── note_reviewer.py       (~600 lignes)
+├── note_enricher.py       (~400 lignes)
+├── note_merger.py         (~350 lignes)
+└── background_worker.py   (~300 lignes)
+
+tests/unit/
+├── test_note_types.py     (22 tests)
+├── test_note_metadata.py  (18 tests)
+├── test_note_scheduler.py (18 tests)
+└── test_note_merger.py    (17 tests)
+```
+
+**Commits** :
+- `6f7f0ee` — feat(passepartout): implement complete Note Enrichment System with SM-2
+
+**Tests** : 1666 passed, 53 skipped (0 failures)
+
+---
 
 ### Session 2026-01-05 (Suite 10) — Roadmap v3.1 Notes au Centre
 
@@ -1513,22 +1579,27 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Sprint 1 : Notes & Fondation Contexte
+### Sprint 1 : Notes & Fondation Contexte (Suite)
 
 **Priorité** : Les notes sont au cœur de la boucle cognitive (voir ROADMAP.md v3.1)
 
+**Complété cette session** :
+- ✅ Note Enrichment System complet (SM-2, 7 modules, 75 tests)
+
+**Prochaines étapes** :
+
 | Priorité | Item | Description |
 |----------|------|-------------|
-| 🔴 | Notes Git Versioning | Backend + 4 endpoints API (list, get, diff, restore) |
+| 🔴 | API Notes Review | Endpoints pour exposer le système de révision |
+| 🔴 | UI Notes Review | Interface de révision dans le frontend |
 | 🔴 | Éditeur Markdown | UI complète pour édition notes |
-| 🔴 | Search API | GET /api/search (multi-types) |
 | 🟠 | UI Components | Modal, Tabs, Toast, ConfidenceBar, Skeleton |
 | 🟠 | Stats API | GET /api/stats/overview, by-source |
 | 🟢 | Calendar | Bouton briefing pré-réunion, Détection conflits |
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète des 116 items (63 MVP, 53 Nice-to-have).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète des 116 items (63 MVP, 52 Nice-to-have restants).
 
 ---
 

@@ -14,7 +14,7 @@
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1414+ tests, 95% couverture, 100% pass rate |
+| **Tests** | 1666+ tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 |
 | **Gaps MVP restants** | 63 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
@@ -79,6 +79,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | 1.3 | Intégration Calendrier | 92 | ✅ |
 | 1.4 | Système de Briefing | 58 | ✅ |
 | 1.6 | Journaling Complet Multi-Source | 38 | ✅ |
+| 1.7 | Note Enrichment System (SM-2) | 75 | ✅ |
 
 ### Interfaces (100%)
 
@@ -88,7 +89,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | 0.8 | Interface Web (SvelteKit) | 8 | ✅ |
 | 0.9 | PWA Mobile | — | ✅ |
 
-**Total tests** : 1414+ | **Couverture** : 95% | **Pass rate** : 100%
+**Total tests** : 1666+ | **Couverture** : 95% | **Pass rate** : 100%
 
 ---
 
@@ -374,11 +375,11 @@ Après MVP stable, par ordre de valeur :
 
 ### Cognitif (3 items)
 
-| Item | Description |
-|------|-------------|
-| Multi-Provider Consensus | Pass 4 avec vote multi-IA (Claude + GPT-4 + Mistral) |
-| Révision espacée | FSRS pour connaissances critiques |
-| Continuity Detector amélioré | Meilleure détection des threads |
+| Item | Description | Statut |
+|------|-------------|--------|
+| Multi-Provider Consensus | Pass 4 avec vote multi-IA (Claude + GPT-4 + Mistral) | ⬜ |
+| Révision espacée | **SM-2 implémenté** (7 modules Passepartout) | ✅ |
+| Continuity Detector amélioré | Meilleure détection des threads | ⬜ |
 
 ### Intégrations (6 items)
 
@@ -547,6 +548,11 @@ Global MVP:        ████████████░░░░░░░░ 
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.8** (2026-01-05) : Note Enrichment System
+  - ✅ SM-2 Spaced Repetition complet (7 modules Passepartout)
+  - ✅ 75 nouveaux tests (total 1666+)
+  - Architecture : note_types, note_metadata, note_scheduler, note_reviewer, note_enricher, note_merger, background_worker
 
 - **v1.0.0-alpha.7** (2026-01-05) : Roadmap v3.1 — Notes au centre
   - Réorganisation en Sprints thématiques
