@@ -225,7 +225,7 @@
 				<h2
 					class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2"
 				>
-					<span>📝</span> Notes a reviser
+					<span>📝</span> Notes à réviser
 				</h2>
 				<Card interactive onclick={() => goto('/notes/review')}>
 					<div class="flex items-center justify-between p-3">
@@ -234,7 +234,7 @@
 								{notesReviewStore.stats.total_due} notes
 							</p>
 							<p class="text-xs text-[var(--color-text-tertiary)]">
-								{notesReviewStore.stats.reviewed_today} revisees aujourd'hui
+								{notesReviewStore.stats.reviewed_today} révisées aujourd'hui
 							</p>
 						</div>
 						<div class="flex items-center gap-3">

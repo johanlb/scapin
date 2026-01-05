@@ -11,10 +11,10 @@
 
 	onMount(async () => {
 		await notesReviewStore.fetchAll();
-		setupKeyboardShortcuts();
 	});
 
-	function setupKeyboardShortcuts() {
+	// Keyboard shortcuts using $effect for proper cleanup
+	$effect(() => {
 		if (typeof window === 'undefined') return;
 
 		const handleKeydown = (e: KeyboardEvent) => {
@@ -50,7 +50,7 @@
 
 		window.addEventListener('keydown', handleKeydown);
 		return () => window.removeEventListener('keydown', handleKeydown);
-	}
+	});
 
 	async function handleRate(quality: number) {
 		const result = await notesReviewStore.submitReview(quality);
@@ -144,10 +144,10 @@
 			<div class="flex flex-col items-center justify-center py-20 text-center">
 				<p class="text-5xl mb-4">🎉</p>
 				<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-					Aucune note a reviser
+					Aucune note à réviser
 				</h2>
 				<p class="text-gray-600 dark:text-gray-400 mb-6">
-					Toutes vos notes sont a jour. Revenez plus tard !
+					Toutes vos notes sont à jour. Revenez plus tard !
 				</p>
 				<button
 					type="button"
@@ -163,10 +163,10 @@
 			<div class="flex flex-col items-center justify-center py-20 text-center">
 				<p class="text-5xl mb-4">✨</p>
 				<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-					Session terminee !
+					Session terminée !
 				</h2>
 				<p class="text-gray-600 dark:text-gray-400 mb-2">
-					Vous avez revise {notesReviewStore.reviewedThisSession} notes
+					Vous avez révisé {notesReviewStore.reviewedThisSession} notes
 				</p>
 				{#if notesReviewStore.stats}
 					<p class="text-sm text-gray-500 dark:text-gray-500 mb-6">
@@ -203,7 +203,7 @@
 						class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 text-center"
 					>
 						<p class="text-sm text-green-700 dark:text-green-400">
-							Note enregistree : {lastReviewResult.assessment}
+							Note enregistrée : {lastReviewResult.assessment}
 						</p>
 					</div>
 				{/if}
@@ -231,7 +231,7 @@
 								onclick={() => notesReviewStore.previousNote()}
 								class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
 							>
-								← Precedent
+								← Précédent
 							</button>
 						{/if}
 						{#if notesReviewStore.hasNext}

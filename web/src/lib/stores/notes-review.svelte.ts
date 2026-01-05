@@ -109,7 +109,7 @@ async function fetchAll(): Promise<void> {
 		state.currentIndex = 0;
 		state.lastFetch = new Date();
 	} catch (err) {
-		handleError(err, 'Impossible de charger les donnees');
+		handleError(err, 'Impossible de charger les données');
 	} finally {
 		state.loading = false;
 	}
@@ -139,7 +139,7 @@ async function submitReview(quality: number): Promise<RecordReviewResponse | nul
 
 		return result;
 	} catch (err) {
-		handleError(err, 'Impossible d\'enregistrer la revision');
+		handleError(err, 'Impossible d\'enregistrer la révision');
 		return null;
 	} finally {
 		state.loading = false;
@@ -210,7 +210,7 @@ function clearError(): void {
 function handleError(err: unknown, defaultMessage: string): void {
 	if (err instanceof ApiError) {
 		if (err.status === 0) {
-			state.error = 'Impossible de contacter le serveur. Verifiez votre connexion.';
+			state.error = 'Impossible de contacter le serveur. Vérifiez votre connexion.';
 		} else {
 			state.error = `Erreur ${err.status}: ${err.message}`;
 		}

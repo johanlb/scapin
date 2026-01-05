@@ -41,7 +41,7 @@
 
 <div class="space-y-3">
 	<p class="text-sm text-gray-600 dark:text-gray-400 text-center">
-		Cette note est-elle a jour ?
+		Cette note est-elle à jour ?
 	</p>
 
 	<div class="grid grid-cols-3 gap-2 sm:grid-cols-6">

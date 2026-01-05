@@ -42,7 +42,7 @@
 	}
 
 	function formatNextReview(dateStr: string | null): string {
-		if (!dateStr) return 'Non planifie';
+		if (!dateStr) return 'Non planifié';
 		const date = new Date(dateStr);
 		const now = new Date();
 		const diffMs = date.getTime() - now.getTime();
@@ -109,7 +109,7 @@
 	<!-- Last Quality -->
 	{#if note.last_quality !== null}
 		<div class="flex items-center gap-2 mb-4 text-sm">
-			<span class="text-gray-500 dark:text-gray-400">Derniere note:</span>
+			<span class="text-gray-500 dark:text-gray-400">Dernière note:</span>
 			<span class="font-medium text-gray-900 dark:text-white">
 				{note.last_quality} ({qualityLabels[note.last_quality]})
 			</span>
@@ -118,7 +118,7 @@
 
 	<!-- Next Review -->
 	<div class="flex items-center gap-2 mb-4 text-sm">
-		<span class="text-gray-500 dark:text-gray-400">Prochaine revision:</span>
+		<span class="text-gray-500 dark:text-gray-400">Prochaine révision:</span>
 		<span class="font-medium text-blue-600 dark:text-blue-400">
 			{formatNextReview(note.next_review)}
 		</span>
