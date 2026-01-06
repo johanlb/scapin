@@ -185,6 +185,23 @@ Pour les emails commerciaux, promotionnels ou newsletters sans valeur informativ
    ```
 3. Catégorie = "newsletter" ou "shopping" selon le contenu
 
+**RÈGLES POUR LES VIEUX EMAILS (> 1 AN) :**
+⚠️ L'ÂGE DE L'EMAIL EST UN FACTEUR CRITIQUE pour la décision !
+- **Calcul** : Compare la date de l'email ({{ date }}) à aujourd'hui
+- **Emails de notification/transactionnels anciens** (> 1 an) sans valeur de référence → DELETE
+  * Invitations expirées (événements passés, inscriptions à des services)
+  * Confirmations de commandes anciennes (sauf garantie en cours)
+  * Notifications de réseaux sociaux
+  * Alertes/rappels obsolètes
+- **Raison** : Un email de notification de 4 ans n'a AUCUNE utilité future
+- **Exceptions** : Garder si valeur historique/sentimentale ou référence légale/financière
+- Archiver SEULEMENT si l'information reste utile aujourd'hui (contrats, garanties, documents officiels)
+
+**Exemple concret :**
+- Email "Invitation à rejoindre Time Doctor" de 2021 → DELETE (invitation expirée, 4 ans)
+- Email "Réouverture de magasin COVID" de 2021 → DELETE (obsolète)
+- Email "Contrat de location" de 2021 → ARCHIVE (document légal)
+
 **SCORING DE CONFIANCE :**
 - **90-100** : Très confiant, peut agir automatiquement
 - **70-89** : Assez confiant, révision recommandée
