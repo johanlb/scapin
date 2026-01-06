@@ -169,8 +169,22 @@ interface SystemConfig {
 	integrations: IntegrationStatus[];
 }
 
+// Calendar Conflict Types
+interface CalendarConflict {
+	conflict_type: 'overlap_full' | 'overlap_partial' | 'travel_time';
+	severity: 'high' | 'medium' | 'low';
+	conflicting_event_id: string;
+	conflicting_title: string;
+	conflicting_start: string;
+	conflicting_end: string;
+	overlap_minutes: number;
+	gap_minutes: number;
+	message: string;
+}
+
 interface BriefingItem {
 	id: string;
+	event_id?: string;
 	type: 'email' | 'teams' | 'calendar' | 'task';
 	title: string;
 	summary: string;
@@ -178,6 +192,9 @@ interface BriefingItem {
 	source: string;
 	timestamp: string;
 	metadata?: Record<string, unknown>;
+	// Conflict detection (calendar events only)
+	has_conflicts?: boolean;
+	conflicts?: CalendarConflict[];
 }
 
 interface MorningBriefing {
@@ -186,6 +203,7 @@ interface MorningBriefing {
 	urgent_count: number;
 	meetings_today: number;
 	total_items: number;
+	conflicts_count: number;
 	urgent_items: BriefingItem[];
 	calendar_today: BriefingItem[];
 	emails_pending: BriefingItem[];
@@ -1492,6 +1510,7 @@ export type {
 	SystemConfig,
 	BriefingItem,
 	MorningBriefing,
+	CalendarConflict,
 	AttendeeContext,
 	PreMeetingBriefing,
 	TokenResponse,

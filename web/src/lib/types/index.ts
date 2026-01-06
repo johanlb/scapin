@@ -8,6 +8,19 @@ export type EventStatus = 'pending' | 'processed' | 'rejected' | 'snoozed';
 export type UrgencyLevel = 'urgent' | 'high' | 'medium' | 'low';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
+// Calendar conflict types (mirror of API types)
+export interface CalendarConflict {
+	conflict_type: 'overlap_full' | 'overlap_partial' | 'travel_time';
+	severity: 'high' | 'medium' | 'low';
+	conflicting_event_id: string;
+	conflicting_title: string;
+	conflicting_start: string;
+	conflicting_end: string;
+	overlap_minutes: number;
+	gap_minutes: number;
+	message: string;
+}
+
 export interface ScapinEvent {
 	id: string;
 	source: EventSource;
@@ -20,6 +33,9 @@ export interface ScapinEvent {
 	confidence: ConfidenceLevel;
 	suggested_actions: SuggestedAction[];
 	metadata?: Record<string, unknown>;
+	// Calendar conflict fields
+	has_conflicts?: boolean;
+	conflicts?: CalendarConflict[];
 }
 
 export interface SuggestedAction {

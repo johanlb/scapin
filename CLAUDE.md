@@ -544,6 +544,60 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-06 (Suite 7) — Calendar Conflict Detection ✅
+
+**Focus** : Implémentation de la détection de conflits calendrier (dernier item Sprint 1)
+
+**Accomplissements** :
+
+1. ✅ **Backend ConflictDetector** (`src/jeeves/api/services/conflict_detector.py` ~310 lignes)
+   - Détection chevauchements (full overlap et partial overlap)
+   - Détection conflits temps de trajet (lieux différents, gap < 30 min)
+   - Heuristique online meeting (keywords: teams, zoom, meet, etc.)
+   - Messages en français
+
+2. ✅ **Modèles Calendar** (`src/jeeves/api/models/calendar.py`)
+   - `ConflictType` enum: OVERLAP_FULL, OVERLAP_PARTIAL, TRAVEL_TIME
+   - `ConflictSeverity` enum: HIGH, MEDIUM, LOW
+   - `CalendarConflict` dataclass avec tous les champs
+
+3. ✅ **Intégration BriefingRouter** (`src/jeeves/api/routers/briefing.py`)
+   - ConflictDetector appelé dans get_morning_briefing()
+   - Conflits attachés aux BriefingItemResponse
+   - conflicts_count dans BriefingResponse
+
+4. ✅ **Frontend Types** (`web/src/lib/api/client.ts`, `web/src/lib/types/index.ts`)
+   - CalendarConflict interface
+   - has_conflicts et conflicts ajoutés à BriefingItem et ScapinEvent
+   - conflicts_count ajouté à MorningBriefing
+
+5. ✅ **Dashboard UI** (`web/src/routes/+page.svelte`)
+   - Section "Conflits Calendrier" avec liste des conflits
+   - Badges orange sur événements avec conflits
+   - Tooltip avec messages de conflit
+
+6. ✅ **Tests** (16 tests dans `test_conflict_detector.py`)
+   - TestConflictDetector (14 tests)
+   - TestConflictModels (2 tests)
+
+**Fichiers créés/modifiés** :
+```
+src/jeeves/api/services/conflict_detector.py  # NEW (~310 lignes)
+src/jeeves/api/models/calendar.py             # MODIFIED (+40 lignes)
+src/jeeves/api/models/responses.py            # MODIFIED (+15 lignes)
+src/jeeves/api/routers/briefing.py            # MODIFIED (+50 lignes)
+tests/unit/test_conflict_detector.py          # NEW (16 tests)
+web/src/lib/api/client.ts                     # MODIFIED (+15 lignes)
+web/src/lib/types/index.ts                    # MODIFIED (+15 lignes)
+web/src/routes/+page.svelte                   # MODIFIED (+80 lignes)
+```
+
+**Tests** : 16 tests backend passent, svelte-check 0 errors
+
+**Sprint 1 COMPLÉTÉ** : 19/19 items (100%)
+
+---
+
 ### Session 2026-01-06 (Suite 6) — Test Dependency Fix
 
 **Focus** : Correction des tests en échec dus à des problèmes de configuration
@@ -2155,11 +2209,11 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Sprint 1 : Finir (1 item restant)
+### Sprint 1 : COMPLÉTÉ ✅
 
-**Statut** : 95% complété (18/19 items)
+**Statut** : 100% complété (19/19 items)
 
-**Complété** :
+**Items complétés** :
 - ✅ Notes Git Versioning (5 endpoints)
 - ✅ Éditeur Markdown complet
 - ✅ Search API (2 endpoints)
@@ -2172,16 +2226,17 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Infinite Scroll + Virtualisation (@tanstack/svelte-virtual)
 - ✅ Bouton briefing pré-réunion (PreMeetingModal.svelte)
 - ✅ GET /api/status (status temps réel)
+- ✅ Détection et alerte conflits calendrier (ConflictDetector)
 
-**Restant Sprint 1** :
+### Sprint 2 : Qualité d'Analyse (À commencer)
 
-| Priorité | Item | Description |
-|----------|------|-------------|
-| 🟠 | Calendar conflict detection | Alerte conflits calendrier |
+**Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
+
+Voir [ROADMAP.md](ROADMAP.md) pour les détails du Sprint 2.
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (45 MVP restants sur 63).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (44 MVP restants sur 63).
 
 ---
 

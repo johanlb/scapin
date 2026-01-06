@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Total items** : 124
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 22
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 23
 
 ---
 
@@ -114,7 +114,7 @@
 |--------|------|----------|
 | ✅ | Bouton briefing pré-réunion sur chaque événement | MVP |
 | ⬜ | Blocs Focus automatiques (création ne pas déranger) | Nice-to-have |
-| ⬜ | Détection et alerte conflits calendrier | MVP |
+| ✅ | Détection et alerte conflits calendrier | MVP |
 | ⬜ | Vue calendrier mensuelle/hebdomadaire (UI) | Nice-to-have |
 
 ---

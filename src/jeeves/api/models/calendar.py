@@ -5,8 +5,39 @@ Pydantic models for calendar API requests and responses.
 """
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+class ConflictType(str, Enum):
+    """Type of calendar conflict"""
+
+    OVERLAP_FULL = "overlap_full"  # One event fully contains another
+    OVERLAP_PARTIAL = "overlap_partial"  # Events partially overlap
+    TRAVEL_TIME = "travel_time"  # Insufficient time between different locations
+
+
+class ConflictSeverity(str, Enum):
+    """Severity level of a conflict"""
+
+    HIGH = "high"  # Full overlap - can't attend both
+    MEDIUM = "medium"  # Partial overlap - may miss part
+    LOW = "low"  # Travel time warning
+
+
+class CalendarConflict(BaseModel):
+    """Represents a conflict between two calendar events"""
+
+    conflict_type: ConflictType = Field(..., description="Type of conflict")
+    severity: ConflictSeverity = Field(..., description="Conflict severity")
+    conflicting_event_id: str = Field(..., description="ID of the conflicting event")
+    conflicting_title: str = Field(..., description="Title of the conflicting event")
+    conflicting_start: datetime = Field(..., description="Start time of conflicting event")
+    conflicting_end: datetime = Field(..., description="End time of conflicting event")
+    overlap_minutes: int = Field(0, description="Minutes of overlap (for overlap conflicts)")
+    gap_minutes: int = Field(0, description="Gap in minutes (for travel time conflicts)")
+    message: str = Field(..., description="Human-readable conflict description")
 
 
 class CalendarAttendeeResponse(BaseModel):

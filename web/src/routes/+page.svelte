@@ -116,24 +116,31 @@
 	}
 
 	function transformBriefingItem(item: {
-		id: string;
-		type: string;
+		id?: string;
+		event_id?: string;
+		type?: string;
+		source?: string;
 		title: string;
-		summary: string;
+		summary?: string;
+		action_summary?: string;
 		urgency: string;
-		timestamp: string;
-		source: string;
+		timestamp?: string;
+		time_context?: string;
+		has_conflicts?: boolean;
+		conflicts?: ScapinEvent['conflicts'];
 	}): ScapinEvent {
 		return {
-			id: item.id,
-			source: item.type as ScapinEvent['source'],
+			id: item.event_id || item.id || '',
+			source: (item.source || item.type || 'email') as ScapinEvent['source'],
 			title: item.title,
-			summary: item.summary,
-			occurred_at: item.timestamp,
+			summary: item.action_summary || item.summary || '',
+			occurred_at: item.time_context || item.timestamp || '',
 			status: 'pending',
 			urgency: item.urgency as ScapinEvent['urgency'],
 			confidence: 'high',
-			suggested_actions: []
+			suggested_actions: [],
+			has_conflicts: item.has_conflicts,
+			conflicts: item.conflicts
 		};
 	}
 
@@ -164,6 +171,9 @@
 	const otherEvents = $derived(
 		events.filter((e) => e.urgency !== 'urgent' && e.urgency !== 'high')
 	);
+	// Events with calendar conflicts
+	const eventsWithConflicts = $derived(events.filter((e) => e.has_conflicts && e.conflicts?.length));
+	const conflictsCount = $derived(briefingStore.briefing?.conflicts_count || 0);
 </script>
 
 <PullToRefresh onrefresh={handleRefresh}>
@@ -274,6 +284,56 @@
 			</section>
 		{/if}
 
+		<!-- Calendar Conflicts Section -->
+		{#if conflictsCount > 0 && eventsWithConflicts.length > 0}
+			<section class="mb-5">
+				<h2
+					class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2"
+				>
+					<span class="text-orange-500">⚠️</span> Conflits Calendrier
+					<span class="text-xs font-normal px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-500">
+						{conflictsCount}
+					</span>
+				</h2>
+				<Card class="border-orange-500/30 bg-orange-500/5">
+					<ul class="divide-y divide-[var(--color-border)]">
+						{#each eventsWithConflicts as event (event.id)}
+							<li class="p-3">
+								<div class="flex items-start gap-2">
+									<span class="text-orange-500 text-sm mt-0.5">📅</span>
+									<div class="flex-1 min-w-0">
+										<p class="text-sm font-medium text-[var(--color-text-primary)] truncate">
+											{event.title}
+										</p>
+										<p class="text-xs text-[var(--color-text-tertiary)]">
+											{event.occurred_at}
+										</p>
+										{#if event.conflicts}
+											<ul class="mt-1.5 space-y-1">
+												{#each event.conflicts as conflict}
+													<li class="flex items-start gap-1.5">
+														<span
+															class="inline-block w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+															class:bg-red-500={conflict.severity === 'high'}
+															class:bg-orange-500={conflict.severity === 'medium'}
+															class:bg-yellow-500={conflict.severity === 'low'}
+														></span>
+														<span class="text-xs text-orange-600 dark:text-orange-400">
+															{conflict.message}
+														</span>
+													</li>
+												{/each}
+											</ul>
+										{/if}
+									</div>
+								</div>
+							</li>
+						{/each}
+					</ul>
+				</Card>
+			</section>
+		{/if}
+
 		<!-- Loading state -->
 		{#if briefingStore.loading}
 			<div class="flex justify-center py-8">
@@ -342,6 +402,15 @@
 											{#if event.sender}
 												<p class="text-xs text-[var(--color-text-tertiary)] mt-1 truncate">
 													De : {event.sender}
+												</p>
+											{/if}
+											{#if event.has_conflicts && event.conflicts?.length}
+												<p
+													class="text-xs text-orange-500 mt-1 flex items-center gap-1"
+													title={event.conflicts.map((c) => c.message).join(', ')}
+												>
+													<span>⚠️</span>
+													<span>{event.conflicts.length} conflit{event.conflicts.length > 1 ? 's' : ''}</span>
 												</p>
 											{/if}
 										</div>
@@ -425,6 +494,15 @@
 											<p class="text-sm text-[var(--color-text-secondary)] line-clamp-1">
 												{event.summary}
 											</p>
+											{#if event.has_conflicts && event.conflicts?.length}
+												<p
+													class="text-xs text-orange-500 mt-1 flex items-center gap-1"
+													title={event.conflicts.map((c) => c.message).join(', ')}
+												>
+													<span>⚠️</span>
+													<span>{event.conflicts.length} conflit{event.conflicts.length > 1 ? 's' : ''}</span>
+												</p>
+											{/if}
 										</div>
 										<div class="shrink-0 flex items-center gap-2">
 											{#if event.source === 'calendar'}

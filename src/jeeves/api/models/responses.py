@@ -70,6 +70,20 @@ class StatsResponse(BaseModel):
     last_activity: datetime | None = Field(None, description="Last processing activity")
 
 
+class CalendarConflictResponse(BaseModel):
+    """Calendar conflict in response"""
+
+    conflict_type: str = Field(..., description="Type: overlap_full, overlap_partial, travel_time")
+    severity: str = Field(..., description="Severity: high, medium, low")
+    conflicting_event_id: str = Field(..., description="ID of the conflicting event")
+    conflicting_title: str = Field(..., description="Title of the conflicting event")
+    conflicting_start: str = Field(..., description="Start time of conflicting event (ISO)")
+    conflicting_end: str = Field(..., description="End time of conflicting event (ISO)")
+    overlap_minutes: int = Field(0, description="Minutes of overlap")
+    gap_minutes: int = Field(0, description="Gap in minutes")
+    message: str = Field(..., description="Human-readable description")
+
+
 class BriefingItemResponse(BaseModel):
     """Briefing item in response"""
 
@@ -82,6 +96,11 @@ class BriefingItemResponse(BaseModel):
     confidence: float
     urgency: str
     from_person: str | None = None
+    has_conflicts: bool = Field(False, description="Whether this event has conflicts")
+    conflicts: list[CalendarConflictResponse] = Field(
+        default_factory=list,
+        description="List of conflicts for this event",
+    )
 
 
 class BriefingResponse(BaseModel):
@@ -92,6 +111,7 @@ class BriefingResponse(BaseModel):
     urgent_count: int = Field(..., description="Number of urgent items")
     meetings_today: int = Field(..., description="Number of meetings today")
     total_items: int = Field(..., description="Total number of items")
+    conflicts_count: int = Field(0, description="Number of calendar conflicts detected")
     urgent_items: list[BriefingItemResponse] = Field(
         default_factory=list,
         description="Urgent items requiring attention",

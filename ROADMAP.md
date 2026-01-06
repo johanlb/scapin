@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 1 — Notes & Fondation Contexte
+**Phase actuelle** : Sprint 2 — Qualité d'Analyse
 
 ---
 
@@ -10,14 +10,14 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 45 items MVP restants sur 63 (116 total identifiés)
+**État** : MVP en cours — 44 items MVP restants sur 63 (116 total identifiés)
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1736 tests, 95% couverture, 100% pass rate |
+| **Tests** | 1752 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
-| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 |
-| **Gaps MVP restants** | 45 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 |
+| **Gaps MVP restants** | 44 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -140,7 +140,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 ## Sprint 1 : Notes & Fondation Contexte
 
-**Statut** : 🟡 En cours (18/19 complétés — 95%)
+**Statut** : ✅ Complété (19/19 — 100%)
 **Objectif** : Notes robustes et exploitables pour enrichir l'analyse
 **Items** : 19 MVP
 
@@ -165,7 +165,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | **Stats** | GET /api/stats/overview | MVP | ✅ |
 | | GET /api/stats/by-source | MVP | ✅ |
 | **Calendar** | Bouton briefing pré-réunion | MVP | ✅ |
-| | Détection et alerte conflits | MVP | ⬜ |
+| | Détection et alerte conflits | MVP | ✅ |
 | **API** | GET /api/status | MVP | ✅ |
 
 ### Architecture Notes Git Versioning
