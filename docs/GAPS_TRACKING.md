@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Total items** : 116
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 24
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 29
 
 ---
 
@@ -61,9 +61,9 @@
 ### Extraction Entités (3)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Extraction entités automatique (personnes, dates, projets) | Nice-to-have |
-| ⬜ | extracted_entities dans EmailProcessingResult | Nice-to-have |
-| ⬜ | Proposition ajout entités à PKM | Nice-to-have |
+| ✅ | Extraction entités automatique (personnes, dates, projets) | MVP |
+| ✅ | extracted_entities dans EmailProcessingResult | MVP |
+| ✅ | Proposition ajout entités à PKM (proposed_notes) | MVP |
 
 ### Undo & Snooze Backend (2)
 | Status | Item | Priorité |
@@ -95,8 +95,8 @@
 ### Données Enrichies (2)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | proposed_tasks dans EmailProcessingResult | Nice-to-have |
-| ⬜ | proposed_notes dans EmailProcessingResult | Nice-to-have |
+| ✅ | proposed_tasks dans EmailProcessingResult | MVP |
+| ✅ | proposed_notes dans EmailProcessingResult | MVP |
 
 ---
 

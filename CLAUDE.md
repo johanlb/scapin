@@ -377,11 +377,11 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1736 tests, 95% couverture, 100% pass rate
+**Global** : 1789 tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1736 | ✅ |
+| Backend tests | 1789 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
@@ -543,6 +543,76 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-06 (Suite 9) — Sprint 2 : Extraction Entités ✅
+
+**Focus** : Implémentation complète de l'extraction d'entités et UI frontend
+
+**Accomplissements** :
+
+1. ✅ **Entity models** (`src/core/entities.py` ~150 lignes)
+   - `EntityType` enum : PERSON, DATE, PROJECT, ORGANIZATION, AMOUNT, LOCATION, URL, TOPIC, PHONE
+   - `Entity` dataclass avec validation
+   - `ProposedNote` et `ProposedTask` dataclasses
+   - `AUTO_APPLY_THRESHOLD = 0.90`
+
+2. ✅ **EntityExtractor** (`src/core/extractors/entity_extractor.py` ~400 lignes)
+   - Extraction regex multi-patterns (emails, phones, URLs, amounts, dates)
+   - Patterns français et anglais pour dates
+   - Extraction personnes depuis métadonnées email et salutations
+   - Extraction organisations via suffixes (SA, SAS, Inc., Ltd., etc.)
+   - Déduplication et scoring de confiance
+   - 37 tests unitaires
+
+3. ✅ **EmailAnalysis enrichi** (`src/core/schemas.py`)
+   - `entities: dict[str, list[Entity]]`
+   - `proposed_notes: list[ProposedNote]`
+   - `proposed_tasks: list[ProposedTask]`
+   - `context_used: list[str]`
+
+4. ✅ **Templates prompts** (`src/sancho/templates.py`)
+   - Injection des entités pré-extraites dans le prompt
+   - Injection du contexte des notes
+   - Format de sortie JSON pour entities_validated, proposed_notes, proposed_tasks
+
+5. ✅ **Auto-apply logic** (`src/trivelin/processor.py`)
+   - `_auto_apply_proposals()` pour notes/tasks à confiance >= 0.90
+   - Intégration NoteManager pour création de notes
+   - Logging des résultats auto-apply
+
+6. ✅ **API responses** (`src/jeeves/api/models/queue.py`)
+   - `EntityResponse`, `ProposedNoteResponse`, `ProposedTaskResponse` models
+   - `auto_applied` field basé sur AUTO_APPLY_THRESHOLD
+   - Conversion complète dans queue router
+
+7. ✅ **Frontend UI entités** (`web/src/routes/flux/+page.svelte` +100 lignes)
+   - Badges colorés par type d'entité (person=blue, project=purple, date=orange, etc.)
+   - Section "Notes proposées" avec action create/enrich
+   - Section "Tâches proposées" avec projet et due_date
+   - Badge "Auto" pour items auto-appliqués
+   - Affichage reasoning en mode Level 3
+   - Vue compacte dans la liste (max 6 entités)
+
+**Fichiers créés/modifiés** :
+```
+src/core/entities.py                          # NEW (~150 lignes)
+src/core/extractors/__init__.py               # NEW
+src/core/extractors/entity_extractor.py       # NEW (~400 lignes)
+src/core/schemas.py                           # MODIFIED (+30 lignes)
+src/sancho/templates.py                       # MODIFIED (+100 lignes)
+src/sancho/reasoning_engine.py                # MODIFIED (+50 lignes)
+src/trivelin/processor.py                     # MODIFIED (+150 lignes)
+src/jeeves/api/models/queue.py                # MODIFIED (+80 lignes)
+src/jeeves/api/routers/queue.py               # MODIFIED (+40 lignes)
+web/src/lib/api/client.ts                     # MODIFIED (+50 lignes)
+web/src/routes/flux/+page.svelte              # MODIFIED (+100 lignes)
+web/src/routes/flux/test-performance/+page.svelte  # MODIFIED (+20 lignes)
+tests/unit/test_entity_extractor.py           # NEW (37 tests)
+```
+
+**Tests** : 1789 passed, 53 skipped, svelte-check 0 errors, ruff 0 warnings
+
+---
 
 ### Session 2026-01-06 (Suite 8) — Deep Analysis & Security Hardening ✅
 
@@ -2278,15 +2348,34 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ GET /api/status (status temps réel)
 - ✅ Détection et alerte conflits calendrier (ConflictDetector)
 
-### Sprint 2 : Qualité d'Analyse (À commencer)
+### Sprint 2 : Qualité d'Analyse (En cours — 36%)
 
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
+**Statut** : 5/14 items complétés
 
-Voir [ROADMAP.md](ROADMAP.md) pour les détails du Sprint 2.
+**Items complétés cette session** :
+- ✅ Extraction entités automatique (personnes, dates, projets, etc.)
+- ✅ extracted_entities dans EmailProcessingResult
+- ✅ Proposition ajout entités à PKM (proposed_notes)
+- ✅ proposed_tasks dans EmailProcessingResult
+- ✅ proposed_notes dans EmailProcessingResult
+
+**Prochains items** :
+- ⬜ CRUD /api/discussions
+- ⬜ Messages et suggestions contextuelles
+- ⬜ POST /api/chat/quick
+- ⬜ Page Discussions multi-sessions
+- ⬜ Mode traitement focus pleine page
+- ⬜ Filtrage par mentions directes (Teams)
+- ⬜ Déduplication email/Teams
+- ⬜ UI: Bouton "Discuter de cette note"
+- ⬜ GET/POST /api/focus
+
+Voir [ROADMAP.md](ROADMAP.md) pour les détails complets.
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (44 MVP restants sur 63).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (39 MVP restants sur 63).
 
 ---
 

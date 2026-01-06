@@ -49,7 +49,12 @@
 					confidence: Math.floor(50 + Math.random() * 50),
 					reasoning: `Analyse automatique pour l'email ${i + 1}`,
 					summary: generateRandomSummary(),
-					options: []
+					options: [],
+					// Sprint 2: Entity extraction fields
+					entities: {},
+					proposed_notes: [],
+					proposed_tasks: [],
+					context_used: []
 				},
 				content: {
 					preview: `Ceci est le contenu de l'email ${i + 1}...`

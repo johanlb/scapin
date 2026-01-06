@@ -432,6 +432,114 @@
 					</div>
 				{/if}
 
+				<!-- Extracted Entities -->
+				{#if currentItem.analysis.entities && Object.keys(currentItem.analysis.entities).length > 0}
+					<div class="flex flex-wrap gap-1.5">
+						{#each Object.entries(currentItem.analysis.entities) as [type, entities]}
+							{#each entities as entity}
+								{@const entityClass = {
+									person: 'bg-blue-500/20 text-blue-300',
+									project: 'bg-purple-500/20 text-purple-300',
+									date: 'bg-orange-500/20 text-orange-300',
+									amount: 'bg-green-500/20 text-green-300',
+									organization: 'bg-cyan-500/20 text-cyan-300',
+									phone: 'bg-pink-500/20 text-pink-300',
+									url: 'bg-indigo-500/20 text-indigo-300'
+								}[type] ?? 'bg-gray-500/20 text-gray-300'}
+								<span
+									class="px-2 py-0.5 text-xs rounded-full {entityClass}"
+									title="{type}: {entity.value} ({Math.round(entity.confidence * 100)}%)"
+								>
+									{entity.value}
+								</span>
+							{/each}
+						{/each}
+					</div>
+				{/if}
+
+				<!-- Proposed Notes (Sprint 2) -->
+				{#if currentItem.analysis.proposed_notes && currentItem.analysis.proposed_notes.length > 0}
+					<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
+						<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
+							Notes proposées
+						</h4>
+						<div class="space-y-2">
+							{#each currentItem.analysis.proposed_notes as note}
+								{@const noteActionClass = note.action === 'create' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}
+								<div class="flex items-center justify-between text-sm">
+									<span class="flex items-center gap-2">
+										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
+											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
+										</span>
+										<span class="text-[var(--color-text-primary)]">{note.title}</span>
+										{#if note.auto_applied}
+											<span class="text-xs px-1.5 py-0.5 rounded" style="background: rgba(var(--color-success-rgb, 34, 197, 94), 0.2); color: var(--color-success)">
+												Auto
+											</span>
+										{/if}
+									</span>
+									<span
+										class="text-xs"
+										style="color: {note.confidence >= 0.9 ? 'var(--color-success)' : note.confidence >= 0.7 ? 'var(--color-warning)' : 'var(--color-text-tertiary)'}"
+									>
+										{Math.round(note.confidence * 100)}%
+									</span>
+								</div>
+								{#if showLevel3 && note.reasoning}
+									<p class="text-xs text-[var(--color-text-tertiary)] ml-4 pl-2 border-l border-[var(--color-border)]">
+										{note.reasoning}
+									</p>
+								{/if}
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Proposed Tasks (Sprint 2) -->
+				{#if currentItem.analysis.proposed_tasks && currentItem.analysis.proposed_tasks.length > 0}
+					<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
+						<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
+							Tâches proposées
+						</h4>
+						<div class="space-y-2">
+							{#each currentItem.analysis.proposed_tasks as task}
+								<div class="flex items-center justify-between text-sm">
+									<span class="flex items-center gap-2">
+										<span class="text-[var(--color-event-omnifocus)]">✓</span>
+										<span class="text-[var(--color-text-primary)]">{task.title}</span>
+										{#if task.project}
+											<span class="text-xs text-[var(--color-text-tertiary)]">
+												→ {task.project}
+											</span>
+										{/if}
+										{#if task.due_date}
+											<span class="text-xs text-[var(--color-warning)]">
+												📅 {task.due_date}
+											</span>
+										{/if}
+										{#if task.auto_applied}
+											<span class="text-xs px-1.5 py-0.5 rounded" style="background: rgba(var(--color-success-rgb, 34, 197, 94), 0.2); color: var(--color-success)">
+												Auto
+											</span>
+										{/if}
+									</span>
+									<span
+										class="text-xs"
+										style="color: {task.confidence >= 0.9 ? 'var(--color-success)' : task.confidence >= 0.7 ? 'var(--color-warning)' : 'var(--color-text-tertiary)'}"
+									>
+										{Math.round(task.confidence * 100)}%
+									</span>
+								</div>
+								{#if showLevel3 && task.reasoning}
+									<p class="text-xs text-[var(--color-text-tertiary)] ml-4 pl-2 border-l border-[var(--color-border)]">
+										{task.reasoning}
+									</p>
+								{/if}
+							{/each}
+						</div>
+					</div>
+				{/if}
+
 				<!-- Email content - enriched when showLevel3 -->
 				{#if currentItem.content?.preview}
 					{#if showLevel3}
@@ -726,6 +834,32 @@
 										<p class="text-xs text-[var(--color-text-tertiary)] mt-1 line-clamp-2">
 											{item.analysis.summary}
 										</p>
+									{/if}
+
+									<!-- Entities (compact view for list) -->
+									{#if item.analysis.entities && Object.keys(item.analysis.entities).length > 0}
+										{@const totalEntities = Object.values(item.analysis.entities).flat().length}
+										<div class="flex flex-wrap gap-1 mt-1.5">
+											{#each Object.entries(item.analysis.entities).slice(0, 3) as [type, entityList]}
+												{#each entityList.slice(0, 2) as entity}
+													{@const entityClass = {
+														person: 'bg-blue-500/20 text-blue-300',
+														project: 'bg-purple-500/20 text-purple-300',
+														date: 'bg-orange-500/20 text-orange-300',
+														amount: 'bg-green-500/20 text-green-300',
+														organization: 'bg-cyan-500/20 text-cyan-300'
+													}[type] ?? 'bg-gray-500/20 text-gray-300'}
+													<span class="px-1.5 py-0.5 text-xs rounded {entityClass}">
+														{entity.value}
+													</span>
+												{/each}
+											{/each}
+											{#if totalEntities > 6}
+												<span class="text-xs text-[var(--color-text-tertiary)]">
+													+{totalEntities - 6}
+												</span>
+											{/if}
+										</div>
 									{/if}
 								</div>
 

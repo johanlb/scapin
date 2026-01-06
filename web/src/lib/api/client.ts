@@ -625,6 +625,36 @@ interface ActionOption {
 	is_recommended: boolean;
 }
 
+// Sprint 2: Entity types
+interface Entity {
+	type: string;
+	value: string;
+	confidence: number;
+	source: string;
+	metadata: Record<string, unknown>;
+}
+
+interface ProposedNote {
+	action: 'create' | 'enrich';
+	note_type: string;
+	title: string;
+	content_summary: string;
+	confidence: number;
+	reasoning: string;
+	target_note_id: string | null;
+	auto_applied: boolean;
+}
+
+interface ProposedTask {
+	title: string;
+	note: string;
+	project: string | null;
+	due_date: string | null;
+	confidence: number;
+	reasoning: string;
+	auto_applied: boolean;
+}
+
 interface QueueItemAnalysis {
 	action: string;
 	confidence: number;
@@ -632,6 +662,11 @@ interface QueueItemAnalysis {
 	reasoning: string;
 	summary: string | null;
 	options: ActionOption[];
+	// Sprint 2: Entity extraction & bidirectional loop
+	entities: Record<string, Entity[]>;
+	proposed_notes: ProposedNote[];
+	proposed_tasks: ProposedTask[];
+	context_used: string[];
 }
 
 interface QueueItem {
@@ -1537,6 +1572,10 @@ export type {
 	QueueItemMetadata,
 	QueueItemAnalysis,
 	QueueStats,
+	// Sprint 2: Entity types
+	Entity,
+	ProposedNote,
+	ProposedTask,
 	// Email types
 	EmailAccount,
 	EmailStats,

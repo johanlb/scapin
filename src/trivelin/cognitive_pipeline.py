@@ -15,7 +15,7 @@ the full cognitive architecture to be activated via configuration.
 import signal
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from src.core.config_manager import ProcessingConfig
 from src.core.events import PerceivedEvent
@@ -27,6 +27,9 @@ from src.planchet.planning_engine import ActionPlan, PlanningEngine
 from src.sancho.reasoning_engine import ReasoningEngine, ReasoningResult
 from src.sancho.router import AIRouter
 from src.sancho.templates import TemplateManager
+
+if TYPE_CHECKING:
+    from src.passepartout.context_engine import ContextEngine
 
 logger = get_logger("trivelin.cognitive_pipeline")
 
@@ -151,6 +154,7 @@ class CognitivePipeline:
         ai_router: AIRouter,
         config: Optional[ProcessingConfig] = None,
         template_manager: Optional[TemplateManager] = None,
+        context_engine: Optional["ContextEngine"] = None,
         planning_engine: Optional[PlanningEngine] = None,
         orchestrator: Optional[ActionOrchestrator] = None,
         learning_engine: Optional[Any] = None,  # Avoid circular import
@@ -162,6 +166,7 @@ class CognitivePipeline:
             ai_router: AI router for LLM calls
             config: Processing configuration (uses defaults if None)
             template_manager: Template manager for prompts
+            context_engine: Passepartout context engine for knowledge base retrieval
             planning_engine: Planchet planning engine
             orchestrator: Figaro action orchestrator
             learning_engine: Sganarelle learning engine (optional)
@@ -169,13 +174,16 @@ class CognitivePipeline:
         self.ai_router = ai_router
         self.config = config or ProcessingConfig()
         self.template_manager = template_manager
+        self.context_engine = context_engine
 
-        # Initialize reasoning engine (Sancho)
+        # Initialize reasoning engine (Sancho) with context engine
         self.reasoning_engine = ReasoningEngine(
             ai_router=ai_router,
             template_manager=template_manager,
+            context_engine=context_engine,
             max_iterations=self.config.cognitive_max_passes,
             confidence_threshold=self.config.cognitive_confidence_threshold,
+            enable_context=context_engine is not None,
         )
 
         # Initialize planning engine (Planchet)
@@ -195,6 +203,7 @@ class CognitivePipeline:
                 "max_passes": self.config.cognitive_max_passes,
                 "fallback_enabled": self.config.fallback_on_failure,
                 "learning_enabled": learning_engine is not None,
+                "context_enabled": context_engine is not None,
             }
         )
 

@@ -189,10 +189,25 @@ class EmailAnalysis(BaseModel):
         default_factory=list, description="Related email Message-IDs"
     )
     entities: dict[str, Any] = Field(
-        default_factory=dict, description="Extracted entities (people, dates, amounts)"
+        default_factory=dict,
+        description="Extracted entities by type: {'person': [...], 'date': [...], 'project': [...]}"
     )
     needs_full_content: bool = Field(
         default=False, description="Needs full email content (preview mode)"
+    )
+
+    # Sprint 2: Entity extraction & bidirectional loop
+    proposed_notes: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="AI-proposed notes to create or enrich (serialized ProposedNote)"
+    )
+    proposed_tasks: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="AI-proposed OmniFocus tasks (serialized ProposedTask)"
+    )
+    context_used: list[str] = Field(
+        default_factory=list,
+        description="Note IDs used as context for this analysis"
     )
 
     @field_validator("confidence")

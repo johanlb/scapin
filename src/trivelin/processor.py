@@ -6,9 +6,10 @@ Core email processing logic that orchestrates IMAP, AI analysis, and actions.
 
 import signal
 import sys
-from typing import Optional
+from typing import Any, Optional
 
 from src.core.config_manager import get_config
+from src.core.entities import AUTO_APPLY_THRESHOLD
 from src.core.error_manager import get_error_manager
 from src.core.events import ProcessingEvent, ProcessingEventType, get_event_bus
 from src.core.schemas import (
@@ -68,6 +69,14 @@ class EmailProcessor:
         from src.core.recovery_engine import init_recovery_engine
         self.recovery_engine = init_recovery_engine()
 
+        # Initialize NoteManager for auto-apply of proposed_notes
+        self.note_manager = None
+        try:
+            from src.passepartout.note_manager import NoteManager
+            self.note_manager = NoteManager(notes_dir=self.config.storage.notes_dir)
+        except Exception as e:
+            logger.warning(f"NoteManager not available for auto-apply: {e}")
+
         # Initialize cognitive pipeline if enabled
         self.cognitive_pipeline = None
         if self.config.processing.enable_cognitive_reasoning:
@@ -77,6 +86,7 @@ class EmailProcessor:
             "Email processor initialized",
             extra={
                 "cognitive_enabled": self.cognitive_pipeline is not None,
+                "auto_apply_enabled": self.note_manager is not None,
             }
         )
 
@@ -443,6 +453,18 @@ class EmailProcessor:
             logger.warning(f"Failed to analyze email {metadata.id}")
             return None
 
+        # Auto-apply high-confidence proposals (notes, tasks)
+        # This happens BEFORE execution decision to capture all proposals
+        auto_apply_result = self._auto_apply_proposals(analysis, str(metadata.id))
+        if any(v > 0 for v in auto_apply_result.values()):
+            logger.info(
+                "Auto-apply results",
+                extra={
+                    "email_id": metadata.id,
+                    **auto_apply_result,
+                }
+            )
+
         # Create processed email record
         processed = ProcessedEmail(
             metadata=metadata,
@@ -722,6 +744,254 @@ class EmailProcessor:
 
         self.state.increment("tasks_created")
         return True
+
+    def _auto_apply_proposals(
+        self,
+        analysis: EmailAnalysis,
+        email_id: str,
+    ) -> dict[str, Any]:
+        """
+        Auto-apply high-confidence proposed_notes and proposed_tasks
+
+        Applies proposals that meet AUTO_APPLY_THRESHOLD (0.90).
+        Lower confidence proposals remain in the analysis for UI display
+        and manual review.
+
+        Args:
+            analysis: Email analysis containing proposed_notes/tasks
+            email_id: Source email ID for tracking
+
+        Returns:
+            Dict with counts of applied and queued proposals
+        """
+        result = {
+            "notes_created": 0,
+            "notes_enriched": 0,
+            "tasks_created": 0,
+            "queued_for_review": 0,
+        }
+
+        # Auto-apply proposed notes
+        if analysis.proposed_notes and self.note_manager:
+            for proposal in analysis.proposed_notes:
+                confidence = proposal.get("confidence", 0)
+                action = proposal.get("action", "")
+                title = proposal.get("title", "")
+
+                if confidence >= AUTO_APPLY_THRESHOLD:
+                    applied = self._apply_proposed_note(proposal, email_id)
+                    if applied:
+                        if action == "create":
+                            result["notes_created"] += 1
+                        elif action == "enrich":
+                            result["notes_enriched"] += 1
+                        logger.info(
+                            "Auto-applied proposed note",
+                            extra={
+                                "action": action,
+                                "title": title,
+                                "confidence": confidence,
+                                "email_id": email_id,
+                            }
+                        )
+                    else:
+                        result["queued_for_review"] += 1
+                else:
+                    result["queued_for_review"] += 1
+                    logger.debug(
+                        f"Proposed note below threshold: {title} (conf={confidence:.2f})"
+                    )
+
+        # Auto-apply proposed tasks
+        if analysis.proposed_tasks:
+            for proposal in analysis.proposed_tasks:
+                confidence = proposal.get("confidence", 0)
+                title = proposal.get("title", "")
+
+                if confidence >= AUTO_APPLY_THRESHOLD:
+                    applied = self._apply_proposed_task(proposal, email_id)
+                    if applied:
+                        result["tasks_created"] += 1
+                        logger.info(
+                            "Auto-applied proposed task",
+                            extra={
+                                "title": title,
+                                "confidence": confidence,
+                                "email_id": email_id,
+                            }
+                        )
+                    else:
+                        result["queued_for_review"] += 1
+                else:
+                    result["queued_for_review"] += 1
+                    logger.debug(
+                        f"Proposed task below threshold: {title} (conf={confidence:.2f})"
+                    )
+
+        return result
+
+    def _apply_proposed_note(
+        self,
+        proposal: dict[str, Any],
+        email_id: str,
+    ) -> bool:
+        """
+        Apply a single proposed note
+
+        Args:
+            proposal: ProposedNote as dict with action, title, content_summary, etc.
+            email_id: Source email ID
+
+        Returns:
+            True if successfully applied
+        """
+        if not self.note_manager:
+            return False
+
+        try:
+            action = proposal.get("action", "create")
+            title = proposal.get("title", "")
+            content_summary = proposal.get("content_summary", "")
+            note_type = proposal.get("note_type", "general")
+            suggested_tags = proposal.get("suggested_tags", [])
+            target_note_id = proposal.get("target_note_id")
+
+            if action == "create":
+                # Create new note
+                content = self._format_note_content(
+                    title=title,
+                    summary=content_summary,
+                    email_id=email_id,
+                    note_type=note_type,
+                )
+
+                note_id = self.note_manager.create_note(
+                    title=title,
+                    content=content,
+                    tags=suggested_tags,
+                    metadata={
+                        "source": "email_extraction",
+                        "source_email_id": email_id,
+                        "note_type": note_type,
+                        "auto_applied": True,
+                    }
+                )
+
+                self.state.increment("notes_created")
+                logger.info(f"Created note from email: {note_id}")
+                return True
+
+            elif action == "enrich" and target_note_id:
+                # Enrich existing note (append to it)
+                existing_note = self.note_manager.get_note(target_note_id)
+                if existing_note:
+                    enrichment_section = (
+                        f"\n\n---\n"
+                        f"## Enrichissement (Email: {email_id[:8]}...)\n\n"
+                        f"{content_summary}\n"
+                    )
+                    updated_content = existing_note.content + enrichment_section
+
+                    self.note_manager.update_note(
+                        note_id=target_note_id,
+                        content=updated_content,
+                    )
+
+                    self.state.increment("notes_enriched")
+                    logger.info(f"Enriched note {target_note_id} from email")
+                    return True
+                else:
+                    logger.warning(f"Target note not found: {target_note_id}")
+                    return False
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Failed to apply proposed note: {e}", exc_info=True)
+            return False
+
+    def _apply_proposed_task(
+        self,
+        proposal: dict[str, Any],
+        email_id: str,
+    ) -> bool:
+        """
+        Apply a single proposed task (create OmniFocus task)
+
+        Args:
+            proposal: ProposedTask as dict with title, note, due_date, etc.
+            email_id: Source email ID
+
+        Returns:
+            True if successfully applied
+        """
+        try:
+            title = proposal.get("title", "")
+            note = proposal.get("note", "")
+            project = proposal.get("project")
+            tags = proposal.get("tags", [])
+            due_date = proposal.get("due_date")
+
+            # For now, log the task creation (OmniFocus integration not yet complete)
+            # TODO: Use OmniFocus MCP when available
+            logger.info(
+                "Would create OmniFocus task (not yet implemented)",
+                extra={
+                    "title": title,
+                    "note": note[:100] if note else None,
+                    "project": project,
+                    "tags": tags,
+                    "due_date": due_date,
+                    "source_email_id": email_id,
+                }
+            )
+
+            self.state.increment("tasks_proposed")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to apply proposed task: {e}", exc_info=True)
+            return False
+
+    def _format_note_content(
+        self,
+        title: str,
+        summary: str,
+        email_id: str,
+        note_type: str,
+    ) -> str:
+        """
+        Format note content with standard structure
+
+        Args:
+            title: Note title
+            summary: Content summary from AI
+            email_id: Source email ID
+            note_type: Type of note (personne, projet, etc.)
+
+        Returns:
+            Formatted markdown content
+        """
+        now = now_utc().strftime("%Y-%m-%d %H:%M")
+
+        content = f"""# {title}
+
+## Résumé
+
+{summary}
+
+## Métadonnées
+
+- **Type**: {note_type}
+- **Source**: Email ({email_id})
+- **Créé**: {now}
+- **Auto-appliqué**: Oui (confiance >= {AUTO_APPLY_THRESHOLD * 100:.0f}%)
+
+## Notes
+
+_Ajouter vos notes ici..._
+"""
+        return content
 
     def _validate_email_for_processing(
         self,

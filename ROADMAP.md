@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 1 COMPLÉTÉ ✅ — Transition vers Sprint 2
+**Phase actuelle** : Sprint 2 EN COURS 🟡 — Extraction Entités + UI (5/14 complétés)
 
 ---
 
@@ -10,14 +10,14 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 44 items MVP restants sur 63 (116 total identifiés)
+**État** : MVP en cours — 39 items MVP restants sur 63 (116 total identifiés)
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1697 tests, 95% couverture, 100% pass rate |
+| **Tests** | 1789 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
-| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 |
-| **Gaps MVP restants** | 44 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 (partiel) |
+| **Gaps MVP restants** | 39 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -194,29 +194,37 @@ API Endpoints
 
 ## Sprint 2 : Qualité d'Analyse
 
-**Statut** : 📋 Planifié
+**Statut** : 🟡 En cours (5/14 — 36%)
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Items** : 14 MVP
-**Dépendance** : Sprint 1
+**Items** : 14 MVP (5 complétés)
+**Dépendance** : Sprint 1 ✅
 
 ### Livrables
 
-| Catégorie | Item | Priorité |
-|-----------|------|----------|
-| **Extraction Entités** | Extraction auto (personnes, dates, projets) | MVP |
-| | extracted_entities dans EmailProcessingResult | MVP |
-| | Proposition ajout entités à PKM | MVP |
-| **Données Enrichies** | proposed_tasks dans EmailProcessingResult | MVP |
-| | proposed_notes dans EmailProcessingResult | MVP |
-| **Discussions** | CRUD /api/discussions | MVP |
-| | Messages et suggestions contextuelles | MVP |
-| **Chat** | POST /api/chat/quick | MVP |
-| **UX Intelligence** | Page Discussions multi-sessions | MVP |
-| | Mode traitement focus pleine page | MVP |
-| **Teams** | Filtrage par mentions directes | MVP |
-| | Déduplication email/Teams | MVP |
-| **Notes** | UI: Bouton "Discuter de cette note" | MVP |
-| **API** | GET/POST /api/focus | MVP |
+| Catégorie | Item | Priorité | Statut |
+|-----------|------|----------|--------|
+| **Extraction Entités** | Extraction auto (personnes, dates, projets) | MVP | ✅ |
+| | extracted_entities dans EmailProcessingResult | MVP | ✅ |
+| | Proposition ajout entités à PKM (UI) | MVP | ✅ |
+| **Données Enrichies** | proposed_tasks dans EmailProcessingResult | MVP | ✅ |
+| | proposed_notes dans EmailProcessingResult | MVP | ✅ |
+| **Discussions** | CRUD /api/discussions | MVP | ⬜ |
+| | Messages et suggestions contextuelles | MVP | ⬜ |
+| **Chat** | POST /api/chat/quick | MVP | ⬜ |
+| **UX Intelligence** | Page Discussions multi-sessions | MVP | ⬜ |
+| | Mode traitement focus pleine page | MVP | ⬜ |
+| **Teams** | Filtrage par mentions directes | MVP | ⬜ |
+| | Déduplication email/Teams | MVP | ⬜ |
+| **Notes** | UI: Bouton "Discuter de cette note" | MVP | ⬜ |
+| **API** | GET/POST /api/focus | MVP | ⬜ |
+
+### Complétés cette session
+
+- ✅ **EntityExtractor** (`src/core/extractors/entity_extractor.py`) — 37 tests
+- ✅ **Entity models** (`src/core/entities.py`) — EntityType, Entity, ProposedNote, ProposedTask
+- ✅ **EmailAnalysis enrichi** — entities, proposed_notes, proposed_tasks, context_used
+- ✅ **API responses** — EntityResponse, ProposedNoteResponse, ProposedTaskResponse
+- ✅ **Frontend UI entités** — Badges colorés, sections notes/tasks proposées
 
 ### Flux Email → Notes
 

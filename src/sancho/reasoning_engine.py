@@ -21,7 +21,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from src.core.events import PerceivedEvent
 from src.core.memory.working_memory import (
@@ -32,6 +32,9 @@ from src.core.memory.working_memory import (
 from src.core.schemas import EmailAction, EmailAnalysis, EmailCategory
 from src.sancho.router import AIModel, AIRouter
 from src.sancho.templates import TemplateManager, get_template_manager
+
+if TYPE_CHECKING:
+    from src.passepartout.context_engine import ContextEngine
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +99,7 @@ class ReasoningEngine:
         self,
         ai_router: AIRouter,
         template_manager: Optional[TemplateManager] = None,
+        context_engine: Optional["ContextEngine"] = None,
         max_iterations: int = 5,
         confidence_threshold: float = 0.95,
         enable_context: bool = False,  # Phase 0.5 Week 3 feature
@@ -107,6 +111,7 @@ class ReasoningEngine:
         Args:
             ai_router: AI router for LLM calls
             template_manager: Template manager (optional, uses singleton if None)
+            context_engine: ContextEngine for knowledge base retrieval (Sprint 2)
             max_iterations: Maximum reasoning passes (default 5)
             confidence_threshold: Target confidence 0.0-1.0 (default 0.95 = 95%)
             enable_context: Enable Pass 2 context retrieval (requires Passepartout)
@@ -114,6 +119,7 @@ class ReasoningEngine:
         """
         self.ai_router = ai_router
         self.template_manager = template_manager or get_template_manager()
+        self.context_engine = context_engine
         self.max_iterations = max_iterations
         self.confidence_threshold = confidence_threshold
         self.enable_context = enable_context
@@ -126,6 +132,7 @@ class ReasoningEngine:
                 "confidence_threshold": confidence_threshold,
                 "enable_context": enable_context,
                 "enable_validation": enable_validation,
+                "has_context_engine": context_engine is not None,
             }
         )
 
@@ -319,40 +326,127 @@ class ReasoningEngine:
         Time Budget: 3-5 seconds
         Model: Sonnet (balanced)
 
-        NOTE: This is a STUB for Phase 0.5 Week 3
-        Currently just adds mock context and slight confidence boost
-
         Args:
             wm: Working memory to update
         """
         wm.start_reasoning_pass(2, "context_enrichment")
 
         try:
-            # STUB: Mock context (Week 3 will implement real Passepartout integration)
-            wm.add_context_simple(
-                source="pkm_stub",
-                type="note",
-                content="Mock context - Passepartout integration coming in Week 3",
-                relevance=0.5
+            context_items = []
+
+            # Retrieve context from ContextEngine if available
+            if self.context_engine:
+                try:
+                    result = self.context_engine.retrieve_context(
+                        wm.event,
+                        top_k=5,
+                        min_relevance=0.3
+                    )
+                    context_items = result.context_items
+
+                    # Add context to working memory
+                    for ctx in context_items:
+                        wm.add_context_simple(
+                            source=ctx.source,
+                            type=ctx.type,
+                            content=ctx.content,
+                            relevance=ctx.relevance_score
+                        )
+
+                    logger.debug(
+                        f"Retrieved {len(context_items)} context items from knowledge base",
+                        extra={"sources": result.sources_used}
+                    )
+                except Exception as e:
+                    logger.warning(f"Context retrieval failed: {e}")
+
+            # Get Pass 1 hypothesis for re-analysis
+            pass1_hyp = wm.get_hypothesis("pass1_initial")
+            if not pass1_hyp:
+                logger.warning("Pass 2: No Pass 1 hypothesis found")
+                wm.complete_reasoning_pass()
+                return
+
+            # Render template with context
+            prompt = self.template_manager.render(
+                "ai/pass2_context",
+                event=wm.event,
+                pass1_hypothesis=pass1_hyp.metadata.get("analysis", {}),
+                context_items=[
+                    {
+                        "source": ctx.source,
+                        "type": ctx.type,
+                        "content": ctx.content,
+                        "relevance_score": ctx.relevance_score,
+                        "entities": ctx.metadata.get("entities", []),
+                        "timestamp": ctx.metadata.get("created_at")
+                    }
+                    for ctx in context_items
+                ]
             )
 
-            # Slight confidence boost for mock
-            current_confidence = wm.overall_confidence
-            boosted = min(current_confidence + 0.05, 0.85)  # +5%, cap at 85%
-            wm.update_confidence(boosted)
+            # Call AI (Sonnet for deeper analysis)
+            response, usage = self.ai_router.analyze_with_prompt(
+                prompt=prompt,
+                model=AIModel.CLAUDE_SONNET,
+                system_prompt="You are Sancho, enriching analysis with knowledge base context."
+            )
 
+            # Record in pass
             if wm.current_pass:
-                wm.current_pass.insights.append("Context enrichment (stub - Week 3 feature)")
+                wm.current_pass.ai_prompts.append(prompt[:500])
+                wm.current_pass.ai_responses.append(response[:500])
 
-            logger.debug(
-                f"Pass 2 (stub) complete: {wm.overall_confidence:.1%} confidence"
-            )
+            # Parse response
+            analysis = self._parse_pass2_response(response)
+
+            if analysis:
+                # Create enriched hypothesis
+                refined_hyp = analysis.get("refined_hypothesis", {})
+                hypothesis = Hypothesis(
+                    id="pass2_context",
+                    description=refined_hyp.get("reasoning", "Context-enriched analysis"),
+                    confidence=min(refined_hyp.get("confidence", 80) / 100.0, 0.85),
+                    supporting_evidence=[
+                        refined_hyp.get("key_factors", "")
+                    ] if isinstance(refined_hyp.get("key_factors"), str) else refined_hyp.get("key_factors", []),
+                    metadata={
+                        "pass": 2,
+                        "model": "sonnet",
+                        "analysis": analysis,
+                        "context_count": len(context_items)
+                    }
+                )
+
+                wm.add_hypothesis(hypothesis, replace=True)
+                wm.update_confidence(hypothesis.confidence)
+
+                # Record insights
+                if wm.current_pass:
+                    insights = analysis.get("context_insights", {}).get("key_findings", [])
+                    for insight in insights:
+                        wm.current_pass.insights.append(insight)
+
+                logger.debug(
+                    f"Pass 2 complete: {wm.overall_confidence:.1%} confidence",
+                    extra={"context_count": len(context_items)}
+                )
+            else:
+                logger.warning("Pass 2: Failed to parse AI response")
+                # Slight confidence boost even if parsing fails
+                current_confidence = wm.overall_confidence
+                boosted = min(current_confidence + 0.05, 0.80)
+                wm.update_confidence(boosted)
 
         except Exception as e:
             logger.error(f"Pass 2 error: {e}", exc_info=True)
 
         finally:
             wm.complete_reasoning_pass()
+
+    def _parse_pass2_response(self, response: str) -> Optional[dict[str, Any]]:
+        """Parse Pass 2 JSON response"""
+        return self._extract_json(response)
 
     # ========================================================================
     # PASS 3: DEEP REASONING
@@ -621,8 +715,8 @@ class ReasoningEngine:
             analysis_data = best_hyp.metadata.get("analysis", {})
 
             # Try to extract email-specific fields
-            if "hypothesis" in analysis_data:
-                hyp = analysis_data["hypothesis"]
+            if "hypothesis" in analysis_data or "refined_hypothesis" in analysis_data:
+                hyp = analysis_data.get("hypothesis", analysis_data.get("refined_hypothesis", {}))
                 action_str = hyp.get("recommended_action", "queue")
 
                 # Map to EmailAction
@@ -641,6 +735,18 @@ class ReasoningEngine:
                 except ValueError:
                     logger.warning(f"Unknown category: {category_str}")
 
+                # Extract entities (validated by AI)
+                entities = self._extract_entities_from_analysis(analysis_data)
+
+                # Extract proposed notes
+                proposed_notes = self._extract_proposed_notes(analysis_data)
+
+                # Extract proposed tasks
+                proposed_tasks = self._extract_proposed_tasks(analysis_data)
+
+                # Get context note IDs used
+                context_used = self._get_context_note_ids(wm)
+
                 # Build EmailAnalysis
                 return EmailAnalysis(
                     action=action,
@@ -648,10 +754,13 @@ class ReasoningEngine:
                     destination=hyp.get("destination"),
                     confidence=int(wm.overall_confidence * 100),
                     reasoning=best_hyp.description,
-                    tags=analysis_data.get("entities_confirmed", []),
-                    entities={},
+                    tags=analysis_data.get("tags", []),
+                    entities=entities,
                     omnifocus_task=analysis_data.get("omnifocus_task"),
-                    needs_full_content=False
+                    needs_full_content=False,
+                    proposed_notes=proposed_notes,
+                    proposed_tasks=proposed_tasks,
+                    context_used=context_used,
                 )
 
             # Fallback: conservative defaults
@@ -666,6 +775,140 @@ class ReasoningEngine:
         except Exception as e:
             logger.error(f"Failed to extract final analysis: {e}", exc_info=True)
             return None
+
+    def _extract_entities_from_analysis(
+        self,
+        analysis_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Extract validated entities from AI analysis
+
+        Args:
+            analysis_data: Parsed AI response
+
+        Returns:
+            Dictionary of entities by type
+        """
+        # Look for entities_validated (new format) or entities_resolved (pass 2 format)
+        entities_raw = analysis_data.get(
+            "entities_validated",
+            analysis_data.get("entities_resolved", {})
+        )
+
+        if not entities_raw:
+            # Legacy format: entities_confirmed as list
+            confirmed = analysis_data.get("entities_confirmed", [])
+            if isinstance(confirmed, list):
+                return {"confirmed": confirmed}
+            return {}
+
+        # Convert to serializable format
+        entities = {}
+        for entity_type, entity_list in entities_raw.items():
+            if isinstance(entity_list, list):
+                entities[entity_type] = [
+                    e if isinstance(e, dict) else {"value": str(e)}
+                    for e in entity_list
+                ]
+        return entities
+
+    def _extract_proposed_notes(
+        self,
+        analysis_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Extract proposed notes from AI analysis
+
+        Args:
+            analysis_data: Parsed AI response
+
+        Returns:
+            List of serialized ProposedNote dictionaries
+        """
+        proposed_notes_raw = analysis_data.get("proposed_notes", [])
+        if not isinstance(proposed_notes_raw, list):
+            return []
+
+        proposed_notes = []
+        for note_data in proposed_notes_raw:
+            if not isinstance(note_data, dict):
+                continue
+            # Validate required fields
+            if not note_data.get("action") or not note_data.get("title"):
+                continue
+
+            proposed_notes.append({
+                "action": note_data.get("action"),
+                "note_type": note_data.get("note_type", "general"),
+                "title": note_data.get("title"),
+                "content_summary": note_data.get("content_summary", ""),
+                "entities": note_data.get("entities", []),
+                "suggested_tags": note_data.get("suggested_tags", []),
+                "confidence": note_data.get("confidence", 0.5),
+                "reasoning": note_data.get("reasoning", ""),
+                "target_note_id": note_data.get("target_note_id"),
+                "source_email_id": note_data.get("source_email_id", ""),
+            })
+
+        logger.debug(f"Extracted {len(proposed_notes)} proposed notes from analysis")
+        return proposed_notes
+
+    def _extract_proposed_tasks(
+        self,
+        analysis_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """
+        Extract proposed tasks from AI analysis
+
+        Args:
+            analysis_data: Parsed AI response
+
+        Returns:
+            List of serialized ProposedTask dictionaries
+        """
+        proposed_tasks_raw = analysis_data.get("proposed_tasks", [])
+        if not isinstance(proposed_tasks_raw, list):
+            return []
+
+        proposed_tasks = []
+        for task_data in proposed_tasks_raw:
+            if not isinstance(task_data, dict):
+                continue
+            # Validate required field
+            if not task_data.get("title"):
+                continue
+
+            proposed_tasks.append({
+                "title": task_data.get("title"),
+                "note": task_data.get("note", ""),
+                "project": task_data.get("project"),
+                "tags": task_data.get("tags", []),
+                "due_date": task_data.get("due_date"),
+                "defer_date": task_data.get("defer_date"),
+                "confidence": task_data.get("confidence", 0.5),
+                "reasoning": task_data.get("reasoning", ""),
+                "source_email_id": task_data.get("source_email_id", ""),
+            })
+
+        logger.debug(f"Extracted {len(proposed_tasks)} proposed tasks from analysis")
+        return proposed_tasks
+
+    def _get_context_note_ids(self, wm: WorkingMemory) -> list[str]:
+        """
+        Get note IDs used as context from working memory
+
+        Args:
+            wm: Working memory with context items
+
+        Returns:
+            List of note IDs
+        """
+        note_ids = []
+        for ctx in wm.context:
+            note_id = ctx.metadata.get("note_id")
+            if note_id and note_id not in note_ids:
+                note_ids.append(note_id)
+        return note_ids
 
     def _extract_user_questions(self, wm: WorkingMemory) -> list[dict[str, Any]]:
         """Extract formatted user questions from working memory"""

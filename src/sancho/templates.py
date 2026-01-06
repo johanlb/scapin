@@ -246,7 +246,14 @@ def render_email_analysis_prompt(
     from_address: str,
     body: str,
     preview_mode: bool = False,
-    conversation_context: Optional[str] = None
+    conversation_context: Optional[str] = None,
+    entities: Optional[dict[str, list[Any]]] = None,
+    context_notes: Optional[list[Any]] = None,
+    from_name: Optional[str] = None,
+    to_addresses: Optional[str] = None,
+    date: Optional[str] = None,
+    has_attachments: bool = False,
+    existing_folders: Optional[list[str]] = None,
 ) -> str:
     """
     Render email analysis prompt for AI
@@ -257,6 +264,13 @@ def render_email_analysis_prompt(
         body: Email body
         preview_mode: Use preview mode (truncated body)
         conversation_context: Optional conversation context
+        entities: Pre-extracted entities by type {"person": [...], "date": [...]}
+        context_notes: Notes from knowledge base providing context
+        from_name: Sender display name
+        to_addresses: Recipients as string
+        date: Email date
+        has_attachments: Whether email has attachments
+        existing_folders: List of existing IMAP folders
 
     Returns:
         Rendered prompt
@@ -266,9 +280,16 @@ def render_email_analysis_prompt(
         "email_analysis",
         subject=subject,
         from_address=from_address,
+        from_name=from_name or from_address,
+        to_addresses=to_addresses or "",
+        date=date or "",
+        has_attachments=has_attachments,
         body=body,
         preview_mode=preview_mode,
         conversation_context=conversation_context,
+        entities=entities or {},
+        context_notes=context_notes or [],
+        existing_folders=existing_folders or [],
     )
 
 

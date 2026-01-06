@@ -5,8 +5,44 @@ Pydantic models for queue API requests and responses.
 """
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
+
+
+class EntityResponse(BaseModel):
+    """Extracted entity in response"""
+
+    type: str = Field(..., description="Entity type (person, date, project, etc.)")
+    value: str = Field(..., description="Entity value")
+    confidence: float = Field(..., description="Extraction confidence 0-1")
+    source: str = Field("extraction", description="Source: extraction, ai_validation, user")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+
+class ProposedNoteResponse(BaseModel):
+    """Proposed note creation or enrichment"""
+
+    action: str = Field(..., description="create or enrich")
+    note_type: str = Field(..., description="Type of note (personne, projet, etc.)")
+    title: str = Field(..., description="Note title")
+    content_summary: str = Field(..., description="Content summary")
+    confidence: float = Field(..., description="Proposal confidence 0-1")
+    reasoning: str = Field("", description="Why this note should be created/enriched")
+    target_note_id: str | None = Field(None, description="Target note ID for enrichment")
+    auto_applied: bool = Field(False, description="Whether this was auto-applied (conf >= 0.90)")
+
+
+class ProposedTaskResponse(BaseModel):
+    """Proposed OmniFocus task"""
+
+    title: str = Field(..., description="Task title")
+    note: str = Field("", description="Task note")
+    project: str | None = Field(None, description="Target project")
+    due_date: str | None = Field(None, description="Due date (ISO format)")
+    confidence: float = Field(..., description="Proposal confidence 0-1")
+    reasoning: str = Field("", description="Why this task should be created")
+    auto_applied: bool = Field(False, description="Whether this was auto-applied (conf >= 0.90)")
 
 
 class QueueItemMetadata(BaseModel):
@@ -43,6 +79,23 @@ class QueueItemAnalysis(BaseModel):
     options: list[ActionOptionResponse] = Field(
         default_factory=list,
         description="Options d'action proposées par l'IA"
+    )
+    # Sprint 2: Entity extraction & bidirectional loop
+    entities: dict[str, list[EntityResponse]] = Field(
+        default_factory=dict,
+        description="Extracted entities grouped by type (person, date, project, etc.)"
+    )
+    proposed_notes: list[ProposedNoteResponse] = Field(
+        default_factory=list,
+        description="Proposed notes to create or enrich"
+    )
+    proposed_tasks: list[ProposedTaskResponse] = Field(
+        default_factory=list,
+        description="Proposed OmniFocus tasks"
+    )
+    context_used: list[str] = Field(
+        default_factory=list,
+        description="IDs of notes used as context for this analysis"
     )
 
 

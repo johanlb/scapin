@@ -8,10 +8,14 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from src.core.entities import AUTO_APPLY_THRESHOLD
 from src.jeeves.api.models.queue import (
     ActionOptionResponse,
     ApproveRequest,
+    EntityResponse,
     ModifyRequest,
+    ProposedNoteResponse,
+    ProposedTaskResponse,
     QueueItemAnalysis,
     QueueItemContent,
     QueueItemMetadata,
@@ -46,6 +50,52 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
     analysis = item.get("analysis", {})
     content = item.get("content", {})
 
+    # Convert entities to response format
+    raw_entities = analysis.get("entities", {})
+    entities_by_type: dict[str, list[EntityResponse]] = {}
+    for entity_type, entity_list in raw_entities.items():
+        entities_by_type[entity_type] = [
+            EntityResponse(
+                type=e.get("type", entity_type),
+                value=e.get("value", ""),
+                confidence=e.get("confidence", 0.0),
+                source=e.get("source", "extraction"),
+                metadata=e.get("metadata", {}),
+            )
+            for e in entity_list
+        ]
+
+    # Convert proposed_notes to response format
+    raw_proposed_notes = analysis.get("proposed_notes", [])
+    proposed_notes = [
+        ProposedNoteResponse(
+            action=pn.get("action", "create"),
+            note_type=pn.get("note_type", "general"),
+            title=pn.get("title", ""),
+            content_summary=pn.get("content_summary", ""),
+            confidence=pn.get("confidence", 0.0),
+            reasoning=pn.get("reasoning", ""),
+            target_note_id=pn.get("target_note_id"),
+            auto_applied=pn.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+        )
+        for pn in raw_proposed_notes
+    ]
+
+    # Convert proposed_tasks to response format
+    raw_proposed_tasks = analysis.get("proposed_tasks", [])
+    proposed_tasks = [
+        ProposedTaskResponse(
+            title=pt.get("title", ""),
+            note=pt.get("note", ""),
+            project=pt.get("project"),
+            due_date=pt.get("due_date"),
+            confidence=pt.get("confidence", 0.0),
+            reasoning=pt.get("reasoning", ""),
+            auto_applied=pt.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+        )
+        for pt in raw_proposed_tasks
+    ]
+
     return QueueItemResponse(
         id=item.get("id", ""),
         account_id=item.get("account_id"),
@@ -76,6 +126,10 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
                 )
                 for opt in analysis.get("options", [])
             ],
+            entities=entities_by_type,
+            proposed_notes=proposed_notes,
+            proposed_tasks=proposed_tasks,
+            context_used=analysis.get("context_used", []),
         ),
         content=QueueItemContent(
             preview=content.get("preview", ""),
