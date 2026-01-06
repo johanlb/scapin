@@ -1,8 +1,8 @@
 # Suivi des Écarts — Scapin
 
 **Dernière mise à jour** : 6 janvier 2026
-**Total items** : 124
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 23
+**Total items** : 116
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 24
 
 ---
 
@@ -307,6 +307,8 @@
 MVP:          ██████░░░░░░░░░░░░░░ 19/63 (30%)
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
 Total:        ████░░░░░░░░░░░░░░░░ 22/116 (19%)
+
+Sprint 1:     ████████████████████ 19/19 (100%) ✅
 ```
 
 ---
@@ -315,6 +317,9 @@ Total:        ████░░░░░░░░░░░░░░░░ 22/11
 
 | Date | Action |
 |------|--------|
+| 2026-01-06 | **Sprint 1 COMPLÉTÉ** — 19/19 items (100%) |
+| 2026-01-06 | **Security Hardening** — Analyse profonde + corrections sécurité avant Sprint 2 |
+| 2026-01-06 | Nouveaux modules : error_handling.py, constants.py, rate_limiter.py |
 | 2026-01-05 | Création initiale - Analyse complète des écarts vs specs |
 | 2026-01-05 | Seconde passe - Ajout 21 items (Intégrations, Cognitif, UI Components, Qualité) |
 | 2026-01-05 | Git Versioning complété (5 items) - backend + 4 endpoints API |

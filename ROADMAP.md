@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 2 — Qualité d'Analyse
+**Phase actuelle** : Sprint 1 COMPLÉTÉ ✅ — Transition vers Sprint 2
 
 ---
 
@@ -14,7 +14,7 @@
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1752 tests, 95% couverture, 100% pass rate |
+| **Tests** | 1697 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 |
 | **Gaps MVP restants** | 44 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
@@ -89,7 +89,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | 0.8 | Interface Web (SvelteKit) | 8 | ✅ |
 | 0.9 | PWA Mobile | — | ✅ |
 
-**Total tests** : 1736 | **Couverture** : 95% | **Pass rate** : 100%
+**Total tests** : 1697 | **Couverture** : 95% | **Pass rate** : 100%
 
 ---
 
@@ -469,7 +469,7 @@ Valeur Fonct.:     ████████████████████ 
 Interfaces:        ████████████████████ 100% ✅
 
 === MVP EN COURS ===
-Sprint 1 (Notes):  ███████████████████░  95% 🟡 (18/19)
+Sprint 1 (Notes):  ████████████████████ 100% ✅ (19/19)
 Sprint 2 (Analyse):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 3 (Actions):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -478,20 +478,20 @@ Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░ 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        ███████████████░░░░░  73% (phases + Sprint 1)
-                   → 44 items restants (19 MVP complétés sur 63)
+Global MVP:        ██████░░░░░░░░░░░░░░  30% (19 MVP complétés sur 63)
+                   → 44 items restants
 ```
 
 ### Items par Sprint
 
 | Sprint | Items MVP | Complétés | Statut |
 |--------|-----------|-----------|--------|
-| Sprint 1 | 19 | 18 | 🟡 95% |
+| Sprint 1 | 19 | 19 | ✅ 100% |
 | Sprint 2 | 14 | 0 | 📋 Planifié |
 | Sprint 3 | 16 | 0 | 📋 Planifié |
 | Sprint 4 | 14 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **69** | **18** | 26% |
+| **Total MVP** | **69** | **19** | 28% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -548,6 +548,16 @@ Global MVP:        ███████████████░░░░░ 
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.15** (2026-01-06) : Security Hardening
+  - Deep analysis before Sprint 2 (4 parallel agents: security, architecture, quality, performance)
+  - Security: jwt_secret_key required, production auth warning, CORS configurable, sanitized exceptions
+  - WebSocket auth via first message (not query param)
+  - Login rate limiting (5 attempts/5min with exponential backoff)
+  - New utilities: error_handling.py, constants.py, rate_limiter.py
+  - Performance: composite index on note_metadata
+  - Tests: 1697 passed, svelte-check 0 errors, ruff 0 warnings
+  - **Sprint 1: 100% COMPLÉTÉ** (19/19)
 
 - **v1.0.0-alpha.14** (2026-01-06) : Test Dependency Fix
   - Fix: Properly mock get_notes_service dependency in endpoint tests
@@ -632,7 +642,7 @@ Global MVP:        ███████████████░░░░░ 
 
 ---
 
-**Statut** : Sprint 1 — Notes & Fondation Contexte (95% complété)
-**Qualité** : 10/10 Production Ready Core
-**Tests** : 1736+ tests, 95% couverture, 100% pass
-**Prochaine étape** : Finir Sprint 1 (1 item restant : Calendar conflict detection)
+**Statut** : Sprint 1 COMPLÉTÉ ✅ — Prêt pour Sprint 2
+**Qualité** : 10/10 Production Ready Core (Security Hardened)
+**Tests** : 1697 tests, 95% couverture, 100% pass
+**Prochaine étape** : Sprint 2 — Qualité d'Analyse (extraction entités, proposed_notes, discussions)
