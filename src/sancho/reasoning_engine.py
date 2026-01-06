@@ -104,6 +104,8 @@ class ReasoningEngine:
         confidence_threshold: float = 0.95,
         enable_context: bool = False,  # Phase 0.5 Week 3 feature
         enable_validation: bool = False,  # Multi-provider validation
+        context_top_k: int = 5,  # Sprint 2: Context enrichment config
+        context_min_relevance: float = 0.3,  # Sprint 2: Context enrichment config
     ):
         """
         Initialize reasoning engine
@@ -116,6 +118,8 @@ class ReasoningEngine:
             confidence_threshold: Target confidence 0.0-1.0 (default 0.95 = 95%)
             enable_context: Enable Pass 2 context retrieval (requires Passepartout)
             enable_validation: Enable Pass 4 multi-provider validation
+            context_top_k: Number of context items to retrieve (default 5)
+            context_min_relevance: Minimum relevance score for context (default 0.3)
         """
         self.ai_router = ai_router
         self.template_manager = template_manager or get_template_manager()
@@ -124,6 +128,8 @@ class ReasoningEngine:
         self.confidence_threshold = confidence_threshold
         self.enable_context = enable_context
         self.enable_validation = enable_validation
+        self.context_top_k = context_top_k
+        self.context_min_relevance = context_min_relevance
 
         logger.info(
             "Sancho reasoning engine initialized",
@@ -133,6 +139,8 @@ class ReasoningEngine:
                 "enable_context": enable_context,
                 "enable_validation": enable_validation,
                 "has_context_engine": context_engine is not None,
+                "context_top_k": context_top_k,
+                "context_min_relevance": context_min_relevance,
             }
         )
 
@@ -339,8 +347,8 @@ class ReasoningEngine:
                 try:
                     result = self.context_engine.retrieve_context(
                         wm.event,
-                        top_k=5,
-                        min_relevance=0.3
+                        top_k=self.context_top_k,
+                        min_relevance=self.context_min_relevance
                     )
                     context_items = result.context_items
 

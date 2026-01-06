@@ -378,6 +378,24 @@ class ProcessingConfig(BaseModel):
         description="Fall back to legacy single-pass if cognitive pipeline fails"
     )
 
+    # Context enrichment (Pass 2) - Uses Passepartout knowledge base
+    enable_context_enrichment: bool = Field(
+        True,
+        description="Enable Pass 2 context enrichment from knowledge base (requires NoteManager)"
+    )
+    context_top_k: int = Field(
+        5,
+        ge=1,
+        le=20,
+        description="Number of context items to retrieve from knowledge base"
+    )
+    context_min_relevance: float = Field(
+        0.3,
+        ge=0.0,
+        le=1.0,
+        description="Minimum relevance score for context items (0-1)"
+    )
+
 
 class MicrosoftAccountConfig(BaseModel):
     """

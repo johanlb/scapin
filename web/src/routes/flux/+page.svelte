@@ -541,6 +541,25 @@
 					</div>
 				{/if}
 
+				<!-- Context Used (Sprint 2 - Notes that enriched the analysis) -->
+				{#if currentItem.analysis.context_used && currentItem.analysis.context_used.length > 0}
+					<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
+						<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
+							Contexte utilisé
+						</h4>
+						<div class="flex flex-wrap gap-1.5">
+							{#each currentItem.analysis.context_used as noteId}
+								<a
+									href="/notes/{noteId}"
+									class="text-xs px-2 py-1 rounded-full bg-[var(--color-event-notes)]/20 text-[var(--color-event-notes)] hover:bg-[var(--color-event-notes)]/30 transition-colors"
+								>
+									📝 {noteId.slice(0, 20)}...
+								</a>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
 				<!-- Email content preview (always visible) -->
 				{#if currentItem.content?.preview || currentItem.content?.full_text}
 					{@const contentText = currentItem.content?.full_text || currentItem.content?.preview || ''}

@@ -184,6 +184,8 @@ class CognitivePipeline:
             max_iterations=self.config.cognitive_max_passes,
             confidence_threshold=self.config.cognitive_confidence_threshold,
             enable_context=context_engine is not None,
+            context_top_k=self.config.context_top_k,
+            context_min_relevance=self.config.context_min_relevance,
         )
 
         # Initialize planning engine (Planchet)

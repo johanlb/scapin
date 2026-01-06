@@ -91,12 +91,36 @@ class EmailProcessor:
         )
 
     def _init_cognitive_pipeline(self) -> None:
-        """Initialize the cognitive pipeline components"""
+        """Initialize the cognitive pipeline components with context engine"""
         from src.trivelin.cognitive_pipeline import CognitivePipeline
+
+        # Initialize ContextEngine if NoteManager is available and context enrichment enabled
+        context_engine = None
+        if (
+            self.note_manager is not None
+            and self.config.processing.enable_context_enrichment
+        ):
+            try:
+                from src.passepartout.context_engine import ContextEngine
+
+                context_engine = ContextEngine(
+                    note_manager=self.note_manager,
+                    # Default weights: entity 40%, semantic 40%, thread 20%
+                )
+                logger.info(
+                    "ContextEngine initialized for cognitive pipeline",
+                    extra={
+                        "top_k": self.config.processing.context_top_k,
+                        "min_relevance": self.config.processing.context_min_relevance,
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"ContextEngine not available: {e}")
 
         self.cognitive_pipeline = CognitivePipeline(
             ai_router=self.ai_router,
             config=self.config.processing,
+            context_engine=context_engine,
         )
         logger.info(
             "Cognitive pipeline initialized",
@@ -104,6 +128,7 @@ class EmailProcessor:
                 "confidence_threshold": self.config.processing.cognitive_confidence_threshold,
                 "timeout_seconds": self.config.processing.cognitive_timeout_seconds,
                 "max_passes": self.config.processing.cognitive_max_passes,
+                "context_enabled": context_engine is not None,
             }
         )
 
