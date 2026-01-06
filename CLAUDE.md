@@ -376,11 +376,11 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1721+ tests, 95% couverture, 100% pass rate
+**Global** : 1722+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1721 | ✅ |
+| Backend tests | 1722 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
@@ -542,6 +542,47 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-06 (Suite 2) — Infinite Scroll + Virtualisation
+
+**Focus** : Implémentation de l'infinite scroll avec virtualisation pour les listes longues
+
+**Accomplissements** :
+
+1. ✅ **VirtualList.svelte** (`web/src/lib/components/ui/VirtualList.svelte` ~200 lignes)
+   - Composant réutilisable avec @tanstack/svelte-virtual
+   - Virtualisation : seuls les items visibles sont dans le DOM
+   - IntersectionObserver pour auto-chargement au scroll
+   - Support Svelte 5 snippets pour personnalisation
+   - Props : items, estimatedItemHeight, onLoadMore, hasMore, loading
+
+2. ✅ **Intégration Flux** (`web/src/routes/flux/+page.svelte`)
+   - Remplacement `{#each}` par `<VirtualList>` pour approved/rejected
+   - Suppression du bouton "Charger plus" (auto-scroll)
+   - Height calculé dynamiquement
+
+3. ✅ **Page Test Performance** (`web/src/routes/flux/test-performance/+page.svelte`)
+   - Génération données mock (1000 à 50000+ items)
+   - Mesure temps de rendu initial
+   - Validation scroll fluide avec grands datasets
+
+**Fichiers créés/modifiés** :
+```
+web/src/lib/components/ui/VirtualList.svelte     # NEW (~200 lignes)
+web/src/lib/components/ui/index.ts               # MODIFIED (export)
+web/src/routes/flux/+page.svelte                 # MODIFIED (intégration)
+web/src/routes/flux/test-performance/+page.svelte # NEW (page test)
+web/package.json                                  # MODIFIED (+@tanstack/svelte-virtual)
+docs/GAPS_TRACKING.md                            # MODIFIED (17/63 MVP = 27%)
+ROADMAP.md                                       # MODIFIED (Sprint 1: 84%)
+```
+
+**Tests** : 1722 passed, 53 skipped, svelte-check 0 errors
+
+**Commits** :
+- `87acd2e` — feat(web): add Infinite Scroll with VirtualList component
+
+---
 
 ### Session 2026-01-06 (Suite) — Notes Folders API
 
@@ -1966,33 +2007,33 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Sprint 1 : Finir (4 items restants)
+### Sprint 1 : Finir (3 items restants)
 
-**Statut** : 79% complété (15/19 items)
+**Statut** : 84% complété (16/19 items)
 
 **Complété** :
 - ✅ Notes Git Versioning (5 endpoints)
 - ✅ Éditeur Markdown complet
 - ✅ Search API (2 endpoints)
-- ✅ UI Components (5/6) : Modal, Tabs, Toast, ConfidenceBar, Skeleton
+- ✅ UI Components (6/6) : Modal, Tabs, Toast, ConfidenceBar, Skeleton, VirtualList
 - ✅ Stats API (2 endpoints)
 - ✅ Note Enrichment System (SM-2)
 - ✅ API Notes Review (8 endpoints)
 - ✅ UI Notes Review
 - ✅ POST /api/notes/folders + GET /api/notes/folders
+- ✅ Infinite Scroll + Virtualisation (@tanstack/svelte-virtual)
 
 **Restant Sprint 1** :
 
 | Priorité | Item | Description |
 |----------|------|-------------|
-| 🔴 | Infinite Scroll | Virtualisation listes longues |
 | 🟠 | Calendar briefing button | Bouton briefing pré-réunion |
 | 🟠 | Calendar conflict detection | Alerte conflits calendrier |
 | 🟠 | GET /api/status | Status temps réel Scapin |
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (47 MVP restants sur 63).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (46 MVP restants sur 63).
 
 ---
 
