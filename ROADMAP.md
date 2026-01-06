@@ -14,7 +14,7 @@
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1722+ tests, 95% couverture, 100% pass rate |
+| **Tests** | 1736 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 |
 | **Gaps MVP restants** | 45 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
@@ -89,7 +89,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | 0.8 | Interface Web (SvelteKit) | 8 | ✅ |
 | 0.9 | PWA Mobile | — | ✅ |
 
-**Total tests** : 1721+ | **Couverture** : 95% | **Pass rate** : 100%
+**Total tests** : 1736 | **Couverture** : 95% | **Pass rate** : 100%
 
 ---
 
@@ -548,6 +548,13 @@ Global MVP:        ███████████████░░░░░ 
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.14** (2026-01-06) : Test Dependency Fix
+  - Fix: Properly mock get_notes_service dependency in endpoint tests
+  - Fix: Use AsyncMock for async service methods
+  - Remove unused imports (ruff compliance)
+  - Tests : 1736 passed, 53 skipped (0 failures)
+  - Sprint 1 : 95% (18/19)
 
 - **v1.0.0-alpha.13** (2026-01-06) : GET /api/status Endpoint
   - ✅ GET /api/status - Status temps réel système

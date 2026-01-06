@@ -377,11 +377,11 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1722+ tests, 95% couverture, 100% pass rate
+**Global** : 1736 tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1722 | ✅ |
+| Backend tests | 1736 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
@@ -543,6 +543,32 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-06 (Suite 6) — Test Dependency Fix
+
+**Focus** : Correction des tests en échec dus à des problèmes de configuration
+
+**Problème** :
+- 22 tests `TestFolderEndpoints` échouaient avec `ValidationError: email/ai Field required`
+- Cause : Les tests utilisaient `patch.object(NotesService, ...)` mais la dépendance `get_notes_service` appelait `get_cached_config()` qui tentait de charger la vraie config
+
+**Solution** :
+1. ✅ Override `get_notes_service` dans les dependency overrides (pas juste `get_cached_config`)
+2. ✅ Utiliser `AsyncMock` pour les méthodes async du service
+3. ✅ Supprimer import `patch` inutilisé
+
+**Fichiers modifiés** :
+```
+tests/unit/test_notes_folders.py  # Fix dependency mocking
+```
+
+**Tests** : 1736 passed, 53 skipped (0 failures)
+
+**Commits** :
+- `d4a173c` — fix(tests): properly mock NotesService dependency in endpoint tests
+- `cbb7f4f` — fix: remove unused patch import
+
+---
 
 ### Session 2026-01-06 (Suite 2) — Infinite Scroll + Virtualisation
 
