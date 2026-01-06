@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 6 janvier 2026
+**Dernière mise à jour** : 7 janvier 2026
 **Projet** : Scapin (anciennement PKM System)  
 **Dépôt** : https://github.com/johanlb/scapin  
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -543,6 +543,37 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-07 — Backlog Review & Sprint 2 Planning
+
+**Focus** : Revue du backlog, création d'issues, planification Sprint 2
+
+**Issues créées** :
+
+| # | Titre | Priorité |
+|---|-------|----------|
+| #37 | 📎 Gestion des pièces jointes emails | MEDIUM |
+| #38 | 📁 Organisation intelligente des fichiers | LOW |
+| #39 | 💬 Contexte iMessage & WhatsApp pour enrichissement | MEDIUM |
+| #40 | 🧠 Connecter ContextEngine au pipeline d'analyse | HIGH |
+
+**Découvertes importantes** :
+
+1. **ContextEngine non connecté** : L'infrastructure existe (`_pass2_context_enrichment` dans ReasoningEngine) mais le `context_engine` n'est pas passé au `CognitivePipeline` dans `processor.py`. Les notes ne sont donc PAS utilisées pour enrichir l'analyse actuellement.
+
+2. **iMessage/WhatsApp** : Serveurs MCP existants permettent l'accès en lecture aux messages :
+   - iMessage : Accès direct SQLite `~/Library/Messages/chat.db`
+   - WhatsApp : Via MCP server (lharries/whatsapp-mcp)
+
+3. **Backlog Sprint 2 priorisé** :
+   - #40 (ContextEngine) est le bloqueur principal
+   - #36 (Apple Notes) remonté en priorité HIGH pour alimenter le contexte
+   - Ordre : #40 → #36 → #35 → #11 → #17
+
+**Labels ajoutés** :
+- #36 : `sprint-2` ajouté
+
+---
 
 ### Session 2026-01-06 (Suite 9) — Sprint 2 : Extraction Entités ✅
 

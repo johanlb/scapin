@@ -230,7 +230,7 @@ class EmailProcessor:
         auto_execute: bool = False,
         confidence_threshold: Optional[int] = None,
         unread_only: bool = False,
-        unflagged_only: bool = True
+        unprocessed_only: bool = True
     ) -> list[ProcessedEmail]:
         """
         Process emails from inbox
@@ -240,8 +240,8 @@ class EmailProcessor:
             auto_execute: Automatically execute high-confidence decisions
             confidence_threshold: Minimum confidence for auto-execution
             unread_only: Only process unread emails (UNSEEN flag)
-            unflagged_only: Only process unflagged emails (no \\Flagged flag)
-                          Default: True (process unflagged = not already marked)
+            unprocessed_only: Only fetch emails not yet processed by Scapin
+                              (no gray flag / $MailFlagBit6). Default: True
 
         Returns:
             List of processed emails, sorted oldest first
@@ -256,7 +256,7 @@ class EmailProcessor:
                 "auto_execute": auto_execute,
                 "confidence_threshold": confidence_threshold,
                 "unread_only": unread_only,
-                "unflagged_only": unflagged_only
+                "unprocessed_only": unprocessed_only
             }
         )
 
@@ -272,7 +272,7 @@ class EmailProcessor:
                 "auto_execute": auto_execute,
                 "confidence_threshold": confidence_threshold,
                 "unread_only": unread_only,
-                "unflagged_only": unflagged_only
+                "unprocessed_only": unprocessed_only
             }
         ))
 
@@ -290,7 +290,7 @@ class EmailProcessor:
                     folder=self.config.email.inbox_folder,
                     limit=limit,
                     unread_only=unread_only,
-                    unflagged_only=unflagged_only
+                    unprocessed_only=unprocessed_only
                 )
 
                 logger.info(f"Fetched {len(emails)} emails from inbox")
@@ -526,7 +526,7 @@ class EmailProcessor:
             )
 
             # Flag the email to prevent reimport on next run
-            # Uses \\Flagged which is filtered out by unflagged_only=True
+            # Uses gray flag ($MailFlagBit6) which is filtered out by unprocessed_only=True
             try:
                 self.imap_client.add_flag(
                     msg_id=metadata.id,

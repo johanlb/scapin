@@ -24,6 +24,13 @@ logger = get_logger("imap_client")
 # IMAP special characters that require quoting: space " \ ( ) { } % *
 IMAP_SPECIAL_CHARS = r'[\s"\\(){}%*]'
 
+# Scapin processed flag - Gray flag in Apple Mail
+# Apple Mail flag colors:
+#   $MailFlagBit0 = Orange, $MailFlagBit1 = Red, $MailFlagBit2 = Yellow
+#   $MailFlagBit3 = Blue, $MailFlagBit4 = Purple, $MailFlagBit5 = Green
+#   $MailFlagBit6 = Gray
+SCAPIN_PROCESSED_FLAG = "$MailFlagBit6"
+
 
 def encode_imap_folder_name(folder_name: str) -> str:
     """
@@ -354,7 +361,7 @@ class IMAPClient:
         folder: str = "INBOX",
         limit: Optional[int] = None,
         unread_only: bool = False,
-        unflagged_only: bool = False
+        unprocessed_only: bool = False
     ) -> list[tuple[EmailMetadata, EmailContent]]:
         """
         Fetch emails from specified folder
@@ -363,7 +370,8 @@ class IMAPClient:
             folder: IMAP folder name (default: INBOX)
             limit: Maximum number of emails to fetch
             unread_only: Only fetch unread emails (UNSEEN flag)
-            unflagged_only: Only fetch unflagged emails (no \\Flagged flag)
+            unprocessed_only: Only fetch emails not yet processed by Scapin
+                              (no gray flag / $MailFlagBit6)
 
         Returns:
             List of (metadata, content) tuples, sorted oldest first
@@ -383,8 +391,9 @@ class IMAPClient:
             criteria = []
             if unread_only:
                 criteria.append("UNSEEN")
-            if unflagged_only:
-                criteria.append("UNFLAGGED")
+            if unprocessed_only:
+                # Exclude emails with Scapin processed flag (gray flag in Apple Mail)
+                criteria.append(f"UNKEYWORD {SCAPIN_PROCESSED_FLAG}")
 
             # If no specific criteria, fetch all
             search_criteria = " ".join(criteria) if criteria else "ALL"
@@ -408,7 +417,7 @@ class IMAPClient:
                     "folder": folder,
                     "count": len(id_list),
                     "unread_only": unread_only,
-                    "unflagged_only": unflagged_only,
+                    "unprocessed_only": unprocessed_only,
                     "criteria": search_criteria
                 }
             )
@@ -886,14 +895,14 @@ class IMAPClient:
             logger.error(f"Failed to move email: {e}", exc_info=True)
             return False
 
-    def add_flag(self, msg_id: int, folder: str, flag: str = "\\Flagged") -> bool:
+    def add_flag(self, msg_id: int, folder: str, flag: str = SCAPIN_PROCESSED_FLAG) -> bool:
         """
         Add a flag to an email
 
         Args:
             msg_id: Email message ID
             folder: Folder containing the email
-            flag: IMAP flag to add (default: \\Flagged)
+            flag: IMAP flag to add (default: gray flag for Scapin processed)
 
         Returns:
             True if successful
@@ -918,14 +927,14 @@ class IMAPClient:
             logger.error(f"Failed to add flag: {e}", exc_info=True)
             return False
 
-    def remove_flag(self, msg_id: int, folder: str, flag: str = "\\Flagged") -> bool:
+    def remove_flag(self, msg_id: int, folder: str, flag: str = SCAPIN_PROCESSED_FLAG) -> bool:
         """
         Remove a flag from an email
 
         Args:
             msg_id: Email message ID
             folder: Folder containing the email
-            flag: IMAP flag to remove (default: \\Flagged)
+            flag: IMAP flag to remove (default: gray flag for Scapin processed)
 
         Returns:
             True if successful
