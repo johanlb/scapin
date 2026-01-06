@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { Card, Button, Input } from '$lib/components/ui';
+	import { Card, Button, Input, VirtualList } from '$lib/components/ui';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
 	import { approveQueueItem, rejectQueueItem } from '$lib/api';
@@ -685,73 +685,94 @@
 
 	<!-- LIST VIEW for other filters (approved, rejected, auto) -->
 	{:else}
-		<section class="space-y-3">
-			{#each queueStore.items as item (item.id)}
-				<Card padding="md">
-					<div class="flex items-start gap-3">
-						<!-- Action icon -->
-						<div
-							class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-							style="background-color: color-mix(in srgb, {getActionColor(item.analysis.action)} 20%, transparent)"
-						>
-							{getActionIcon(item.analysis.action)}
-						</div>
+		<section class="list-view-container">
+			<VirtualList
+				items={queueStore.items}
+				estimatedItemHeight={120}
+				onLoadMore={() => queueStore.loadMore()}
+				hasMore={queueStore.hasMore}
+				loading={queueStore.loading}
+				height="calc(100vh - 280px)"
+				getKey={(item) => item.id}
+			>
+				{#snippet item(item, _index)}
+					<div class="pb-3">
+						<Card padding="md">
+							<div class="flex items-start gap-3">
+								<!-- Action icon -->
+								<div
+									class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg"
+									style="background-color: color-mix(in srgb, {getActionColor(item.analysis.action)} 20%, transparent)"
+								>
+									{getActionIcon(item.analysis.action)}
+								</div>
 
-						<div class="flex-1 min-w-0">
-							<!-- Subject -->
-							<h3 class="font-medium text-[var(--color-text-primary)] truncate">
-								{item.metadata.subject}
-							</h3>
+								<div class="flex-1 min-w-0">
+									<!-- Subject -->
+									<h3 class="font-medium text-[var(--color-text-primary)] truncate">
+										{item.metadata.subject}
+									</h3>
 
-							<!-- Sender and date -->
-							<p class="text-xs text-[var(--color-text-secondary)]">
-								{item.metadata.from_name || item.metadata.from_address}
-								<span class="text-[var(--color-text-tertiary)]">
-									• {item.metadata.date ? formatRelativeTime(item.metadata.date) : formatRelativeTime(item.queued_at)}
-								</span>
-							</p>
+									<!-- Sender and date -->
+									<p class="text-xs text-[var(--color-text-secondary)]">
+										{item.metadata.from_name || item.metadata.from_address}
+										<span class="text-[var(--color-text-tertiary)]">
+											• {item.metadata.date ? formatRelativeTime(item.metadata.date) : formatRelativeTime(item.queued_at)}
+										</span>
+									</p>
 
-							<!-- Summary -->
-							{#if item.analysis.summary}
-								<p class="text-xs text-[var(--color-text-tertiary)] mt-1 line-clamp-2">
-									{item.analysis.summary}
-								</p>
-							{/if}
-						</div>
+									<!-- Summary -->
+									{#if item.analysis.summary}
+										<p class="text-xs text-[var(--color-text-tertiary)] mt-1 line-clamp-2">
+											{item.analysis.summary}
+										</p>
+									{/if}
+								</div>
 
-						<!-- Status indicator -->
-						<div class="shrink-0 text-right">
-							<span
-								class="text-xs px-2 py-1 rounded-full"
-								class:bg-green-100={item.status === 'approved'}
-								class:text-green-700={item.status === 'approved'}
-								class:bg-red-100={item.status === 'rejected'}
-								class:text-red-700={item.status === 'rejected'}
-							>
-								{getActionLabel(item.analysis.action)}
-							</span>
-							{#if item.reviewed_at}
-								<p class="text-xs text-[var(--color-text-tertiary)] mt-1">
-									{formatRelativeTime(item.reviewed_at)}
-								</p>
-							{/if}
-						</div>
+								<!-- Status indicator -->
+								<div class="shrink-0 text-right">
+									<span
+										class="text-xs px-2 py-1 rounded-full"
+										class:bg-green-100={item.status === 'approved'}
+										class:text-green-700={item.status === 'approved'}
+										class:bg-red-100={item.status === 'rejected'}
+										class:text-red-700={item.status === 'rejected'}
+									>
+										{getActionLabel(item.analysis.action)}
+									</span>
+									{#if item.reviewed_at}
+										<p class="text-xs text-[var(--color-text-tertiary)] mt-1">
+											{formatRelativeTime(item.reviewed_at)}
+										</p>
+									{/if}
+								</div>
+							</div>
+						</Card>
 					</div>
-				</Card>
-			{/each}
+				{/snippet}
 
-			<!-- Load more -->
-			{#if queueStore.hasMore}
-				<div class="text-center pt-4">
-					<Button variant="secondary" onclick={() => queueStore.loadMore()} disabled={queueStore.loading}>
-						{#if queueStore.loading}
-							Chargement...
-						{:else}
-							Charger plus
-						{/if}
-					</Button>
-				</div>
-			{/if}
+				{#snippet empty()}
+					<Card padding="lg">
+						<div class="text-center py-8">
+							<p class="text-4xl mb-3">
+								{#if activeFilter === 'approved'}✅
+								{:else}🚫
+								{/if}
+							</p>
+							<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
+								{#if activeFilter === 'approved'}
+									Aucun pli traité pour l'instant
+								{:else}
+									Aucun pli écarté
+								{/if}
+							</h3>
+							<p class="text-sm text-[var(--color-text-secondary)]">
+								Lancez le traitement des emails pour alimenter la file
+							</p>
+						</div>
+					</Card>
+				{/snippet}
+			</VirtualList>
 		</section>
 	{/if}
 </div>

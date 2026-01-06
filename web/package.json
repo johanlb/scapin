@@ -53,6 +53,7 @@
     "vitest": "^4.0.16"
   },
   "dependencies": {
+    "@tanstack/svelte-virtual": "^3.13.16",
     "marked": "^17.0.1"
   }
 }

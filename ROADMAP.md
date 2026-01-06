@@ -10,14 +10,14 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 47 items MVP restants sur 63 (116 total identifiés)
+**État** : MVP en cours — 46 items MVP restants sur 63 (116 total identifiés)
 
 | Métrique | Valeur |
 |----------|--------|
 | **Tests** | 1721+ tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 |
-| **Gaps MVP restants** | 47 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Gaps MVP restants** | 46 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -140,7 +140,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 ## Sprint 1 : Notes & Fondation Contexte
 
-**Statut** : 🟡 En cours (15/19 complétés)
+**Statut** : 🟡 En cours (16/19 complétés)
 **Objectif** : Notes robustes et exploitables pour enrichir l'analyse
 **Items** : 19 MVP
 
@@ -161,7 +161,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | | Toast.svelte | MVP | ✅ |
 | | ConfidenceBar.svelte | MVP | ✅ |
 | | Skeleton.svelte | MVP | ✅ |
-| | Infinite Scroll + Virtualisation | MVP | ⬜ |
+| | Infinite Scroll + Virtualisation | MVP | ✅ |
 | **Stats** | GET /api/stats/overview | MVP | ✅ |
 | | GET /api/stats/by-source | MVP | ✅ |
 | **Calendar** | Bouton briefing pré-réunion | MVP | ⬜ |
@@ -469,7 +469,7 @@ Valeur Fonct.:     ████████████████████ 
 Interfaces:        ████████████████████ 100% ✅
 
 === MVP EN COURS ===
-Sprint 1 (Notes):  ███████████████░░░░░  79% 🟡 (15/19)
+Sprint 1 (Notes):  ████████████████░░░░  84% 🟡 (16/19)
 Sprint 2 (Analyse):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 3 (Actions):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -478,20 +478,20 @@ Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░ 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        █████████████░░░░░░░  68% (phases + Sprint 1)
-                   → 47 items restants (16 MVP complétés sur 63)
+Global MVP:        █████████████░░░░░░░  69% (phases + Sprint 1)
+                   → 46 items restants (17 MVP complétés sur 63)
 ```
 
 ### Items par Sprint
 
 | Sprint | Items MVP | Complétés | Statut |
 |--------|-----------|-----------|--------|
-| Sprint 1 | 19 | 15 | 🟡 79% |
+| Sprint 1 | 19 | 16 | 🟡 84% |
 | Sprint 2 | 14 | 0 | 📋 Planifié |
 | Sprint 3 | 16 | 0 | 📋 Planifié |
 | Sprint 4 | 14 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **69** | **15** | 22% |
+| **Total MVP** | **69** | **16** | 23% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -602,7 +602,7 @@ Global MVP:        █████████████░░░░░░░ 
 
 ---
 
-**Statut** : Sprint 1 — Notes & Fondation Contexte (79% complété)
+**Statut** : Sprint 1 — Notes & Fondation Contexte (84% complété)
 **Qualité** : 10/10 Production Ready Core
 **Tests** : 1721+ tests, 95% couverture, 100% pass
-**Prochaine étape** : Finir Sprint 1 (4 items restants)
+**Prochaine étape** : Finir Sprint 1 (3 items restants)

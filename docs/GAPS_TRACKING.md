@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Total items** : 124
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 19
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 20
 
 ---
 
@@ -267,7 +267,7 @@
 | ✅ | Toast.svelte (notifications temporaires) | MVP |
 | ✅ | ConfidenceBar.svelte (barre de confiance visuelle) | MVP |
 | ✅ | Skeleton.svelte (loading placeholders) | MVP |
-| ⬜ | Infinite Scroll + Virtualisation (listes longues) | MVP |
+| ✅ | Infinite Scroll + Virtualisation (listes longues) | MVP |
 
 ---
 
@@ -304,9 +304,9 @@
 ## Progression
 
 ```
-MVP:          ████░░░░░░░░░░░░░░░░ 16/63 (25%)
+MVP:          █████░░░░░░░░░░░░░░░ 17/63 (27%)
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
-Total:        ███░░░░░░░░░░░░░░░░░ 19/116 (16%)
+Total:        ███░░░░░░░░░░░░░░░░░ 20/116 (17%)
 ```
 
 ---
@@ -324,6 +324,7 @@ Total:        ███░░░░░░░░░░░░░░░░░ 19/11
 | 2026-01-05 | Éditeur Markdown complété - Preview live, wikilinks, toolbar, auto-save |
 | 2026-01-06 | **Stats API complétée (2 items)** - GET /api/stats/overview + /by-source |
 | 2026-01-06 | **POST /api/notes/folders complété** - création dossiers notes + GET /api/notes/folders |
+| 2026-01-06 | **Infinite Scroll + Virtualisation complété** - VirtualList.svelte avec @tanstack/svelte-virtual |
 
 ---
 
