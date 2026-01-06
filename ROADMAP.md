@@ -10,14 +10,14 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 63 items restants sur 116 identifiés
+**État** : MVP en cours — 47 items MVP restants sur 63 (116 total identifiés)
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1666+ tests, 95% couverture, 100% pass rate |
+| **Tests** | 1721+ tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 |
-| **Gaps MVP restants** | 63 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Gaps MVP restants** | 47 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -89,7 +89,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | 0.8 | Interface Web (SvelteKit) | 8 | ✅ |
 | 0.9 | PWA Mobile | — | ✅ |
 
-**Total tests** : 1666+ | **Couverture** : 95% | **Pass rate** : 100%
+**Total tests** : 1721+ | **Couverture** : 95% | **Pass rate** : 100%
 
 ---
 
@@ -548,6 +548,15 @@ Global MVP:        █████████████░░░░░░░ 
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.10** (2026-01-06) : Notes Folders API
+  - ✅ POST /api/notes/folders - Création de dossiers
+  - ✅ GET /api/notes/folders - Liste des dossiers
+  - ✅ NoteManager.create_folder() avec sécurité path traversal
+  - ✅ NoteManager.list_folders() avec fix macOS symlink
+  - ✅ 18 tests unitaires
+  - Sprint 1 : 79% (15/19)
+  - Total : 1721+ tests
 
 - **v1.0.0-alpha.9** (2026-01-06) : Stats API
   - ✅ GET /api/stats/overview - Vue globale agrégée

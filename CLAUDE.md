@@ -376,11 +376,11 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1692+ tests, 95% couverture, 100% pass rate
+**Global** : 1721+ tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1692 | ✅ |
+| Backend tests | 1721 | ✅ |
 | Frontend tests | 8 | ✅ |
 | Skipped | 53 | ⏭️ |
 
