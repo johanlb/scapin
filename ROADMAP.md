@@ -140,7 +140,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 ## Sprint 1 : Notes & Fondation Contexte
 
-**Statut** : 🟡 En cours (14/19 complétés)
+**Statut** : 🟡 En cours (15/19 complétés)
 **Objectif** : Notes robustes et exploitables pour enrichir l'analyse
 **Items** : 19 MVP
 
@@ -154,7 +154,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | | API: GET /notes/{id}/diff?v1=X&v2=Y | MVP | ✅ |
 | | API: POST /notes/{id}/restore/{v} | MVP | ✅ |
 | **Notes UI** | Éditeur Markdown complet | MVP | ✅ |
-| **Notes API** | POST /api/notes/folders | MVP | ⬜ |
+| **Notes API** | POST /api/notes/folders | MVP | ✅ |
 | **Search** | GET /api/search (multi-types) | MVP | ✅ |
 | **UI Components** | Modal.svelte | MVP | ✅ |
 | | Tabs.svelte | MVP | ✅ |
@@ -469,7 +469,7 @@ Valeur Fonct.:     ████████████████████ 
 Interfaces:        ████████████████████ 100% ✅
 
 === MVP EN COURS ===
-Sprint 1 (Notes):  ██████████████░░░░░░  74% 🟡 (14/19)
+Sprint 1 (Notes):  ███████████████░░░░░  79% 🟡 (15/19)
 Sprint 2 (Analyse):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 3 (Actions):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -478,20 +478,20 @@ Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░ 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        █████████████░░░░░░░  66% (phases + Sprint 1)
-                   → 48 items restants (15 MVP complétés sur 63)
+Global MVP:        █████████████░░░░░░░  68% (phases + Sprint 1)
+                   → 47 items restants (16 MVP complétés sur 63)
 ```
 
 ### Items par Sprint
 
 | Sprint | Items MVP | Complétés | Statut |
 |--------|-----------|-----------|--------|
-| Sprint 1 | 19 | 14 | 🟡 74% |
+| Sprint 1 | 19 | 15 | 🟡 79% |
 | Sprint 2 | 14 | 0 | 📋 Planifié |
 | Sprint 3 | 16 | 0 | 📋 Planifié |
 | Sprint 4 | 14 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **69** | **14** | 20% |
+| **Total MVP** | **69** | **15** | 22% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -593,7 +593,7 @@ Global MVP:        █████████████░░░░░░░ 
 
 ---
 
-**Statut** : Sprint 1 — Notes & Fondation Contexte (74% complété)
+**Statut** : Sprint 1 — Notes & Fondation Contexte (79% complété)
 **Qualité** : 10/10 Production Ready Core
-**Tests** : 1692+ tests, 95% couverture, 100% pass
-**Prochaine étape** : Finir Sprint 1 (5 items restants)
+**Tests** : 1721+ tests, 95% couverture, 100% pass
+**Prochaine étape** : Finir Sprint 1 (4 items restants)
