@@ -2129,9 +2129,9 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Sprint 1 : Finir (2 items restants)
+### Sprint 1 : Finir (1 item restant)
 
-**Statut** : 89% complété (17/19 items)
+**Statut** : 95% complété (18/19 items)
 
 **Complété** :
 - ✅ Notes Git Versioning (5 endpoints)
@@ -2145,13 +2145,13 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ POST /api/notes/folders + GET /api/notes/folders
 - ✅ Infinite Scroll + Virtualisation (@tanstack/svelte-virtual)
 - ✅ Bouton briefing pré-réunion (PreMeetingModal.svelte)
+- ✅ GET /api/status (status temps réel)
 
 **Restant Sprint 1** :
 
 | Priorité | Item | Description |
 |----------|------|-------------|
 | 🟠 | Calendar conflict detection | Alerte conflits calendrier |
-| 🟠 | GET /api/status | Status temps réel Scapin |
 
 ### Référence
 
