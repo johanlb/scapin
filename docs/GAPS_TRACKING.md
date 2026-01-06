@@ -326,6 +326,7 @@ Total:        ████░░░░░░░░░░░░░░░░ 21/11
 | 2026-01-06 | **POST /api/notes/folders complété** - création dossiers notes + GET /api/notes/folders |
 | 2026-01-06 | **Infinite Scroll + Virtualisation complété** - VirtualList.svelte avec @tanstack/svelte-virtual |
 | 2026-01-06 | **Bouton briefing pré-réunion complété** - PreMeetingModal.svelte + intégration dashboard |
+| 2026-01-06 | **Revue qualité VirtualList + PreMeetingModal** - Corrections critiques (AbortSignal, stale closures, guards) |
 
 ---
 

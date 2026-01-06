@@ -618,6 +618,60 @@ ROADMAP.md                                              # MODIFIED (Sprint 1: 89
 
 ---
 
+### Session 2026-01-06 (Suite 5) — Deep Code Review & Critical Fixes
+
+**Focus** : Revue de code approfondie et critique avec corrections de bugs critiques
+
+**Accomplissements** :
+
+1. ✅ **VirtualList.svelte — 3 corrections**
+   - 🔴 CRITIQUE: Fix stale closure dans IntersectionObserver callback (hasMore/loading capturés)
+   - 🟠 MEDIUM: Ajout guard `isLoadingMore` contre appels multiples rapides de `onLoadMore`
+   - 🟡 LOW: Fix positionnement loading indicator quand `totalSize=0`
+
+2. ✅ **PreMeetingModal.svelte — 4 corrections**
+   - 🔴 CRITIQUE: AbortSignal maintenant passé à `getPreMeetingBriefing()` (abort fonctionne !)
+   - 🟠 MEDIUM: Ajout `getInitials()` avec gestion noms vides
+   - 🟠 MEDIUM: Reset état (loading, error) à la fermeture du modal
+   - 🟡 LOW: Ajout `data-testid` sur éléments clés
+
+3. ✅ **client.ts**
+   - `getPreMeetingBriefing(eventId, signal?)` accepte AbortSignal optionnel
+
+**Détails techniques** :
+
+```typescript
+// Avant: AbortController créé mais signal jamais passé !
+abortController = new AbortController();
+briefing = await getPreMeetingBriefing(eventId); // ❌ signal manquant
+
+// Après: Signal correctement passé
+abortController = new AbortController();
+briefing = await getPreMeetingBriefing(eventId, abortController.signal); // ✅
+```
+
+```svelte
+// Avant: Callback capture valeurs périmées à la création de l'observer
+observer = new IntersectionObserver((entries) => {
+  if (hasMore && !loading) { /* hasMore/loading capturés ici */ }
+}, options);
+
+// Après: Callback lit valeurs au moment de l'appel
+async function handleIntersection(entries) {
+  if (!hasMore || loading || isLoadingMore) return; // ✅ valeurs actuelles
+  isLoadingMore = true;
+  try { await onLoadMore(); } finally { isLoadingMore = false; }
+}
+observer = new IntersectionObserver(handleIntersection, options);
+```
+
+**Tests** : svelte-check 0 errors, 25 tests frontend passent
+
+**Commits** :
+- `37b0637` — fix(web): critical fixes for VirtualList and PreMeetingModal
+
+---
+
 ### Session 2026-01-06 (Suite 4) — Code Review & Quality Improvements
 
 **Focus** : Revue de code complète VirtualList + PreMeetingModal, améliorations qualité

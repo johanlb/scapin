@@ -549,6 +549,14 @@ Global MVP:        ██████████████░░░░░░ 
 
 ## Historique des Versions
 
+- **v1.0.0-alpha.12** (2026-01-06) : Code Quality Review
+  - Fix CRITIQUE: AbortSignal passé à getPreMeetingBriefing() (abort fonctionne maintenant)
+  - Fix VirtualList: Correction stale closure dans IntersectionObserver callback
+  - Fix VirtualList: Guard isLoadingMore contre appels multiples rapides
+  - Fix PreMeetingModal: Reset état à la fermeture du modal
+  - Ajout data-testid pour les tests
+  - Sprint 1 : 89% (17/19) — Qualité améliorée
+
 - **v1.0.0-alpha.11** (2026-01-06) : Pre-Meeting Briefing Button
   - ✅ PreMeetingModal.svelte - Modal affichant le briefing complet
   - ✅ Bouton briefing sur les événements calendrier (dashboard)
