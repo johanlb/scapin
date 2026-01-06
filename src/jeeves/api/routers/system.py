@@ -18,7 +18,9 @@ from src.jeeves.api.models.responses import (
     HealthResponse,
     IntegrationStatus,
     StatsResponse,
+    SystemStatusResponse,
 )
+from src.jeeves.api.services.status_service import StatusService
 
 router = APIRouter()
 
@@ -228,5 +230,27 @@ async def get_config_endpoint(
             briefing_enabled=config.briefing.enabled,
             integrations=integrations,
         ),
+        timestamp=datetime.now(timezone.utc),
+    )
+
+
+@router.get("/status", response_model=APIResponse[SystemStatusResponse])
+async def get_status() -> APIResponse[SystemStatusResponse]:
+    """
+    Get real-time system status
+
+    Returns current operational state, active tasks, component statuses,
+    and session statistics. Use this endpoint for live monitoring.
+
+    Different from:
+    - /health: Checks if components are working correctly
+    - /stats: Returns historical processing counts
+    """
+    service = StatusService()
+    status = await service.get_status()
+
+    return APIResponse(
+        success=True,
+        data=status,
         timestamp=datetime.now(timezone.utc),
     )

@@ -249,6 +249,7 @@ BRIEFING__SHOW_CONFIDENCE=true
 |--------|----------|-------------|
 | **System** | `GET /` | API info |
 | | `GET /api/health` | Health check avec status composants |
+| | `GET /api/status` | Status temps réel (état, tâche en cours, composants) |
 | | `GET /api/stats` | Statistiques de traitement |
 | | `GET /api/config` | Configuration (secrets masqués) |
 | **Auth** | `POST /api/auth/login` | Login avec PIN |

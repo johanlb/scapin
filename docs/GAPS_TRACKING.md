@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Total items** : 124
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 21
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 22
 
 ---
 
@@ -181,7 +181,7 @@
 | ⬜ | CRUD annotations sur événements | Nice-to-have |
 | ⬜ | CRUD /api/templates - templates notes | Nice-to-have |
 | ⬜ | GET /api/activity - timeline activité | Nice-to-have |
-| ⬜ | GET /api/status - status temps réel Scapin | MVP |
+| ✅ | GET /api/status - status temps réel Scapin | MVP |
 
 ---
 
@@ -304,9 +304,9 @@
 ## Progression
 
 ```
-MVP:          █████░░░░░░░░░░░░░░░ 18/63 (29%)
+MVP:          ██████░░░░░░░░░░░░░░ 19/63 (30%)
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
-Total:        ████░░░░░░░░░░░░░░░░ 21/116 (18%)
+Total:        ████░░░░░░░░░░░░░░░░ 22/116 (19%)
 ```
 
 ---
@@ -327,6 +327,7 @@ Total:        ████░░░░░░░░░░░░░░░░ 21/11
 | 2026-01-06 | **Infinite Scroll + Virtualisation complété** - VirtualList.svelte avec @tanstack/svelte-virtual |
 | 2026-01-06 | **Bouton briefing pré-réunion complété** - PreMeetingModal.svelte + intégration dashboard |
 | 2026-01-06 | **Revue qualité VirtualList + PreMeetingModal** - Corrections critiques (AbortSignal, stale closures, guards) |
+| 2026-01-06 | **GET /api/status complété** - Status temps réel système (état, composants, session) |
 
 ---
 

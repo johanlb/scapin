@@ -175,3 +175,55 @@ class ConfigResponse(BaseModel):
         default_factory=list,
         description="Integration statuses for frontend",
     )
+
+
+class ComponentStatus(BaseModel):
+    """Status of a system component"""
+
+    name: str = Field(..., description="Component name")
+    state: str = Field(..., description="Current state: active, idle, disabled, error")
+    last_activity: datetime | None = Field(None, description="Last activity timestamp")
+    details: str | None = Field(None, description="Additional status details")
+
+
+class SessionStatsResponse(BaseModel):
+    """Session statistics summary"""
+
+    emails_processed: int = Field(0, description="Emails processed this session")
+    emails_skipped: int = Field(0, description="Emails skipped")
+    actions_taken: int = Field(0, description="Actions taken (archive, delete, etc.)")
+    tasks_created: int = Field(0, description="Tasks created in OmniFocus")
+    average_confidence: float = Field(0.0, description="Average AI confidence (0-100)")
+    session_duration_minutes: int = Field(0, description="Session duration in minutes")
+
+
+class SystemStatusResponse(BaseModel):
+    """
+    Real-time system status response
+
+    Provides current operational state, active tasks, and component statuses.
+    Different from /health (checks if things work) and /stats (historical counts).
+    """
+
+    state: str = Field(
+        ...,
+        description="Overall state: idle, running, paused, stopped, error",
+    )
+    current_task: str | None = Field(
+        None,
+        description="Description of current task if any",
+    )
+    active_connections: int = Field(
+        0,
+        description="Number of active WebSocket connections",
+    )
+    components: list[ComponentStatus] = Field(
+        default_factory=list,
+        description="Status of each system component",
+    )
+    session_stats: SessionStatsResponse = Field(
+        default_factory=SessionStatsResponse,
+        description="Current session statistics",
+    )
+    uptime_seconds: float = Field(..., description="Server uptime in seconds")
+    last_activity: datetime | None = Field(None, description="Last system activity")

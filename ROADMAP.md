@@ -140,7 +140,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 ## Sprint 1 : Notes & Fondation Contexte
 
-**Statut** : 🟡 En cours (17/19 complétés — 89%)
+**Statut** : 🟡 En cours (18/19 complétés — 95%)
 **Objectif** : Notes robustes et exploitables pour enrichir l'analyse
 **Items** : 19 MVP
 
@@ -166,7 +166,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | | GET /api/stats/by-source | MVP | ✅ |
 | **Calendar** | Bouton briefing pré-réunion | MVP | ✅ |
 | | Détection et alerte conflits | MVP | ⬜ |
-| **API** | GET /api/status | MVP | ⬜ |
+| **API** | GET /api/status | MVP | ✅ |
 
 ### Architecture Notes Git Versioning
 
@@ -469,7 +469,7 @@ Valeur Fonct.:     ████████████████████ 
 Interfaces:        ████████████████████ 100% ✅
 
 === MVP EN COURS ===
-Sprint 1 (Notes):  █████████████████░░░  89% 🟡 (17/19)
+Sprint 1 (Notes):  ███████████████████░  95% 🟡 (18/19)
 Sprint 2 (Analyse):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 3 (Actions):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -478,20 +478,20 @@ Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░ 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        ██████████████░░░░░░  71% (phases + Sprint 1)
-                   → 45 items restants (18 MVP complétés sur 63)
+Global MVP:        ███████████████░░░░░  73% (phases + Sprint 1)
+                   → 44 items restants (19 MVP complétés sur 63)
 ```
 
 ### Items par Sprint
 
 | Sprint | Items MVP | Complétés | Statut |
 |--------|-----------|-----------|--------|
-| Sprint 1 | 19 | 17 | 🟡 89% |
+| Sprint 1 | 19 | 18 | 🟡 95% |
 | Sprint 2 | 14 | 0 | 📋 Planifié |
 | Sprint 3 | 16 | 0 | 📋 Planifié |
 | Sprint 4 | 14 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **69** | **17** | 25% |
+| **Total MVP** | **69** | **18** | 26% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -548,6 +548,13 @@ Global MVP:        ██████████████░░░░░░ 
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.13** (2026-01-06) : GET /api/status Endpoint
+  - ✅ GET /api/status - Status temps réel système
+  - ✅ SystemStatusResponse avec état, composants, session stats
+  - ✅ StatusService pour agrégation des données
+  - ✅ 14 tests unitaires (models, service, endpoint)
+  - Sprint 1 : 95% (18/19) — Plus qu'un item !
 
 - **v1.0.0-alpha.12** (2026-01-06) : Code Quality Review
   - Fix CRITIQUE: AbortSignal passé à getPreMeetingBriefing() (abort fonctionne maintenant)
@@ -618,7 +625,7 @@ Global MVP:        ██████████████░░░░░░ 
 
 ---
 
-**Statut** : Sprint 1 — Notes & Fondation Contexte (89% complété)
+**Statut** : Sprint 1 — Notes & Fondation Contexte (95% complété)
 **Qualité** : 10/10 Production Ready Core
-**Tests** : 1722+ tests, 95% couverture, 100% pass
-**Prochaine étape** : Finir Sprint 1 (2 items restants)
+**Tests** : 1736+ tests, 95% couverture, 100% pass
+**Prochaine étape** : Finir Sprint 1 (1 item restant : Calendar conflict detection)
