@@ -6,31 +6,30 @@ Tests folder creation and listing endpoints.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.jeeves.api.app import create_app
-from src.jeeves.api.deps import get_cached_config
 from src.jeeves.api.models.notes import FolderCreateResponse, FolderListResponse
 from src.jeeves.api.services.notes_service import NotesService
 from src.passepartout.note_manager import NoteManager
 
 
 @pytest.fixture
-def mock_config() -> MagicMock:
-    """Create mock configuration"""
-    config = MagicMock()
-    config.notes_dir = None  # Use default
-    return config
+def mock_notes_service() -> MagicMock:
+    """Create mock NotesService"""
+    return MagicMock(spec=NotesService)
 
 
 @pytest.fixture
-def client(mock_config: MagicMock) -> TestClient:
-    """Create test client with mocked config"""
+def client(mock_notes_service: MagicMock) -> TestClient:
+    """Create test client with mocked dependencies"""
+    from src.jeeves.api.deps import get_notes_service
+
     app = create_app()
-    app.dependency_overrides[get_cached_config] = lambda: mock_config
+    app.dependency_overrides[get_notes_service] = lambda: mock_notes_service
     yield TestClient(app)
     app.dependency_overrides.clear()
 
@@ -237,45 +236,48 @@ class TestNotesService:
 class TestFolderEndpoints:
     """Tests for folder API endpoints"""
 
-    def test_create_folder_success(self, client: TestClient) -> None:
+    def test_create_folder_success(
+        self, client: TestClient, mock_notes_service: MagicMock
+    ) -> None:
         """Test POST /api/notes/folders creates folder"""
         mock_response = FolderCreateResponse(
             path="Projects/New",
             absolute_path="/tmp/notes/Projects/New",
             created=True,
         )
+        mock_notes_service.create_folder = AsyncMock(return_value=mock_response)
 
-        with patch.object(
-            NotesService, "create_folder", return_value=mock_response
-        ) as mock_method:
-            response = client.post(
-                "/api/notes/folders",
-                json={"path": "Projects/New"},
-            )
+        response = client.post(
+            "/api/notes/folders",
+            json={"path": "Projects/New"},
+        )
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert data["data"]["path"] == "Projects/New"
         assert data["data"]["created"] is True
-        mock_method.assert_called_once()
+        mock_notes_service.create_folder.assert_called_once()
 
-    def test_create_folder_invalid_path(self, client: TestClient) -> None:
+    def test_create_folder_invalid_path(
+        self, client: TestClient, mock_notes_service: MagicMock
+    ) -> None:
         """Test POST /api/notes/folders with invalid path"""
-        with patch.object(
-            NotesService,
-            "create_folder",
-            side_effect=ValueError("Invalid path component: '..'"),
-        ):
-            response = client.post(
-                "/api/notes/folders",
-                json={"path": "../outside"},
-            )
+        mock_notes_service.create_folder = AsyncMock(
+            side_effect=ValueError("Invalid path component: '..'")
+        )
+
+        response = client.post(
+            "/api/notes/folders",
+            json={"path": "../outside"},
+        )
 
         assert response.status_code == 400
         assert "Invalid path component" in response.json()["detail"]
 
-    def test_create_folder_empty_path(self, client: TestClient) -> None:
+    def test_create_folder_empty_path(
+        self, client: TestClient, mock_notes_service: MagicMock
+    ) -> None:
         """Test POST /api/notes/folders with empty path"""
         # Pydantic validation should catch empty path
         response = client.post(
@@ -285,17 +287,17 @@ class TestFolderEndpoints:
 
         assert response.status_code == 422  # Validation error
 
-    def test_list_folders_success(self, client: TestClient) -> None:
+    def test_list_folders_success(
+        self, client: TestClient, mock_notes_service: MagicMock
+    ) -> None:
         """Test GET /api/notes/folders returns folder list"""
         mock_response = FolderListResponse(
             folders=["Projects", "Clients", "Clients/ABC"],
             total=3,
         )
+        mock_notes_service.list_folders = AsyncMock(return_value=mock_response)
 
-        with patch.object(
-            NotesService, "list_folders", return_value=mock_response
-        ):
-            response = client.get("/api/notes/folders")
+        response = client.get("/api/notes/folders")
 
         assert response.status_code == 200
         data = response.json()
@@ -303,21 +305,21 @@ class TestFolderEndpoints:
         assert "Projects" in data["data"]["folders"]
         assert data["data"]["total"] == 3
 
-    def test_create_folder_has_timestamp(self, client: TestClient) -> None:
+    def test_create_folder_has_timestamp(
+        self, client: TestClient, mock_notes_service: MagicMock
+    ) -> None:
         """Test response includes timestamp"""
         mock_response = FolderCreateResponse(
             path="Projects",
             absolute_path="/tmp/notes/Projects",
             created=True,
         )
+        mock_notes_service.create_folder = AsyncMock(return_value=mock_response)
 
-        with patch.object(
-            NotesService, "create_folder", return_value=mock_response
-        ):
-            response = client.post(
-                "/api/notes/folders",
-                json={"path": "Projects"},
-            )
+        response = client.post(
+            "/api/notes/folders",
+            json={"path": "Projects"},
+        )
 
         data = response.json()
         assert "timestamp" in data
