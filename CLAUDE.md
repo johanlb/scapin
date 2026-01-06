@@ -543,6 +543,54 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-06 (Suite) — Notes Folders API
+
+**Focus** : Implémentation des endpoints de gestion de dossiers pour les notes
+
+**Accomplissements** :
+
+1. ✅ **NoteManager** (`src/passepartout/note_manager.py` +80 lignes)
+   - `create_folder(path)` — Création dossiers avec validation sécurité
+   - `list_folders()` — Liste tous les dossiers (exclut hidden)
+   - Protection contre path traversal attacks (`..`, `.`)
+   - Fix bug macOS `/var` vs `/private/var` symlink resolution
+
+2. ✅ **Models Notes** (`src/jeeves/api/models/notes.py` +25 lignes)
+   - `FolderCreateRequest` — Validation path (min 1, max 500 chars)
+   - `FolderCreateResponse` — path, absolute_path, created (bool)
+   - `FolderListResponse` — folders list + total count
+
+3. ✅ **NotesService** (`src/jeeves/api/services/notes_service.py` +30 lignes)
+   - `create_folder(path)` — Wrapper async avec détection existed
+   - `list_folders()` — Wrapper async retournant FolderListResponse
+
+4. ✅ **Notes Router** (`src/jeeves/api/routers/notes.py` +35 lignes)
+   - `POST /api/notes/folders` — Créer dossier
+   - `GET /api/notes/folders` — Lister dossiers
+   - Gestion erreurs ValueError → 400, Exception → 500
+
+5. ✅ **Tests** (`tests/unit/test_notes_folders.py` 18 tests)
+   - TestNoteManagerFolderMethods (10 tests)
+   - TestNotesService (3 tests)
+   - TestFolderEndpoints (5 tests)
+
+**Fichiers créés/modifiés** :
+```
+src/passepartout/note_manager.py            # MODIFIED (+80 lignes)
+src/jeeves/api/models/notes.py              # MODIFIED (+25 lignes)
+src/jeeves/api/services/notes_service.py    # MODIFIED (+30 lignes)
+src/jeeves/api/routers/notes.py             # MODIFIED (+35 lignes)
+tests/unit/test_notes_folders.py            # NEW (18 tests)
+docs/GAPS_TRACKING.md                       # MODIFIED (16/63 MVP = 25%)
+```
+
+**Tests** : 1721 passed, 53 skipped
+
+**Commits** :
+- `b72989c` — feat(api): add folder management endpoints for notes
+
+---
+
 ### Session 2026-01-06 — Stats API Implementation
 
 **Focus** : Implémentation de l'API Stats avec endpoints overview et by-source
@@ -1918,9 +1966,9 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Sprint 1 : Finir (5 items restants)
+### Sprint 1 : Finir (4 items restants)
 
-**Statut** : 74% complété (14/19 items)
+**Statut** : 79% complété (15/19 items)
 
 **Complété** :
 - ✅ Notes Git Versioning (5 endpoints)
@@ -1931,12 +1979,12 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Note Enrichment System (SM-2)
 - ✅ API Notes Review (8 endpoints)
 - ✅ UI Notes Review
+- ✅ POST /api/notes/folders + GET /api/notes/folders
 
 **Restant Sprint 1** :
 
 | Priorité | Item | Description |
 |----------|------|-------------|
-| 🔴 | POST /api/notes/folders | Créer dossiers notes |
 | 🔴 | Infinite Scroll | Virtualisation listes longues |
 | 🟠 | Calendar briefing button | Bouton briefing pré-réunion |
 | 🟠 | Calendar conflict detection | Alerte conflits calendrier |
@@ -1944,7 +1992,7 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (48 MVP restants sur 63).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (47 MVP restants sur 63).
 
 ---
 
