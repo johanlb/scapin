@@ -73,7 +73,7 @@ class EmailProcessor:
         self.note_manager = None
         try:
             from src.passepartout.note_manager import NoteManager
-            self.note_manager = NoteManager(notes_dir=self.config.storage.notes_dir)
+            self.note_manager = NoteManager(notes_dir=self.config.storage.notes_path)
         except Exception as e:
             logger.warning(f"NoteManager not available for auto-apply: {e}")
 
@@ -521,6 +521,8 @@ class EmailProcessor:
                 account_id=self.config.email.get_enabled_accounts()[0].account_id
                 if self.config.email.get_enabled_accounts()
                 else None,
+                html_body=content.html,  # Full HTML body for rendering in UI
+                full_text=content.plain_text,  # Full plain text body
             )
 
             # Flag the email to prevent reimport on next run

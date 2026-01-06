@@ -675,7 +675,11 @@ interface QueueItem {
 	queued_at: string;
 	metadata: QueueItemMetadata;
 	analysis: QueueItemAnalysis;
-	content: { preview: string };
+	content: {
+		preview: string;
+		html_body?: string;
+		full_text?: string;
+	};
 	status: string;
 	reviewed_at: string | null;
 	review_decision: string | null;

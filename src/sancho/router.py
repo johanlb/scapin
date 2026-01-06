@@ -5,6 +5,7 @@ Routes AI requests to appropriate models with rate limiting and retry logic.
 """
 
 import json
+import re
 import threading
 import time
 from collections import deque
@@ -16,6 +17,34 @@ from src.core.schemas import EmailAnalysis, EmailContent, EmailMetadata
 from src.monitoring.logger import get_logger
 
 logger = get_logger("ai_router")
+
+
+def clean_json_string(json_str: str) -> str:
+    """
+    Clean a JSON string by fixing common issues.
+
+    Handles:
+    - Trailing commas before ] or }
+    - Single-line comments (// ...)
+    - Multi-line comments (/* ... */)
+
+    Args:
+        json_str: Raw JSON string that might be malformed
+
+    Returns:
+        Cleaned JSON string
+    """
+    # Remove single-line comments (// ...)
+    json_str = re.sub(r'//[^\n]*', '', json_str)
+
+    # Remove multi-line comments (/* ... */)
+    json_str = re.sub(r'/\*.*?\*/', '', json_str, flags=re.DOTALL)
+
+    # Remove trailing commas before ] or }
+    # Pattern: comma followed by optional whitespace, then ] or }
+    json_str = re.sub(r',\s*([}\]])', r'\1', json_str)
+
+    return json_str
 
 
 class AIModel(str, Enum):
@@ -711,6 +740,10 @@ class AIRouter:
                 return None
 
             json_str = response[json_start:json_end]
+
+            # Clean JSON string (fix trailing commas, remove comments)
+            json_str = clean_json_string(json_str)
+
             data = json.loads(json_str)
 
             # Normalize category to lowercase

@@ -103,6 +103,8 @@ class QueueItemContent(BaseModel):
     """Content preview in queue item"""
 
     preview: str = Field(..., description="Text preview (max 200 chars)")
+    html_body: str | None = Field(None, description="Full HTML body if available")
+    full_text: str | None = Field(None, description="Full plain text body if available")
 
 
 class QueueItemResponse(BaseModel):

@@ -24,6 +24,7 @@
 	let isProcessing: boolean = $state(false);
 	let showCustomInput: boolean = $state(false);
 	let showLevel3: boolean = $state(false);
+	let showHtmlContent: boolean = $state(false);
 
 	// Current item in single-item view
 	const currentItem = $derived(
@@ -541,11 +542,42 @@
 				{/if}
 
 				<!-- Email content - enriched when showLevel3 -->
-				{#if currentItem.content?.preview}
+				{#if currentItem.content?.preview || currentItem.content?.html_body}
 					{#if showLevel3}
-						<!-- Level 3: Full content visible directly -->
-						<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-64 overflow-y-auto border border-[var(--color-border)]">
-							{currentItem.content.preview}
+						<!-- Level 3: Full content with HTML toggle -->
+						<div class="space-y-2">
+							<!-- Toggle buttons for text/HTML -->
+							{#if currentItem.content?.html_body}
+								<div class="flex gap-2">
+									<button
+										class="text-xs px-2 py-1 rounded transition-colors {!showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'}"
+										onclick={() => showHtmlContent = false}
+									>
+										📝 Texte
+									</button>
+									<button
+										class="text-xs px-2 py-1 rounded transition-colors {showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'}"
+										onclick={() => showHtmlContent = true}
+									>
+										🌐 HTML
+									</button>
+								</div>
+							{/if}
+
+							{#if showHtmlContent && currentItem.content?.html_body}
+								<!-- HTML content in sandboxed iframe -->
+								<iframe
+									srcdoc={currentItem.content.html_body}
+									sandbox="allow-same-origin"
+									class="w-full h-96 rounded-lg border border-[var(--color-border)] bg-white"
+									title="Contenu HTML de l'email"
+								></iframe>
+							{:else}
+								<!-- Plain text content -->
+								<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-64 overflow-y-auto border border-[var(--color-border)]">
+									{currentItem.content?.full_text || currentItem.content?.preview || ''}
+								</div>
+							{/if}
 						</div>
 					{:else}
 						<!-- Normal: Collapsible preview -->
@@ -553,9 +585,12 @@
 							<summary class="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] cursor-pointer flex items-center gap-1">
 								<span class="group-open:rotate-90 transition-transform">▶</span>
 								Voir le contenu du pli
+								{#if currentItem.content?.html_body}
+									<span class="ml-1 text-[var(--color-accent)]">(HTML disponible)</span>
+								{/if}
 							</summary>
 							<div class="mt-2 p-3 rounded-lg bg-[var(--color-bg-tertiary)] text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-48 overflow-y-auto">
-								{currentItem.content.preview}
+								{currentItem.content?.preview || ''}
 							</div>
 						</details>
 					{/if}
@@ -747,7 +782,7 @@
 							onclick={() => showLevel3 = !showLevel3}
 						>
 							<span class="mr-1">{showLevel3 ? '📖' : '📋'}</span>
-							{showLevel3 ? 'Vue simple' : 'Enrichir'}
+							{showLevel3 ? 'Vue simple' : 'Détails'}
 							<span class="ml-1 text-xs opacity-60 font-mono">V</span>
 						</Button>
 						{#if !showCustomInput}
@@ -784,7 +819,7 @@
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span> passer</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">Z</span> reporter</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">D</span> supprimer</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">V</span> enrichir</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">V</span> détails</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">I</span> autre</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span> ignorer</span>
 				</div>

@@ -133,6 +133,8 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
         ),
         content=QueueItemContent(
             preview=content.get("preview", ""),
+            html_body=content.get("html_body"),
+            full_text=content.get("full_text"),
         ),
         status=item.get("status", "pending"),
         reviewed_at=_parse_datetime(item.get("reviewed_at")),

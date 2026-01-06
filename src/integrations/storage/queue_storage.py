@@ -68,6 +68,8 @@ class QueueStorage:
         analysis: EmailAnalysis,
         content_preview: str,
         account_id: Optional[str] = None,
+        html_body: Optional[str] = None,
+        full_text: Optional[str] = None,
     ) -> str:
         """
         Save email to review queue
@@ -77,6 +79,8 @@ class QueueStorage:
             analysis: AI analysis results (action, confidence, reasoning)
             content_preview: Plain text preview (first 200 chars)
             account_id: Account identifier (for multi-account support)
+            html_body: Full HTML body of the email (optional)
+            full_text: Full plain text body of the email (optional)
 
         Returns:
             item_id: Unique identifier for queued item
@@ -120,6 +124,8 @@ class QueueStorage:
             },
             "content": {
                 "preview": content_preview[:200],  # Limit to 200 chars
+                "html_body": html_body,  # Full HTML body for rendering
+                "full_text": full_text,  # Full plain text body
             },
             "status": "pending",  # pending, approved, rejected, skipped
             "reviewed_at": None,

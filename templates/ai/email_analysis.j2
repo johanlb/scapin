@@ -53,7 +53,7 @@ Analyse cet email et propose PLUSIEURS options d'action. Réponds en JSON avec c
   "options": [
     {
       "action": "ARCHIVE",
-      "destination": "Archive/2025/Work",
+      "destination": "Archive/ANNÉE-EMAIL/Catégorie",
       "confidence": 95,
       "reasoning": "Explication courte (1-2 phrases)",
       "reasoning_detailed": "Explication détaillée : contexte de l'expéditeur, pourquoi cette action est pertinente, éléments clés de l'email pris en compte, risques potentiels si autre action choisie, etc.",
@@ -163,6 +163,27 @@ Analyse cet email et propose PLUSIEURS options d'action. Réponds en JSON avec c
      * Dans quels cas cette option serait le meilleur choix
 5. Utilise TASK seulement si l'email demande explicitement une action
 6. N'inclus "omnifocus_task" que si une option est TASK
+
+**RÈGLES POUR LES DESTINATIONS D'ARCHIVE :**
+⚠️ IMPORTANT : L'année dans le chemin d'archive DOIT correspondre à la DATE DE L'EMAIL, pas à l'année actuelle.
+- Email de 2021 → Archive/2021/...
+- Email de 2024 → Archive/2024/...
+- JAMAIS utiliser 2025 pour un email ancien !
+
+**RÈGLES POUR LES EMAILS PROMOTIONNELS/NEWSLETTERS :**
+Pour les emails commerciaux, promotionnels ou newsletters sans valeur informative :
+1. **Option recommandée** : DELETE (pas ARCHIVE - ils n'ont pas de valeur à conserver)
+2. **Proposer en plus** une tâche de désabonnement dans "proposed_tasks" :
+   ```json
+   {
+     "title": "Se désabonner de [nom expéditeur]",
+     "note": "Lien de désabonnement à chercher en bas de l'email",
+     "tags": ["email", "désabonnement"],
+     "confidence": 0.85,
+     "reasoning": "Email commercial non sollicité, désabonnement recommandé"
+   }
+   ```
+3. Catégorie = "newsletter" ou "shopping" selon le contenu
 
 **SCORING DE CONFIANCE :**
 - **90-100** : Très confiant, peut agir automatiquement
