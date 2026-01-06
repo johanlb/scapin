@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 6 janvier 2026
 **Total items** : 124
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 20
+**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 21
 
 ---
 
@@ -112,7 +112,7 @@
 ### Fonctionnalités (4)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Bouton briefing pré-réunion sur chaque événement | MVP |
+| ✅ | Bouton briefing pré-réunion sur chaque événement | MVP |
 | ⬜ | Blocs Focus automatiques (création ne pas déranger) | Nice-to-have |
 | ⬜ | Détection et alerte conflits calendrier | MVP |
 | ⬜ | Vue calendrier mensuelle/hebdomadaire (UI) | Nice-to-have |
@@ -304,9 +304,9 @@
 ## Progression
 
 ```
-MVP:          █████░░░░░░░░░░░░░░░ 17/63 (27%)
+MVP:          █████░░░░░░░░░░░░░░░ 18/63 (29%)
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
-Total:        ███░░░░░░░░░░░░░░░░░ 20/116 (17%)
+Total:        ████░░░░░░░░░░░░░░░░ 21/116 (18%)
 ```
 
 ---
@@ -325,6 +325,7 @@ Total:        ███░░░░░░░░░░░░░░░░░ 20/11
 | 2026-01-06 | **Stats API complétée (2 items)** - GET /api/stats/overview + /by-source |
 | 2026-01-06 | **POST /api/notes/folders complété** - création dossiers notes + GET /api/notes/folders |
 | 2026-01-06 | **Infinite Scroll + Virtualisation complété** - VirtualList.svelte avec @tanstack/svelte-virtual |
+| 2026-01-06 | **Bouton briefing pré-réunion complété** - PreMeetingModal.svelte + intégration dashboard |
 
 ---
 

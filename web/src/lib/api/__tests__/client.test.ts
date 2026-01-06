@@ -6,6 +6,7 @@ import {
 	getHealth,
 	getStats,
 	getMorningBriefing,
+	getPreMeetingBriefing,
 	getNoteVersions,
 	getNoteVersionContent,
 	diffNoteVersions,
@@ -190,6 +191,107 @@ describe('API Client', () => {
 
 			expect(result).toEqual(mockBriefing);
 			expect(mockFetch).toHaveBeenCalledWith('/api/briefing/morning', expect.any(Object));
+		});
+	});
+
+	describe('getPreMeetingBriefing', () => {
+		it('should return pre-meeting briefing on success', async () => {
+			const mockBriefing = {
+				event_id: 'event-123',
+				title: 'Weekly Team Meeting',
+				start_time: '2026-01-06T10:00:00Z',
+				end_time: '2026-01-06T11:00:00Z',
+				attendees: [
+					{
+						name: 'Alice Smith',
+						email: 'alice@example.com',
+						role: 'Product Manager',
+						recent_interactions: ['Sent email about roadmap']
+					}
+				],
+				agenda: 'Discuss Q1 goals',
+				related_emails: [
+					{
+						id: 'email-1',
+						type: 'email',
+						title: 'Q1 Goals Document',
+						excerpt: 'Goals summary',
+						score: 0.9,
+						timestamp: '2026-01-05T09:00:00Z',
+						metadata: {}
+					}
+				],
+				related_notes: ['Project Alpha', 'Team Goals'],
+				suggested_talking_points: ['Review Q1 targets', 'Discuss new features']
+			};
+
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: () =>
+					Promise.resolve({
+						success: true,
+						data: mockBriefing,
+						error: null,
+						timestamp: '2026-01-06T09:00:00Z'
+					})
+			});
+
+			const result = await getPreMeetingBriefing('event-123');
+
+			expect(result).toEqual(mockBriefing);
+			expect(result.title).toBe('Weekly Team Meeting');
+			expect(result.attendees).toHaveLength(1);
+			expect(result.suggested_talking_points).toHaveLength(2);
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/briefing/meeting/event-123',
+				expect.any(Object)
+			);
+		});
+
+		it('should encode eventId in URL', async () => {
+			mockFetch.mockResolvedValueOnce({
+				ok: true,
+				json: () =>
+					Promise.resolve({
+						success: true,
+						data: {
+							event_id: 'event/special&chars',
+							title: 'Test',
+							start_time: '2026-01-06T10:00:00Z',
+							end_time: '2026-01-06T11:00:00Z',
+							attendees: [],
+							related_emails: [],
+							related_notes: [],
+							suggested_talking_points: []
+						},
+						error: null,
+						timestamp: '2026-01-06T09:00:00Z'
+					})
+			});
+
+			await getPreMeetingBriefing('event/special&chars');
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/briefing/meeting/event%2Fspecial%26chars',
+				expect.any(Object)
+			);
+		});
+
+		it('should throw ApiError on 404', async () => {
+			mockFetch.mockResolvedValueOnce({
+				ok: false,
+				status: 404,
+				json: () => Promise.resolve({ detail: 'Event not found' })
+			});
+
+			try {
+				await getPreMeetingBriefing('nonexistent');
+				expect.fail('Should have thrown');
+			} catch (error) {
+				expect(error).toBeInstanceOf(ApiError);
+				expect((error as ApiError).status).toBe(404);
+				expect((error as ApiError).message).toBe('Event not found');
+			}
 		});
 	});
 

@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { Card, Badge, PullToRefresh, SwipeableCard } from '$lib/components/ui';
 	import ProgressRing from '$lib/components/ui/ProgressRing.svelte';
+	import { PreMeetingModal } from '$lib/components/briefing';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { briefingStore } from '$lib/stores';
 	import { notesReviewStore } from '$lib/stores/notes-review.svelte';
@@ -61,6 +62,23 @@
 	let events = $state<ScapinEvent[]>(mockEvents);
 	let stats = $state(mockStats);
 	let dataSource = $state<'mock' | 'api' | 'api-empty'>('mock');
+
+	// Pre-meeting briefing modal state
+	let showBriefingModal = $state(false);
+	let selectedEventId = $state<string | null>(null);
+	let selectedEventTitle = $state<string | null>(null);
+
+	function openBriefing(event: ScapinEvent) {
+		selectedEventId = event.id;
+		selectedEventTitle = event.title;
+		showBriefingModal = true;
+	}
+
+	function closeBriefing() {
+		showBriefingModal = false;
+		selectedEventId = null;
+		selectedEventTitle = null;
+	}
 
 	// Load data on mount
 	onMount(async () => {
@@ -327,7 +345,33 @@
 												</p>
 											{/if}
 										</div>
-										<span class="text-[var(--color-text-tertiary)] shrink-0">→</span>
+										<div class="shrink-0 flex items-center gap-2">
+											{#if event.source === 'calendar'}
+												<!-- svelte-ignore a11y_no_static_element_interactions -->
+												<span
+													role="button"
+													tabindex="0"
+													class="p-1.5 rounded-lg text-[var(--color-event-calendar)] hover:bg-[var(--color-event-calendar)] hover:bg-opacity-10 transition-colors cursor-pointer"
+													title="Briefing pré-réunion"
+													onclick={(e) => {
+														e.stopPropagation();
+														openBriefing(event);
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															e.preventDefault();
+															e.stopPropagation();
+															openBriefing(event);
+														}
+													}}
+												>
+													<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+													</svg>
+												</span>
+											{/if}
+											<span class="text-[var(--color-text-tertiary)]">→</span>
+										</div>
 									</div>
 								</button>
 							</SwipeableCard>
@@ -382,7 +426,33 @@
 												{event.summary}
 											</p>
 										</div>
-										<span class="text-[var(--color-text-tertiary)] shrink-0">→</span>
+										<div class="shrink-0 flex items-center gap-2">
+											{#if event.source === 'calendar'}
+												<!-- svelte-ignore a11y_no_static_element_interactions -->
+												<span
+													role="button"
+													tabindex="0"
+													class="p-1.5 rounded-lg text-[var(--color-event-calendar)] hover:bg-[var(--color-event-calendar)] hover:bg-opacity-10 transition-colors cursor-pointer"
+													title="Briefing pré-réunion"
+													onclick={(e) => {
+														e.stopPropagation();
+														openBriefing(event);
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															e.preventDefault();
+															e.stopPropagation();
+															openBriefing(event);
+														}
+													}}
+												>
+													<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+													</svg>
+												</span>
+											{/if}
+											<span class="text-[var(--color-text-tertiary)]">→</span>
+										</div>
 									</div>
 								</button>
 							</SwipeableCard>
@@ -398,3 +468,13 @@
 		</p>
 	</div>
 </PullToRefresh>
+
+<!-- Pre-meeting briefing modal -->
+{#if selectedEventId}
+	<PreMeetingModal
+		bind:open={showBriefingModal}
+		eventId={selectedEventId}
+		eventTitle={selectedEventTitle}
+		onclose={closeBriefing}
+	/>
+{/if}

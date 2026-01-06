@@ -81,12 +81,11 @@
 	const itemsCount = $derived(items.length);
 
 	// Create virtualizer store with initial options
-	// Options are updated reactively via $effect
+	// Options are updated reactively via $effect (including overscan)
 	const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
 		count: 0,
 		getScrollElement: () => scrollContainer,
-		estimateSize: () => estimatedItemHeight,
-		overscan: overscanProp
+		estimateSize: () => estimatedItemHeight
 	});
 
 	// Update virtualizer when items or options change
@@ -143,6 +142,7 @@
 	style:height
 	style:overflow="auto"
 	style:position="relative"
+	data-testid="virtual-list-container"
 >
 	{#if items.length === 0 && !loading}
 		<!-- Empty state -->
@@ -173,6 +173,7 @@
 						style:width="100%"
 						style:transform="translateY({virtualItem.start}px)"
 						data-index={virtualItem.index}
+						data-testid="virtual-list-item"
 					>
 						{@render itemSnippet(itemData, virtualItem.index, virtualItem)}
 					</div>
@@ -194,7 +195,7 @@
 
 		<!-- Loading indicator -->
 		{#if loading}
-			<div class="virtual-list-loading" style:position="absolute" style:top="{totalSize + 8}px">
+			<div class="virtual-list-loading" style:position="absolute" style:top="{totalSize + 8}px" data-testid="virtual-list-loading">
 				{#if loadingSnippet}
 					{@render loadingSnippet()}
 				{:else}

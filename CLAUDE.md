@@ -584,6 +584,40 @@ ROADMAP.md                                       # MODIFIED (Sprint 1: 84%)
 
 ---
 
+### Session 2026-01-06 (Suite 3) — Pre-Meeting Briefing Button
+
+**Focus** : Implémentation du bouton briefing pré-réunion sur les événements calendrier
+
+**Accomplissements** :
+
+1. ✅ **PreMeetingModal.svelte** (`web/src/lib/components/briefing/PreMeetingModal.svelte` ~220 lignes)
+   - Modal affichant le briefing complet via API `getPreMeetingBriefing()`
+   - Sections : infos réunion, participants avec contexte, agenda, points de discussion suggérés
+   - Emails et notes liés au contexte de la réunion
+   - États loading (Skeleton), error (bouton retry), données
+
+2. ✅ **Bouton briefing sur événements calendrier** (`web/src/routes/+page.svelte`)
+   - Bouton icône document sur les événements `source === 'calendar'`
+   - Support clavier complet (Enter/Space)
+   - Accessible (role="button", tabindex, aria)
+   - Dans les deux sections (urgentEvents et otherEvents)
+
+3. ✅ **Barrel export** (`web/src/lib/components/briefing/index.ts`)
+   - Module briefing avec export PreMeetingModal
+
+**Fichiers créés/modifiés** :
+```
+web/src/lib/components/briefing/PreMeetingModal.svelte  # NEW (~220 lignes)
+web/src/lib/components/briefing/index.ts                # NEW (barrel export)
+web/src/routes/+page.svelte                             # MODIFIED (+60 lignes)
+docs/GAPS_TRACKING.md                                   # MODIFIED (18/63 MVP = 29%)
+ROADMAP.md                                              # MODIFIED (Sprint 1: 89%)
+```
+
+**Tests** : svelte-check 0 errors, 73 tests briefing passent
+
+---
+
 ### Session 2026-01-06 (Suite) — Notes Folders API
 
 **Focus** : Implémentation des endpoints de gestion de dossiers pour les notes
@@ -2007,9 +2041,9 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ## 🎯 Objectifs Prochaine Session
 
-### Sprint 1 : Finir (3 items restants)
+### Sprint 1 : Finir (2 items restants)
 
-**Statut** : 84% complété (16/19 items)
+**Statut** : 89% complété (17/19 items)
 
 **Complété** :
 - ✅ Notes Git Versioning (5 endpoints)
@@ -2022,18 +2056,18 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ UI Notes Review
 - ✅ POST /api/notes/folders + GET /api/notes/folders
 - ✅ Infinite Scroll + Virtualisation (@tanstack/svelte-virtual)
+- ✅ Bouton briefing pré-réunion (PreMeetingModal.svelte)
 
 **Restant Sprint 1** :
 
 | Priorité | Item | Description |
 |----------|------|-------------|
-| 🟠 | Calendar briefing button | Bouton briefing pré-réunion |
 | 🟠 | Calendar conflict detection | Alerte conflits calendrier |
 | 🟠 | GET /api/status | Status temps réel Scapin |
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (46 MVP restants sur 63).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (45 MVP restants sur 63).
 
 ---
 
@@ -2051,5 +2085,5 @@ Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (46 MVP r
 
 ---
 
-**Dernière mise à jour** : 5 janvier 2026 par Claude
+**Dernière mise à jour** : 6 janvier 2026 par Claude
 **Prochaine révision** : Début prochaine session
