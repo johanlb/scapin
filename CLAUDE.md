@@ -544,6 +544,56 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-06 (Suite 8) — Deep Analysis & Security Hardening ✅
+
+**Focus** : Analyse approfondie du codebase avant Sprint 2, corrections sécurité et qualité
+
+**Accomplissements** :
+
+1. ✅ **Analyse complète via 4 agents parallèles**
+   - Sécurité : 3 CRITICAL, 5 HIGH
+   - Architecture : 6 HIGH patterns
+   - Qualité code : 11 MEDIUM issues
+   - Performance : 5 MEDIUM optimizations
+
+2. ✅ **Corrections Sécurité CRITICAL/HIGH**
+   - `jwt_secret_key` obligatoire (plus de default)
+   - Warning si auth désactivé en production
+   - CORS configurable (origins, methods, headers)
+   - Messages d'exception sanitisés (pas de leak internal details)
+   - WebSocket auth via premier message (plus de token en query param)
+
+3. ✅ **Nouveaux modules utilitaires**
+   - `src/core/error_handling.py` (~360 lignes) — Context manager, decorators, ErrorCollector
+   - `src/core/constants.py` (~150 lignes) — Magic numbers centralisés
+   - `src/jeeves/api/auth/rate_limiter.py` (~200 lignes) — Brute-force protection login
+
+4. ✅ **Optimisation Performance**
+   - Index composite SQLite sur `note_metadata` (importance, next_review, note_type)
+
+5. ✅ **Frontend WebSocket store mis à jour**
+   - Auth via premier message JSON au lieu de query param
+   - Gestion état `authenticated`
+
+**Fichiers créés/modifiés** :
+```
+src/core/config_manager.py           # MODIFIED (APIConfig, AuthConfig)
+src/core/error_handling.py           # NEW (~360 lignes)
+src/core/constants.py                # NEW (~150 lignes)
+src/jeeves/api/app.py                # MODIFIED (CORS, sanitized exceptions)
+src/jeeves/api/auth/__init__.py      # MODIFIED (exports rate_limiter)
+src/jeeves/api/auth/rate_limiter.py  # NEW (~200 lignes)
+src/jeeves/api/routers/auth.py       # MODIFIED (rate limiting integration)
+src/jeeves/api/websocket/router.py   # MODIFIED (first message auth)
+src/jeeves/api/websocket/manager.py  # MODIFIED (already_accepted param)
+src/passepartout/note_metadata.py    # MODIFIED (composite index)
+web/src/lib/stores/websocket.svelte.ts # MODIFIED (first message auth)
+```
+
+**Tests** : 1697 passed, svelte-check 0 errors, ruff 0 warnings
+
+---
+
 ### Session 2026-01-06 (Suite 7) — Calendar Conflict Detection ✅
 
 **Focus** : Implémentation de la détection de conflits calendrier (dernier item Sprint 1)

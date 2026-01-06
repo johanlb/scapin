@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.core.config_manager import get_config
 from src.jeeves.api.models.responses import APIResponse
 from src.jeeves.api.routers import (
     auth_router,
@@ -36,6 +37,19 @@ logger = get_logger("jeeves.api")
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler"""
     logger.info("Starting Scapin API server")
+
+    # Security check: warn if auth is disabled in production
+    config = get_config()
+    if (
+        config.environment == "production"
+        and not config.auth.enabled
+        and config.auth.warn_disabled_in_production
+    ):
+        logger.warning(
+            "SECURITY WARNING: Authentication is DISABLED in production environment! "
+            "Set AUTH__ENABLED=true or ENVIRONMENT=development"
+        )
+
     yield
     logger.info("Shutting down Scapin API server")
 
@@ -61,14 +75,14 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS middleware
-    # TODO: Get origins from config when APIConfig is added
+    # CORS middleware - configured via API__CORS_* environment variables
+    config = get_config()
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:5173"],
+        allow_origins=config.api.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=config.api.cors_methods,
+        allow_headers=config.api.cors_headers,
     )
 
     # Global exception handler
@@ -77,13 +91,17 @@ def create_app() -> FastAPI:
         _request: Request,
         exc: Exception,
     ) -> JSONResponse:
-        """Handle uncaught exceptions"""
+        """Handle uncaught exceptions - sanitize error messages for security"""
+        # Log full exception details for debugging
         logger.exception(f"Unhandled exception: {exc}")
+
+        # Return generic error message to client (don't leak internal details)
+        # In development, you can check logs for full details
         return JSONResponse(
             status_code=500,
             content=APIResponse(
                 success=False,
-                error=str(exc),
+                error="Internal server error. Please try again later.",
                 timestamp=datetime.now(timezone.utc),
             ).model_dump(mode="json"),
         )

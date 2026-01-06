@@ -87,14 +87,16 @@ class ConnectionManager:
             # No running event loop - log and skip
             logger.debug(f"No event loop for broadcast: {event.event_type.value}")
 
-    async def connect(self, websocket: WebSocket) -> None:
+    async def connect(self, websocket: WebSocket, already_accepted: bool = False) -> None:
         """
-        Accept and register a new WebSocket connection
+        Register a WebSocket connection
 
         Args:
             websocket: FastAPI WebSocket instance
+            already_accepted: If True, skip accept() call (already done by router)
         """
-        await websocket.accept()
+        if not already_accepted:
+            await websocket.accept()
 
         async with self._lock:
             self._active_connections.append(websocket)

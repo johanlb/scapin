@@ -2,8 +2,10 @@
 WebSocket Router
 
 Provides the /ws/live endpoint for real-time event streaming.
-Authentication via JWT token in query parameter.
+Authentication via first message (more secure than query parameter).
 """
+
+import json
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
@@ -20,21 +22,23 @@ router = APIRouter()
 @router.websocket("/live")
 async def websocket_endpoint(
     websocket: WebSocket,
-    token: str = Query(None, description="JWT access token"),
+    token: str = Query(None, description="JWT access token (deprecated, use first message auth)"),
 ):
     """
     WebSocket endpoint for real-time event streaming
 
     Connect to receive live events from Scapin processing.
 
-    Authentication:
-        - If auth is enabled: Requires valid JWT token in query param
-        - If auth is disabled: No token required
+    Authentication (two methods supported):
+        1. First message auth (preferred): Send {"type": "auth", "token": "YOUR_JWT"}
+        2. Query param (deprecated): ws://localhost:8000/ws/live?token=YOUR_JWT
 
     Usage:
-        ws://localhost:8000/ws/live?token=YOUR_JWT_TOKEN
+        const ws = new WebSocket('ws://localhost:8000/ws/live');
+        ws.onopen = () => ws.send(JSON.stringify({type: 'auth', token: 'YOUR_JWT'}));
 
     Messages received:
+        - {"type": "authenticated"} - Auth successful
         - {"type": "connected", ...} - Initial connection confirmation
         - {"type": "event", "data": {...}} - Processing events
 
@@ -47,26 +51,64 @@ async def websocket_endpoint(
     """
     config = get_config()
     manager = get_connection_manager()
+    jwt_handler = JWTHandler()
+
+    # Accept the WebSocket connection first
+    await websocket.accept()
 
     # Authenticate if auth is enabled
     if config.auth.enabled:
-        if not token:
+        authenticated = False
+
+        # Try query param first (deprecated but still supported for backwards compat)
+        if token:
+            token_data = jwt_handler.verify_token(token)
+            if token_data:
+                authenticated = True
+                logger.info(f"WebSocket authenticated via query param: {token_data.sub}")
+                # Note: Query param auth works but is deprecated
+                logger.warning(
+                    "WebSocket auth via query param is deprecated. "
+                    "Use first message auth: {\"type\": \"auth\", \"token\": \"...\"}"
+                )
+
+        # If not authenticated via query, wait for first message auth
+        if not authenticated:
+            try:
+                # Wait for auth message (with timeout handled by client)
+                auth_message = await websocket.receive_text()
+                auth_data = json.loads(auth_message)
+
+                if auth_data.get("type") == "auth" and auth_data.get("token"):
+                    token_data = jwt_handler.verify_token(auth_data["token"])
+                    if token_data:
+                        authenticated = True
+                        logger.info(f"WebSocket authenticated via first message: {token_data.sub}")
+                        await websocket.send_json({"type": "authenticated", "user": token_data.sub})
+                    else:
+                        await websocket.close(code=4001, reason="Invalid or expired token")
+                        logger.warning("WebSocket connection rejected: Invalid token")
+                        return
+                else:
+                    await websocket.close(code=4001, reason="Expected auth message")
+                    logger.warning("WebSocket connection rejected: No auth message")
+                    return
+            except json.JSONDecodeError:
+                await websocket.close(code=4001, reason="Invalid auth message format")
+                logger.warning("WebSocket connection rejected: Invalid JSON")
+                return
+            except Exception as e:
+                await websocket.close(code=4001, reason="Authentication failed")
+                logger.warning(f"WebSocket auth error: {e}")
+                return
+
+        if not authenticated:
             await websocket.close(code=4001, reason="Authentication required")
-            logger.warning("WebSocket connection rejected: No token provided")
+            logger.warning("WebSocket connection rejected: Not authenticated")
             return
 
-        jwt_handler = JWTHandler()
-        token_data = jwt_handler.verify_token(token)
-
-        if token_data is None:
-            await websocket.close(code=4001, reason="Invalid or expired token")
-            logger.warning("WebSocket connection rejected: Invalid token")
-            return
-
-        logger.info(f"WebSocket authenticated: {token_data.sub}")
-
-    # Connect and handle messages
-    await manager.connect(websocket)
+    # Connect and handle messages (WebSocket already accepted for auth)
+    await manager.connect(websocket, already_accepted=True)
 
     try:
         while True:

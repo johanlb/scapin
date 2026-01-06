@@ -613,6 +613,25 @@ class BriefingConfig(BaseModel):
     )
 
 
+class APIConfig(BaseModel):
+    """
+    API server configuration.
+    """
+
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:5173"],
+        description="Allowed CORS origins"
+    )
+    cors_methods: list[str] = Field(
+        default_factory=lambda: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+        description="Allowed CORS methods"
+    )
+    cors_headers: list[str] = Field(
+        default_factory=lambda: ["Authorization", "Content-Type", "X-Request-ID"],
+        description="Allowed CORS headers"
+    )
+
+
 class AuthConfig(BaseModel):
     """
     Configuration for JWT authentication
@@ -624,10 +643,14 @@ class AuthConfig(BaseModel):
         True,
         description="Enable authentication (disable for development)"
     )
+    warn_disabled_in_production: bool = Field(
+        True,
+        description="Log warning if auth disabled in production environment"
+    )
     jwt_secret_key: str = Field(
-        "change-this-secret-key-in-production-min-32-chars",
+        ...,  # Required - no default for security
         min_length=32,
-        description="Secret key for JWT signing (min 32 characters)"
+        description="Secret key for JWT signing (min 32 characters). Generate with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
     )
     jwt_algorithm: str = Field(
         "HS256",
@@ -677,6 +700,7 @@ class ScapinConfig(BaseSettings):
     calendar: CalendarConfig = Field(default_factory=CalendarConfig)
     briefing: BriefingConfig = Field(default_factory=BriefingConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
+    api: APIConfig = Field(default_factory=APIConfig)
 
 
 class ConfigManager:

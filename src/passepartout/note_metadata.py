@@ -210,6 +210,13 @@ class NoteMetadataStore:
                 ON note_metadata(importance)
             """)
 
+            # Composite index for get_due_for_review query optimization
+            # Query filters by importance, next_review, and optionally note_type
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_review_priority
+                ON note_metadata(importance, next_review, note_type)
+            """)
+
             # Schema version table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS schema_version (

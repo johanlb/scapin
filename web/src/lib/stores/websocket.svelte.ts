@@ -46,10 +46,11 @@ interface ProcessingEventData {
 }
 
 interface WebSocketMessage {
-	type: 'connected' | 'event' | 'pong';
+	type: 'connected' | 'authenticated' | 'event' | 'pong';
 	data?: ProcessingEventData;
 	timestamp?: string;
 	message?: string;
+	user?: string;
 }
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -80,14 +81,23 @@ const RECONNECT_DELAY = 3000;
 const PING_INTERVAL = 30000;
 
 /**
- * Build WebSocket URL with auth token
+ * Build WebSocket URL (no token in URL for security)
  */
 function buildWsUrl(): string {
 	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 	const host = window.location.host;
+	return `${protocol}//${host}/ws/live`;
+}
+
+/**
+ * Send authentication message after connection
+ */
+function sendAuthMessage(): void {
 	const token = getAuthToken();
-	const base = `${protocol}//${host}/ws/live`;
-	return token ? `${base}?token=${token}` : base;
+	if (token && ws?.readyState === WebSocket.OPEN) {
+		ws.send(JSON.stringify({ type: 'auth', token }));
+		console.log('[WS] Sent auth message');
+	}
 }
 
 /**
@@ -110,12 +120,12 @@ function connect(): void {
 		ws = new WebSocket(buildWsUrl());
 
 		ws.onopen = () => {
-			console.log('[WS] Connected');
-			state.status = 'connected';
+			console.log('[WS] Connected, sending auth...');
+			state.status = 'connecting'; // Still connecting until authenticated
 			state.error = null;
 
-			// Start ping interval
-			startPing();
+			// Send auth message (ping starts after authentication)
+			sendAuthMessage();
 		};
 
 		ws.onmessage = (event) => {
@@ -174,8 +184,21 @@ function disconnect(): void {
  */
 function handleMessage(message: WebSocketMessage): void {
 	switch (message.type) {
+		case 'authenticated':
+			console.log('[WS] Authenticated as:', message.user);
+			state.status = 'connected';
+			state.error = null;
+			// Start ping interval after successful auth
+			startPing();
+			break;
+
 		case 'connected':
 			console.log('[WS] Server confirmed connection:', message.message);
+			// If auth is disabled on server, this comes instead of authenticated
+			if (state.status === 'connecting') {
+				state.status = 'connected';
+				startPing();
+			}
 			break;
 
 		case 'event':

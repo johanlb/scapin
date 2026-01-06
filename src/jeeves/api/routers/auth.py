@@ -3,16 +3,17 @@ Authentication Router
 
 Login endpoint for obtaining JWT tokens.
 Single-user system with PIN code authentication.
+Includes rate limiting to prevent brute-force attacks.
 """
 
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from src.core.config_manager import get_config
-from src.jeeves.api.auth import JWTHandler, TokenData, verify_pin
+from src.jeeves.api.auth import JWTHandler, TokenData, get_login_rate_limiter, verify_pin
 from src.jeeves.api.deps import get_current_user
 from src.jeeves.api.models.responses import APIResponse
 
@@ -33,8 +34,20 @@ class TokenResponse(BaseModel):
     expires_in: int  # seconds
 
 
+def get_client_ip(request: Request) -> str:
+    """Extract client IP from request for rate limiting."""
+    # Check for forwarded IP (behind proxy)
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    # Direct connection
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+
 @router.post("/login", response_model=APIResponse[TokenResponse])
-async def login(request: LoginRequest) -> APIResponse[TokenResponse]:
+async def login(request: LoginRequest, http_request: Request) -> APIResponse[TokenResponse]:
     """
     Authenticate with PIN and get JWT token
 
@@ -43,8 +56,20 @@ async def login(request: LoginRequest) -> APIResponse[TokenResponse]:
     - **pin**: 4-6 digit PIN code
 
     Returns JWT access token valid for 7 days (configurable).
+
+    Rate limited: Max 5 attempts per 5 minutes, then lockout with exponential backoff.
     """
     config = get_config()
+    rate_limiter = get_login_rate_limiter()
+    client_id = get_client_ip(http_request)
+
+    # Check rate limit
+    allowed, error_msg = rate_limiter.check_rate_limit(client_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=error_msg,
+        )
 
     # Check if auth is enabled
     if not config.auth.enabled:
@@ -70,10 +95,15 @@ async def login(request: LoginRequest) -> APIResponse[TokenResponse]:
 
     # Verify PIN
     if not verify_pin(request.pin, config.auth.pin_hash):
+        # Record failed attempt for rate limiting
+        rate_limiter.record_attempt(client_id, success=False)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="PIN incorrect",
         )
+
+    # Record successful attempt (resets rate limit counters)
+    rate_limiter.record_attempt(client_id, success=True)
 
     # Generate token
     jwt_handler = JWTHandler()
