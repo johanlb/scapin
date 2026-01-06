@@ -618,6 +618,39 @@ ROADMAP.md                                              # MODIFIED (Sprint 1: 89
 
 ---
 
+### Session 2026-01-06 (Suite 4) — Code Review & Quality Improvements
+
+**Focus** : Revue de code complète VirtualList + PreMeetingModal, améliorations qualité
+
+**Accomplissements** :
+
+1. ✅ **VirtualList.svelte amélioré** (`web/src/lib/components/ui/VirtualList.svelte`)
+   - Ajout `data-testid` sur container, items, loading indicator
+   - Fix warning Svelte `overscanProp` (retiré de l'init createVirtualizer, géré par $effect)
+
+2. ✅ **PreMeetingModal.svelte amélioré** (`web/src/lib/components/briefing/PreMeetingModal.svelte`)
+   - Ajout `AbortController` pour annuler les requêtes quand le modal se ferme
+   - Gestion `AbortError` (ignoré silencieusement, pas d'erreur affichée)
+
+3. ✅ **Tests API getPreMeetingBriefing** (`web/src/lib/api/__tests__/client.test.ts` +3 tests)
+   - Test success avec attendees et talking points
+   - Test URL encoding des caractères spéciaux dans eventId
+   - Test gestion erreur 404
+
+**Fichiers modifiés** :
+```
+web/src/lib/components/ui/VirtualList.svelte      # data-testid + overscan fix
+web/src/lib/components/briefing/PreMeetingModal.svelte  # AbortController
+web/src/lib/api/__tests__/client.test.ts          # +3 tests getPreMeetingBriefing
+```
+
+**Tests** : 25 tests frontend passent, svelte-check 0 errors/warnings
+
+**Commits** :
+- `b8b7fed` — feat(web): add pre-meeting briefing button on calendar events
+
+---
+
 ### Session 2026-01-06 (Suite) — Notes Folders API
 
 **Focus** : Implémentation des endpoints de gestion de dossiers pour les notes

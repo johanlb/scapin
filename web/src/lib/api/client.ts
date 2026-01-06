@@ -314,8 +314,13 @@ export async function getMorningBriefing(): Promise<MorningBriefing> {
 	return fetchApi<MorningBriefing>('/briefing/morning');
 }
 
-export async function getPreMeetingBriefing(eventId: string): Promise<PreMeetingBriefing> {
-	return fetchApi<PreMeetingBriefing>(`/briefing/meeting/${encodeURIComponent(eventId)}`);
+export async function getPreMeetingBriefing(
+	eventId: string,
+	signal?: AbortSignal
+): Promise<PreMeetingBriefing> {
+	return fetchApi<PreMeetingBriefing>(`/briefing/meeting/${encodeURIComponent(eventId)}`, {
+		signal
+	});
 }
 
 // ============================================================================

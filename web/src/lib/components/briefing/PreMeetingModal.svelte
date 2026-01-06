@@ -25,13 +25,17 @@
 	// AbortController for cancelable fetch
 	let abortController: AbortController | null = null;
 
-	// Fetch briefing when modal opens
+	// Fetch briefing when modal opens, reset when it closes
 	$effect(() => {
 		if (open && eventId) {
 			fetchBriefing();
 		} else {
 			// Cancel any pending request when modal closes
 			abortController?.abort();
+			abortController = null;
+			// Reset state for next open
+			loading = true;
+			error = null;
 		}
 	});
 
@@ -39,11 +43,12 @@
 		// Cancel previous request if any
 		abortController?.abort();
 		abortController = new AbortController();
+		const signal = abortController.signal;
 
 		loading = true;
 		error = null;
 		try {
-			briefing = await getPreMeetingBriefing(eventId);
+			briefing = await getPreMeetingBriefing(eventId, signal);
 		} catch (e) {
 			// Ignore abort errors
 			if (e instanceof Error && e.name === 'AbortError') {
@@ -52,8 +57,25 @@
 			error = e instanceof Error ? e.message : 'Erreur lors du chargement du briefing';
 			briefing = null;
 		} finally {
-			loading = false;
+			// Only update loading if not aborted
+			if (!signal.aborted) {
+				loading = false;
+			}
 		}
+	}
+
+	/**
+	 * Get initials from a name (max 2 characters)
+	 * Handles empty names gracefully
+	 */
+	function getInitials(name: string): string {
+		if (!name || name.trim() === '') return '?';
+		return name
+			.split(' ')
+			.filter((part) => part.length > 0)
+			.map((part) => part[0]?.toUpperCase() ?? '')
+			.join('')
+			.slice(0, 2) || '?';
 	}
 
 	function formatTime(isoString: string): string {
@@ -80,14 +102,14 @@
 <Modal {open} title={eventTitle || 'Briefing pré-réunion'} size="lg" onclose={handleClose}>
 	{#if loading}
 		<!-- Loading skeleton -->
-		<div class="space-y-4">
+		<div class="space-y-4" data-testid="briefing-loading">
 			<Skeleton variant="rectangular" height="60px" />
 			<Skeleton variant="text" lines={3} />
 			<Skeleton variant="rectangular" height="100px" />
 		</div>
 	{:else if error}
 		<!-- Error state -->
-		<div class="text-center py-6">
+		<div class="text-center py-6" data-testid="briefing-error">
 			<p class="text-4xl mb-3">⚠️</p>
 			<p class="text-[var(--color-urgency-urgent)] mb-3">{error}</p>
 			<button
@@ -99,7 +121,7 @@
 			</button>
 		</div>
 	{:else if briefing}
-		<div class="space-y-5">
+		<div class="space-y-5" data-testid="briefing-content">
 			<!-- Meeting info -->
 			<section>
 				<div
@@ -138,11 +160,7 @@
 									<div
 										class="w-9 h-9 rounded-full bg-[var(--color-accent)] bg-opacity-20 flex items-center justify-center text-sm font-medium text-[var(--color-accent)]"
 									>
-										{attendee.name
-											.split(' ')
-											.map((n) => n[0])
-											.join('')
-											.slice(0, 2)}
+										{getInitials(attendee.name)}
 									</div>
 									<div class="flex-1 min-w-0">
 										<p class="font-medium text-[var(--color-text-primary)]">

@@ -77,6 +77,9 @@
 	let sentinelRef: HTMLDivElement | null = $state(null);
 	let observer: IntersectionObserver | null = null;
 
+	// Guard against multiple rapid onLoadMore calls
+	let isLoadingMore = $state(false);
+
 	// Store the current items count reactively
 	const itemsCount = $derived(items.length);
 
@@ -108,24 +111,35 @@
 		};
 	});
 
+	// Handler for intersection - checks current values at call time
+	async function handleIntersection(entries: IntersectionObserverEntry[]) {
+		const entry = entries[0];
+		if (!entry?.isIntersecting) return;
+
+		// Check conditions at call time (not captured at observer creation)
+		if (!hasMore || loading || isLoadingMore || !onLoadMore) return;
+
+		// Guard against rapid multiple calls
+		isLoadingMore = true;
+		try {
+			await onLoadMore();
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
 	// Observe sentinel when it changes
+	// Note: We only recreate observer when sentinel/container/threshold change
+	// The callback reads hasMore/loading/onLoadMore at call time
 	$effect(() => {
 		if (sentinelRef && scrollContainer) {
 			observer?.disconnect();
 
-			observer = new IntersectionObserver(
-				(entries) => {
-					const entry = entries[0];
-					if (entry?.isIntersecting && hasMore && !loading && onLoadMore) {
-						onLoadMore();
-					}
-				},
-				{
-					root: scrollContainer,
-					rootMargin: `0px 0px ${loadThreshold}px 0px`,
-					threshold: 0
-				}
-			);
+			observer = new IntersectionObserver(handleIntersection, {
+				root: scrollContainer,
+				rootMargin: `0px 0px ${loadThreshold}px 0px`,
+				threshold: 0
+			});
 
 			observer.observe(sentinelRef);
 		}
@@ -195,7 +209,13 @@
 
 		<!-- Loading indicator -->
 		{#if loading}
-			<div class="virtual-list-loading" style:position="absolute" style:top="{totalSize + 8}px" data-testid="virtual-list-loading">
+			<div
+				class="virtual-list-loading"
+				style:position={totalSize > 0 ? 'absolute' : 'relative'}
+				style:top={totalSize > 0 ? `${totalSize + 8}px` : 'auto'}
+				style:padding-top={totalSize === 0 ? '2rem' : '0'}
+				data-testid="virtual-list-loading"
+			>
 				{#if loadingSnippet}
 					{@render loadingSnippet()}
 				{:else}
