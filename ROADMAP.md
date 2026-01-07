@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 7 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 2 EN COURS 🟡 — Boucle Email ↔ Notes (9/14 complétés)
+**Phase actuelle** : Sprint 2 EN COURS 🟡 — Boucle Email ↔ Notes (10/14 complétés)
 
 ---
 
@@ -194,9 +194,9 @@ API Endpoints
 
 ## Sprint 2 : Qualité d'Analyse
 
-**Statut** : 🟡 En cours (9/14 — 64%)
+**Statut** : 🟡 En cours (10/14 — 71%)
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Items** : 14 MVP (9 complétés)
+**Items** : 14 MVP (10 complétés)
 **Dépendance** : Sprint 1 ✅
 
 ### Livrables
@@ -212,7 +212,7 @@ API Endpoints
 | **Discussions** | CRUD /api/discussions | MVP | ✅ |
 | | Messages et suggestions contextuelles | MVP | ✅ |
 | **Chat** | POST /api/discussions/quick (quick chat) | MVP | ✅ |
-| **UX Intelligence** | Page Discussions multi-sessions | MVP | ⬜ |
+| **UX Intelligence** | Page Discussions multi-sessions | MVP | ✅ |
 | | Mode traitement focus pleine page | MVP | ⬜ |
 | **Teams** | Filtrage par mentions directes | MVP | ⬜ |
 | | Déduplication email/Teams | MVP | ⬜ |
@@ -490,7 +490,7 @@ Interfaces:        ████████████████████ 
 
 === MVP EN COURS ===
 Sprint 1 (Notes):  ████████████████████ 100% ✅ (19/19)
-Sprint 2 (Analyse):░░░░░░░░░░░░░░░░░░░░   0% 📋
+Sprint 2 (Analyse):██████████████░░░░░░  71% 🟡 (10/14)
 Sprint 3 (Actions):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -498,8 +498,8 @@ Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░ 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        ██████░░░░░░░░░░░░░░  30% (19 MVP complétés sur 63)
-                   → 44 items restants
+Global MVP:        █████████░░░░░░░░░░░  46% (29 MVP complétés sur 63)
+                   → 34 items restants
 ```
 
 ### Items par Sprint
@@ -507,11 +507,11 @@ Global MVP:        ██████░░░░░░░░░░░░░░ 
 | Sprint | Items MVP | Complétés | Statut |
 |--------|-----------|-----------|--------|
 | Sprint 1 | 19 | 19 | ✅ 100% |
-| Sprint 2 | 14 | 0 | 📋 Planifié |
+| Sprint 2 | 14 | 10 | 🟡 71% |
 | Sprint 3 | 16 | 0 | 📋 Planifié |
 | Sprint 4 | 14 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **69** | **19** | 28% |
+| **Total MVP** | **69** | **29** | 42% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
