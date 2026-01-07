@@ -4,8 +4,24 @@
 	import { Card, Button, Input, VirtualList } from '$lib/components/ui';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
-	import { approveQueueItem, rejectQueueItem } from '$lib/api';
-	import type { QueueItem, ActionOption } from '$lib/api';
+	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem } from '$lib/api';
+	import type { QueueItem, ActionOption, SnoozeOption } from '$lib/api';
+
+	// Track undo state per item
+	let undoableItems = $state<Set<string>>(new Set());
+	let undoingItems = $state<Set<string>>(new Set());
+
+	// Snooze state
+	let showSnoozeMenu = $state(false);
+	let isSnoozeing = $state(false);
+	let snoozeSuccess = $state<string | null>(null);
+
+	const snoozeOptions: { value: SnoozeOption; label: string }[] = [
+		{ value: 'later_today', label: 'Plus tard (3h)' },
+		{ value: 'tomorrow', label: 'Demain matin' },
+		{ value: 'this_weekend', label: 'Ce weekend' },
+		{ value: 'next_week', label: 'Semaine prochaine' }
+	];
 
 	function enterFocusMode() {
 		goto('/flux/focus');
@@ -44,6 +60,52 @@
 		customInstruction = '';
 		showCustomInput = false;
 		await queueStore.fetchQueue(filter);
+
+		// Check which approved items can be undone
+		if (filter === 'approved') {
+			await checkUndoableItems();
+		}
+	}
+
+	async function checkUndoableItems() {
+		const newUndoable = new Set<string>();
+		// Check first 20 items for undo availability
+		const itemsToCheck = queueStore.items.slice(0, 20);
+		await Promise.all(
+			itemsToCheck.map(async (item) => {
+				try {
+					const result = await canUndoQueueItem(item.id);
+					if (result.can_undo) {
+						newUndoable.add(item.id);
+					}
+				} catch {
+					// Ignore errors, item just won't be undoable
+				}
+			})
+		);
+		undoableItems = newUndoable;
+	}
+
+	async function handleUndoItem(item: QueueItem) {
+		if (undoingItems.has(item.id)) return;
+
+		undoingItems = new Set([...undoingItems, item.id]);
+		try {
+			await undoQueueItem(item.id);
+			// Remove from undoable set
+			const newUndoable = new Set(undoableItems);
+			newUndoable.delete(item.id);
+			undoableItems = newUndoable;
+			// Refresh the list
+			await queueStore.fetchQueue('approved');
+			await queueStore.fetchStats();
+		} catch (e) {
+			console.error('Undo failed:', e);
+		} finally {
+			const newUndoing = new Set(undoingItems);
+			newUndoing.delete(item.id);
+			undoingItems = newUndoing;
+		}
 	}
 
 	function handleKeyboard(e: KeyboardEvent) {
@@ -71,7 +133,7 @@
 				break;
 			case 'z':
 			case 'Z':
-				handleSnooze();
+				toggleSnoozeMenu();
 				break;
 			case 'd':
 			case 'D':
@@ -92,6 +154,7 @@
 			case 'Escape':
 				showCustomInput = false;
 				showLevel3 = false;
+				showSnoozeMenu = false;
 				customInstruction = '';
 				break;
 		}
@@ -184,12 +247,45 @@
 		showLevel3 = false;
 	}
 
-	function handleSnooze() {
-		// Move item to end of queue and go to next
+	function toggleSnoozeMenu() {
+		showSnoozeMenu = !showSnoozeMenu;
+	}
+
+	async function handleSnoozeOption(option: SnoozeOption) {
+		if (!currentItem || isSnoozeing) return;
+		isSnoozeing = true;
+		showSnoozeMenu = false;
+
+		try {
+			const result = await snoozeQueueItem(currentItem.id, option);
+			const snoozeUntil = new Date(result.snooze_until);
+			snoozeSuccess = `Snoozé jusqu'à ${snoozeUntil.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
+
+			// Refresh queue and stats
+			await queueStore.fetchQueue('pending');
+			await queueStore.fetchStats();
+
+			// Clear success message after delay
+			setTimeout(() => {
+				snoozeSuccess = null;
+			}, 2000);
+
+			// Reset index if needed
+			if (currentIndex >= queueStore.items.length) {
+				currentIndex = Math.max(0, queueStore.items.length - 1);
+			}
+		} catch (e) {
+			console.error('Snooze failed:', e);
+		} finally {
+			isSnoozeing = false;
+		}
+	}
+
+	function handleSkipToNext() {
+		// Skip to next item without API call (local only)
 		if (queueStore.items.length > 1) {
 			const item = queueStore.items[currentIndex];
 			queueStore.moveToEnd(item.id);
-			// Index stays same but item changes
 		}
 		customInstruction = '';
 		showCustomInput = false;
@@ -411,6 +507,14 @@
 						{/each}
 					</div>
 				</div>
+
+				<!-- Snooze success feedback -->
+				{#if snoozeSuccess}
+					<div class="flex items-center gap-2 p-2 rounded-lg bg-green-500/20 text-green-400 text-sm animate-pulse">
+						<span>💤</span>
+						<span>{snoozeSuccess}</span>
+					</div>
+				{/if}
 
 				<!-- Why in queue - Scapin explanation -->
 				<div class="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-bg-tertiary)]">
@@ -801,15 +905,41 @@
 							<span class="mr-1">⏭️</span> Passer
 							<span class="ml-1 text-xs opacity-60 font-mono">S</span>
 						</Button>
-						<Button
-							variant="secondary"
-							size="sm"
-							onclick={handleSnooze}
-							disabled={isProcessing || queueStore.items.length <= 1}
-						>
-							<span class="mr-1">💤</span> Plus tard
-							<span class="ml-1 text-xs opacity-60 font-mono">Z</span>
-						</Button>
+						<div class="relative">
+							<Button
+								variant="secondary"
+								size="sm"
+								onclick={toggleSnoozeMenu}
+								disabled={isProcessing}
+							>
+								<span class="mr-1">💤</span> Plus tard
+								<span class="ml-1 text-xs opacity-60 font-mono">Z</span>
+							</Button>
+
+							<!-- Snooze dropdown menu -->
+							{#if showSnoozeMenu}
+								<!-- Backdrop to close menu -->
+								<button
+									type="button"
+									class="fixed inset-0 z-40"
+									onclick={() => showSnoozeMenu = false}
+									aria-label="Fermer le menu"
+								></button>
+
+								<div class="absolute bottom-full left-0 mb-2 z-50 min-w-[180px] py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] shadow-lg">
+									{#each snoozeOptions as option}
+										<button
+											type="button"
+											class="w-full text-left px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors disabled:opacity-50"
+											onclick={() => handleSnoozeOption(option.value)}
+											disabled={isSnoozeing}
+										>
+											{option.label}
+										</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
 						<Button
 							variant="secondary"
 							size="sm"
@@ -883,8 +1013,9 @@
 			>
 				{#snippet item(item, _index)}
 					<div class="pb-3">
-						<Card padding="md">
+						<Card padding="md" class="hover:border-[var(--color-accent)] transition-colors">
 							<div class="flex items-start gap-3">
+							<a href="/flux/{item.id}" class="flex items-start gap-3 flex-1 min-w-0 no-underline text-inherit">
 								<!-- Action icon -->
 								<div
 									class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg"
@@ -940,24 +1071,39 @@
 										</div>
 									{/if}
 								</div>
+							</a>
 
-								<!-- Status indicator -->
-								<div class="shrink-0 text-right">
-									<span
-										class="text-xs px-2 py-1 rounded-full"
-										class:bg-green-100={item.status === 'approved'}
-										class:text-green-700={item.status === 'approved'}
-										class:bg-red-100={item.status === 'rejected'}
-										class:text-red-700={item.status === 'rejected'}
+							<!-- Status indicator and actions (outside link) -->
+							<div class="shrink-0 text-right flex flex-col items-end gap-2 ml-auto">
+								<span
+									class="text-xs px-2 py-1 rounded-full"
+									class:bg-green-100={item.status === 'approved'}
+									class:text-green-700={item.status === 'approved'}
+									class:bg-red-100={item.status === 'rejected'}
+									class:text-red-700={item.status === 'rejected'}
+								>
+									{getActionLabel(item.analysis.action)}
+								</span>
+								{#if item.reviewed_at}
+									<p class="text-xs text-[var(--color-text-tertiary)]">
+										{formatRelativeTime(item.reviewed_at)}
+									</p>
+								{/if}
+								<!-- Undo button for approved items -->
+								{#if item.status === 'approved' && undoableItems.has(item.id)}
+									<button
+										class="text-xs px-2 py-1 rounded bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors disabled:opacity-50"
+										onclick={(e) => { e.stopPropagation(); handleUndoItem(item); }}
+										disabled={undoingItems.has(item.id)}
 									>
-										{getActionLabel(item.analysis.action)}
-									</span>
-									{#if item.reviewed_at}
-										<p class="text-xs text-[var(--color-text-tertiary)] mt-1">
-											{formatRelativeTime(item.reviewed_at)}
-										</p>
-									{/if}
-								</div>
+										{#if undoingItems.has(item.id)}
+											⟳ Annulation...
+										{:else}
+											↩ Annuler
+										{/if}
+									</button>
+								{/if}
+							</div>
 							</div>
 						</Card>
 					</div>
