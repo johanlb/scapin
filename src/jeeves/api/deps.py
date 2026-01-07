@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.core.config_manager import ScapinConfig, get_config
 from src.jeeves.api.auth import JWTHandler, TokenData
 from src.jeeves.api.services.briefing_service import BriefingService
+from src.jeeves.api.services.discussion_service import DiscussionService
 from src.jeeves.api.services.email_service import EmailService
 from src.jeeves.api.services.notes_review_service import NotesReviewService
 from src.jeeves.api.services.notes_service import NotesService
@@ -111,4 +112,11 @@ def get_queue_service() -> Generator[QueueService, None, None]:
 def get_email_service() -> Generator[EmailService, None, None]:
     """Get email service instance"""
     service = EmailService()
+    yield service
+
+
+def get_discussion_service() -> Generator[DiscussionService, None, None]:
+    """Get discussion service instance"""
+    config = get_cached_config()
+    service = DiscussionService(config=config)
     yield service

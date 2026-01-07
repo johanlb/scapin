@@ -3,6 +3,7 @@
 from src.jeeves.api.routers.auth import router as auth_router
 from src.jeeves.api.routers.briefing import router as briefing_router
 from src.jeeves.api.routers.calendar import router as calendar_router
+from src.jeeves.api.routers.discussions import router as discussions_router
 from src.jeeves.api.routers.email import router as email_router
 from src.jeeves.api.routers.journal import router as journal_router
 from src.jeeves.api.routers.notes import router as notes_router
@@ -16,6 +17,7 @@ __all__ = [
     "auth_router",
     "briefing_router",
     "calendar_router",
+    "discussions_router",
     "email_router",
     "journal_router",
     "notes_router",
