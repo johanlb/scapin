@@ -280,6 +280,31 @@ class TeamsService:
             "unread_count": 0,  # Would need additional API call
         }
 
+    async def mark_chat_as_read(self, chat_id: str) -> bool:
+        """
+        Mark all messages in a chat as read
+
+        Args:
+            chat_id: Chat ID to mark as read
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._config.teams.enabled:
+            return False
+
+        processor = self._get_processor()
+
+        try:
+            success = await processor.teams_client.mark_chat_as_read(chat_id)
+            if success:
+                # Update local state
+                self._state.increment("teams_chats_marked_read")
+            return success
+        except Exception as e:
+            logger.error(f"Failed to mark chat {chat_id} as read: {e}")
+            return False
+
     def _message_to_dict(self, message: Any, chat_id: str) -> dict[str, Any]:
         """Convert TeamsMessage to dictionary"""
         return {

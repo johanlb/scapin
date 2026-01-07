@@ -264,6 +264,39 @@ async def flag_message(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/chats/{chat_id}/read", response_model=APIResponse[dict])
+async def mark_chat_as_read(
+    chat_id: str,
+    service: TeamsService = Depends(_get_teams_service),
+) -> APIResponse[dict]:
+    """
+    Mark all messages in a chat as read
+
+    Marks all messages in the specified chat as read for the current user.
+    """
+    try:
+        success = await service.mark_chat_as_read(chat_id)
+
+        if not success:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to mark chat {chat_id} as read",
+            )
+
+        return APIResponse(
+            success=True,
+            data={
+                "chat_id": chat_id,
+                "marked_as_read": True,
+            },
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.post("/poll", response_model=APIResponse[TeamsPollResponse])
 async def poll_teams(
     service: TeamsService = Depends(_get_teams_service),

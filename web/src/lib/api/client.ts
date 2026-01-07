@@ -667,6 +667,8 @@ interface QueueItemAnalysis {
 	proposed_notes: ProposedNote[];
 	proposed_tasks: ProposedTask[];
 	context_used: string[];
+	// Sprint 3: Draft replies
+	draft_reply: string | null;
 }
 
 interface QueueItem {
@@ -685,13 +687,7 @@ interface QueueItem {
 	review_decision: string | null;
 }
 
-interface QueueStats {
-	total: number;
-	by_status: Record<string, number>;
-	by_account: Record<string, number>;
-	oldest_item: string | null;
-	newest_item: string | null;
-}
+// NOTE: QueueStats is defined at the top of the file (line ~130)
 
 // ============================================================================
 // QUEUE API FUNCTIONS
@@ -781,6 +777,54 @@ export async function deleteQueueItem(itemId: string): Promise<{ deleted: string
 	});
 }
 
+// Snooze types
+export type SnoozeOption = 'later_today' | 'tomorrow' | 'this_weekend' | 'next_week' | 'custom';
+
+export interface SnoozeResponse {
+	snooze_id: string;
+	item_id: string;
+	snoozed_at: string;
+	snooze_until: string;
+	snooze_option: string;
+}
+
+export async function snoozeQueueItem(
+	itemId: string,
+	snoozeOption: SnoozeOption,
+	options?: { customHours?: number; reason?: string }
+): Promise<SnoozeResponse> {
+	return fetchApi<SnoozeResponse>(`/queue/${itemId}/snooze`, {
+		method: 'POST',
+		body: JSON.stringify({
+			snooze_option: snoozeOption,
+			custom_hours: options?.customHours,
+			reason: options?.reason
+		})
+	});
+}
+
+export async function unsnoozeQueueItem(itemId: string): Promise<QueueItem> {
+	return fetchApi<QueueItem>(`/queue/${itemId}/unsnooze`, {
+		method: 'POST'
+	});
+}
+
+// Undo types and functions
+export interface CanUndoResponse {
+	item_id: string;
+	can_undo: boolean;
+}
+
+export async function undoQueueItem(itemId: string): Promise<QueueItem> {
+	return fetchApi<QueueItem>(`/queue/${itemId}/undo`, {
+		method: 'POST'
+	});
+}
+
+export async function canUndoQueueItem(itemId: string): Promise<CanUndoResponse> {
+	return fetchApi<CanUndoResponse>(`/queue/${itemId}/can-undo`);
+}
+
 // ============================================================================
 // EMAIL TYPES
 // ============================================================================
@@ -792,17 +836,7 @@ interface EmailAccount {
 	inbox_folder: string;
 }
 
-interface EmailStats {
-	emails_processed: number;
-	emails_auto_executed: number;
-	emails_archived: number;
-	emails_deleted: number;
-	emails_queued: number;
-	emails_skipped: number;
-	tasks_created: number;
-	average_confidence: number;
-	processing_mode: string;
-}
+// NOTE: EmailStats is defined at the top of the file (line ~102)
 
 interface ProcessedEmail {
 	metadata: QueueItemMetadata;
@@ -1086,6 +1120,18 @@ export async function pollTeams(): Promise<TeamsPollResult> {
 
 export async function getTeamsStats(): Promise<TeamsStats> {
 	return fetchApi<TeamsStats>('/teams/stats');
+}
+
+/**
+ * Mark all messages in a chat as read
+ */
+export async function markChatAsRead(
+	chatId: string
+): Promise<{ chat_id: string; marked_as_read: boolean }> {
+	return fetchApi<{ chat_id: string; marked_as_read: boolean }>(
+		`/teams/chats/${encodeURIComponent(chatId)}/read`,
+		{ method: 'POST' }
+	);
 }
 
 /**

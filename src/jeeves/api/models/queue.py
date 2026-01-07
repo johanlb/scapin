@@ -97,6 +97,11 @@ class QueueItemAnalysis(BaseModel):
         default_factory=list,
         description="IDs of notes used as context for this analysis"
     )
+    # Sprint 3: Draft replies
+    draft_reply: str | None = Field(
+        None,
+        description="AI-generated draft reply when action is REPLY"
+    )
 
 
 class QueueItemContent(BaseModel):
@@ -175,3 +180,29 @@ class RejectRequest(BaseModel):
     """Request to reject a queue item"""
 
     reason: str | None = Field(None, description="Reason for rejection")
+
+
+class SnoozeRequest(BaseModel):
+    """Request to snooze a queue item"""
+
+    snooze_option: str = Field(
+        ...,
+        description="Snooze option: later_today, tomorrow, this_weekend, next_week, custom"
+    )
+    custom_hours: int | None = Field(
+        None,
+        ge=1,
+        le=168,
+        description="Custom snooze hours (only for custom option, max 168h = 7 days)"
+    )
+    reason: str | None = Field(None, description="Optional reason for snoozing")
+
+
+class SnoozeResponse(BaseModel):
+    """Response for snooze operation"""
+
+    snooze_id: str = Field(..., description="Unique snooze identifier")
+    item_id: str = Field(..., description="Snoozed queue item ID")
+    snoozed_at: str = Field(..., description="When the item was snoozed (ISO format)")
+    snooze_until: str = Field(..., description="When the snooze expires (ISO format)")
+    snooze_option: str = Field(..., description="Snooze option used")

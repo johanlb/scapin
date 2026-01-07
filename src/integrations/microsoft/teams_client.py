@@ -284,3 +284,43 @@ class TeamsClient:
         if user_id:
             return await self.graph.get(f"/users/{user_id}/presence")
         return await self.graph.get("/me/presence")
+
+    async def mark_chat_as_read(self, chat_id: str) -> bool:
+        """
+        Mark all messages in a chat as read
+
+        Uses Microsoft Graph API endpoint to mark the entire chat as read
+        for the current user.
+
+        Args:
+            chat_id: Chat identifier
+
+        Returns:
+            True if successful, False otherwise
+        """
+        logger.info(f"Marking chat {chat_id} as read")
+
+        try:
+            # Get current user ID for the request
+            user_id = await self.get_current_user_id()
+            if not user_id:
+                logger.error("Could not get current user ID")
+                return False
+
+            # Microsoft Graph API endpoint to mark chat as read
+            await self.graph.post(
+                f"/chats/{chat_id}/markChatReadForUser",
+                json_data={
+                    "user": {
+                        "id": user_id,
+                        "tenantId": self.graph.authenticator.config.tenant_id,
+                    }
+                },
+            )
+
+            logger.debug(f"Marked chat {chat_id} as read")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to mark chat {chat_id} as read: {e}")
+            return False

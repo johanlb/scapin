@@ -56,9 +56,10 @@ class CalendarService:
         end = end_date or (start + timedelta(days=self._config.calendar.days_ahead))
 
         try:
-            events = await processor.calendar_client.get_events(
-                start_datetime=start,
-                end_datetime=end,
+            # Use calendar_view for proper date range support
+            events = await processor.calendar_client.get_calendar_view(
+                start=start,
+                end=end,
                 limit=limit,
             )
 
@@ -185,10 +186,130 @@ class CalendarService:
                 "error": str(e),
             }
 
+    async def create_event(
+        self,
+        title: str,
+        start: datetime,
+        end: datetime,
+        location: str | None = None,
+        description: str | None = None,
+        attendees: list[str] | None = None,
+        is_online: bool = False,
+        reminder_minutes: int = 15,
+    ) -> dict[str, Any] | None:
+        """
+        Create a new calendar event
+
+        Args:
+            title: Event title
+            start: Start datetime
+            end: End datetime
+            location: Event location
+            description: Event description/body
+            attendees: List of attendee email addresses
+            is_online: Create as Teams meeting
+            reminder_minutes: Reminder before event
+
+        Returns:
+            Created event dict or None if failed
+        """
+        if not self._config.calendar.enabled:
+            return None
+
+        processor = self._get_processor()
+
+        try:
+            event = await processor.calendar_client.create_event(
+                subject=title,
+                start=start,
+                end=end,
+                body=description,
+                location=location,
+                attendees=attendees,
+                is_online=is_online,
+                reminder_minutes=reminder_minutes,
+            )
+
+            return {
+                "id": event.event_id,
+                "title": event.subject,
+                "start": event.start.isoformat() if event.start else None,
+                "end": event.end.isoformat() if event.end else None,
+                "web_link": event.web_link,
+                "meeting_url": event.online_meeting_url,
+            }
+        except Exception as e:
+            logger.error(f"Failed to create calendar event: {e}")
+            return None
+
+    async def update_event(
+        self,
+        event_id: str,
+        title: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        location: str | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any] | None:
+        """
+        Update an existing calendar event
+
+        Args:
+            event_id: Event ID to update
+            title: New title (optional)
+            start: New start time (optional)
+            end: New end time (optional)
+            location: New location (optional)
+            description: New description (optional)
+
+        Returns:
+            Updated event dict or None if failed
+        """
+        if not self._config.calendar.enabled:
+            return None
+
+        processor = self._get_processor()
+
+        try:
+            event = await processor.calendar_client.update_event(
+                event_id=event_id,
+                subject=title,
+                start=start,
+                end=end,
+                body=description,
+                location=location,
+            )
+
+            return self._event_to_dict(event)
+        except Exception as e:
+            logger.error(f"Failed to update event {event_id}: {e}")
+            return None
+
+    async def delete_event(self, event_id: str) -> bool:
+        """
+        Delete a calendar event
+
+        Args:
+            event_id: Event ID to delete
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._config.calendar.enabled:
+            return False
+
+        processor = self._get_processor()
+
+        try:
+            return await processor.calendar_client.delete_event(event_id)
+        except Exception as e:
+            logger.error(f"Failed to delete event {event_id}: {e}")
+            return False
+
     def _event_to_dict(self, event: Any) -> dict[str, Any]:
         """Convert CalendarEvent to dictionary"""
         return {
-            "id": event.id,
+            "id": event.event_id if hasattr(event, "event_id") else event.id,
             "title": event.subject,
             "start": event.start.isoformat() if event.start else None,
             "end": event.end.isoformat() if event.end else None,

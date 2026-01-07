@@ -22,6 +22,10 @@ export {
 	modifyQueueItem,
 	rejectQueueItem,
 	deleteQueueItem,
+	snoozeQueueItem,
+	unsnoozeQueueItem,
+	undoQueueItem,
+	canUndoQueueItem,
 	// Notes Review
 	getNotesDue,
 	getReviewStats,
@@ -38,6 +42,15 @@ export {
 	updateDiscussion,
 	deleteDiscussion,
 	quickChat,
+	// Teams
+	listTeamsChats,
+	listTeamsMessages,
+	replyToTeamsMessage,
+	flagTeamsMessage,
+	pollTeams,
+	getTeamsStats,
+	markChatAsRead,
+	listRecentTeamsMessages,
 	// Error
 	ApiError
 } from './client';
@@ -61,6 +74,11 @@ export type {
 	QueueItemAnalysis,
 	QueueStats,
 	PaginatedResponse,
+	// Snooze types
+	SnoozeOption,
+	SnoozeResponse,
+	// Undo types
+	CanUndoResponse,
 	// Notes Review types
 	NoteReviewMetadata,
 	NotesDueResponse,
@@ -81,5 +99,11 @@ export type {
 	DiscussionCreateRequest,
 	MessageCreateRequest,
 	QuickChatRequest,
-	QuickChatResponse
+	QuickChatResponse,
+	// Teams types
+	TeamsChat,
+	TeamsSender,
+	TeamsMessage,
+	TeamsStats,
+	TeamsPollResult
 } from './client';

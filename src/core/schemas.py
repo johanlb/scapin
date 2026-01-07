@@ -210,6 +210,12 @@ class EmailAnalysis(BaseModel):
         description="Note IDs used as context for this analysis"
     )
 
+    # Sprint 3: Draft replies
+    draft_reply: Optional[str] = Field(
+        None,
+        description="Draft reply content when action is REPLY"
+    )
+
     @field_validator("confidence")
     @classmethod
     def validate_confidence(cls, v: int) -> int:

@@ -23,6 +23,8 @@ from src.jeeves.api.models.queue import (
     QueueItemResponse,
     QueueStatsResponse,
     RejectRequest,
+    SnoozeRequest,
+    SnoozeResponse,
 )
 from src.jeeves.api.models.responses import APIResponse, PaginatedResponse
 from src.jeeves.api.services.queue_service import QueueService
@@ -126,6 +128,7 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             proposed_notes=proposed_notes,
             proposed_tasks=proposed_tasks,
             context_used=analysis.get("context_used", []),
+            draft_reply=analysis.get("draft_reply"),
         ),
         content=QueueItemContent(
             preview=content.get("preview", ""),
@@ -342,5 +345,128 @@ async def delete_queue_item(
         )
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{item_id}/snooze", response_model=APIResponse[SnoozeResponse])
+async def snooze_queue_item(
+    item_id: str,
+    request: SnoozeRequest,
+    service: QueueService = Depends(get_queue_service),
+) -> APIResponse[SnoozeResponse]:
+    """
+    Snooze a queue item
+
+    Temporarily hides the item from the queue. It will reappear when the snooze expires.
+
+    Options:
+    - later_today: 3 hours from now
+    - tomorrow: Tomorrow at 9 AM
+    - this_weekend: Saturday at 10 AM
+    - next_week: Next Monday at 9 AM
+    - custom: Use custom_hours parameter (1-168 hours)
+    """
+    try:
+        record = await service.snooze_item(
+            item_id=item_id,
+            snooze_option=request.snooze_option,
+            custom_hours=request.custom_hours,
+            reason=request.reason,
+        )
+        if not record:
+            raise HTTPException(status_code=404, detail=f"Queue item not found: {item_id}")
+
+        return APIResponse(
+            success=True,
+            data=SnoozeResponse(
+                snooze_id=record.snooze_id,
+                item_id=record.item_id,
+                snoozed_at=record.snoozed_at.isoformat(),
+                snooze_until=record.snooze_until.isoformat(),
+                snooze_option=request.snooze_option,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{item_id}/unsnooze", response_model=APIResponse[QueueItemResponse])
+async def unsnooze_queue_item(
+    item_id: str,
+    service: QueueService = Depends(get_queue_service),
+) -> APIResponse[QueueItemResponse]:
+    """
+    Unsnooze a queue item
+
+    Manually returns a snoozed item to the pending queue.
+    """
+    try:
+        item = await service.unsnooze_item(item_id)
+        if not item:
+            raise HTTPException(status_code=404, detail=f"Snoozed item not found: {item_id}")
+
+        return APIResponse(
+            success=True,
+            data=_convert_item_to_response(item),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{item_id}/undo", response_model=APIResponse[QueueItemResponse])
+async def undo_queue_item(
+    item_id: str,
+    service: QueueService = Depends(get_queue_service),
+) -> APIResponse[QueueItemResponse]:
+    """
+    Undo an approved queue item action
+
+    Reverses the IMAP action (moves email back to original folder) and returns the item to pending status.
+    Only works for recently approved items that haven't been processed further.
+    """
+    try:
+        item = await service.undo_item(item_id)
+        if not item:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Cannot undo item {item_id}: not found or action cannot be undone",
+            )
+
+        return APIResponse(
+            success=True,
+            data=_convert_item_to_response(item),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/{item_id}/can-undo", response_model=APIResponse[dict])
+async def can_undo_queue_item(
+    item_id: str,
+    service: QueueService = Depends(get_queue_service),
+) -> APIResponse[dict]:
+    """
+    Check if a queue item's action can be undone
+
+    Returns whether the undo operation is available for this item.
+    """
+    try:
+        can_undo = await service.can_undo_item(item_id)
+
+        return APIResponse(
+            success=True,
+            data={"item_id": item_id, "can_undo": can_undo},
+            timestamp=datetime.now(timezone.utc),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

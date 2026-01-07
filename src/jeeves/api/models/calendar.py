@@ -110,3 +110,44 @@ class TodayEventsResponse(BaseModel):
         default_factory=list,
         description="Today's events",
     )
+
+
+class CreateEventRequest(BaseModel):
+    """Request to create a new calendar event"""
+
+    title: str = Field(..., min_length=1, max_length=500, description="Event title")
+    start: datetime = Field(..., description="Start time (ISO datetime)")
+    end: datetime = Field(..., description="End time (ISO datetime)")
+    location: str | None = Field(None, max_length=500, description="Event location")
+    description: str | None = Field(None, max_length=10000, description="Event description/body")
+    attendees: list[str] | None = Field(None, description="List of attendee email addresses")
+    is_online: bool = Field(False, description="Create as Teams meeting")
+    reminder_minutes: int = Field(15, ge=0, le=10080, description="Reminder minutes before event")
+
+
+class UpdateEventRequest(BaseModel):
+    """Request to update an existing calendar event"""
+
+    title: str | None = Field(None, min_length=1, max_length=500, description="Event title")
+    start: datetime | None = Field(None, description="Start time (ISO datetime)")
+    end: datetime | None = Field(None, description="End time (ISO datetime)")
+    location: str | None = Field(None, max_length=500, description="Event location")
+    description: str | None = Field(None, max_length=10000, description="Event description/body")
+
+
+class EventCreatedResponse(BaseModel):
+    """Response after creating an event"""
+
+    id: str = Field(..., description="Created event ID")
+    title: str = Field(..., description="Event title")
+    start: datetime = Field(..., description="Start time")
+    end: datetime = Field(..., description="End time")
+    web_link: str | None = Field(None, description="Link to event in calendar app")
+    meeting_url: str | None = Field(None, description="Online meeting URL if is_online=true")
+
+
+class EventDeletedResponse(BaseModel):
+    """Response after deleting an event"""
+
+    event_id: str = Field(..., description="Deleted event ID")
+    deleted: bool = Field(True, description="Whether event was deleted")

@@ -20,7 +20,9 @@
 	let messages = $state<TeamsMessage[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let replyContent = $state('');
+	// Separate reply states to avoid conflict between inline and quick reply
+	let inlineReplyContent = $state('');
+	let quickReplyContent = $state('');
 	let replyingToId = $state<string | null>(null);
 	let sendingReply = $state(false);
 	let markingAsRead = $state(false);
@@ -54,14 +56,31 @@
 		}
 	}
 
-	async function handleReply(messageId: string) {
-		if (!replyContent.trim()) return;
+	async function handleInlineReply(messageId: string) {
+		if (!inlineReplyContent.trim()) return;
 
 		sendingReply = true;
 		try {
-			await replyToTeamsMessage(chatId, messageId, replyContent);
-			replyContent = '';
+			await replyToTeamsMessage(chatId, messageId, inlineReplyContent);
+			inlineReplyContent = '';
 			replyingToId = null;
+			// Reload messages to see the reply
+			await loadMessages();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Erreur lors de l\'envoi';
+		} finally {
+			sendingReply = false;
+		}
+	}
+
+	async function handleQuickReply() {
+		if (!quickReplyContent.trim() || messages.length === 0) return;
+
+		sendingReply = true;
+		try {
+			// Reply to the most recent message
+			await replyToTeamsMessage(chatId, messages[0].id, quickReplyContent);
+			quickReplyContent = '';
 			// Reload messages to see the reply
 			await loadMessages();
 		} catch (e) {
@@ -254,16 +273,23 @@
 								<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
 									<div class="flex gap-2">
 										<Input
-											bind:value={replyContent}
+											bind:value={inlineReplyContent}
 											placeholder="Votre réponse..."
 											class="flex-1"
-											onkeydown={(e: KeyboardEvent) => e.key === 'Enter' && !e.shiftKey && handleReply(message.id)}
+											onkeydown={(e: KeyboardEvent) => {
+												if (e.key === 'Escape') {
+													replyingToId = null;
+													inlineReplyContent = '';
+												} else if (e.key === 'Enter' && !e.shiftKey) {
+													handleInlineReply(message.id);
+												}
+											}}
 										/>
 										<Button
 											variant="primary"
 											size="sm"
-											onclick={() => handleReply(message.id)}
-											disabled={sendingReply || !replyContent.trim()}
+											onclick={() => handleInlineReply(message.id)}
+											disabled={sendingReply || !inlineReplyContent.trim()}
 										>
 											{#if sendingReply}
 												<span class="animate-pulse">...</span>
@@ -274,7 +300,7 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											onclick={() => { replyingToId = null; replyContent = ''; }}
+											onclick={() => { replyingToId = null; inlineReplyContent = ''; }}
 										>
 											Annuler
 										</Button>
@@ -301,19 +327,19 @@
 				<Card variant="glass">
 					<div class="p-3 flex gap-2">
 						<Input
-							bind:value={replyContent}
+							bind:value={quickReplyContent}
 							placeholder="Répondre à la conversation..."
 							class="flex-1"
 							onkeydown={(e: KeyboardEvent) => {
-								if (e.key === 'Enter' && !e.shiftKey && messages.length > 0) {
-									handleReply(messages[0].id);
+								if (e.key === 'Enter' && !e.shiftKey) {
+									handleQuickReply();
 								}
 							}}
 						/>
 						<Button
 							variant="primary"
-							onclick={() => messages.length > 0 && handleReply(messages[0].id)}
-							disabled={sendingReply || !replyContent.trim() || messages.length === 0}
+							onclick={() => handleQuickReply()}
+							disabled={sendingReply || !quickReplyContent.trim() || messages.length === 0}
 						>
 							{#if sendingReply}
 								<span class="animate-pulse">...</span>

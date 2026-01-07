@@ -9,3 +9,4 @@ export { default as SwipeableCard } from './SwipeableCard.svelte';
 export { default as CommandPalette } from './CommandPalette.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as VirtualList } from './VirtualList.svelte';
+export { default as ConfidenceBar } from './ConfidenceBar.svelte';

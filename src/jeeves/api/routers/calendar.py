@@ -12,8 +12,12 @@ from src.jeeves.api.models.calendar import (
     CalendarAttendeeResponse,
     CalendarEventResponse,
     CalendarPollResponse,
+    CreateEventRequest,
+    EventCreatedResponse,
+    EventDeletedResponse,
     RespondToEventRequest,
     TodayEventsResponse,
+    UpdateEventRequest,
 )
 from src.jeeves.api.models.responses import APIResponse, PaginatedResponse
 from src.jeeves.api.services.calendar_service import CalendarService
@@ -224,5 +228,137 @@ async def poll_calendar(
             ),
             timestamp=datetime.now(timezone.utc),
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/events", response_model=APIResponse[EventCreatedResponse])
+async def create_calendar_event(
+    request: CreateEventRequest,
+    service: CalendarService = Depends(_get_calendar_service),
+) -> APIResponse[EventCreatedResponse]:
+    """
+    Create a new calendar event
+
+    Creates an event in the user's calendar. Supports creating
+    Teams meetings when is_online=true.
+    """
+    # Validate start < end
+    if request.start >= request.end:
+        raise HTTPException(
+            status_code=400,
+            detail="Start time must be before end time",
+        )
+
+    try:
+        result = await service.create_event(
+            title=request.title,
+            start=request.start,
+            end=request.end,
+            location=request.location,
+            description=request.description,
+            attendees=request.attendees,
+            is_online=request.is_online,
+            reminder_minutes=request.reminder_minutes,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create calendar event",
+            )
+
+        return APIResponse(
+            success=True,
+            data=EventCreatedResponse(
+                id=result["id"],
+                title=result["title"],
+                start=_parse_datetime(result["start"]) or request.start,
+                end=_parse_datetime(result["end"]) or request.end,
+                web_link=result.get("web_link"),
+                meeting_url=result.get("meeting_url"),
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.put("/events/{event_id}", response_model=APIResponse[CalendarEventResponse])
+async def update_calendar_event(
+    event_id: str,
+    request: UpdateEventRequest,
+    service: CalendarService = Depends(_get_calendar_service),
+) -> APIResponse[CalendarEventResponse]:
+    """
+    Update an existing calendar event
+
+    Updates specified fields of an event. Only provided fields are updated.
+    """
+    # Validate start < end if both provided
+    if request.start and request.end and request.start >= request.end:
+        raise HTTPException(
+            status_code=400,
+            detail="Start time must be before end time",
+        )
+
+    try:
+        result = await service.update_event(
+            event_id=event_id,
+            title=request.title,
+            start=request.start,
+            end=request.end,
+            location=request.location,
+            description=request.description,
+        )
+
+        if not result:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Event not found or failed to update: {event_id}",
+            )
+
+        return APIResponse(
+            success=True,
+            data=_convert_event_to_response(result),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.delete("/events/{event_id}", response_model=APIResponse[EventDeletedResponse])
+async def delete_calendar_event(
+    event_id: str,
+    service: CalendarService = Depends(_get_calendar_service),
+) -> APIResponse[EventDeletedResponse]:
+    """
+    Delete a calendar event
+
+    Permanently deletes the event from the calendar.
+    """
+    try:
+        success = await service.delete_event(event_id)
+
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Event not found or failed to delete: {event_id}",
+            )
+
+        return APIResponse(
+            success=True,
+            data=EventDeletedResponse(
+                event_id=event_id,
+                deleted=True,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

@@ -13,8 +13,9 @@
 
 	// Snooze state
 	let showSnoozeMenu = $state(false);
-	let isSnoozeing = $state(false);
+	let isSnoozing = $state(false);
 	let snoozeSuccess = $state<string | null>(null);
+	let snoozeError = $state<string | null>(null);
 
 	const snoozeOptions: { value: SnoozeOption; label: string }[] = [
 		{ value: 'later_today', label: 'Plus tard (3h)' },
@@ -86,10 +87,18 @@
 		undoableItems = newUndoable;
 	}
 
-	async function handleUndoItem(item: QueueItem) {
-		if (undoingItems.has(item.id)) return;
+	// Undo error state
+	let undoError = $state<string | null>(null);
 
+	async function handleUndoItem(item: QueueItem) {
+		// Double-check to prevent race conditions
+		if (undoingItems.has(item.id)) return;
+		if (!undoableItems.has(item.id)) return;
+
+		// Atomically mark as in-progress
 		undoingItems = new Set([...undoingItems, item.id]);
+		undoError = null;
+
 		try {
 			await undoQueueItem(item.id);
 			// Remove from undoable set
@@ -101,6 +110,11 @@
 			await queueStore.fetchStats();
 		} catch (e) {
 			console.error('Undo failed:', e);
+			undoError = e instanceof Error ? e.message : 'Erreur lors de l\'annulation';
+			// Clear error after 5 seconds
+			setTimeout(() => {
+				undoError = null;
+			}, 5000);
 		} finally {
 			const newUndoing = new Set(undoingItems);
 			newUndoing.delete(item.id);
@@ -252,9 +266,10 @@
 	}
 
 	async function handleSnoozeOption(option: SnoozeOption) {
-		if (!currentItem || isSnoozeing) return;
-		isSnoozeing = true;
+		if (!currentItem || isSnoozing) return;
+		isSnoozing = true;
 		showSnoozeMenu = false;
+		snoozeError = null;
 
 		try {
 			const result = await snoozeQueueItem(currentItem.id, option);
@@ -268,7 +283,7 @@
 			// Clear success message after delay
 			setTimeout(() => {
 				snoozeSuccess = null;
-			}, 2000);
+			}, 3000);
 
 			// Reset index if needed
 			if (currentIndex >= queueStore.items.length) {
@@ -276,8 +291,13 @@
 			}
 		} catch (e) {
 			console.error('Snooze failed:', e);
+			snoozeError = e instanceof Error ? e.message : 'Erreur lors du report';
+			// Clear error after 5 seconds
+			setTimeout(() => {
+				snoozeError = null;
+			}, 5000);
 		} finally {
-			isSnoozeing = false;
+			isSnoozing = false;
 		}
 	}
 
@@ -508,11 +528,16 @@
 					</div>
 				</div>
 
-				<!-- Snooze success feedback -->
+				<!-- Snooze feedback -->
 				{#if snoozeSuccess}
 					<div class="flex items-center gap-2 p-2 rounded-lg bg-green-500/20 text-green-400 text-sm animate-pulse">
 						<span>💤</span>
 						<span>{snoozeSuccess}</span>
+					</div>
+				{:else if snoozeError}
+					<div class="flex items-center gap-2 p-2 rounded-lg bg-red-500/20 text-red-400 text-sm">
+						<span>⚠️</span>
+						<span>{snoozeError}</span>
 					</div>
 				{/if}
 
@@ -932,7 +957,7 @@
 											type="button"
 											class="w-full text-left px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors disabled:opacity-50"
 											onclick={() => handleSnoozeOption(option.value)}
-											disabled={isSnoozeing}
+											disabled={isSnoozing}
 										>
 											{option.label}
 										</button>
@@ -1002,6 +1027,13 @@
 	<!-- LIST VIEW for other filters (approved, rejected, auto) -->
 	{:else}
 		<section class="list-view-container">
+			<!-- Undo error feedback -->
+			{#if undoError}
+				<div class="flex items-center gap-2 p-3 mb-4 rounded-lg bg-red-500/20 text-red-400 text-sm">
+					<span>⚠️</span>
+					<span>{undoError}</span>
+				</div>
+			{/if}
 			<VirtualList
 				items={queueStore.items}
 				estimatedItemHeight={120}
