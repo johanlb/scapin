@@ -1,8 +1,8 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 6 janvier 2026
+**Dernière mise à jour** : 7 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 2 EN COURS 🟡 — Extraction Entités + UI (5/14 complétés)
+**Phase actuelle** : Sprint 2 EN COURS 🟡 — Boucle Email ↔ Notes (6/14 complétés)
 
 ---
 
@@ -10,14 +10,14 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 39 items MVP restants sur 63 (116 total identifiés)
+**État** : MVP en cours — 34 items MVP restants sur 64 (117 total identifiés)
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1789 tests, 95% couverture, 100% pass rate |
+| **Tests** | 1792 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 (partiel) |
-| **Gaps MVP restants** | 39 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Gaps MVP restants** | 34 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -194,9 +194,9 @@ API Endpoints
 
 ## Sprint 2 : Qualité d'Analyse
 
-**Statut** : 🟡 En cours (5/14 — 36%)
+**Statut** : 🟡 En cours (6/14 — 43%)
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Items** : 14 MVP (5 complétés)
+**Items** : 14 MVP (6 complétés)
 **Dépendance** : Sprint 1 ✅
 
 ### Livrables
@@ -208,6 +208,7 @@ API Endpoints
 | | Proposition ajout entités à PKM (UI) | MVP | ✅ |
 | **Données Enrichies** | proposed_tasks dans EmailProcessingResult | MVP | ✅ |
 | | proposed_notes dans EmailProcessingResult | MVP | ✅ |
+| **Contexte Notes** | ContextEngine connecté au CognitivePipeline (#40) | MVP | ✅ |
 | **Discussions** | CRUD /api/discussions | MVP | ⬜ |
 | | Messages et suggestions contextuelles | MVP | ⬜ |
 | **Chat** | POST /api/chat/quick | MVP | ⬜ |
@@ -216,9 +217,15 @@ API Endpoints
 | **Teams** | Filtrage par mentions directes | MVP | ⬜ |
 | | Déduplication email/Teams | MVP | ⬜ |
 | **Notes** | UI: Bouton "Discuter de cette note" | MVP | ⬜ |
-| **API** | GET/POST /api/focus | MVP | ⬜ |
 
-### Complétés cette session
+### Complétés cette session (7 janvier 2026)
+
+- ✅ **ContextEngine connecté** (`processor.py`, `cognitive_pipeline.py`, `reasoning_engine.py`)
+- ✅ **Config context enrichment** (`config_manager.py`) — enable_context_enrichment, context_top_k, context_min_relevance
+- ✅ **UI context_used** (`flux/+page.svelte`) — Affichage notes utilisées pour l'analyse
+- ✅ **Tests Passepartout réactivés** — 3 tests réactivés (skip markers retirés)
+
+### Complétés session précédente (6 janvier 2026)
 
 - ✅ **EntityExtractor** (`src/core/extractors/entity_extractor.py`) — 37 tests
 - ✅ **Entity models** (`src/core/entities.py`) — EntityType, Entity, ProposedNote, ProposedTask

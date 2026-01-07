@@ -1,8 +1,8 @@
 # Suivi des Écarts — Scapin
 
-**Dernière mise à jour** : 6 janvier 2026
-**Total items** : 116
-**MVP** : 63 | **Nice-to-have** : 53 | **Complétés** : 29
+**Dernière mise à jour** : 7 janvier 2026
+**Total items** : 117
+**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 30
 
 ---
 
@@ -40,7 +40,7 @@
 
 ---
 
-## 2. Email (24 items)
+## 2. Email (25 items)
 
 ### Events API Unifiée (4)
 | Status | Item | Priorité |
@@ -97,6 +97,11 @@
 |--------|------|----------|
 | ✅ | proposed_tasks dans EmailProcessingResult | MVP |
 | ✅ | proposed_notes dans EmailProcessingResult | MVP |
+
+### Contexte & Analyse (1)
+| Status | Item | Priorité |
+|--------|------|----------|
+| ✅ | ContextEngine connecté au CognitivePipeline (#40) | MVP |
 
 ---
 

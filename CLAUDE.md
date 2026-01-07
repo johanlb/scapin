@@ -575,6 +575,47 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ---
 
+### Session 2026-01-07 (Suite) — Sprint 2 : ContextEngine Connection ✅
+
+**Focus** : Implémentation de l'issue #40 — Connexion ContextEngine au CognitivePipeline
+
+**Accomplissements** :
+
+1. ✅ **Configuration ProcessingConfig** (`src/core/config_manager.py`)
+   - `enable_context_enrichment: bool = True`
+   - `context_top_k: int = 5`
+   - `context_min_relevance: float = 0.3`
+
+2. ✅ **Initialisation ContextEngine** (`src/trivelin/processor.py`)
+   - Import et initialisation de `ContextEngine` avec `NoteManager`
+   - Passage au `CognitivePipeline` si disponible
+
+3. ✅ **Propagation paramètres** (`src/trivelin/cognitive_pipeline.py`)
+   - Passage `context_top_k` et `context_min_relevance` au `ReasoningEngine`
+
+4. ✅ **ReasoningEngine configurable** (`src/sancho/reasoning_engine.py`)
+   - Nouveaux paramètres `context_top_k` et `context_min_relevance`
+   - Utilisation dans `_pass2_context_enrichment()`
+
+5. ✅ **Tests Passepartout réactivés** (`tests/integration/test_passepartout_integration.py`)
+   - Skip markers retirés (API maintenant compatible)
+   - Fix `perception_confidence=0.5` pour déclencher la boucle de raisonnement
+
+6. ✅ **UI context_used** (`web/src/routes/flux/+page.svelte`)
+   - Section "Contexte utilisé" avec liens vers les notes
+   - Affichage des IDs de notes utilisées pour l'analyse
+
+7. ✅ **Mock data enrichi** (`web/src/routes/flux/test-performance/+page.svelte`)
+   - Données Sprint 2 : entities, proposed_notes, proposed_tasks, context_used
+
+**Issue résolue** : #40 — ContextEngine connecté au pipeline d'analyse
+
+**Tests** : 1791 passed, 50 skipped, svelte-check 0 errors
+
+**Commit** : `09b086f` — feat(sprint2): connect ContextEngine to CognitivePipeline (#40)
+
+---
+
 ### Session 2026-01-06 (Suite 9) — Sprint 2 : Extraction Entités ✅
 
 **Focus** : Implémentation complète de l'extraction d'entités et UI frontend
@@ -2379,17 +2420,18 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ GET /api/status (status temps réel)
 - ✅ Détection et alerte conflits calendrier (ConflictDetector)
 
-### Sprint 2 : Qualité d'Analyse (En cours — 36%)
+### Sprint 2 : Qualité d'Analyse (En cours — 43%)
 
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Statut** : 5/14 items complétés
+**Statut** : 6/14 items complétés
 
-**Items complétés cette session** :
+**Items complétés** :
 - ✅ Extraction entités automatique (personnes, dates, projets, etc.)
 - ✅ extracted_entities dans EmailProcessingResult
 - ✅ Proposition ajout entités à PKM (proposed_notes)
 - ✅ proposed_tasks dans EmailProcessingResult
 - ✅ proposed_notes dans EmailProcessingResult
+- ✅ ContextEngine connecté au CognitivePipeline (#40)
 
 **Prochains items** :
 - ⬜ CRUD /api/discussions
@@ -2406,7 +2448,7 @@ Voir [ROADMAP.md](ROADMAP.md) pour les détails complets.
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (39 MVP restants sur 63).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (34 MVP restants sur 64).
 
 ---
 
@@ -2424,5 +2466,5 @@ Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (39 MVP r
 
 ---
 
-**Dernière mise à jour** : 6 janvier 2026 par Claude
+**Dernière mise à jour** : 7 janvier 2026 par Claude
 **Prochaine révision** : Début prochaine session
