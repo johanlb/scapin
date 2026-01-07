@@ -157,6 +157,9 @@
 	style:overflow="auto"
 	style:position="relative"
 	data-testid="virtual-list-container"
+	aria-busy={loading}
+	role="feed"
+	aria-label="Liste virtualisée"
 >
 	{#if items.length === 0 && !loading}
 		<!-- Empty state -->
@@ -215,12 +218,14 @@
 				style:top={totalSize > 0 ? `${totalSize + 8}px` : 'auto'}
 				style:padding-top={totalSize === 0 ? '2rem' : '0'}
 				data-testid="virtual-list-loading"
+				role="status"
+				aria-live="polite"
 			>
 				{#if loadingSnippet}
 					{@render loadingSnippet()}
 				{:else}
 					<div class="loading-spinner">
-						<div class="spinner"></div>
+						<div class="spinner" aria-hidden="true"></div>
 						<span>Chargement...</span>
 					</div>
 				{/if}

@@ -176,7 +176,8 @@
 
 	{#if loading}
 		<!-- Loading state -->
-		<main class="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
+		<main class="p-4 md:p-6 max-w-4xl mx-auto space-y-4" role="status" aria-busy="true" aria-label="Chargement des messages">
+			<span class="sr-only">Chargement des messages en cours...</span>
 			{#each Array(3) as _}
 				<Card variant="glass-subtle">
 					<div class="p-4 space-y-3">

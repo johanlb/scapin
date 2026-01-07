@@ -252,7 +252,8 @@
 
 	{#if loading}
 		<!-- Loading state -->
-		<main class="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
+		<main class="p-4 md:p-6 max-w-4xl mx-auto space-y-4" role="status" aria-busy="true" aria-label="Chargement du message">
+			<span class="sr-only">Chargement du message en cours...</span>
 			<div class="flex flex-wrap items-center gap-2">
 				<Skeleton variant="rectangular" class="w-16 h-6 rounded-full" />
 				<Skeleton variant="rectangular" class="w-20 h-6 rounded-full" />

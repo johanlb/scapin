@@ -287,6 +287,48 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 	}
 }
 
+/**
+ * Fetch helper for paginated API endpoints with proper error handling
+ * Used for list endpoints that return PaginatedResponse
+ */
+async function fetchPaginatedApi<T>(
+	endpoint: string,
+	params: URLSearchParams
+): Promise<PaginatedResponse<T>> {
+	const url = `${API_BASE}${endpoint}?${params}`;
+
+	const headers: HeadersInit = {
+		'Content-Type': 'application/json'
+	};
+
+	const token = getAuthToken();
+	if (token) {
+		(headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+	}
+
+	try {
+		const response = await fetch(url, { headers });
+
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({}));
+			throw new ApiError(response.status, errorData.detail || `HTTP ${response.status}`);
+		}
+
+		const data: PaginatedResponse<T> = await response.json();
+
+		if (!data.success) {
+			throw new ApiError(500, data.error || 'Unknown error');
+		}
+
+		return data;
+	} catch (error) {
+		if (error instanceof ApiError) {
+			throw error;
+		}
+		throw new ApiError(0, error instanceof Error ? error.message : 'Network error');
+	}
+}
+
 // Auth endpoints
 export async function login(pin: string): Promise<TokenResponse> {
 	const response = await fetchApi<TokenResponse>('/auth/login', {
@@ -511,6 +553,7 @@ interface PaginatedResponse<T> {
 	page: number;
 	page_size: number;
 	has_more: boolean;
+	error?: string;
 }
 
 // ============================================================================
@@ -535,14 +578,7 @@ export async function listJournals(
 	if (startDate) params.set('start_date', startDate);
 	if (endDate) params.set('end_date', endDate);
 
-	const url = `${API_BASE}/journal/list?${params}`;
-	const response = await fetch(url, {
-		headers: {
-			'Content-Type': 'application/json',
-			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
-		}
-	});
-	return response.json();
+	return fetchPaginatedApi<JournalListItem[]>('/journal/list', params);
 }
 
 export async function answerQuestion(
@@ -706,14 +742,7 @@ export async function listQueueItems(
 	});
 	if (accountId) params.set('account_id', accountId);
 
-	const url = `${API_BASE}/queue?${params}`;
-	const response = await fetch(url, {
-		headers: {
-			'Content-Type': 'application/json',
-			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
-		}
-	});
-	return response.json();
+	return fetchPaginatedApi<QueueItem[]>('/queue', params);
 }
 
 export async function getQueueItem(itemId: string): Promise<QueueItem> {
@@ -959,14 +988,7 @@ export async function listCalendarEvents(
 	if (startDate) params.set('start_date', startDate);
 	if (endDate) params.set('end_date', endDate);
 
-	const url = `${API_BASE}/calendar/events?${params}`;
-	const response = await fetch(url, {
-		headers: {
-			'Content-Type': 'application/json',
-			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
-		}
-	});
-	return response.json();
+	return fetchPaginatedApi<CalendarEvent[]>('/calendar/events', params);
 }
 
 export async function getCalendarEvent(eventId: string): Promise<CalendarEvent> {
@@ -1053,14 +1075,7 @@ export async function listTeamsChats(page = 1, pageSize = 20): Promise<Paginated
 		page_size: String(pageSize)
 	});
 
-	const url = `${API_BASE}/teams/chats?${params}`;
-	const response = await fetch(url, {
-		headers: {
-			'Content-Type': 'application/json',
-			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
-		}
-	});
-	return response.json();
+	return fetchPaginatedApi<TeamsChat[]>('/teams/chats', params);
 }
 
 export async function listTeamsMessages(
@@ -1075,14 +1090,10 @@ export async function listTeamsMessages(
 	});
 	if (since) params.set('since', since);
 
-	const url = `${API_BASE}/teams/chats/${encodeURIComponent(chatId)}/messages?${params}`;
-	const response = await fetch(url, {
-		headers: {
-			'Content-Type': 'application/json',
-			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
-		}
-	});
-	return response.json();
+	return fetchPaginatedApi<TeamsMessage[]>(
+		`/teams/chats/${encodeURIComponent(chatId)}/messages`,
+		params
+	);
 }
 
 export async function replyToTeamsMessage(
@@ -1305,14 +1316,7 @@ export async function listNotes(
 	if (tags?.length) params.set('tags', tags.join(','));
 	if (pinnedOnly) params.set('pinned', 'true');
 
-	const url = `${API_BASE}/notes?${params}`;
-	const response = await fetch(url, {
-		headers: {
-			'Content-Type': 'application/json',
-			...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
-		}
-	});
-	return response.json();
+	return fetchPaginatedApi<Note[]>('/notes', params);
 }
 
 export async function getNote(noteId: string): Promise<Note> {

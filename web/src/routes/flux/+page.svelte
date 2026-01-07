@@ -395,7 +395,7 @@
 				<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
 					Le Courrier, Monsieur
 				</h1>
-				<p class="text-[var(--color-text-secondary)] mt-1">
+				<p class="text-[var(--color-text-secondary)] mt-1" aria-live="polite" aria-atomic="true">
 					{#if queueStore.loading}
 						Je consulte vos plis...
 					{:else if activeFilter === 'pending' && queueStore.total > 0}
@@ -472,10 +472,12 @@
 
 	<!-- Loading state -->
 	{#if queueStore.loading && queueStore.items.length === 0}
-		<div class="flex justify-center py-12">
+		<div class="flex justify-center py-12" role="status" aria-busy="true" aria-label="Chargement en cours">
 			<div
 				class="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
+				aria-hidden="true"
 			></div>
+			<span class="sr-only">Chargement de la file d'attente...</span>
 		</div>
 
 	<!-- Empty state -->
