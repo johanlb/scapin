@@ -659,6 +659,64 @@ web/src/routes/notes/[...path]/+page.svelte      # MODIFIED (+25 lignes)
 
 ---
 
+### Session 2026-01-07 (Suite 3) — Apple Notes Sync ✅
+
+**Focus** : Implémentation de la synchronisation bidirectionnelle Apple Notes
+
+**Contexte** :
+- L'utilisateur ne pouvait pas synchroniser ses notes Apple Notes
+- Fonctionnalité classée "Nice-to-have" dans GAPS_TRACKING
+- Décision utilisateur : Sync bidirectionnelle, texte seul (Markdown), mapping dossiers, déclenchement manuel
+
+**Accomplissements** :
+
+1. ✅ **Modèles Apple Notes** (`src/integrations/apple/notes_models.py` ~185 lignes)
+   - `AppleNote` dataclass avec conversion HTML → Markdown/Text
+   - `AppleFolder`, `SyncMapping`, `SyncResult`, `SyncConflict`
+   - Enums : `SyncDirection`, `SyncAction`, `ConflictResolution`
+
+2. ✅ **Client AppleScript** (`src/integrations/apple/notes_client.py` ~450 lignes)
+   - Méthodes : `get_folders()`, `get_notes_in_folder()`, `get_note_by_id()`
+   - CRUD : `create_note()`, `update_note()`, `delete_note()`, `move_note_to_folder()`
+   - Parsing dates françaises (format macOS français)
+   - Timeout 30s pour AppleScript
+
+3. ✅ **Service de synchronisation** (`src/integrations/apple/notes_sync.py` ~600 lignes)
+   - Sync bidirectionnelle : `APPLE_TO_SCAPIN`, `SCAPIN_TO_APPLE`, `BIDIRECTIONAL`
+   - Résolution de conflits : `NEWER_WINS` (par défaut), `APPLE_WINS`, `SCAPIN_WINS`, `MANUAL`
+   - Mappings persistés dans `apple_notes_sync.json`
+   - Frontmatter YAML dans les notes Scapin (title, source, apple_id, dates)
+
+4. ✅ **API implémentée** (`src/jeeves/api/services/notes_service.py`)
+   - `sync_apple_notes()` retourne `NoteSyncStatus`
+   - Gestion d'erreurs avec logging
+
+**Test réel** :
+```
+Success: True
+Created: 227 notes
+Updated: 0 notes
+Errors: 0
+Fichiers .md créés: 227
+```
+
+**Fichiers créés/modifiés** :
+```
+src/integrations/apple/notes_models.py      # NEW (~185 lignes)
+src/integrations/apple/notes_client.py      # NEW (~450 lignes)
+src/integrations/apple/notes_sync.py        # NEW (~600 lignes)
+src/integrations/apple/__init__.py          # MODIFIED (exports)
+src/jeeves/api/services/notes_service.py    # MODIFIED (sync_apple_notes)
+docs/GAPS_TRACKING.md                       # MODIFIED (56 complétés)
+ROADMAP.md                                  # MODIFIED (Nice-to-have section)
+```
+
+**Tests** : 1874 passed, 44 skipped, ruff 0 warnings
+
+**Commit** : `f90849b` — feat(integrations): implement Apple Notes bidirectional sync
+
+---
+
 ### Session 2026-01-06 (Suite 9) — Sprint 2 : Extraction Entités ✅
 
 **Focus** : Implémentation complète de l'extraction d'entités et UI frontend

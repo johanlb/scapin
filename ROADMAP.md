@@ -358,6 +358,23 @@ class PrepareEmailReplyAction(BaseAction):
 - **Inbox Zero assisté** : Workflow complet avec undo/snooze
 - **Contexte riche** : Brouillons générés avec le contexte des notes
 
+### Bonus : Apple Notes Sync (Nice-to-have) ✅
+
+Implémenté en parallèle du Sprint 3 :
+
+- **Client AppleScript** : `src/integrations/apple/notes_client.py` (~450 lignes)
+  - Lecture dossiers et notes
+  - Création/modification/suppression de notes
+  - Conversion HTML → Markdown
+- **Service de synchronisation** : `src/integrations/apple/notes_sync.py` (~600 lignes)
+  - Sync bidirectionnelle (Apple ↔ Scapin)
+  - Résolution de conflits (NEWER_WINS)
+  - Mapping persistant entre notes
+- **Modèles** : `src/integrations/apple/notes_models.py` (~185 lignes)
+  - AppleNote, AppleFolder, SyncResult, SyncMapping
+- **API** : `POST /api/notes/sync` implémenté
+- **Test** : 227 notes synchronisées avec succès
+
 ---
 
 ## Sprint 4 : Temps Réel & UX
@@ -447,13 +464,13 @@ Après MVP stable, par ordre de valeur :
 
 ### Notes Avancées (5 items)
 
-| Item | Description |
-|------|-------------|
-| Apple Notes Sync | Synchronisation bidirectionnelle |
-| Entity Manager | Gestion des entités extraites |
-| Relationship Manager | Graphe NetworkX des relations |
-| Templates notes | CRUD /api/templates |
-| Quick Capture | Cmd+Shift+N |
+| Item | Description | Statut |
+|------|-------------|--------|
+| Apple Notes Sync | Synchronisation bidirectionnelle | ✅ Complété |
+| Entity Manager | Gestion des entités extraites | ⬜ |
+| Relationship Manager | Graphe NetworkX des relations | ⬜ |
+| Templates notes | CRUD /api/templates | ⬜ |
+| Quick Capture | Cmd+Shift+N | ⬜ |
 
 ### UX Avancée (7 items)
 
