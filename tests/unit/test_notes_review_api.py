@@ -303,9 +303,14 @@ class TestNotesReviewEndpoints:
     @pytest.fixture
     def mock_client(self, app, mock_service):
         """Create client with mocked dependency"""
-        from src.jeeves.api.deps import get_notes_review_service
+        from src.jeeves.api.auth import TokenData
+        from src.jeeves.api.deps import get_current_user, get_notes_review_service
 
         app.dependency_overrides[get_notes_review_service] = lambda: mock_service
+        # Mock authentication - return a valid user with all required fields
+        now = datetime.now(timezone.utc)
+        mock_token = TokenData(sub="test-user", exp=now + timedelta(hours=1), iat=now)
+        app.dependency_overrides[get_current_user] = lambda: mock_token
         yield TestClient(app)
         app.dependency_overrides.clear()
 

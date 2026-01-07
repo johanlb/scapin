@@ -146,8 +146,17 @@ def mock_notes_service(
 @pytest.fixture
 def client(mock_notes_service: MagicMock) -> Generator[TestClient, None, None]:
     """Create test client with mocked service"""
+    from datetime import timedelta, timezone
+
+    from src.jeeves.api.auth import TokenData
+    from src.jeeves.api.deps import get_current_user
+
     app = create_app()
     app.dependency_overrides[get_notes_service] = lambda: mock_notes_service
+    # Mock authentication - return a valid user with all required fields
+    now = datetime.now(timezone.utc)
+    mock_token = TokenData(sub="test-user", exp=now + timedelta(hours=1), iat=now)
+    app.dependency_overrides[get_current_user] = lambda: mock_token
     yield TestClient(app)
     app.dependency_overrides.clear()
 

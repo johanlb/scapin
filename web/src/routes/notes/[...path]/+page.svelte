@@ -9,8 +9,19 @@
 	const notePath = $derived($page.params.path);
 	const pathParts = $derived(notePath ? notePath.split('/') : []);
 
-	// Mock note data (will be fetched from API)
-	// TODO: Replace with actual API call using noteId from path
+	// ==========================================================================
+	// KNOWN LIMITATION: This page currently uses mock data for the MVP.
+	// The Notes API endpoints exist (GET/POST/PATCH /api/notes) but this
+	// frontend page has not yet been connected to them.
+	//
+	// TODO [Sprint 3 - HIGH Priority]:
+	// 1. Load note from API: GET /api/notes/{noteId}
+	// 2. Save edits via API: PATCH /api/notes/{noteId}
+	// 3. Handle loading states and errors
+	// 4. Parse noteId from route params (currently path-based)
+	//
+	// See: src/jeeves/api/routers/notes.py for available endpoints
+	// ==========================================================================
 	let note = $state({
 		id: 'reunion-projet-alpha-abc123', // Mock ID for history
 		title: 'Réunion Projet Alpha',
@@ -70,17 +81,16 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 	}
 
 	async function handleSave(content: string): Promise<void> {
-		// TODO: Call API to save note
-		console.log('Saving note:', content.slice(0, 50) + '...');
+		// [MVP] Simulates save - see TODO at top of file for API integration
+		console.log('[MVP Mock] Saving note:', content.slice(0, 50) + '...');
 		note.updated_at = new Date().toISOString();
 		// Simulate API delay
 		await new Promise((resolve) => setTimeout(resolve, 300));
 	}
 
 	function handleRestore() {
-		// TODO: Reload note content from API after version restore
-		console.log('Note restored, reloading...');
-		// In production, this would reload the note from the API
+		// [MVP] Would reload note content from API after version restore
+		console.log('[MVP Mock] Note restored, would reload from API');
 	}
 </script>
 

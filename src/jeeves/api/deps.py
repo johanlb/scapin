@@ -15,8 +15,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.core.config_manager import ScapinConfig, get_config
 from src.jeeves.api.auth import JWTHandler, TokenData
 from src.jeeves.api.services.briefing_service import BriefingService
+from src.jeeves.api.services.email_service import EmailService
 from src.jeeves.api.services.notes_review_service import NotesReviewService
 from src.jeeves.api.services.notes_service import NotesService
+from src.jeeves.api.services.queue_service import QueueService
 
 # HTTP Bearer security scheme
 security = HTTPBearer(auto_error=False)
@@ -97,4 +99,16 @@ def get_notes_review_service() -> Generator[NotesReviewService, None, None]:
     """Get notes review service instance"""
     config = get_cached_config()
     service = NotesReviewService(config=config)
+    yield service
+
+
+def get_queue_service() -> Generator[QueueService, None, None]:
+    """Get queue service instance"""
+    service = QueueService()
+    yield service
+
+
+def get_email_service() -> Generator[EmailService, None, None]:
+    """Get email service instance"""
+    service = EmailService()
     yield service

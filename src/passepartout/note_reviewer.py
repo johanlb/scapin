@@ -218,7 +218,6 @@ class NoteReviewer:
             self.notes.update_note(
                 note_id=note_id,
                 content=updated_content,
-                commit_message=f"Auto-enrichissement: {len(applied_actions)} actions",
             )
 
         # Update metadata and schedule
@@ -556,7 +555,7 @@ class NoteReviewer:
             if archive_section not in content:
                 content += archive_section
             # Add archived content
-            content += f"\n- {action.target} (archivé {datetime.now().strftime('%Y-%m-%d')})"
+            content += f"\n- {action.target} (archivé {datetime.now(timezone.utc).strftime('%Y-%m-%d')})"
             # Remove from original location
             content = content.replace(action.target, "", 1)
             return content

@@ -5,7 +5,9 @@ FAISS-based vector store for efficient similarity search over embeddings.
 Supports adding documents, searching, persistence, and filtering.
 """
 
-import pickle
+import hashlib
+import hmac
+import json
 import threading
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -299,6 +301,10 @@ class VectorStore:
                     logger.warning(f"Index ID {index_id} not found in metadata store")
                     continue
 
+                # Skip deleted documents
+                if doc_info.get("_deleted", False):
+                    continue
+
                 # Apply filter
                 if filter_fn and not filter_fn(doc_info["metadata"]):
                     continue
@@ -448,18 +454,41 @@ class VectorStore:
             index_path = path / "index.faiss"
             faiss.write_index(self.index, str(index_path))
 
-            # Save metadata
+            # Prepare metadata for JSON serialization
+            # Convert numpy arrays to lists for JSON compatibility
+            serializable_id_to_doc = {}
+            for idx, doc_info in self.id_to_doc.items():
+                serializable_doc = {
+                    "doc_id": doc_info["doc_id"],
+                    "text": doc_info["text"],
+                    "metadata": doc_info["metadata"],
+                    "_deleted": doc_info.get("_deleted", False),
+                    # Store embedding as list for JSON
+                    "embedding": doc_info["embedding"].tolist()
+                    if isinstance(doc_info["embedding"], np.ndarray)
+                    else doc_info["embedding"],
+                }
+                serializable_id_to_doc[str(idx)] = serializable_doc
+
             metadata = {
-                "id_to_doc": self.id_to_doc,
+                "id_to_doc": serializable_id_to_doc,
                 "doc_id_to_index_id": self.doc_id_to_index_id,
                 "next_index_id": self._next_index_id,
                 "dimension": self.dimension,
-                "metric": self.metric
+                "metric": self.metric,
             }
 
-            metadata_path = path / "metadata.pkl"
-            with open(metadata_path, "wb") as f:
-                pickle.dump(metadata, f)
+            # Save as JSON (safer than pickle - no code execution risk)
+            metadata_path = path / "metadata.json"
+            with open(metadata_path, "w", encoding="utf-8") as f:
+                json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+            # Also save integrity hash
+            content_hash = hashlib.sha256(
+                json.dumps(metadata, sort_keys=True).encode()
+            ).hexdigest()
+            hash_path = path / "metadata.sha256"
+            hash_path.write_text(content_hash)
 
             logger.info(f"Saved vector store to {path}")
 
@@ -477,6 +506,7 @@ class VectorStore:
         Raises:
             IOError: If load fails
             FileNotFoundError: If files not found
+            ValueError: If integrity check fails
         """
         path = Path(path)
         if not path.exists():
@@ -490,15 +520,55 @@ class VectorStore:
 
             self.index = faiss.read_index(str(index_path))
 
-            # Load metadata
-            metadata_path = path / "metadata.pkl"
+            # Load metadata from JSON (safer than pickle)
+            metadata_path = path / "metadata.json"
+
+            # Fallback to pickle for backward compatibility
             if not metadata_path.exists():
-                raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+                pickle_path = path / "metadata.pkl"
+                if pickle_path.exists():
+                    logger.warning(
+                        "Found legacy pickle metadata - migrating to JSON. "
+                        "Please re-save to use secure JSON format."
+                    )
+                    import pickle
+                    with open(pickle_path, "rb") as f:
+                        metadata = pickle.load(f)
+                    # Migrate: save as JSON after load
+                    self._migrate_pickle_metadata(metadata, path)
+                else:
+                    raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+            else:
+                # Verify integrity if hash exists
+                hash_path = path / "metadata.sha256"
+                with open(metadata_path, encoding="utf-8") as f:
+                    content = f.read()
+                    metadata = json.loads(content)
 
-            with open(metadata_path, "rb") as f:
-                metadata = pickle.load(f)
+                if hash_path.exists():
+                    expected_hash = hash_path.read_text().strip()
+                    actual_hash = hashlib.sha256(
+                        json.dumps(metadata, sort_keys=True).encode()
+                    ).hexdigest()
+                    if not hmac.compare_digest(expected_hash, actual_hash):
+                        raise ValueError(
+                            "Metadata integrity check failed - file may be corrupted"
+                        )
 
-            self.id_to_doc = metadata["id_to_doc"]
+            # Restore data structures
+            # Convert string keys back to int for id_to_doc
+            self.id_to_doc = {}
+            for str_idx, doc_info in metadata["id_to_doc"].items():
+                idx = int(str_idx)
+                self.id_to_doc[idx] = {
+                    "doc_id": doc_info["doc_id"],
+                    "text": doc_info["text"],
+                    "metadata": doc_info["metadata"],
+                    "_deleted": doc_info.get("_deleted", False),
+                    # Convert list back to numpy array
+                    "embedding": np.array(doc_info["embedding"], dtype=np.float32),
+                }
+
             self.doc_id_to_index_id = metadata["doc_id_to_index_id"]
             self._next_index_id = metadata["next_index_id"]
             self.dimension = metadata["dimension"]
@@ -512,6 +582,24 @@ class VectorStore:
         except Exception as e:
             logger.error(f"Failed to load vector store: {e}", exc_info=True)
             raise OSError(f"Load failed: {e}") from e
+
+    def _migrate_pickle_metadata(self, metadata: dict, path: Path) -> None:
+        """Migrate legacy pickle metadata to JSON format"""
+        # Convert numpy arrays in id_to_doc
+        for _idx, doc_info in metadata.get("id_to_doc", {}).items():
+            if isinstance(doc_info.get("embedding"), np.ndarray):
+                doc_info["embedding"] = doc_info["embedding"].tolist()
+
+        # Temporarily set attributes for save
+        self.id_to_doc = metadata.get("id_to_doc", {})
+        self.doc_id_to_index_id = metadata.get("doc_id_to_index_id", {})
+        self._next_index_id = metadata.get("next_index_id", 0)
+        self.dimension = metadata.get("dimension", self.dimension)
+        self.metric = metadata.get("metric", self.metric)
+
+        # Re-save as JSON
+        self.save(path)
+        logger.info("Migrated pickle metadata to JSON format")
 
     def get_stats(self) -> dict[str, Any]:
         """

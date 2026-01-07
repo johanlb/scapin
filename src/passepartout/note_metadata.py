@@ -105,11 +105,14 @@ class NoteMetadata:
         """Check if note is due for review"""
         if now is None:
             now = datetime.now(timezone.utc)
+        # Ensure now is timezone-aware
+        elif now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
 
         if self.next_review is None:
             return True
 
-        # Ensure timezone awareness
+        # Ensure next_review is timezone-aware
         if self.next_review.tzinfo is None:
             next_review = self.next_review.replace(tzinfo=timezone.utc)
         else:
@@ -121,11 +124,14 @@ class NoteMetadata:
         """Calculate days until next review (negative if overdue)"""
         if now is None:
             now = datetime.now(timezone.utc)
+        # Ensure now is timezone-aware
+        elif now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
 
         if self.next_review is None:
             return -1.0  # Overdue
 
-        # Ensure timezone awareness
+        # Ensure next_review is timezone-aware
         if self.next_review.tzinfo is None:
             next_review = self.next_review.replace(tzinfo=timezone.utc)
         else:

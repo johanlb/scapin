@@ -2,13 +2,16 @@
 Notes Router
 
 CRUD endpoints for notes/carnets management.
+All endpoints require authentication when auth is enabled.
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from src.jeeves.api.deps import get_notes_review_service, get_notes_service
+from src.jeeves.api.auth import TokenData
+from src.jeeves.api.deps import get_current_user, get_notes_review_service, get_notes_service
 from src.jeeves.api.models.notes import (
     FolderCreateRequest,
     FolderCreateResponse,
@@ -37,6 +40,9 @@ from src.jeeves.api.models.notes import (
 from src.jeeves.api.models.responses import APIResponse, PaginatedResponse
 from src.jeeves.api.services.notes_review_service import NotesReviewService
 from src.jeeves.api.services.notes_service import NotesService
+from src.monitoring.logger import get_logger
+
+logger = get_logger("jeeves.api.notes")
 
 router = APIRouter()
 
@@ -45,6 +51,7 @@ router = APIRouter()
 async def get_notes_tree(
     recent_limit: int = Query(10, ge=1, le=50, description="Recent notes limit"),
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NotesTreeResponse]:
     """
     Get notes organized in folder tree
@@ -59,7 +66,10 @@ async def get_notes_tree(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get notes tree: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve notes tree"
+        ) from e
 
 
 @router.get("", response_model=PaginatedResponse[list[NoteResponse]])
@@ -70,6 +80,7 @@ async def list_notes(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> PaginatedResponse[list[NoteResponse]]:
     """
     List notes with optional filtering
@@ -99,7 +110,8 @@ async def list_notes(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to list notes: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to list notes") from e
 
 
 @router.get("/search", response_model=APIResponse[NoteSearchResponse])
@@ -108,6 +120,7 @@ async def search_notes(
     tags: str | None = Query(None, description="Filter by tags (comma-separated)"),
     limit: int = Query(20, ge=1, le=100, description="Maximum results"),
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteSearchResponse]:
     """
     Semantic search for notes
@@ -125,12 +138,14 @@ async def search_notes(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to search notes: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to search notes") from e
 
 
 @router.get("/sync/status", response_model=APIResponse[NoteSyncStatus])
 async def get_sync_status(
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteSyncStatus]:
     """
     Get Apple Notes sync status
@@ -143,12 +158,14 @@ async def get_sync_status(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get sync status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get sync status") from e
 
 
 @router.post("/sync", response_model=APIResponse[NoteSyncStatus])
 async def sync_apple_notes(
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteSyncStatus]:
     """
     Trigger Apple Notes sync
@@ -161,7 +178,8 @@ async def sync_apple_notes(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to sync Apple Notes: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to sync Apple Notes") from e
 
 
 # =============================================================================
@@ -173,6 +191,7 @@ async def sync_apple_notes(
 async def create_folder(
     request: FolderCreateRequest,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[FolderCreateResponse]:
     """
     Create a new folder in the notes directory
@@ -188,14 +207,17 @@ async def create_folder(
             timestamp=datetime.now(timezone.utc),
         )
     except ValueError as e:
+        # ValueError is user input validation - safe to expose
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to create folder: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create folder") from e
 
 
 @router.get("/folders", response_model=APIResponse[FolderListResponse])
 async def list_folders(
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[FolderListResponse]:
     """
     List all folders in the notes directory
@@ -210,7 +232,8 @@ async def list_folders(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to list folders: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to list folders") from e
 
 
 # =============================================================================
@@ -223,6 +246,7 @@ async def get_notes_due(
     limit: int = Query(50, ge=1, le=200, description="Maximum notes to return"),
     note_type: str | None = Query(None, description="Filter by note type"),
     service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NotesDueResponse]:
     """
     Get notes due for review
@@ -238,12 +262,16 @@ async def get_notes_due(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get notes due for review: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to get notes due for review"
+        ) from e
 
 
 @router.get("/reviews/stats", response_model=APIResponse[ReviewStatsResponse])
 async def get_review_stats(
     service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[ReviewStatsResponse]:
     """
     Get review statistics
@@ -259,13 +287,17 @@ async def get_review_stats(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get review stats: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to get review statistics"
+        ) from e
 
 
 @router.get("/reviews/workload", response_model=APIResponse[ReviewWorkloadResponse])
 async def get_review_workload(
     days: int = Query(7, ge=1, le=30, description="Days to forecast"),
     service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[ReviewWorkloadResponse]:
     """
     Estimate review workload for upcoming days
@@ -281,12 +313,16 @@ async def get_review_workload(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to estimate workload: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to estimate review workload"
+        ) from e
 
 
 @router.get("/reviews/configs", response_model=APIResponse[list[ReviewConfigResponse]])
 async def get_review_configs(
     service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[list[ReviewConfigResponse]]:
     """
     Get review configuration for all note types
@@ -301,7 +337,10 @@ async def get_review_configs(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get review configs: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to get review configurations"
+        ) from e
 
 
 # =============================================================================
@@ -313,6 +352,7 @@ async def get_review_configs(
 async def get_note(
     note_id: str,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteResponse]:
     """
     Get a single note by ID
@@ -320,7 +360,7 @@ async def get_note(
     try:
         note = await service.get_note(note_id)
         if note is None:
-            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+            raise HTTPException(status_code=404, detail="Note not found")
 
         return APIResponse(
             success=True,
@@ -330,13 +370,15 @@ async def get_note(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get note {note_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve note") from e
 
 
 @router.get("/{note_id}/links", response_model=APIResponse[NoteLinksResponse])
 async def get_note_links(
     note_id: str,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteLinksResponse]:
     """
     Get bidirectional links for a note
@@ -346,7 +388,7 @@ async def get_note_links(
     try:
         links = await service.get_note_links(note_id)
         if links is None:
-            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+            raise HTTPException(status_code=404, detail="Note not found")
 
         return APIResponse(
             success=True,
@@ -356,13 +398,15 @@ async def get_note_links(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get links for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve note links") from e
 
 
 @router.post("", response_model=APIResponse[NoteResponse])
 async def create_note(
     request: NoteCreateRequest,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteResponse]:
     """
     Create a new note
@@ -381,9 +425,11 @@ async def create_note(
             timestamp=datetime.now(timezone.utc),
         )
     except ValueError as e:
+        # ValueError is user input validation - safe to expose
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to create note: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create note") from e
 
 
 @router.patch("/{note_id}", response_model=APIResponse[NoteResponse])
@@ -391,6 +437,7 @@ async def update_note(
     note_id: str,
     request: NoteUpdateRequest,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteResponse]:
     """
     Update an existing note
@@ -405,7 +452,7 @@ async def update_note(
             pinned=request.pinned,
         )
         if note is None:
-            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+            raise HTTPException(status_code=404, detail="Note not found")
 
         return APIResponse(
             success=True,
@@ -415,13 +462,15 @@ async def update_note(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to update note {note_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update note") from e
 
 
 @router.post("/{note_id}/pin", response_model=APIResponse[NoteResponse])
 async def toggle_pin(
     note_id: str,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteResponse]:
     """
     Toggle pin status for a note
@@ -429,7 +478,7 @@ async def toggle_pin(
     try:
         note = await service.toggle_pin(note_id)
         if note is None:
-            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+            raise HTTPException(status_code=404, detail="Note not found")
 
         return APIResponse(
             success=True,
@@ -439,7 +488,8 @@ async def toggle_pin(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to toggle pin for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to toggle pin status") from e
 
 
 # =============================================================================
@@ -452,6 +502,7 @@ async def list_versions(
     note_id: str,
     limit: int = Query(50, ge=1, le=200, description="Maximum versions to return"),
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteVersionsResponse]:
     """
     List version history for a note
@@ -461,7 +512,7 @@ async def list_versions(
     try:
         versions = await service.list_versions(note_id, limit=limit)
         if versions is None:
-            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+            raise HTTPException(status_code=404, detail="Note not found")
 
         return APIResponse(
             success=True,
@@ -471,7 +522,10 @@ async def list_versions(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to list versions for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to list note versions"
+        ) from e
 
 
 @router.get(
@@ -482,6 +536,7 @@ async def get_version(
     note_id: str,
     version_id: str,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteVersionContentResponse]:
     """
     Get note content at a specific version
@@ -493,10 +548,7 @@ async def get_version(
     try:
         version = await service.get_version(note_id, version_id)
         if version is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Version not found: {version_id} for note {note_id}",
-            )
+            raise HTTPException(status_code=404, detail="Version not found")
 
         return APIResponse(
             success=True,
@@ -506,7 +558,12 @@ async def get_version(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(
+            f"Failed to get version {version_id} for note {note_id}: {e}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve note version"
+        ) from e
 
 
 @router.get("/{note_id}/diff", response_model=APIResponse[NoteDiffResponse])
@@ -515,6 +572,7 @@ async def diff_versions(
     v1: str = Query(..., description="Source version (older)"),
     v2: str = Query(..., description="Target version (newer)"),
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteDiffResponse]:
     """
     Get diff between two versions of a note
@@ -524,10 +582,7 @@ async def diff_versions(
     try:
         diff = await service.diff_versions(note_id, v1, v2)
         if diff is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Could not generate diff for note {note_id}: {v1} -> {v2}",
-            )
+            raise HTTPException(status_code=404, detail="Could not generate diff")
 
         return APIResponse(
             success=True,
@@ -537,7 +592,10 @@ async def diff_versions(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to diff versions for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to generate version diff"
+        ) from e
 
 
 @router.post(
@@ -548,6 +606,7 @@ async def restore_version(
     note_id: str,
     version_id: str,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteResponse]:
     """
     Restore a note to a previous version
@@ -558,10 +617,7 @@ async def restore_version(
     try:
         note = await service.restore_version(note_id, version_id)
         if note is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Could not restore note {note_id} to version {version_id}",
-            )
+            raise HTTPException(status_code=404, detail="Could not restore version")
 
         return APIResponse(
             success=True,
@@ -571,7 +627,13 @@ async def restore_version(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(
+            f"Failed to restore note {note_id} to version {version_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to restore note version"
+        ) from e
 
 
 # =============================================================================
@@ -583,6 +645,7 @@ async def restore_version(
 async def delete_note(
     note_id: str,
     service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[None]:
     """
     Delete a note
@@ -590,7 +653,7 @@ async def delete_note(
     try:
         deleted = await service.delete_note(note_id)
         if not deleted:
-            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+            raise HTTPException(status_code=404, detail="Note not found")
 
         return APIResponse(
             success=True,
@@ -600,7 +663,8 @@ async def delete_note(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to delete note {note_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete note") from e
 
 
 # =============================================================================
@@ -612,6 +676,7 @@ async def delete_note(
 async def get_note_metadata(
     note_id: str,
     service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[NoteMetadataResponse]:
     """
     Get review metadata for a note
@@ -621,10 +686,7 @@ async def get_note_metadata(
     try:
         metadata = await service.get_note_metadata(note_id)
         if metadata is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Metadata not found for note: {note_id}",
-            )
+            raise HTTPException(status_code=404, detail="Metadata not found")
         return APIResponse(
             success=True,
             data=metadata,
@@ -633,7 +695,10 @@ async def get_note_metadata(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get metadata for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve note metadata"
+        ) from e
 
 
 @router.post("/{note_id}/review", response_model=APIResponse[RecordReviewResponse])
@@ -641,6 +706,7 @@ async def record_review(
     note_id: str,
     request: RecordReviewRequest,
     service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[RecordReviewResponse]:
     """
     Record a review for a note
@@ -658,10 +724,7 @@ async def record_review(
     try:
         result = await service.record_review(note_id, request.quality)
         if result is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Note not found: {note_id}",
-            )
+            raise HTTPException(status_code=404, detail="Note not found")
         return APIResponse(
             success=True,
             data=result,
@@ -670,9 +733,11 @@ async def record_review(
     except HTTPException:
         raise
     except ValueError as e:
+        # ValueError is user input validation - safe to expose
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to record review for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to record review") from e
 
 
 @router.post("/{note_id}/postpone", response_model=APIResponse[PostponeReviewResponse])
@@ -680,6 +745,7 @@ async def postpone_review(
     note_id: str,
     request: PostponeReviewRequest,
     service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[PostponeReviewResponse]:
     """
     Postpone a note's review
@@ -690,10 +756,7 @@ async def postpone_review(
     try:
         result = await service.postpone_review(note_id, request.hours)
         if result is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Note not found: {note_id}",
-            )
+            raise HTTPException(status_code=404, detail="Note not found")
         return APIResponse(
             success=True,
             data=result,
@@ -702,13 +765,17 @@ async def postpone_review(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to postpone review for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to postpone review"
+        ) from e
 
 
 @router.post("/{note_id}/trigger", response_model=APIResponse[TriggerReviewResponse])
 async def trigger_immediate_review(
     note_id: str,
     service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[TriggerReviewResponse]:
     """
     Trigger immediate review for a note
@@ -719,10 +786,7 @@ async def trigger_immediate_review(
     try:
         result = await service.trigger_immediate_review(note_id)
         if result is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Note not found: {note_id}",
-            )
+            raise HTTPException(status_code=404, detail="Note not found")
         return APIResponse(
             success=True,
             data=result,
@@ -731,4 +795,9 @@ async def trigger_immediate_review(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(
+            f"Failed to trigger review for note {note_id}: {e}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to trigger immediate review"
+        ) from e
