@@ -1606,6 +1606,76 @@ export async function triggerReview(noteId: string): Promise<TriggerReviewRespon
 }
 
 // ============================================================================
+// DRAFTS TYPES
+// ============================================================================
+
+interface Draft {
+	draft_id: string;
+	email_id: number;
+	account_email: string;
+	message_id: string | null;
+	subject: string;
+	to_addresses: string[];
+	cc_addresses: string[];
+	bcc_addresses: string[];
+	body: string;
+	body_format: 'plain_text' | 'html' | 'markdown';
+	ai_generated: boolean;
+	ai_confidence: number;
+	ai_reasoning: string | null;
+	status: 'draft' | 'sent' | 'discarded' | 'failed';
+	original_subject: string | null;
+	original_from: string | null;
+	original_date: string | null;
+	user_edited: boolean;
+	edit_history: Record<string, unknown>[];
+	created_at: string;
+	updated_at: string;
+	sent_at: string | null;
+	discarded_at: string | null;
+}
+
+interface DraftCreateRequest {
+	email_id: number;
+	account_email: string;
+	subject: string;
+	body?: string;
+	to_addresses?: string[];
+	cc_addresses?: string[];
+	body_format?: 'plain_text' | 'html' | 'markdown';
+	original_subject?: string;
+	original_from?: string;
+}
+
+interface DraftUpdateRequest {
+	subject?: string;
+	body?: string;
+	to_addresses?: string[];
+	cc_addresses?: string[];
+	bcc_addresses?: string[];
+}
+
+interface DraftStats {
+	total: number;
+	by_status: Record<string, number>;
+	by_account: Record<string, number>;
+}
+
+interface GenerateDraftRequest {
+	email_id: number;
+	account_email: string;
+	original_subject: string;
+	original_from: string;
+	original_content: string;
+	reply_intent?: string;
+	tone?: 'professional' | 'casual' | 'formal' | 'friendly';
+	language?: 'fr' | 'en';
+	include_original?: boolean;
+	original_date?: string;
+	original_message_id?: string;
+}
+
+// ============================================================================
 // DISCUSSIONS TYPES
 // ============================================================================
 
@@ -1745,6 +1815,114 @@ export async function quickChat(request: QuickChatRequest): Promise<QuickChatRes
 	});
 }
 
+// ============================================================================
+// DRAFTS API FUNCTIONS
+// ============================================================================
+
+/**
+ * List all drafts with pagination
+ */
+export async function listDrafts(
+	page = 1,
+	pageSize = 20,
+	status?: 'draft' | 'sent' | 'discarded' | 'failed'
+): Promise<PaginatedResponse<Draft[]>> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize)
+	});
+	if (status) params.set('status', status);
+
+	return fetchPaginatedApi<Draft[]>('/drafts', params);
+}
+
+/**
+ * List pending (unsent) drafts
+ */
+export async function listPendingDrafts(
+	page = 1,
+	pageSize = 20
+): Promise<PaginatedResponse<Draft[]>> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize)
+	});
+
+	return fetchPaginatedApi<Draft[]>('/drafts/pending', params);
+}
+
+/**
+ * Get draft statistics
+ */
+export async function getDraftStats(): Promise<DraftStats> {
+	return fetchApi<DraftStats>('/drafts/stats');
+}
+
+/**
+ * Get a single draft by ID
+ */
+export async function getDraft(draftId: string): Promise<Draft> {
+	return fetchApi<Draft>(`/drafts/${encodeURIComponent(draftId)}`);
+}
+
+/**
+ * Create a new draft manually
+ */
+export async function createDraft(request: DraftCreateRequest): Promise<Draft> {
+	return fetchApi<Draft>('/drafts', {
+		method: 'POST',
+		body: JSON.stringify(request)
+	});
+}
+
+/**
+ * Generate a draft using AI
+ */
+export async function generateDraft(request: GenerateDraftRequest): Promise<Draft> {
+	return fetchApi<Draft>('/drafts/generate', {
+		method: 'POST',
+		body: JSON.stringify(request)
+	});
+}
+
+/**
+ * Update an existing draft
+ */
+export async function updateDraft(draftId: string, updates: DraftUpdateRequest): Promise<Draft> {
+	return fetchApi<Draft>(`/drafts/${encodeURIComponent(draftId)}`, {
+		method: 'PUT',
+		body: JSON.stringify(updates)
+	});
+}
+
+/**
+ * Mark a draft as sent
+ */
+export async function sendDraft(draftId: string): Promise<Draft> {
+	return fetchApi<Draft>(`/drafts/${encodeURIComponent(draftId)}/send`, {
+		method: 'POST'
+	});
+}
+
+/**
+ * Discard a draft
+ */
+export async function discardDraft(draftId: string, reason?: string): Promise<Draft> {
+	return fetchApi<Draft>(`/drafts/${encodeURIComponent(draftId)}/discard`, {
+		method: 'POST',
+		body: JSON.stringify({ reason })
+	});
+}
+
+/**
+ * Delete a draft permanently
+ */
+export async function deleteDraft(draftId: string): Promise<{ deleted: string }> {
+	return fetchApi<{ deleted: string }>(`/drafts/${encodeURIComponent(draftId)}`, {
+		method: 'DELETE'
+	});
+}
+
 // Export types for use in components
 export type {
 	ApiResponse,
@@ -1853,7 +2031,13 @@ export type {
 	DiscussionCreateRequest,
 	MessageCreateRequest,
 	QuickChatRequest,
-	QuickChatResponse
+	QuickChatResponse,
+	// Draft types
+	Draft,
+	DraftCreateRequest,
+	DraftUpdateRequest,
+	DraftStats,
+	GenerateDraftRequest
 };
 
 export { ApiError };

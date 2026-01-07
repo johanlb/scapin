@@ -11,6 +11,7 @@
 	const navItems: NavItem[] = [
 		{ href: '/', label: 'Rapport', icon: '☀️' },
 		{ href: '/flux', label: 'Courrier', icon: '📜' },
+		{ href: '/drafts', label: 'Brouillons', icon: '✏️' },
 		{ href: '/notes', label: 'Carnets', icon: '📝' },
 		{ href: '/discussions', label: 'Conversations', icon: '💬' },
 		{ href: '/journal', label: 'Journal', icon: '📖' },
