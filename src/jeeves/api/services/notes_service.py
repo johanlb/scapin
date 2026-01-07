@@ -8,6 +8,7 @@ Provides CRUD operations, search, and tree navigation.
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -793,7 +794,6 @@ class NotesService:
         Returns:
             NoteSyncStatus with sync results
         """
-        from datetime import datetime
 
         from src.integrations.apple.notes_models import ConflictResolution
         from src.integrations.apple.notes_sync import AppleNotesSync, SyncDirection
@@ -801,8 +801,9 @@ class NotesService:
         logger.info("Starting Apple Notes sync...")
 
         try:
-            # Get notes directory from config or use default
-            notes_dir = self.note_manager.notes_dir if self.note_manager else Path("data/notes")
+            # Get notes directory from NoteManager
+            manager = self._get_manager()
+            notes_dir = manager.notes_dir
 
             # Create sync service
             sync_service = AppleNotesSync(
@@ -827,7 +828,7 @@ class NotesService:
             )
 
             return NoteSyncStatus(
-                last_sync=result.completed_at or datetime.now(),
+                last_sync=result.completed_at or datetime.now(timezone.utc),
                 syncing=False,
                 notes_synced=result.total_synced,
                 errors=errors,

@@ -87,31 +87,31 @@
 		<div class="flex items-center gap-2">
 			<span class="text-gray-500 dark:text-gray-400">EF:</span>
 			<span class="font-medium text-gray-900 dark:text-white">
-				{note.easiness_factor.toFixed(2)}
+				{(note.easiness_factor ?? 2.5).toFixed(2)}
 			</span>
 		</div>
 		<div class="flex items-center gap-2">
 			<span class="text-gray-500 dark:text-gray-400">Rep:</span>
-			<span class="font-medium text-gray-900 dark:text-white">{note.repetition_number}</span>
+			<span class="font-medium text-gray-900 dark:text-white">{note.repetition_number ?? 0}</span>
 		</div>
 		<div class="flex items-center gap-2">
 			<span class="text-gray-500 dark:text-gray-400">Intervalle:</span>
 			<span class="font-medium text-gray-900 dark:text-white">
-				{formatInterval(note.interval_hours)}
+				{formatInterval(note.interval_hours ?? 0)}
 			</span>
 		</div>
 		<div class="flex items-center gap-2">
 			<span class="text-gray-500 dark:text-gray-400">Revisions:</span>
-			<span class="font-medium text-gray-900 dark:text-white">{note.review_count}</span>
+			<span class="font-medium text-gray-900 dark:text-white">{note.review_count ?? 0}</span>
 		</div>
 	</div>
 
 	<!-- Last Quality -->
-	{#if note.last_quality !== null}
+	{#if note.last_quality != null && note.last_quality >= 0 && note.last_quality <= 5}
 		<div class="flex items-center gap-2 mb-4 text-sm">
 			<span class="text-gray-500 dark:text-gray-400">Dernière note:</span>
 			<span class="font-medium text-gray-900 dark:text-white">
-				{note.last_quality} ({qualityLabels[note.last_quality]})
+				{note.last_quality} ({qualityLabels[note.last_quality] ?? 'Inconnu'})
 			</span>
 		</div>
 	{/if}

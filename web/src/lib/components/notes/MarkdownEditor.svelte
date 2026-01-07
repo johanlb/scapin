@@ -31,18 +31,26 @@
 	let saveStatus = $state<SaveStatus>('idle');
 	let saveTimeout: ReturnType<typeof setTimeout>;
 	let lastSavedContent = $state(content);
+	let isSaving = $state(false);
 
 	// Auto-save with debounce
 	$effect(() => {
-		if (onSave && content !== lastSavedContent) {
+		if (onSave && content !== lastSavedContent && !isSaving) {
 			clearTimeout(saveTimeout);
 			saveStatus = 'idle';
 
+			// Capture content at this moment to avoid race conditions
+			const contentToSave = content;
+
 			saveTimeout = setTimeout(async () => {
+				// Check if content is still the same (user didn't type more)
+				if (content !== contentToSave) return;
+
 				try {
+					isSaving = true;
 					saveStatus = 'saving';
-					await onSave(content);
-					lastSavedContent = content;
+					await onSave(contentToSave);
+					lastSavedContent = contentToSave;
 					saveStatus = 'saved';
 
 					// Reset status after 2 seconds
@@ -53,6 +61,8 @@
 					}, 2000);
 				} catch {
 					saveStatus = 'error';
+				} finally {
+					isSaving = false;
 				}
 			}, autosaveDelay);
 		}
@@ -116,16 +126,21 @@
 				case 's':
 					e.preventDefault();
 					// Trigger immediate save
-					if (onSave && content !== lastSavedContent) {
+					if (onSave && content !== lastSavedContent && !isSaving) {
 						clearTimeout(saveTimeout);
+						const contentToSave = content;
+						isSaving = true;
 						saveStatus = 'saving';
-						Promise.resolve(onSave(content))
+						Promise.resolve(onSave(contentToSave))
 							.then(() => {
-								lastSavedContent = content;
+								lastSavedContent = contentToSave;
 								saveStatus = 'saved';
 							})
 							.catch(() => {
 								saveStatus = 'error';
+							})
+							.finally(() => {
+								isSaving = false;
 							});
 					}
 					break;

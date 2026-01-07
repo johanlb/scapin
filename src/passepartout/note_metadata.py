@@ -250,7 +250,10 @@ class NoteMetadataStore:
         try:
             history_data = json.loads(history_json) if history_json else []
             history = [EnrichmentRecord.from_dict(h) for h in history_data]
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(
+                f"Failed to parse enrichment history for note {row['note_id']}: {e}"
+            )
             history = []
 
         return NoteMetadata(

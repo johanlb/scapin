@@ -7,7 +7,7 @@ Generates enrichment suggestions with confidence scores.
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
@@ -301,8 +301,11 @@ class NoteEnricher:
         dates = re.findall(date_pattern, content)
         if dates:
             try:
-                latest_date = max(datetime.strptime(d, "%Y-%m-%d") for d in dates)
-                days_old = (datetime.now() - latest_date).days
+                latest_date = max(
+                    datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    for d in dates
+                )
+                days_old = (datetime.now(timezone.utc) - latest_date).days
                 if days_old > 90:
                     gaps.append(
                         f"Dates potentiellement obsolètes (dernière: {latest_date.strftime('%Y-%m-%d')})"

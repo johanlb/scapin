@@ -26,6 +26,9 @@ from src.passepartout.note_types import (
 
 logger = get_logger("passepartout.note_reviewer")
 
+# Maximum regex matches to process per pattern to prevent DoS on large documents
+MAX_REGEX_MATCHES = 100
+
 
 class ActionType(str, Enum):
     """Types of review actions"""
@@ -414,7 +417,12 @@ class NoteReviewer:
 
         for pattern, days_threshold in patterns:
             matches = re.finditer(pattern, content, re.IGNORECASE)
-            for match in matches:
+            for i, match in enumerate(matches):
+                if i >= MAX_REGEX_MATCHES:
+                    logger.warning(
+                        f"Hit regex match limit ({MAX_REGEX_MATCHES}) for pattern {pattern}"
+                    )
+                    break
                 # Check if this matches a keep pattern
                 context = content[
                     max(0, match.start() - 50) : match.end() + 50
@@ -444,7 +452,12 @@ class NoteReviewer:
         pattern = r"\[x\]\s*(.+?)(?:\n|$)"
         matches = re.finditer(pattern, content, re.IGNORECASE)
 
-        for match in matches:
+        for i, match in enumerate(matches):
+            if i >= MAX_REGEX_MATCHES:
+                logger.warning(
+                    f"Hit regex match limit ({MAX_REGEX_MATCHES}) for completed tasks"
+                )
+                break
             task_text = match.group(1).strip()
 
             # Check if it's a minor task (short, no important keywords)

@@ -184,7 +184,16 @@ class NoteScheduler:
 
         Returns:
             Updated NoteMetadata or None if not found
+
+        Raises:
+            ValueError: If quality is not in range 0-5
         """
+        # Validate quality bounds early with note context
+        if not 0 <= quality <= 5:
+            raise ValueError(
+                f"Quality must be 0-5, got {quality} for note {note_id}"
+            )
+
         metadata = self.store.get(note_id)
         if metadata is None:
             logger.warning(f"Cannot record review: note {note_id} not found")
