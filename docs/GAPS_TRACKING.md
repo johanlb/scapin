@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 7 janvier 2026
 **Total items** : 117
-**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 33
+**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 34
 
 ---
 
@@ -213,7 +213,7 @@
 | ⬜ | Raccourcis clavier complets (?, 1/2/3, j/k, etc.) | MVP |
 | ⬜ | Mode traitement focus pleine page | MVP |
 | ⬜ | Swipe gestures mobile complet | MVP |
-| ⬜ | Page Discussions multi-sessions | MVP |
+| ✅ | Page Discussions multi-sessions | MVP |
 | ⬜ | Page Stats avec Pipeline valets | MVP |
 | ⬜ | Settings: onglets Comptes/Intégrations/IA/Notifications | MVP |
 
@@ -309,11 +309,12 @@
 ## Progression
 
 ```
-MVP:          ██████░░░░░░░░░░░░░░ 19/63 (30%)
+MVP:          ██████░░░░░░░░░░░░░░ 20/63 (32%)
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
-Total:        ████░░░░░░░░░░░░░░░░ 22/116 (19%)
+Total:        ████░░░░░░░░░░░░░░░░ 23/116 (20%)
 
 Sprint 1:     ████████████████████ 19/19 (100%) ✅
+Sprint 2:     ██████████████░░░░░░ 10/14 (71%) 🚧
 ```
 
 ---
@@ -322,6 +323,7 @@ Sprint 1:     ████████████████████ 19/19
 
 | Date | Action |
 |------|--------|
+| 2026-01-07 | **Discussions Frontend COMPLÉTÉ** — Store Svelte 5, page intégrée, modal création, vue détail |
 | 2026-01-06 | **Sprint 1 COMPLÉTÉ** — 19/19 items (100%) |
 | 2026-01-06 | **Security Hardening** — Analyse profonde + corrections sécurité avant Sprint 2 |
 | 2026-01-06 | Nouveaux modules : error_handling.py, constants.py, rate_limiter.py |

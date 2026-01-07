@@ -2420,10 +2420,10 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ GET /api/status (status temps réel)
 - ✅ Détection et alerte conflits calendrier (ConflictDetector)
 
-### Sprint 2 : Qualité d'Analyse (En cours — 64%)
+### Sprint 2 : Qualité d'Analyse (En cours — 71%)
 
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Statut** : 9/14 items complétés
+**Statut** : 10/14 items complétés
 
 **Items complétés** :
 - ✅ Extraction entités automatique (personnes, dates, projets, etc.)
@@ -2435,9 +2435,9 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ CRUD /api/discussions (7 endpoints)
 - ✅ Messages et suggestions contextuelles
 - ✅ POST /api/discussions/quick (quick chat)
+- ✅ Page Discussions multi-sessions (frontend)
 
 **Prochains items** :
-- ⬜ Page Discussions frontend (multi-sessions)
 - ⬜ Mode traitement focus pleine page
 - ⬜ Filtrage par mentions directes (Teams)
 - ⬜ Déduplication email/Teams
