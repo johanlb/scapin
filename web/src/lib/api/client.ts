@@ -1535,6 +1535,146 @@ export async function triggerReview(noteId: string): Promise<TriggerReviewRespon
 	});
 }
 
+// ============================================================================
+// DISCUSSIONS TYPES
+// ============================================================================
+
+type DiscussionType = 'free' | 'note' | 'email' | 'task' | 'event';
+type MessageRole = 'user' | 'assistant' | 'system';
+type SuggestionType = 'action' | 'question' | 'insight' | 'reminder';
+
+interface DiscussionMessage {
+	id: string;
+	discussion_id: string;
+	role: MessageRole;
+	content: string;
+	created_at: string;
+	metadata: Record<string, unknown>;
+}
+
+interface DiscussionSuggestion {
+	type: SuggestionType;
+	content: string;
+	action_id: string | null;
+	confidence: number;
+}
+
+interface Discussion {
+	id: string;
+	title: string | null;
+	discussion_type: DiscussionType;
+	attached_to_id: string | null;
+	attached_to_type: string | null;
+	created_at: string;
+	updated_at: string;
+	message_count: number;
+	last_message_preview: string | null;
+	metadata: Record<string, unknown>;
+}
+
+interface DiscussionDetail extends Discussion {
+	messages: DiscussionMessage[];
+	suggestions: DiscussionSuggestion[];
+}
+
+interface DiscussionListResponse {
+	discussions: Discussion[];
+	total: number;
+	page: number;
+	page_size: number;
+}
+
+interface DiscussionCreateRequest {
+	title?: string;
+	discussion_type?: DiscussionType;
+	attached_to_id?: string;
+	attached_to_type?: string;
+	initial_message?: string;
+	context?: Record<string, unknown>;
+}
+
+interface MessageCreateRequest {
+	content: string;
+	role?: MessageRole;
+}
+
+interface QuickChatRequest {
+	message: string;
+	context_type?: string;
+	context_id?: string;
+	include_suggestions?: boolean;
+}
+
+interface QuickChatResponse {
+	response: string;
+	suggestions: DiscussionSuggestion[];
+	context_used: string[];
+}
+
+// ============================================================================
+// DISCUSSIONS API FUNCTIONS
+// ============================================================================
+
+export async function listDiscussions(options?: {
+	type?: DiscussionType;
+	attached_to_id?: string;
+	page?: number;
+	page_size?: number;
+}): Promise<DiscussionListResponse> {
+	const params = new URLSearchParams();
+	if (options?.type) params.set('discussion_type', options.type);
+	if (options?.attached_to_id) params.set('attached_to_id', options.attached_to_id);
+	if (options?.page) params.set('page', options.page.toString());
+	if (options?.page_size) params.set('page_size', options.page_size.toString());
+
+	const query = params.toString();
+	return fetchApi<DiscussionListResponse>(`/discussions${query ? `?${query}` : ''}`);
+}
+
+export async function getDiscussion(discussionId: string): Promise<DiscussionDetail> {
+	return fetchApi<DiscussionDetail>(`/discussions/${encodeURIComponent(discussionId)}`);
+}
+
+export async function createDiscussion(request: DiscussionCreateRequest): Promise<DiscussionDetail> {
+	return fetchApi<DiscussionDetail>('/discussions', {
+		method: 'POST',
+		body: JSON.stringify(request)
+	});
+}
+
+export async function addMessage(
+	discussionId: string,
+	request: MessageCreateRequest
+): Promise<DiscussionDetail> {
+	return fetchApi<DiscussionDetail>(`/discussions/${encodeURIComponent(discussionId)}/messages`, {
+		method: 'POST',
+		body: JSON.stringify(request)
+	});
+}
+
+export async function updateDiscussion(
+	discussionId: string,
+	updates: { title?: string; metadata?: Record<string, unknown> }
+): Promise<Discussion> {
+	return fetchApi<Discussion>(`/discussions/${encodeURIComponent(discussionId)}`, {
+		method: 'PATCH',
+		body: JSON.stringify(updates)
+	});
+}
+
+export async function deleteDiscussion(discussionId: string): Promise<void> {
+	return fetchApi<void>(`/discussions/${encodeURIComponent(discussionId)}`, {
+		method: 'DELETE'
+	});
+}
+
+export async function quickChat(request: QuickChatRequest): Promise<QuickChatResponse> {
+	return fetchApi<QuickChatResponse>('/discussions/quick', {
+		method: 'POST',
+		body: JSON.stringify(request)
+	});
+}
+
 // Export types for use in components
 export type {
 	ApiResponse,
@@ -1630,7 +1770,20 @@ export type {
 	SearchResultCounts,
 	GlobalSearchResponse,
 	RecentSearchItem,
-	RecentSearchesResponse
+	RecentSearchesResponse,
+	// Discussion types
+	DiscussionType,
+	MessageRole,
+	SuggestionType,
+	DiscussionMessage,
+	DiscussionSuggestion,
+	Discussion,
+	DiscussionDetail,
+	DiscussionListResponse,
+	DiscussionCreateRequest,
+	MessageCreateRequest,
+	QuickChatRequest,
+	QuickChatResponse
 };
 
 export { ApiError };

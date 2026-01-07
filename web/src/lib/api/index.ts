@@ -30,6 +30,14 @@ export {
 	recordReview,
 	postponeReview,
 	triggerReview,
+	// Discussions
+	listDiscussions,
+	getDiscussion,
+	createDiscussion,
+	addMessage,
+	updateDiscussion,
+	deleteDiscussion,
+	quickChat,
 	// Error
 	ApiError
 } from './client';
@@ -60,5 +68,18 @@ export type {
 	ReviewWorkloadResponse,
 	RecordReviewResponse,
 	PostponeReviewResponse,
-	TriggerReviewResponse
+	TriggerReviewResponse,
+	// Discussion types
+	DiscussionType,
+	MessageRole,
+	SuggestionType,
+	DiscussionMessage,
+	DiscussionSuggestion,
+	Discussion,
+	DiscussionDetail,
+	DiscussionListResponse,
+	DiscussionCreateRequest,
+	MessageCreateRequest,
+	QuickChatRequest,
+	QuickChatResponse
 } from './client';
