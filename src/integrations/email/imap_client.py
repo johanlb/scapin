@@ -422,19 +422,9 @@ class IMAPClient:
                 }
             )
 
-            # Fetch emails
-            emails = []
-            for msg_id in id_list:
-                try:
-                    email_data = self._fetch_single_email(msg_id, folder)
-                    if email_data:
-                        emails.append(email_data)
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to fetch email {msg_id.decode()}: {e}",
-                        exc_info=True
-                    )
-                    continue
+            # Fetch emails in batches for better performance
+            # IMAP batch fetch reduces network round-trips significantly
+            emails = self._fetch_emails_batch(id_list, folder)
 
             logger.info(f"Successfully fetched {len(emails)} emails from {folder}")
             return emails
@@ -442,6 +432,130 @@ class IMAPClient:
         except Exception as e:
             logger.error(f"Error fetching emails: {e}", exc_info=True)
             return []
+
+    def _fetch_emails_batch(
+        self,
+        msg_ids: list[bytes],
+        folder: str,
+        batch_size: int = 50,
+    ) -> list[tuple[EmailMetadata, EmailContent]]:
+        """
+        Fetch multiple emails in batches using IMAP batch fetch.
+
+        This is significantly faster than fetching emails one by one because
+        it reduces network round-trips. Instead of N FETCH commands, we use
+        ceil(N/batch_size) commands.
+
+        Args:
+            msg_ids: List of IMAP message IDs
+            folder: Folder name
+            batch_size: Max emails per IMAP FETCH command (default 50)
+
+        Returns:
+            List of (metadata, content) tuples
+        """
+        if not msg_ids or self._connection is None:
+            return []
+
+        emails = []
+
+        # Process in batches to avoid server timeouts and memory issues
+        for i in range(0, len(msg_ids), batch_size):
+            batch = msg_ids[i:i + batch_size]
+
+            # Build message set for IMAP FETCH (comma-separated IDs)
+            msg_set = b",".join(batch)
+
+            try:
+                # Batch fetch using BODY.PEEK[] (doesn't mark as seen)
+                status, response = self._connection.fetch(msg_set, "(BODY.PEEK[])")
+
+                if status != "OK":
+                    logger.warning(f"Batch fetch failed for {len(batch)} emails, falling back to individual fetch")
+                    # Fallback to individual fetch for this batch
+                    for msg_id in batch:
+                        try:
+                            email_data = self._fetch_single_email(msg_id, folder)
+                            if email_data:
+                                emails.append(email_data)
+                        except Exception as e:
+                            logger.warning(f"Failed to fetch email {msg_id.decode()}: {e}")
+                    continue
+
+                # Parse batch response - response contains multiple email tuples
+                # Format: [(b'1 (BODY[] {size}', b'email1'), b')', (b'2 (BODY[] {size}', b'email2'), b')', ...]
+                batch_emails = self._parse_batch_response(response, folder)
+                emails.extend(batch_emails)
+
+                logger.debug(f"Batch fetched {len(batch_emails)}/{len(batch)} emails")
+
+            except Exception as e:
+                logger.warning(f"Batch fetch error: {e}, falling back to individual fetch")
+                # Fallback to individual fetch for this batch
+                for msg_id in batch:
+                    try:
+                        email_data = self._fetch_single_email(msg_id, folder)
+                        if email_data:
+                            emails.append(email_data)
+                    except Exception as e2:
+                        logger.warning(f"Failed to fetch email {msg_id.decode()}: {e2}")
+
+        return emails
+
+    def _parse_batch_response(
+        self,
+        response: list,
+        folder: str,
+    ) -> list[tuple[EmailMetadata, EmailContent]]:
+        """
+        Parse IMAP batch fetch response into email tuples.
+
+        Args:
+            response: IMAP FETCH response data
+            folder: Folder name
+
+        Returns:
+            List of (metadata, content) tuples
+        """
+        emails = []
+
+        # IMAP batch response structure varies by server
+        # Common format: [(header_bytes, email_bytes), b')', (header_bytes, email_bytes), b')', ...]
+        # We need to find tuples where first element contains BODY[] and second is the email data
+
+        i = 0
+        while i < len(response):
+            item = response[i]
+
+            # Skip closing parentheses and None values
+            if item is None or item == b")":
+                i += 1
+                continue
+
+            # Look for tuple containing email data
+            if isinstance(item, tuple) and len(item) >= 2:
+                header = item[0]
+                raw_email = item[1]
+
+                # Validate this is email data (header should contain BODY[])
+                if isinstance(header, bytes) and b"BODY[]" in header and isinstance(raw_email, bytes):
+                    try:
+                        # Extract message ID from header (format: b'123 (BODY[] {size}')
+                        msg_id_str = header.split()[0]
+                        msg_id = msg_id_str if isinstance(msg_id_str, bytes) else msg_id_str.encode()
+
+                        # Parse the email
+                        email_message = email.message_from_bytes(raw_email)
+                        metadata = self._extract_metadata(email_message, msg_id, folder)
+                        content = self._extract_content(email_message)
+                        emails.append((metadata, content))
+
+                    except Exception as e:
+                        logger.warning(f"Failed to parse email in batch: {e}")
+
+            i += 1
+
+        return emails
 
     def _fetch_single_email(
         self,

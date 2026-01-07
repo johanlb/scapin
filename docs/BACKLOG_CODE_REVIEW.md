@@ -2,7 +2,7 @@
 
 **Date**: 7 janvier 2026
 **Scope**: Deep analysis of Notes system + full codebase review
-**Status**: CRITICAL issues fixed, remaining issues documented below
+**Status**: CRITICAL issues fixed, HIGH performance issue (PERF-H1) fixed
 
 ---
 
@@ -11,7 +11,7 @@
 | Priority | Count | Status |
 |----------|-------|--------|
 | CRITICAL | 5 | ✅ All fixed |
-| HIGH | 9 | ⬜ Backlog |
+| HIGH | 9 | ✅ 1 fixed, 8 remaining |
 | MEDIUM | 16 | ⬜ Backlog |
 | LOW | 14 | ⬜ Backlog |
 
@@ -95,13 +95,14 @@ All 5 CRITICAL issues have been resolved:
 - **Impact**: State leaks between requests, difficult to reset in tests
 - **Fix**: Use FastAPI's lifespan management and scoped dependencies
 
-### Performance (2 items)
+### Performance (1 item)
 
-#### PERF-H1: Individual email fetch in loop
-- **File**: `src/integrations/email/imap_client.py:418-428`
+#### ~~PERF-H1: Individual email fetch in loop~~ ✅ FIXED
+- **File**: `src/integrations/email/imap_client.py:436-503`
 - **Issue**: Each email fetched individually in loop
 - **Impact**: Network I/O per email, slow processing
-- **Fix**: Use IMAP batch fetch with UID ranges
+- **Fix**: ✅ Implemented `_fetch_emails_batch()` using IMAP batch fetch with comma-separated message IDs
+- **Resolution**: Batch size of 50 emails per FETCH command, with graceful fallback to individual fetch if batch fails
 
 #### PERF-H2: Blocking time.sleep in retry loops
 - **File**: `src/sancho/router.py:188, 390, 430, 445, 457, 478`

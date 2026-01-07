@@ -69,7 +69,12 @@ class TestEmailProcessingE2E:
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
         mock_connection.search.return_value = ('OK', [b'1'])
-        mock_connection.fetch.return_value = ('OK', [(b'1 (RFC822 {123}', msg.as_bytes())])
+        # Batch response format for IMAP batch fetch
+        raw_email = msg.as_bytes()
+        mock_connection.fetch.return_value = ('OK', [
+            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
+            b')',
+        ])
 
         # Setup mock AI response
         mock_client = MagicMock()
@@ -127,7 +132,12 @@ class TestEmailProcessingE2E:
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
         mock_connection.search.return_value = ('OK', [b'1'])
-        mock_connection.fetch.return_value = ('OK', [(b'1 (RFC822 {123}', msg.as_bytes())])
+        # Batch response format for IMAP batch fetch
+        raw_email = msg.as_bytes()
+        mock_connection.fetch.return_value = ('OK', [
+            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
+            b')',
+        ])
 
         # Create IMAP client and fetch email
         imap_client = IMAPClient(mock_email_config)
@@ -173,7 +183,12 @@ class TestEmailProcessingE2E:
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
         mock_connection.search.return_value = ('OK', [b'1'])
-        mock_connection.fetch.return_value = ('OK', [(b'1 (RFC822 {123}', msg.as_bytes())])
+        # Batch response format for IMAP batch fetch
+        raw_email = msg.as_bytes()
+        mock_connection.fetch.return_value = ('OK', [
+            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
+            b')',
+        ])
 
         # Setup mock AI response with UPPERCASE enums
         mock_client = MagicMock()
@@ -232,8 +247,7 @@ class TestEmailProcessingE2E:
         mock_connection.select.return_value = ('OK', [b'1'])
         mock_connection.search.return_value = ('OK', [b'1 2'])
 
-        # First email: malformed response (not a tuple)
-        # Second email: valid response
+        # Create a valid email message
         msg = EmailMessage()
         msg['From'] = 'sender@example.com'
         msg['To'] = 'recipient@example.com'
@@ -241,10 +255,14 @@ class TestEmailProcessingE2E:
         msg['Date'] = 'Mon, 15 Jan 2025 10:30:00 +0000'
         msg.set_content('Valid email content')
 
-        mock_connection.fetch.side_effect = [
-            ('OK', [b'malformed_response']),  # Malformed
-            ('OK', [(b'2 (RFC822 {123}', msg.as_bytes())])  # Valid
-        ]
+        # With batch fetching, both emails are fetched in one call
+        # We include one malformed entry and one valid entry in the batch response
+        raw_email = msg.as_bytes()
+        mock_connection.fetch.return_value = ('OK', [
+            b'malformed_response',  # Malformed entry (skipped)
+            (b'2 (BODY[] {%d}' % len(raw_email), raw_email),  # Valid entry
+            b')',
+        ])
 
         # Create IMAP client and fetch emails
         imap_client = IMAPClient(mock_email_config)
@@ -252,9 +270,8 @@ class TestEmailProcessingE2E:
         with imap_client.connect():
             emails = imap_client.fetch_emails(limit=2)
 
-        # Our code is robust enough to parse both emails
-        # (the "malformed" one is actually just bytes which gets parsed)
-        # This is actually a good thing - we're very fault-tolerant!
+        # Our code is robust enough to skip malformed entries
+        # and parse the valid ones
         assert len(emails) >= 1
 
         # Should have successfully fetched the valid email
@@ -336,7 +353,12 @@ class TestEmailProcessingE2E:
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
         mock_connection.search.return_value = ('OK', [b'1'])
-        mock_connection.fetch.return_value = ('OK', [(b'1 (RFC822 {123}', msg.as_bytes())])
+        # Batch response format for IMAP batch fetch
+        raw_email = msg.as_bytes()
+        mock_connection.fetch.return_value = ('OK', [
+            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
+            b')',
+        ])
 
         # Create IMAP client and fetch email
         imap_client = IMAPClient(mock_email_config)

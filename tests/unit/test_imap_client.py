@@ -117,9 +117,13 @@ class TestEmailFetching:
         mock_connection.select.return_value = ('OK', [b'1'])
         mock_connection.search.return_value = ('OK', [b'1'])
 
-        # Mock email fetch
+        # Mock email fetch - batch format: (header_with_BODY[], raw_email), b')'
         raw_email = sample_email_message.as_bytes()
-        mock_connection.fetch.return_value = ('OK', [(b'1', raw_email)])
+        batch_response = [
+            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
+            b')',
+        ]
+        mock_connection.fetch.return_value = ('OK', batch_response)
 
         with imap_client.connect():
             emails = imap_client.fetch_emails(folder="INBOX", limit=1)
@@ -132,20 +136,32 @@ class TestEmailFetching:
         assert metadata.from_address == 'john@example.com'
 
     @patch('src.integrations.email.imap_client.imaplib.IMAP4_SSL')
-    def test_fetch_emails_with_limit(self, mock_imap, imap_client):
-        """Test fetching with limit"""
+    def test_fetch_emails_with_limit(self, mock_imap, imap_client, sample_email_message):
+        """Test fetching with limit applies correctly"""
         mock_connection = MagicMock()
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'5'])
         mock_connection.search.return_value = ('OK', [b'1 2 3 4 5'])
-        mock_connection.fetch.return_value = ('OK', None)  # Simplified
+
+        # Mock batch response with 2 emails (limited from 5)
+        raw_email = sample_email_message.as_bytes()
+        batch_response = [
+            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
+            b')',
+            (b'2 (BODY[] {%d}' % len(raw_email), raw_email),
+            b')',
+        ]
+        mock_connection.fetch.return_value = ('OK', batch_response)
 
         with imap_client.connect():
-            imap_client.fetch_emails(folder="INBOX", limit=2)
+            emails = imap_client.fetch_emails(folder="INBOX", limit=2)
 
-        # Should only fetch last 2 emails
-        assert mock_connection.fetch.call_count <= 2
+        # With batch fetching, we should have exactly 1 fetch call for all emails in the batch
+        assert mock_connection.fetch.call_count == 1
+        # The fetch should have been called with both message IDs (1,2)
+        call_args = mock_connection.fetch.call_args
+        assert b'1' in call_args[0][0] and b'2' in call_args[0][0]
 
     @patch('src.integrations.email.imap_client.imaplib.IMAP4_SSL')
     def test_fetch_emails_unread_only(self, mock_imap, imap_client):
