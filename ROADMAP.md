@@ -194,9 +194,9 @@ API Endpoints
 
 ## Sprint 2 : Qualité d'Analyse
 
-**Statut** : 🟡 En cours (10/13 — 77%)
+**Statut** : 🟡 En cours (11/13 — 85%)
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Items** : 13 MVP (10 complétés)
+**Items** : 13 MVP (11 complétés)
 **Dépendance** : Sprint 1 ✅
 
 ### Livrables
@@ -215,10 +215,15 @@ API Endpoints
 | **UX Intelligence** | Page Discussions multi-sessions | MVP | ✅ |
 | | Mode traitement focus pleine page | MVP | ⬜ |
 | **Teams** | Filtrage par mentions directes | MVP | ⬜ |
-| **Notes** | UI: Bouton "Discuter de cette note" | MVP | ⬜ |
+| **Notes** | UI: Bouton "Discuter de cette note" | MVP | ✅ |
 
 ### Complétés cette session (7 janvier 2026)
 
+- ✅ **Bouton "Discuter de cette note"** — Chat contextuel depuis la page note
+  - `web/src/lib/stores/note-chat.svelte.ts` — Store pour contexte note-chat (~430 lignes)
+  - ChatPanel.svelte amélioré avec mode dual (général / note-spécifique)
+  - Suggestions contextuelles par type de note (personne, projet, concept, etc.)
+  - Persistance conversation via localStorage
 - ✅ **ContextEngine connecté** (`processor.py`, `cognitive_pipeline.py`, `reasoning_engine.py`)
 - ✅ **Config context enrichment** (`config_manager.py`) — enable_context_enrichment, context_top_k, context_min_relevance
 - ✅ **UI context_used** (`flux/+page.svelte`) — Affichage notes utilisées pour l'analyse
