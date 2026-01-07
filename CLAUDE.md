@@ -616,6 +616,49 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ---
 
+### Session 2026-01-07 (Suite 2) — Bouton "Discuter de cette note" ✅
+
+**Focus** : Implémentation du chat contextuel depuis les pages de notes
+
+**Accomplissements** :
+
+1. ✅ **Store note-chat** (`web/src/lib/stores/note-chat.svelte.ts` ~430 lignes)
+   - Types : `NoteType`, `NoteContext`, `ChatMessage`
+   - Suggestions contextuelles par type (personne, projet, concept, souvenir, référence, meeting)
+   - Persistance localStorage des conversations
+   - Intégration API : `quickChat()`, `createDiscussion()`, `addMessage()`
+
+2. ✅ **ChatPanel dual-mode** (`web/src/lib/components/layout/ChatPanel.svelte`)
+   - Mode général : chat Scapin classique
+   - Mode note : discussion avec contexte de note pré-chargé
+   - Affichage titre de la note dans le header
+   - Boutons : Sauvegarder en Discussion (💾), Effacer conversation (🗑️)
+
+3. ✅ **Bouton 💬 sur page note** (`web/src/routes/notes/[...path]/+page.svelte`)
+   - Nouveau bouton dans le header (avant historique 🕐)
+   - Fonction `handleOpenChat()` construit le contexte de la note
+   - Extraction wikilinks via `extractWikilinks()`
+
+4. ✅ **Corrections types** (5 erreurs corrigées)
+   - `DiscussionSuggestion` n'a pas de `.id` → utilisation de `.content` comme key
+   - `metadata` → `context` dans `DiscussionCreateRequest`
+   - Export dupliqué de `NoteContext` supprimé
+
+**Fichiers créés/modifiés** :
+```
+web/src/lib/stores/note-chat.svelte.ts           # NEW (~430 lignes)
+web/src/lib/components/layout/ChatPanel.svelte   # MODIFIED (+150 lignes)
+web/src/routes/notes/[...path]/+page.svelte      # MODIFIED (+25 lignes)
+```
+
+**Tests** : 1824 passed, 50 skipped, svelte-check 0 errors
+
+**Commits** :
+- `b780e02` — feat(web): add 'Discuss this note' button with contextual chat
+- `021db9e` — docs(roadmap): update Sprint 2 progress (11/13 - 85%)
+
+---
+
 ### Session 2026-01-06 (Suite 9) — Sprint 2 : Extraction Entités ✅
 
 **Focus** : Implémentation complète de l'extraction d'entités et UI frontend
@@ -2420,10 +2463,10 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ GET /api/status (status temps réel)
 - ✅ Détection et alerte conflits calendrier (ConflictDetector)
 
-### Sprint 2 : Qualité d'Analyse (En cours — 71%)
+### Sprint 2 : Qualité d'Analyse (En cours — 85%)
 
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Statut** : 10/14 items complétés
+**Statut** : 11/13 items complétés
 
 **Items complétés** :
 - ✅ Extraction entités automatique (personnes, dates, projets, etc.)
@@ -2436,18 +2479,17 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Messages et suggestions contextuelles
 - ✅ POST /api/discussions/quick (quick chat)
 - ✅ Page Discussions multi-sessions (frontend)
+- ✅ UI: Bouton "Discuter de cette note" (chat contextuel)
 
 **Prochains items** :
 - ⬜ Mode traitement focus pleine page
 - ⬜ Filtrage par mentions directes (Teams)
-- ⬜ Déduplication email/Teams
-- ⬜ UI: Bouton "Discuter de cette note"
 
 Voir [ROADMAP.md](ROADMAP.md) pour les détails complets.
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (31 MVP restants sur 64).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (29 MVP restants sur 64).
 
 ---
 

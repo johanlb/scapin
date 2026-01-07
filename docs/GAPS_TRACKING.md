@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 7 janvier 2026
 **Total items** : 117
-**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 34
+**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 35
 
 ---
 
@@ -34,7 +34,7 @@
 | ⬜ | Relationship Manager - graphe NetworkX des relations | Nice-to-have |
 | ✅ | API: POST /api/notes/folders - créer dossier | MVP |
 | ✅ | UI: Éditeur Markdown complet | MVP |
-| ⬜ | UI: Bouton "Discuter de cette note" | Nice-to-have |
+| ✅ | UI: Bouton "Discuter de cette note" | MVP |
 | ⬜ | API: POST /api/capture - capture rapide | Nice-to-have |
 | ⬜ | API: GET /api/capture/inbox - inbox captures | Nice-to-have |
 
