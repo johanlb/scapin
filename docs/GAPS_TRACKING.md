@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 7 janvier 2026
 **Total items** : 117
-**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 55
+**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 56
 **Sprint actuel** : Sprint 3 — Workflow & Actions (9/18 — 50%)
 
 ---
@@ -30,7 +30,7 @@
 ### Fonctionnalités (8)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Apple Notes Sync - synchronisation bidirectionnelle | Nice-to-have |
+| ✅ | Apple Notes Sync - synchronisation bidirectionnelle | Nice-to-have |
 | ⬜ | Entity Manager - gestion des entités extraites | Nice-to-have |
 | ⬜ | Relationship Manager - graphe NetworkX des relations | Nice-to-have |
 | ✅ | API: POST /api/notes/folders - créer dossier | MVP |

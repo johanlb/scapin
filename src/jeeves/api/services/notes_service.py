@@ -788,19 +788,59 @@ class NotesService:
 
     async def sync_apple_notes(self) -> NoteSyncStatus:
         """
-        Trigger Apple Notes sync
+        Trigger Apple Notes sync (bidirectional)
 
         Returns:
             NoteSyncStatus with sync results
         """
-        # TODO: Implement Apple Notes sync
-        logger.info("Apple Notes sync requested (not yet implemented)")
-        return NoteSyncStatus(
-            last_sync=None,
-            syncing=False,
-            notes_synced=0,
-            errors=["Apple Notes sync not yet implemented"],
-        )
+        from datetime import datetime
+
+        from src.integrations.apple.notes_models import ConflictResolution
+        from src.integrations.apple.notes_sync import AppleNotesSync, SyncDirection
+
+        logger.info("Starting Apple Notes sync...")
+
+        try:
+            # Get notes directory from config or use default
+            notes_dir = self.note_manager.notes_dir if self.note_manager else Path("data/notes")
+
+            # Create sync service
+            sync_service = AppleNotesSync(
+                notes_dir=notes_dir,
+                conflict_resolution=ConflictResolution.NEWER_WINS,
+            )
+
+            # Perform bidirectional sync
+            result = sync_service.sync(direction=SyncDirection.BIDIRECTIONAL)
+
+            # Convert result to NoteSyncStatus
+            errors = result.errors.copy()
+            if result.conflicts:
+                for conflict in result.conflicts:
+                    errors.append(f"Conflict: {conflict.reason}")
+
+            logger.info(
+                f"Apple Notes sync completed: "
+                f"{result.total_synced} synced, "
+                f"{len(result.skipped)} skipped, "
+                f"{len(result.errors)} errors"
+            )
+
+            return NoteSyncStatus(
+                last_sync=result.completed_at or datetime.now(),
+                syncing=False,
+                notes_synced=result.total_synced,
+                errors=errors,
+            )
+
+        except Exception as e:
+            logger.error(f"Apple Notes sync failed: {e}", exc_info=True)
+            return NoteSyncStatus(
+                last_sync=None,
+                syncing=False,
+                notes_synced=0,
+                errors=[f"Sync failed: {str(e)}"],
+            )
 
     # =========================================================================
     # Folder Management Methods
