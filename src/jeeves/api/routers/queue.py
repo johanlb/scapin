@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.core.entities import AUTO_APPLY_THRESHOLD
+from src.jeeves.api.deps import get_queue_service
 from src.jeeves.api.models.queue import (
     ActionOptionResponse,
     ApproveRequest,
@@ -27,11 +28,6 @@ from src.jeeves.api.models.responses import APIResponse, PaginatedResponse
 from src.jeeves.api.services.queue_service import QueueService
 
 router = APIRouter()
-
-
-def _get_queue_service() -> QueueService:
-    """Dependency to get queue service"""
-    return QueueService()
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -148,7 +144,7 @@ async def list_queue_items(
     status: str = Query("pending", description="Filter by status"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    service: QueueService = Depends(_get_queue_service),
+    service: QueueService = Depends(get_queue_service),
 ) -> PaginatedResponse[list[QueueItemResponse]]:
     """
     List queue items with pagination
@@ -178,7 +174,7 @@ async def list_queue_items(
 
 @router.get("/stats", response_model=APIResponse[QueueStatsResponse])
 async def get_queue_stats(
-    service: QueueService = Depends(_get_queue_service),
+    service: QueueService = Depends(get_queue_service),
 ) -> APIResponse[QueueStatsResponse]:
     """
     Get queue statistics
@@ -206,7 +202,7 @@ async def get_queue_stats(
 @router.get("/{item_id}", response_model=APIResponse[QueueItemResponse])
 async def get_queue_item(
     item_id: str,
-    service: QueueService = Depends(_get_queue_service),
+    service: QueueService = Depends(get_queue_service),
 ) -> APIResponse[QueueItemResponse]:
     """
     Get single queue item by ID
@@ -233,7 +229,7 @@ async def get_queue_item(
 async def approve_queue_item(
     item_id: str,
     request: ApproveRequest = ApproveRequest(),
-    service: QueueService = Depends(_get_queue_service),
+    service: QueueService = Depends(get_queue_service),
 ) -> APIResponse[QueueItemResponse]:
     """
     Approve a queue item and execute the IMAP action
@@ -265,7 +261,7 @@ async def approve_queue_item(
 async def modify_queue_item(
     item_id: str,
     request: ModifyRequest,
-    service: QueueService = Depends(_get_queue_service),
+    service: QueueService = Depends(get_queue_service),
 ) -> APIResponse[QueueItemResponse]:
     """
     Modify a queue item's action and execute it
@@ -298,7 +294,7 @@ async def modify_queue_item(
 async def reject_queue_item(
     item_id: str,
     request: RejectRequest = RejectRequest(),
-    service: QueueService = Depends(_get_queue_service),
+    service: QueueService = Depends(get_queue_service),
 ) -> APIResponse[QueueItemResponse]:
     """
     Reject a queue item
@@ -327,7 +323,7 @@ async def reject_queue_item(
 @router.delete("/{item_id}", response_model=APIResponse[dict])
 async def delete_queue_item(
     item_id: str,
-    service: QueueService = Depends(_get_queue_service),
+    service: QueueService = Depends(get_queue_service),
 ) -> APIResponse[dict]:
     """
     Delete a queue item

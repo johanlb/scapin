@@ -4,6 +4,7 @@ Queue Service
 Async service wrapper for QueueStorage operations.
 """
 
+import asyncio
 from datetime import datetime
 from typing import Any
 
@@ -142,7 +143,18 @@ class QueueService:
         Returns:
             True if action executed successfully
         """
-        # Lazy import to avoid circular imports
+        # Run blocking IMAP operations in a thread to not block event loop
+        return await asyncio.to_thread(
+            self._execute_email_action_sync, item, action, destination
+        )
+
+    def _execute_email_action_sync(
+        self,
+        item: dict[str, Any],
+        action: str,
+        destination: str | None,
+    ) -> bool:
+        """Synchronous IMAP action execution (runs in thread pool)"""
         from src.core.config_manager import get_config
         from src.integrations.email.imap_client import IMAPClient
 
@@ -302,6 +314,11 @@ class QueueService:
         Returns:
             True if successful
         """
+        # Run blocking IMAP operations in a thread to not block event loop
+        return await asyncio.to_thread(self._unflag_email_sync, item)
+
+    def _unflag_email_sync(self, item: dict[str, Any]) -> bool:
+        """Synchronous unflag operation (runs in thread pool)"""
         from src.core.config_manager import get_config
         from src.integrations.email.imap_client import IMAPClient
 

@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.jeeves.api.app import create_app
-from src.jeeves.api.routers.email import _get_email_service
+from src.jeeves.api.deps import get_email_service
 
 
 @pytest.fixture
@@ -79,7 +79,7 @@ def mock_email_service() -> MagicMock:
 def client(mock_email_service: MagicMock) -> Generator[TestClient, None, None]:
     """Create test client with mocked service"""
     app = create_app()
-    app.dependency_overrides[_get_email_service] = lambda: mock_email_service
+    app.dependency_overrides[get_email_service] = lambda: mock_email_service
     yield TestClient(app)
     app.dependency_overrides.clear()
 

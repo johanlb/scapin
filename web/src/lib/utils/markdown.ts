@@ -2,6 +2,19 @@
  * Markdown rendering configuration with wikilinks support
  */
 import { marked, type TokenizerExtension, type RendererExtension, type Tokens } from 'marked';
+import DOMPurify from 'isomorphic-dompurify';
+
+/**
+ * Escape HTML special characters to prevent XSS
+ */
+function escapeHtml(text: string): string {
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
+}
 
 // Custom token type for wikilinks
 interface WikilinkToken extends Tokens.Generic {
@@ -35,7 +48,9 @@ const wikilinkExtension: TokenizerExtension & RendererExtension = {
 	renderer(token: Tokens.Generic): string {
 		const wikilinkToken = token as WikilinkToken;
 		const noteId = encodeURIComponent(wikilinkToken.text);
-		return `<a href="/notes/${noteId}" class="wikilink">${wikilinkToken.text}</a>`;
+		// Escape HTML to prevent XSS attacks via wikilink text
+		const safeText = escapeHtml(wikilinkToken.text);
+		return `<a href="/notes/${noteId}" class="wikilink">${safeText}</a>`;
 	}
 };
 
@@ -48,23 +63,34 @@ marked.use({
 
 /**
  * Render markdown content to HTML
+ * Sanitizes output with DOMPurify to prevent XSS attacks
  * @param content - Raw markdown string
- * @returns HTML string
+ * @returns Sanitized HTML string
  */
 export function renderMarkdown(content: string): string {
 	if (!content) return '';
-	return marked.parse(content) as string;
+	const rawHtml = marked.parse(content) as string;
+	// Sanitize HTML output to prevent XSS attacks
+	return DOMPurify.sanitize(rawHtml, {
+		ADD_ATTR: ['class', 'href', 'target'],
+		ADD_TAGS: ['a']
+	});
 }
 
 /**
  * Render markdown content asynchronously
- * Useful for large documents
+ * Useful for large documents. Sanitizes output with DOMPurify.
  * @param content - Raw markdown string
- * @returns Promise resolving to HTML string
+ * @returns Promise resolving to sanitized HTML string
  */
 export async function renderMarkdownAsync(content: string): Promise<string> {
 	if (!content) return '';
-	return marked.parse(content);
+	const rawHtml = await marked.parse(content);
+	// Sanitize HTML output to prevent XSS attacks
+	return DOMPurify.sanitize(rawHtml, {
+		ADD_ATTR: ['class', 'href', 'target'],
+		ADD_TAGS: ['a']
+	});
 }
 
 /**

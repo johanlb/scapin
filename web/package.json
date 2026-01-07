@@ -54,6 +54,7 @@
   },
   "dependencies": {
     "@tanstack/svelte-virtual": "^3.13.16",
+    "isomorphic-dompurify": "^2.35.0",
     "marked": "^17.0.1"
   }
 }

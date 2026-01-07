@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.jeeves.api.deps import get_email_service
 from src.jeeves.api.models.email import (
     AnalyzeEmailRequest,
     EmailAccountResponse,
@@ -25,11 +26,6 @@ from src.jeeves.api.services.email_service import EmailService
 router = APIRouter()
 
 
-def _get_email_service() -> EmailService:
-    """Dependency to get email service"""
-    return EmailService()
-
-
 def _parse_datetime(value: str | None) -> datetime | None:
     """Parse ISO datetime string"""
     if not value:
@@ -42,7 +38,7 @@ def _parse_datetime(value: str | None) -> datetime | None:
 
 @router.get("/accounts", response_model=APIResponse[list[EmailAccountResponse]])
 async def list_email_accounts(
-    service: EmailService = Depends(_get_email_service),
+    service: EmailService = Depends(get_email_service),
 ) -> APIResponse[list[EmailAccountResponse]]:
     """
     List configured email accounts
@@ -71,7 +67,7 @@ async def list_email_accounts(
 
 @router.get("/stats", response_model=APIResponse[EmailStatsResponse])
 async def get_email_stats(
-    service: EmailService = Depends(_get_email_service),
+    service: EmailService = Depends(get_email_service),
 ) -> APIResponse[EmailStatsResponse]:
     """
     Get email processing statistics
@@ -103,7 +99,7 @@ async def get_email_stats(
 @router.post("/process", response_model=APIResponse[ProcessInboxResponse])
 async def process_inbox(
     request: ProcessInboxRequest = ProcessInboxRequest(),
-    service: EmailService = Depends(_get_email_service),
+    service: EmailService = Depends(get_email_service),
 ) -> APIResponse[ProcessInboxResponse]:
     """
     Process inbox emails
@@ -161,7 +157,7 @@ async def process_inbox(
 @router.post("/analyze", response_model=APIResponse[ProcessedEmailResponse])
 async def analyze_email(
     request: AnalyzeEmailRequest,
-    service: EmailService = Depends(_get_email_service),
+    service: EmailService = Depends(get_email_service),
 ) -> APIResponse[ProcessedEmailResponse]:
     """
     Analyze a single email
@@ -213,7 +209,7 @@ async def analyze_email(
 @router.post("/execute", response_model=APIResponse[dict])
 async def execute_action(
     request: ExecuteActionRequest,
-    service: EmailService = Depends(_get_email_service),
+    service: EmailService = Depends(get_email_service),
 ) -> APIResponse[dict]:
     """
     Execute an action on an email

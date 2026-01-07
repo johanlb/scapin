@@ -4,6 +4,7 @@ Email Service
 Async service wrapper for email processing operations.
 """
 
+import asyncio
 from typing import Any
 
 from src.core.config_manager import get_config
@@ -102,7 +103,8 @@ class EmailService:
         if confidence_threshold is not None:
             kwargs["confidence_threshold"] = confidence_threshold
 
-        results = processor.process_inbox(**kwargs)
+        # Run blocking IMAP/processor operations in a thread to not block event loop
+        results = await asyncio.to_thread(processor.process_inbox, **kwargs)
 
         return {
             "total_processed": len(results),
@@ -150,7 +152,17 @@ class EmailService:
         Returns:
             Analysis result or None if email not found
         """
-        # Lazy import
+        # Run blocking IMAP/AI operations in a thread to not block event loop
+        return await asyncio.to_thread(
+            self._analyze_email_sync, email_id, folder
+        )
+
+    def _analyze_email_sync(
+        self,
+        email_id: str,
+        folder: str,
+    ) -> dict[str, Any] | None:
+        """Synchronous email analysis (runs in thread pool)"""
         from src.integrations.email.imap_client import IMAPClient
         from src.sancho.router import AIModel, get_ai_router
 
@@ -215,7 +227,18 @@ class EmailService:
         Returns:
             True if action executed successfully
         """
-        # Lazy import
+        # Run blocking IMAP operations in a thread to not block event loop
+        return await asyncio.to_thread(
+            self._execute_action_sync, email_id, action, destination
+        )
+
+    def _execute_action_sync(
+        self,
+        email_id: str,
+        action: str,
+        destination: str | None,
+    ) -> bool:
+        """Synchronous action execution (runs in thread pool)"""
         from src.integrations.email.imap_client import IMAPClient
 
         imap_client = IMAPClient(self._config.email)

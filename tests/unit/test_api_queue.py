@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.jeeves.api.app import create_app
-from src.jeeves.api.routers.queue import _get_queue_service
+from src.jeeves.api.deps import get_queue_service
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ def mock_queue_service() -> MagicMock:
 def client(mock_queue_service: MagicMock) -> Generator[TestClient, None, None]:
     """Create test client with mocked service"""
     app = create_app()
-    app.dependency_overrides[_get_queue_service] = lambda: mock_queue_service
+    app.dependency_overrides[get_queue_service] = lambda: mock_queue_service
     yield TestClient(app)
     app.dependency_overrides.clear()
 

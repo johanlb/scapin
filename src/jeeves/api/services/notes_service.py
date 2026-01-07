@@ -36,6 +36,57 @@ from src.passepartout.note_manager import Note, NoteManager
 
 logger = get_logger("jeeves.api.services.notes")
 
+# Security: Git version_id pattern (7-40 hex chars for short/full commit hashes)
+GIT_VERSION_ID_PATTERN = re.compile(r"^[a-fA-F0-9]{7,40}$")
+
+
+def _validate_version_id(version_id: str) -> None:
+    """Validate git version_id to prevent command injection.
+
+    Args:
+        version_id: Git commit hash (7-40 hex characters)
+
+    Raises:
+        ValueError: If version_id contains invalid characters
+    """
+    if not GIT_VERSION_ID_PATTERN.match(version_id):
+        raise ValueError(
+            "Invalid version_id format: must be 7-40 hexadecimal characters"
+        )
+
+
+def _validate_folder_path(path: str, base_dir: Path) -> Path:
+    """Validate folder path to prevent path traversal attacks.
+
+    Args:
+        path: User-provided folder path
+        base_dir: Base directory that path must resolve within
+
+    Returns:
+        Resolved absolute path
+
+    Raises:
+        ValueError: If path attempts to traverse outside base_dir
+    """
+    # Normalize and resolve the path
+    clean_path = path.strip().strip("/")
+
+    # Check for path traversal attempts
+    if ".." in clean_path or clean_path.startswith("/"):
+        raise ValueError("Invalid path: path traversal not allowed")
+
+    # Resolve to absolute path and verify it's within base_dir
+    resolved = (base_dir / clean_path).resolve()
+    base_resolved = base_dir.resolve()
+
+    # Ensure resolved path is within base directory
+    try:
+        resolved.relative_to(base_resolved)
+    except ValueError as e:
+        raise ValueError("Invalid path: must be within notes directory") from e
+
+    return resolved
+
 
 def _note_to_response(note: Note) -> NoteResponse:
     """Convert Note domain model to API response"""
@@ -573,7 +624,13 @@ class NotesService:
 
         Returns:
             NoteVersionContentResponse or None if not found
+
+        Raises:
+            ValueError: If version_id is invalid
         """
+        # Security: Validate version_id to prevent command injection
+        _validate_version_id(version_id)
+
         logger.info(f"Getting version {version_id} of note {note_id}")
         git_manager = self._get_git_manager()
 
@@ -621,7 +678,14 @@ class NotesService:
 
         Returns:
             NoteDiffResponse or None if versions not found
+
+        Raises:
+            ValueError: If version IDs are invalid
         """
+        # Security: Validate version IDs to prevent command injection
+        _validate_version_id(from_version)
+        _validate_version_id(to_version)
+
         logger.info(f"Diffing note {note_id}: {from_version} -> {to_version}")
         git_manager = self._get_git_manager()
 
@@ -661,7 +725,13 @@ class NotesService:
 
         Returns:
             Updated NoteResponse or None if failed
+
+        Raises:
+            ValueError: If version_id is invalid
         """
+        # Security: Validate version_id to prevent command injection
+        _validate_version_id(version_id)
+
         logger.info(f"Restoring note {note_id} to version {version_id}")
         manager = self._get_manager()
         git_manager = self._get_git_manager()
@@ -747,16 +817,18 @@ class NotesService:
             FolderCreateResponse with created folder info
 
         Raises:
-            ValueError: If path is invalid
+            ValueError: If path is invalid or attempts path traversal
         """
         logger.info(f"Creating folder: {path}")
         manager = self._get_manager()
+
+        # Security: Validate path to prevent path traversal attacks
+        folder_path = _validate_folder_path(path, manager.notes_dir)
 
         # Normalize path for response
         clean_path = path.strip().strip("/")
 
         # Check if folder already exists
-        folder_path = (manager.notes_dir / clean_path).resolve()
         existed = folder_path.exists()
 
         # Create folder (will succeed even if exists)
