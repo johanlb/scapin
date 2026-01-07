@@ -121,18 +121,24 @@
 		></div>
 
 		<!-- Desktop Sidebar (collapsed by default: w-16, expanded: w-56) -->
-		<Sidebar />
+		<div class="layout-sidebar">
+			<Sidebar />
+		</div>
 
 		<!-- Main Content - adapts to sidebar and chat panel -->
-		<main class="md:ml-16 lg:mr-72 pb-20 md:pb-0 transition-[margin] duration-[var(--transition-normal)] ease-[var(--spring-fluid)] relative z-10">
+		<main class="layout-main md:ml-16 lg:mr-72 pb-20 md:pb-0 transition-[margin] duration-[var(--transition-normal)] ease-[var(--spring-fluid)] relative z-10">
 			{@render children()}
 		</main>
 
 		<!-- Desktop Chat Panel -->
-		<ChatPanel />
+		<div class="layout-chat-panel">
+			<ChatPanel />
+		</div>
 
 		<!-- Mobile Bottom Nav -->
-		<MobileNav />
+		<div class="layout-mobile-nav">
+			<MobileNav />
+		</div>
 
 		<!-- Global Command Palette (Cmd+K) -->
 		{#if $showCommandPalette}

@@ -2,7 +2,8 @@
 
 **Dernière mise à jour** : 7 janvier 2026
 **Total items** : 117
-**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 35
+**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 55
+**Sprint actuel** : Sprint 3 — Workflow & Actions (9/18 — 50%)
 
 ---
 
@@ -45,17 +46,17 @@
 ### Events API Unifiée (4)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | GET /api/events/snoozed - items reportés | MVP |
-| ⬜ | POST /api/events/{id}/undo - annuler action exécutée | MVP |
-| ⬜ | POST /api/events/{id}/snooze - reporter événement | MVP |
-| ⬜ | DELETE /api/events/{id}/snooze - annuler snooze | MVP |
+| ✅ | GET /api/events/snoozed - items reportés | MVP |
+| ✅ | POST /api/events/{id}/undo - annuler action exécutée | MVP |
+| ✅ | POST /api/events/{id}/snooze - reporter événement | MVP |
+| ✅ | DELETE /api/events/{id}/snooze - annuler snooze | MVP |
 
 ### Brouillons de Réponse (4)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | PrepareEmailReplyAction - génération brouillons (backend) | MVP |
-| ⬜ | DraftReply dataclass - modèle de données brouillons | MVP |
-| ⬜ | API brouillons: récupérer/modifier drafts | MVP |
+| ✅ | PrepareEmailReplyAction - génération brouillons (backend) | MVP |
+| ✅ | DraftReply dataclass - modèle de données brouillons | MVP |
+| ✅ | API brouillons: récupérer/modifier drafts | MVP |
 | ⬜ | UI: Affichage et édition brouillons | MVP |
 
 ### Extraction Entités (3)
@@ -68,8 +69,8 @@
 ### Undo & Snooze Backend (2)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Undo: historique actions pour rollback | MVP |
-| ⬜ | Snooze: rappel automatique à expiration | MVP |
+| ✅ | Undo: historique actions pour rollback | MVP |
+| ✅ | Snooze: rappel automatique à expiration | MVP |
 
 ### Settings Email (4)
 | Status | Item | Priorité |

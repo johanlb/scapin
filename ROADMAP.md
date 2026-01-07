@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 7 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 2 EN COURS 🟡 — Boucle Email ↔ Notes (10/13 complétés)
+**Phase actuelle** : Sprint 3 EN COURS 🚧 — Workflow & Actions (9/18 items — 50%)
 
 ---
 
@@ -10,7 +10,7 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 34 items MVP restants sur 64 (117 total identifiés)
+**État** : MVP en cours — 25 items MVP restants sur 64 (117 total identifiés)
 
 | Métrique | Valeur |
 |----------|--------|
@@ -194,9 +194,9 @@ API Endpoints
 
 ## Sprint 2 : Qualité d'Analyse
 
-**Statut** : 🟡 En cours (11/13 — 85%)
+**Statut** : ✅ Complété (13/13 — 100%)
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Items** : 13 MVP (11 complétés)
+**Items** : 13 MVP (13 complétés)
 **Dépendance** : Sprint 1 ✅
 
 ### Livrables
@@ -213,12 +213,23 @@ API Endpoints
 | | Messages et suggestions contextuelles | MVP | ✅ |
 | **Chat** | POST /api/discussions/quick (quick chat) | MVP | ✅ |
 | **UX Intelligence** | Page Discussions multi-sessions | MVP | ✅ |
-| | Mode traitement focus pleine page | MVP | ⬜ |
-| **Teams** | Filtrage par mentions directes | MVP | ⬜ |
+| | Mode traitement focus pleine page | MVP | ✅ |
+| **Teams** | Filtrage par mentions directes | MVP | ✅ |
 | **Notes** | UI: Bouton "Discuter de cette note" | MVP | ✅ |
 
 ### Complétés cette session (7 janvier 2026)
 
+- ✅ **Mode traitement focus pleine page** — `/flux/focus` full-screen processing
+  - `web/src/routes/flux/focus/+page.svelte` — Page focus complète (~465 lignes)
+  - Bouton "Mode Focus" sur la page Flux (visible si items pending)
+  - Interface épurée : progress, timer, keyboard shortcuts
+  - Confirmation avant de quitter (Esc)
+  - Session stats (items traités, durée)
+- ✅ **Filtrage par mentions directes (Teams)** — API `?mentions_only=true`
+  - `TeamsClient.get_current_user_id()` — Récupère l'ID de l'utilisateur courant
+  - `TeamsClient.get_recent_messages(mentions_only=True)` — Filtre les messages
+  - `GET /api/teams/messages?mentions_only=true` — Nouvel endpoint API
+  - `listRecentTeamsMessages()` — Fonction frontend
 - ✅ **Bouton "Discuter de cette note"** — Chat contextuel depuis la page note
   - `web/src/lib/stores/note-chat.svelte.ts` — Store pour contexte note-chat (~430 lignes)
   - ChatPanel.svelte amélioré avec mode dual (général / note-spécifique)
@@ -273,33 +284,51 @@ Sganarelle: Apprentissage du feedback
 
 ## Sprint 3 : Workflow & Actions
 
-**Statut** : 📋 Planifié
+**Statut** : 🚧 En cours (9/18 — 50%)
 **Objectif** : Actions sur emails avec contexte riche disponible
-**Items** : 16 MVP
-**Dépendance** : Sprint 2
+**Items** : 18 MVP (9 complétés)
+**Dépendance** : Sprint 2 ✅
 
 ### Livrables
 
-| Catégorie | Item | Priorité |
-|-----------|------|----------|
-| **Events API** | GET /api/events/snoozed | MVP |
-| | POST /api/events/{id}/undo | MVP |
-| | POST /api/events/{id}/snooze | MVP |
-| | DELETE /api/events/{id}/snooze | MVP |
-| **Undo/Snooze Backend** | Historique actions pour rollback | MVP |
-| | Snooze: rappel automatique à expiration | MVP |
-| **Email Drafts** | PrepareEmailReplyAction (backend) | MVP |
-| | DraftReply dataclass | MVP |
-| | API brouillons: récupérer/modifier | MVP |
-| | UI: Affichage et édition brouillons | MVP |
-| **Email UI** | Vue détail (corps HTML/texte) | MVP |
-| | Bouton Snooze | MVP |
-| | Bouton Undo après approbation | MVP |
-| **Teams** | POST /api/teams/chats/{id}/read | MVP |
-| | UI: Vue détail message | MVP |
-| **Calendar CRUD** | POST /api/calendar/events | MVP |
-| | PUT /api/calendar/events/{id} | MVP |
-| | DELETE /api/calendar/events/{id} | MVP |
+| Catégorie | Item | Priorité | Statut |
+|-----------|------|----------|--------|
+| **Events API** | GET /api/events/snoozed | MVP | ✅ |
+| | POST /api/events/{id}/undo | MVP | ✅ |
+| | POST /api/events/{id}/snooze | MVP | ✅ |
+| | DELETE /api/events/{id}/snooze | MVP | ✅ |
+| **Undo/Snooze Backend** | Historique actions pour rollback | MVP | ✅ |
+| | Snooze: rappel automatique à expiration | MVP | ✅ |
+| **Email Drafts** | PrepareEmailReplyAction (backend) | MVP | ✅ |
+| | DraftReply dataclass | MVP | ✅ |
+| | API brouillons: récupérer/modifier | MVP | ✅ |
+| | UI: Affichage et édition brouillons | MVP | ⬜ |
+| **Email UI** | Vue détail (corps HTML/texte) | MVP | ⬜ |
+| | Bouton Snooze | MVP | ⬜ |
+| | Bouton Undo après approbation | MVP | ⬜ |
+| **Teams** | POST /api/teams/chats/{id}/read | MVP | ⬜ |
+| | UI: Vue détail message | MVP | ⬜ |
+| **Calendar CRUD** | POST /api/calendar/events | MVP | ⬜ |
+| | PUT /api/calendar/events/{id} | MVP | ⬜ |
+| | DELETE /api/calendar/events/{id} | MVP | ⬜ |
+
+### Complétés cette session (7 janvier 2026)
+
+- ✅ **Events API complète** — 4 endpoints Snooze/Undo
+  - `src/jeeves/api/routers/events.py` — Router avec 4 endpoints (~200 lignes)
+  - `src/jeeves/api/services/events_service.py` — Service async (~250 lignes)
+  - `src/jeeves/api/models/events.py` — Models Pydantic
+  - 24 tests unitaires
+- ✅ **Storage infrastructure** — 3 nouveaux modules JSON storage
+  - `src/integrations/storage/action_history.py` — Historique actions pour rollback (~200 lignes)
+  - `src/integrations/storage/snooze_storage.py` — Persistance snooze + worker rappel (~300 lignes)
+  - `src/integrations/storage/draft_storage.py` — Gestion brouillons email (~400 lignes)
+- ✅ **Drafts API complète** — 10 endpoints
+  - `src/jeeves/api/routers/drafts.py` — Router avec CRUD + generate (~320 lignes)
+  - `src/jeeves/api/services/drafts_service.py` — Service async (~250 lignes)
+  - `src/jeeves/api/models/drafts.py` — Models Pydantic (~100 lignes)
+  - `src/figaro/actions/email.py` — PrepareEmailReplyAction mise à jour
+  - 28 tests unitaires
 
 ### Architecture Drafts
 
@@ -494,7 +523,7 @@ Interfaces:        ████████████████████ 
 
 === MVP EN COURS ===
 Sprint 1 (Notes):  ████████████████████ 100% ✅ (19/19)
-Sprint 2 (Analyse):███████████████░░░░░  77% 🟡 (10/13)
+Sprint 2 (Analyse):████████████████████ 100% ✅ (13/13)
 Sprint 3 (Actions):░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -502,8 +531,8 @@ Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░ 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        █████████░░░░░░░░░░░  43% (29 MVP complétés sur 68)
-                   → 39 items restants
+Global MVP:        ███████████░░░░░░░░░  47% (32 MVP complétés sur 68)
+                   → 36 items restants
 ```
 
 ### Items par Sprint
@@ -511,11 +540,11 @@ Global MVP:        █████████░░░░░░░░░░░ 
 | Sprint | Items MVP | Complétés | Statut |
 |--------|-----------|-----------|--------|
 | Sprint 1 | 19 | 19 | ✅ 100% |
-| Sprint 2 | 13 | 10 | 🟡 77% |
+| Sprint 2 | 13 | 13 | ✅ 100% |
 | Sprint 3 | 16 | 0 | 📋 Planifié |
 | Sprint 4 | 14 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **68** | **29** | 43% |
+| **Total MVP** | **68** | **32** | 47% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---

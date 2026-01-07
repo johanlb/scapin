@@ -1,10 +1,15 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { Card, Button, Input, VirtualList } from '$lib/components/ui';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
 	import { approveQueueItem, rejectQueueItem } from '$lib/api';
 	import type { QueueItem, ActionOption } from '$lib/api';
+
+	function enterFocusMode() {
+		goto('/flux/focus');
+	}
 
 	// Load queue on mount
 	onMount(async () => {
@@ -269,22 +274,39 @@
 <div class="p-4 md:p-6 max-w-4xl mx-auto">
 	<!-- Header with Scapin tone -->
 	<header class="mb-6">
-		<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-			Le Courrier, Monsieur
-		</h1>
-		<p class="text-[var(--color-text-secondary)] mt-1">
-			{#if queueStore.loading}
-				Je consulte vos plis...
-			{:else if activeFilter === 'pending' && queueStore.total > 0}
-				{queueStore.total} pli{queueStore.total > 1 ? 's' : ''} requièrent votre attention
-			{:else if activeFilter === 'pending'}
-				Point de pli en attente, Monsieur
-			{:else if activeFilter === 'approved'}
-				Voici les plis que vous avez traités
-			{:else}
-				Voici les plis que vous avez écartés
+		<div class="flex items-start justify-between gap-4">
+			<div>
+				<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
+					Le Courrier, Monsieur
+				</h1>
+				<p class="text-[var(--color-text-secondary)] mt-1">
+					{#if queueStore.loading}
+						Je consulte vos plis...
+					{:else if activeFilter === 'pending' && queueStore.total > 0}
+						{queueStore.total} pli{queueStore.total > 1 ? 's' : ''} requièrent votre attention
+					{:else if activeFilter === 'pending'}
+						Point de pli en attente, Monsieur
+					{:else if activeFilter === 'approved'}
+						Voici les plis que vous avez traités
+					{:else}
+						Voici les plis que vous avez écartés
+					{/if}
+				</p>
+			</div>
+
+			<!-- Focus mode button -->
+			{#if activeFilter === 'pending' && queueStore.items.length > 0}
+				<Button
+					variant="primary"
+					size="sm"
+					onclick={enterFocusMode}
+					class="shrink-0"
+				>
+					<span class="mr-1.5">🎯</span>
+					Mode Focus
+				</Button>
 			{/if}
-		</p>
+		</div>
 	</header>
 
 	<!-- Stats as clickable filters -->

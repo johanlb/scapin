@@ -107,11 +107,22 @@ class TeamsClient:
         logger.debug(f"Found {len(messages)} messages in chat {chat_id}")
         return messages
 
+    async def get_current_user_id(self) -> str:
+        """
+        Get the current user's ID
+
+        Returns:
+            User ID string
+        """
+        profile = await self.get_user_profile()
+        return profile.get("id", "")
+
     async def get_recent_messages(
         self,
         limit_per_chat: int = 10,
         since: Optional[datetime] = None,
         include_chat_context: bool = True,
+        mentions_only: bool = False,
     ) -> list[TeamsMessage]:
         """
         Get recent messages from all chats
@@ -120,11 +131,23 @@ class TeamsClient:
             limit_per_chat: Maximum messages per chat
             since: Only fetch messages after this datetime
             include_chat_context: Attach chat context to each message
+            mentions_only: Only return messages where current user is @mentioned
 
         Returns:
             List of TeamsMessage objects sorted by date (newest first)
         """
-        logger.info("Fetching recent messages from all chats")
+        logger.info(
+            f"Fetching recent messages from all chats"
+            f"{' (mentions only)' if mentions_only else ''}"
+        )
+
+        # Get current user ID if filtering by mentions
+        current_user_id: Optional[str] = None
+        if mentions_only:
+            current_user_id = await self.get_current_user_id()
+            if not current_user_id:
+                logger.warning("Could not get current user ID for mentions filter")
+                mentions_only = False
 
         all_messages: list[TeamsMessage] = []
         chats = await self.get_chats()
@@ -141,6 +164,13 @@ class TeamsClient:
                 if include_chat_context:
                     messages = [msg.with_chat(chat) for msg in messages]
 
+                # Filter by mentions if requested
+                if mentions_only and current_user_id:
+                    messages = [
+                        msg for msg in messages
+                        if current_user_id in msg.mentions
+                    ]
+
                 all_messages.extend(messages)
 
             except Exception as e:
@@ -150,7 +180,8 @@ class TeamsClient:
         # Sort all messages by date (newest first)
         all_messages.sort(key=lambda m: m.created_at, reverse=True)
 
-        logger.info(f"Found {len(all_messages)} messages across {len(chats)} chats")
+        filter_info = f" ({len(all_messages)} with mentions)" if mentions_only else ""
+        logger.info(f"Found {len(all_messages)} messages across {len(chats)} chats{filter_info}")
         return all_messages
 
     async def send_message(

@@ -5,12 +5,19 @@ Concrete implementations of email-related actions.
 """
 
 import time
-from dataclasses import dataclass
-from typing import Optional
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Optional
 
 from src.core.config_manager import EmailAccountConfig
 from src.figaro.actions.base import Action, ActionResult, ValidationResult
 from src.integrations.email.imap_client import IMAPClient
+from src.integrations.storage.draft_storage import (
+    DraftStorage,
+    ReplyFormat,
+    get_draft_storage,
+)
 from src.monitoring.logger import get_logger
 
 logger = get_logger("figaro.actions.email")
@@ -505,3 +512,348 @@ class MoveEmailAction(Action):
     def estimated_duration(self) -> float:
         """Estimated duration in seconds"""
         return 2.0
+
+
+@dataclass
+class PrepareEmailReplyAction(Action):
+    """
+    Prepare a draft reply to an email
+
+    Uses AI to generate a contextual reply and stores it in DraftStorage
+    for user review before sending.
+
+    This action is reversible - drafts can be discarded.
+    """
+
+    email_id: int
+    account_email: str
+    original_subject: str
+    original_from: str
+    original_content: str
+    reply_intent: str = ""  # User's intent for the reply (optional)
+    original_date: Optional[datetime] = None
+    original_message_id: Optional[str] = None
+    thread_context: list[dict[str, Any]] = field(default_factory=list)
+
+    # AI generation parameters
+    tone: str = "professional"  # professional, casual, formal, friendly
+    language: str = "fr"  # fr, en
+    include_original: bool = True  # Include quoted original in reply
+    max_length: int = 500  # Maximum reply length in words
+
+    # Generated draft storage
+    _action_id: str = field(default_factory=lambda: f"prepare_reply_{uuid.uuid4().hex[:8]}")
+    _draft_storage: Optional[DraftStorage] = None
+    _created_draft_id: Optional[str] = None
+    _executed: bool = False
+
+    @property
+    def action_id(self) -> str:
+        """Unique identifier for this action"""
+        return self._action_id
+
+    @property
+    def action_type(self) -> str:
+        """Action type"""
+        return "prepare_email_reply"
+
+    @property
+    def draft_storage(self) -> DraftStorage:
+        """Get draft storage (lazy initialization)"""
+        if self._draft_storage is None:
+            self._draft_storage = get_draft_storage()
+        return self._draft_storage
+
+    def validate(self) -> ValidationResult:
+        """Validate prepare reply action parameters"""
+        errors = []
+        warnings = []
+
+        if self.email_id <= 0:
+            errors.append(f"Invalid email ID: {self.email_id}")
+
+        if not self.account_email:
+            errors.append("Account email is required")
+
+        if not self.original_subject:
+            warnings.append("Original subject is empty")
+
+        if not self.original_from:
+            errors.append("Original sender (from) is required")
+
+        if not self.original_content:
+            warnings.append("Original content is empty - draft may be generic")
+
+        if self.tone not in ("professional", "casual", "formal", "friendly"):
+            warnings.append(f"Unknown tone '{self.tone}', defaulting to professional")
+
+        if self.language not in ("fr", "en"):
+            warnings.append(f"Unknown language '{self.language}', defaulting to French")
+
+        return ValidationResult(
+            valid=len(errors) == 0,
+            errors=errors,
+            warnings=warnings,
+        )
+
+    def execute(self) -> ActionResult:
+        """
+        Execute the prepare reply action
+
+        Generates an AI draft and stores it in DraftStorage.
+        """
+        start_time = time.time()
+
+        try:
+            # Validate first
+            validation = self.validate()
+            if not validation:
+                return ActionResult(
+                    success=False,
+                    duration=0.0,
+                    error=ValueError(f"Validation failed: {validation.errors}"),
+                )
+
+            # Generate subject line
+            subject = self._generate_reply_subject()
+
+            # Generate reply body
+            # Note: In production, this would call the AI router
+            # For now, we generate a placeholder that can be edited
+            body = self._generate_draft_body()
+
+            # Extract recipient from original_from
+            to_addresses = [self.original_from]
+
+            # Create and store the draft
+            draft = self.draft_storage.create_draft(
+                email_id=self.email_id,
+                account_email=self.account_email,
+                subject=subject,
+                body=body,
+                to_addresses=to_addresses,
+                message_id=self.original_message_id,
+                body_format=ReplyFormat.PLAIN_TEXT,
+                ai_confidence=0.7,  # Placeholder confidence
+                ai_reasoning=f"Generated {self.tone} reply in {self.language}",
+                original_subject=self.original_subject,
+                original_from=self.original_from,
+                original_date=self.original_date,
+                original_preview=self.original_content[:200] if self.original_content else "",
+                thread_context=self.thread_context,
+            )
+
+            self._created_draft_id = draft.draft_id
+            self._executed = True
+
+            duration = time.time() - start_time
+
+            logger.info(
+                f"PrepareEmailReplyAction executed: draft={draft.draft_id}",
+                extra={
+                    "email_id": self.email_id,
+                    "draft_id": draft.draft_id,
+                    "tone": self.tone,
+                    "language": self.language,
+                },
+            )
+
+            return ActionResult(
+                success=True,
+                duration=duration,
+                output={
+                    "draft_id": draft.draft_id,
+                    "subject": subject,
+                    "body_length": len(body),
+                    "to_addresses": to_addresses,
+                },
+                metadata={
+                    "email_id": self.email_id,
+                    "account_email": self.account_email,
+                    "tone": self.tone,
+                    "language": self.language,
+                },
+            )
+
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"PrepareEmailReplyAction failed: {e}", exc_info=True)
+
+            return ActionResult(
+                success=False,
+                duration=duration,
+                error=e,
+            )
+
+    def _generate_reply_subject(self) -> str:
+        """Generate reply subject line"""
+        subject = self.original_subject.strip()
+
+        # Add Re: prefix if not already present
+        if not subject.lower().startswith("re:"):
+            subject = f"Re: {subject}"
+
+        return subject
+
+    def _generate_draft_body(self) -> str:
+        """
+        Generate draft reply body
+
+        In production, this would call the AI router.
+        For now, generates a template that the user can edit.
+        """
+        # Greeting based on tone and language
+        greetings = {
+            ("professional", "fr"): "Bonjour,",
+            ("professional", "en"): "Hello,",
+            ("formal", "fr"): "Madame, Monsieur,",
+            ("formal", "en"): "Dear Sir/Madam,",
+            ("casual", "fr"): "Salut,",
+            ("casual", "en"): "Hi,",
+            ("friendly", "fr"): "Bonjour,",
+            ("friendly", "en"): "Hi there,",
+        }
+
+        closings = {
+            ("professional", "fr"): "Cordialement,",
+            ("professional", "en"): "Best regards,",
+            ("formal", "fr"): "Veuillez agréer mes salutations distinguées.",
+            ("formal", "en"): "Yours sincerely,",
+            ("casual", "fr"): "À bientôt,",
+            ("casual", "en"): "Cheers,",
+            ("friendly", "fr"): "À très vite,",
+            ("friendly", "en"): "Talk soon,",
+        }
+
+        greeting = greetings.get((self.tone, self.language), "Bonjour,")
+        closing = closings.get((self.tone, self.language), "Cordialement,")
+
+        # Build reply body
+        lines = [greeting, ""]
+
+        # Add user's reply intent if provided
+        if self.reply_intent:
+            lines.append(self.reply_intent)
+        else:
+            # Placeholder for AI-generated content
+            if self.language == "fr":
+                lines.append("[Votre réponse ici]")
+            else:
+                lines.append("[Your reply here]")
+
+        lines.extend(["", closing])
+
+        # Include quoted original if requested
+        if self.include_original and self.original_content:
+            original_date_str = (
+                self.original_date.strftime("%d/%m/%Y à %H:%M")
+                if self.original_date
+                else "date inconnue"
+            )
+
+            if self.language == "fr":
+                header = f"Le {original_date_str}, {self.original_from} a écrit :"
+            else:
+                original_date_str = (
+                    self.original_date.strftime("%Y-%m-%d at %H:%M")
+                    if self.original_date
+                    else "unknown date"
+                )
+                header = f"On {original_date_str}, {self.original_from} wrote:"
+
+            lines.extend(["", "---", header, ""])
+
+            # Quote original content (prefix with >)
+            for line in self.original_content[:1000].split("\n"):
+                lines.append(f"> {line}")
+
+        return "\n".join(lines)
+
+    def supports_undo(self) -> bool:
+        """Draft preparation can be undone by discarding"""
+        return True
+
+    def can_undo(self, result: ActionResult) -> bool:
+        """Can undo if draft was created"""
+        return result.success and self._created_draft_id is not None
+
+    def undo(self, _result: ActionResult) -> bool:
+        """Undo by discarding the draft"""
+        if not self._created_draft_id:
+            logger.warning("Cannot undo PrepareEmailReplyAction: no draft ID")
+            return False
+
+        try:
+            draft = self.draft_storage.discard_draft(
+                self._created_draft_id,
+                reason="Action undone",
+            )
+
+            if draft:
+                logger.info(
+                    f"PrepareEmailReplyAction undone: discarded draft {self._created_draft_id}"
+                )
+                self._executed = False
+                return True
+            else:
+                logger.warning(f"Draft {self._created_draft_id} not found for undo")
+                return False
+
+        except Exception as e:
+            logger.error(f"Failed to undo PrepareEmailReplyAction: {e}")
+            return False
+
+    def dependencies(self) -> list[str]:
+        """No dependencies"""
+        return []
+
+    def estimated_duration(self) -> float:
+        """Estimated ~2-5 seconds for AI generation"""
+        return 3.0
+
+
+def create_email_reply_draft(
+    email_id: int,
+    account_email: str,
+    original_subject: str,
+    original_from: str,
+    original_content: str,
+    reply_intent: str = "",
+    tone: str = "professional",
+    language: str = "fr",
+    original_date: Optional[datetime] = None,
+    original_message_id: Optional[str] = None,
+    include_original: bool = True,
+) -> PrepareEmailReplyAction:
+    """
+    Factory function for creating email reply draft action
+
+    Args:
+        email_id: IMAP UID of the original email
+        account_email: Account to send reply from
+        original_subject: Subject of the original email
+        original_from: Sender of the original email
+        original_content: Content of the original email
+        reply_intent: User's intent for the reply (optional)
+        tone: Tone of the reply (professional, casual, formal, friendly)
+        language: Language for the reply (fr, en)
+        original_date: Date of the original email
+        original_message_id: Message-ID of the original email
+        include_original: Whether to include quoted original in reply
+
+    Returns:
+        PrepareEmailReplyAction ready to execute
+    """
+    return PrepareEmailReplyAction(
+        email_id=email_id,
+        account_email=account_email,
+        original_subject=original_subject,
+        original_from=original_from,
+        original_content=original_content,
+        reply_intent=reply_intent,
+        tone=tone,
+        language=language,
+        original_date=original_date,
+        original_message_id=original_message_id,
+        include_original=include_original,
+    )

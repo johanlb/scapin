@@ -410,3 +410,21 @@ body {
 :focus:not(:focus-visible) {
   outline: none;
 }
+
+/* ============================================
+   Focus Mode - Full Page Processing Mode
+   ============================================ */
+
+/* Hide layout elements when focus mode is active */
+body.focus-mode-active .layout-sidebar,
+body.focus-mode-active .layout-chat-panel,
+body.focus-mode-active .layout-mobile-nav {
+  display: none !important;
+}
+
+/* Remove margins from main content in focus mode */
+body.focus-mode-active .layout-main {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-bottom: 0 !important;
+}

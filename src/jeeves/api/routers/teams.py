@@ -72,6 +72,45 @@ def _convert_message_to_response(msg: dict) -> TeamsMessageResponse:
     )
 
 
+@router.get("/messages", response_model=PaginatedResponse[list[TeamsMessageResponse]])
+async def list_recent_messages(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    since: datetime | None = Query(None, description="Only messages since this time"),
+    mentions_only: bool = Query(False, description="Only messages where you are @mentioned"),
+    service: TeamsService = Depends(_get_teams_service),
+) -> PaginatedResponse[list[TeamsMessageResponse]]:
+    """
+    List recent messages from all chats
+
+    Returns messages from all chats, optionally filtered by @mentions.
+    """
+    try:
+        messages = await service.get_recent_messages(
+            limit_per_chat=page * page_size,
+            since=since,
+            mentions_only=mentions_only,
+        )
+
+        # Apply pagination
+        total = len(messages)
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_messages = messages[start:end]
+
+        return PaginatedResponse(
+            success=True,
+            data=[_convert_message_to_response(m) for m in page_messages],
+            total=total,
+            page=page,
+            page_size=page_size,
+            has_more=end < total,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get("/chats", response_model=PaginatedResponse[list[TeamsChatResponse]])
 async def list_chats(
     page: int = Query(1, ge=1, description="Page number"),

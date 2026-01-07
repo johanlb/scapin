@@ -1088,6 +1088,26 @@ export async function getTeamsStats(): Promise<TeamsStats> {
 	return fetchApi<TeamsStats>('/teams/stats');
 }
 
+/**
+ * List recent messages from all chats with optional mentions filter
+ */
+export async function listRecentTeamsMessages(
+	page = 1,
+	pageSize = 20,
+	mentionsOnly = false,
+	since?: string
+): Promise<PaginatedResponse<TeamsMessage[]>> {
+	const params = new URLSearchParams();
+	params.set('page', String(page));
+	params.set('page_size', String(pageSize));
+	params.set('mentions_only', String(mentionsOnly));
+	if (since) {
+		params.set('since', since);
+	}
+	const url = `${API_BASE}/teams/messages?${params}`;
+	return fetchApi<PaginatedResponse<TeamsMessage[]>>(url);
+}
+
 // ============================================================================
 // NOTES TYPES
 // ============================================================================

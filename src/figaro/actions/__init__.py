@@ -11,7 +11,13 @@ from src.figaro.actions.calendar import (
     CalendarCreateTaskFromEventAction,
     CalendarRespondAction,
 )
-from src.figaro.actions.email import ArchiveEmailAction, DeleteEmailAction, MoveEmailAction
+from src.figaro.actions.email import (
+    ArchiveEmailAction,
+    DeleteEmailAction,
+    MoveEmailAction,
+    PrepareEmailReplyAction,
+    create_email_reply_draft,
+)
 from src.figaro.actions.notes import CreateNoteAction, UpdateNoteAction
 from src.figaro.actions.tasks import CompleteTaskAction, CreateTaskAction
 from src.figaro.actions.teams import (
@@ -34,6 +40,8 @@ __all__ = [
     "ArchiveEmailAction",
     "DeleteEmailAction",
     "MoveEmailAction",
+    "PrepareEmailReplyAction",
+    "create_email_reply_draft",
 
     # Task actions
     "CreateTaskAction",

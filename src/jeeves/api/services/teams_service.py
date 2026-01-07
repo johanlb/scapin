@@ -90,6 +90,65 @@ class TeamsService:
             logger.error(f"Failed to get messages for chat {chat_id}: {e}")
             return []
 
+    async def get_recent_messages(
+        self,
+        limit_per_chat: int = 10,
+        since: datetime | None = None,
+        mentions_only: bool = False,
+    ) -> list[dict[str, Any]]:
+        """
+        Get recent messages from all chats
+
+        Args:
+            limit_per_chat: Maximum messages per chat
+            since: Only get messages since this time
+            mentions_only: Only return messages where current user is @mentioned
+
+        Returns:
+            List of message dictionaries
+        """
+        if not self._config.teams.enabled:
+            return []
+
+        processor = self._get_processor()
+
+        try:
+            messages = await processor.teams_client.get_recent_messages(
+                limit_per_chat=limit_per_chat,
+                since=since,
+                include_chat_context=True,
+                mentions_only=mentions_only,
+            )
+            return [self._message_to_dict_from_model(m) for m in messages]
+        except Exception as e:
+            logger.error(f"Failed to get recent messages: {e}")
+            return []
+
+    def _message_to_dict_from_model(self, message: Any) -> dict[str, Any]:
+        """Convert TeamsMessage model to dictionary"""
+        return {
+            "id": message.message_id,
+            "chat_id": message.chat_id,
+            "sender": {
+                "id": message.sender.user_id if message.sender else "",
+                "display_name": message.sender.display_name if message.sender else "Unknown",
+                "email": message.sender.email if message.sender else None,
+            },
+            "content": message.content_plain or "",
+            "content_preview": (message.content_plain or "")[:200],
+            "created_at": message.created_at.isoformat() if message.created_at else now_utc().isoformat(),
+            "is_read": True,
+            "importance": message.importance.value if hasattr(message.importance, "value") else "normal",
+            "has_mentions": len(message.mentions) > 0 if message.mentions else False,
+            "mentions": list(message.mentions) if message.mentions else [],
+            "attachments_count": len(message.attachments) if message.attachments else 0,
+            "chat": {
+                "id": message.chat.chat_id,
+                "topic": message.chat.topic,
+                "chat_type": message.chat.chat_type.value if hasattr(message.chat.chat_type, "value") else str(message.chat.chat_type),
+            } if message.chat else None,
+        }
+
     async def send_reply(
         self,
         chat_id: str,
