@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 7 janvier 2026
 **Total items** : 117
-**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 30
+**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 33
 
 ---
 
@@ -141,13 +141,13 @@
 ### Discussions API (2)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | CRUD /api/discussions (list, create, get, delete, pin) | MVP |
-| ⬜ | Messages et suggestions contextuelles | MVP |
+| ✅ | CRUD /api/discussions (list, create, get, delete, update, messages) | MVP |
+| ✅ | Messages et suggestions contextuelles | MVP |
 
 ### Chat Rapide (1)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | POST /api/chat/quick - instruction rapide one-shot | MVP |
+| ✅ | POST /api/discussions/quick - instruction rapide one-shot | MVP |
 
 ### Recherche API (3)
 | Status | Item | Priorité |

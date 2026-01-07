@@ -377,13 +377,13 @@ cd web && npm run check   # Vérifier les types
 
 ### Suite des Tests
 
-**Global** : 1789 tests, 95% couverture, 100% pass rate
+**Global** : 1824 tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1789 | ✅ |
+| Backend tests | 1824 | ✅ |
 | Frontend tests | 8 | ✅ |
-| Skipped | 53 | ⏭️ |
+| Skipped | 50 | ⏭️ |
 
 ### Qualité du Code
 
@@ -2420,10 +2420,10 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ GET /api/status (status temps réel)
 - ✅ Détection et alerte conflits calendrier (ConflictDetector)
 
-### Sprint 2 : Qualité d'Analyse (En cours — 43%)
+### Sprint 2 : Qualité d'Analyse (En cours — 64%)
 
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Statut** : 6/14 items complétés
+**Statut** : 9/14 items complétés
 
 **Items complétés** :
 - ✅ Extraction entités automatique (personnes, dates, projets, etc.)
@@ -2432,23 +2432,22 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ proposed_tasks dans EmailProcessingResult
 - ✅ proposed_notes dans EmailProcessingResult
 - ✅ ContextEngine connecté au CognitivePipeline (#40)
+- ✅ CRUD /api/discussions (7 endpoints)
+- ✅ Messages et suggestions contextuelles
+- ✅ POST /api/discussions/quick (quick chat)
 
 **Prochains items** :
-- ⬜ CRUD /api/discussions
-- ⬜ Messages et suggestions contextuelles
-- ⬜ POST /api/chat/quick
-- ⬜ Page Discussions multi-sessions
+- ⬜ Page Discussions frontend (multi-sessions)
 - ⬜ Mode traitement focus pleine page
 - ⬜ Filtrage par mentions directes (Teams)
 - ⬜ Déduplication email/Teams
 - ⬜ UI: Bouton "Discuter de cette note"
-- ⬜ GET/POST /api/focus
 
 Voir [ROADMAP.md](ROADMAP.md) pour les détails complets.
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (34 MVP restants sur 64).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (31 MVP restants sur 64).
 
 ---
 

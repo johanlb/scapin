@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 7 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 2 EN COURS 🟡 — Boucle Email ↔ Notes (6/14 complétés)
+**Phase actuelle** : Sprint 2 EN COURS 🟡 — Boucle Email ↔ Notes (9/14 complétés)
 
 ---
 
@@ -14,7 +14,7 @@
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1792 tests, 95% couverture, 100% pass rate |
+| **Tests** | 1824 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 (partiel) |
 | **Gaps MVP restants** | 34 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
@@ -194,9 +194,9 @@ API Endpoints
 
 ## Sprint 2 : Qualité d'Analyse
 
-**Statut** : 🟡 En cours (6/14 — 43%)
+**Statut** : 🟡 En cours (9/14 — 64%)
 **Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Items** : 14 MVP (6 complétés)
+**Items** : 14 MVP (9 complétés)
 **Dépendance** : Sprint 1 ✅
 
 ### Livrables
@@ -209,9 +209,9 @@ API Endpoints
 | **Données Enrichies** | proposed_tasks dans EmailProcessingResult | MVP | ✅ |
 | | proposed_notes dans EmailProcessingResult | MVP | ✅ |
 | **Contexte Notes** | ContextEngine connecté au CognitivePipeline (#40) | MVP | ✅ |
-| **Discussions** | CRUD /api/discussions | MVP | ⬜ |
-| | Messages et suggestions contextuelles | MVP | ⬜ |
-| **Chat** | POST /api/chat/quick | MVP | ⬜ |
+| **Discussions** | CRUD /api/discussions | MVP | ✅ |
+| | Messages et suggestions contextuelles | MVP | ✅ |
+| **Chat** | POST /api/discussions/quick (quick chat) | MVP | ✅ |
 | **UX Intelligence** | Page Discussions multi-sessions | MVP | ⬜ |
 | | Mode traitement focus pleine page | MVP | ⬜ |
 | **Teams** | Filtrage par mentions directes | MVP | ⬜ |
@@ -224,6 +224,11 @@ API Endpoints
 - ✅ **Config context enrichment** (`config_manager.py`) — enable_context_enrichment, context_top_k, context_min_relevance
 - ✅ **UI context_used** (`flux/+page.svelte`) — Affichage notes utilisées pour l'analyse
 - ✅ **Tests Passepartout réactivés** — 3 tests réactivés (skip markers retirés)
+- ✅ **Discussions API** — CRUD complet avec AI et suggestions contextuelles
+  - `src/integrations/storage/discussion_storage.py` — JSON storage thread-safe
+  - `src/jeeves/api/services/discussion_service.py` — Service async avec AI
+  - `src/jeeves/api/routers/discussions.py` — 7 endpoints REST
+  - 32 tests unitaires
 
 ### Complétés session précédente (6 janvier 2026)
 
