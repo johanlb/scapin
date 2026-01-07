@@ -4,6 +4,8 @@
 	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
 	import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
 	import NoteHistory from '$lib/components/notes/NoteHistory.svelte';
+	import { noteChatStore, detectNoteType, type NoteContext } from '$lib/stores/note-chat.svelte';
+	import { extractWikilinks } from '$lib/utils/markdown';
 
 	// Get the note path from route params
 	const notePath = $derived($page.params.path);
@@ -92,6 +94,23 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 		// [MVP] Would reload note content from API after version restore
 		console.log('[MVP Mock] Note restored, would reload from API');
 	}
+
+	function handleOpenChat() {
+		// Build note context for chat
+		const noteType = detectNoteType({ title: note.title, tags: note.tags });
+		const linkedNotes = extractWikilinks(note.content);
+
+		const context: NoteContext = {
+			id: note.id,
+			title: note.title,
+			type: noteType,
+			content: note.content,
+			tags: note.tags,
+			linkedNotes
+		};
+
+		noteChatStore.openForNote(context);
+	}
 </script>
 
 <div class="min-h-screen">
@@ -118,6 +137,13 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 					{/each}
 				</div>
 			</div>
+			<button
+				onclick={handleOpenChat}
+				class="p-2 rounded-full hover:bg-[var(--glass-tint)] transition-colors"
+				title="Discuter de cette note"
+			>
+				<span class="text-xl">💬</span>
+			</button>
 			<button
 				onclick={() => (showHistory = true)}
 				class="p-2 rounded-full hover:bg-[var(--glass-tint)] transition-colors"
