@@ -29,6 +29,7 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Le *comment* technique | Implémentation des modules |
 | **[ROADMAP.md](ROADMAP.md)** | Le *quand* | Priorisation des tâches |
 | **[UI_VOCABULARY.md](docs/UI_VOCABULARY.md)** | 🎭 **Vocabulaire UI** — Mapping termes UI ↔ technique | Traitement requêtes utilisateur, génération réponses |
+| **[CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)** | 🔥 **Spec CrossSource** — Prochaine priorité | Implémentation Sprint Cross-Source |
 | **Ce fichier (CLAUDE.md)** | État actuel | Démarrage de session |
 
 ### Les 5 Principes Directeurs
@@ -543,6 +544,52 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-08 (Suite) — Cross-Source Phase 2 : Calendar & Teams Adapters ✅
+
+**Focus** : Implémentation des adaptateurs Calendar et Teams pour CrossSourceEngine
+
+**Accomplissements** :
+
+1. ✅ **Teams Adapter** (`src/passepartout/cross_source/adapters/teams_adapter.py` ~315 lignes)
+   - Recherche dans les messages Teams via Microsoft Graph API
+   - Filtres : query, chat_filter, mentions_only, since
+   - Matching : content, sender, chat topic, attachments
+   - Scoring de pertinence : content match, recency, importance, mentions
+
+2. ✅ **Calendar Adapter amélioré** (`src/passepartout/cross_source/adapters/calendar_adapter.py`)
+   - Fix config field names : `days_behind`/`days_ahead` → `past_days`/`future_days`
+   - Simplification code : `for` loops → `any()` (ruff SIM110)
+   - Suppression imports inutilisés
+
+3. ✅ **Tests complets** (`tests/unit/test_cross_source_adapters.py` ~700 lignes, 29 tests)
+   - TestCalendarAdapter : 12 tests
+   - TestTeamsAdapter : 14 tests
+   - TestAdapterIntegration : 3 tests
+
+4. ✅ **Code Quality**
+   - Ruff : 0 warnings (fix F401, F841, SIM110, SIM102)
+   - All 63 cross-source tests pass
+
+5. ✅ **Deep Analysis** (4 agents parallèles lancés)
+   - Security : 3 CRITICAL, 5 HIGH identified
+   - Architecture : 6 patterns à améliorer
+   - Code Quality : 11 MEDIUM issues
+   - Performance : 5 optimizations recommandées
+
+**Fichiers créés/modifiés** :
+```
+src/passepartout/cross_source/adapters/teams_adapter.py    # NEW (~315 lignes)
+src/passepartout/cross_source/adapters/calendar_adapter.py # MODIFIED (bug fixes)
+src/passepartout/cross_source/adapters/__init__.py         # MODIFIED (exports)
+tests/unit/test_cross_source_adapters.py                   # NEW (29 tests)
+```
+
+**Tests** : 63 cross-source tests, 100% pass rate
+
+**Commit** : `8d33200` — feat(passepartout): implement CrossSourceEngine with Calendar and Teams adapters
+
+---
 
 ### Session 2026-01-08 — Sprint 3 : UI Brouillons & Code Review
 
@@ -2591,11 +2638,32 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ⬜ POST /api/teams/chats/{id}/read
 - ⬜ Calendar CRUD (3 endpoints)
 
+### Sprint Cross-Source : 🔥 PRIORITÉ (En cours — 50%)
+
+**Objectif** : Recherche intelligente cross-sources
+**Statut** : 6/12 items complétés
+
+**Items complétés** :
+- ✅ CrossSourceEngine service
+- ✅ Unified search interface (models, cache, config)
+- ✅ Query routing intelligent
+- ✅ Adapter: Emails archivés (IMAP search)
+- ✅ Adapter: Calendrier (événements passés/futurs)
+- ✅ Adapter: Teams (historique messages)
+
+**Prochains items** :
+- ⬜ Adapter: WhatsApp (historique SQLite)
+- ⬜ Adapter: Fichiers locaux (ripgrep)
+- ⬜ Adapter: Web/Internet (Tavily API)
+- ⬜ Hook dans ReasoningEngine (Pass 2+)
+- ⬜ Hook dans NoteReviewer
+- ⬜ API: POST /api/search/cross-source
+
 Voir [ROADMAP.md](ROADMAP.md) pour les détails complets.
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (32 MVP restants sur 64).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (38 MVP restants sur 86).
 
 ---
 

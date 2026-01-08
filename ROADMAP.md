@@ -3,6 +3,7 @@
 **Dernière mise à jour** : 8 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
 **Phase actuelle** : Sprint 3 EN COURS 🚧 — Workflow & Actions (10/18 items — 56%)
+**Prochaine priorité** : 🔥 Sprint Cross-Source — Intelligence Multi-Sources
 
 ---
 
@@ -10,14 +11,15 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 25 items MVP restants sur 64 (117 total identifiés)
+**État** : MVP en cours — 38 items MVP restants sur 86 (Cross-Source Phase 2 complétée)
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1975 tests, 95% couverture, 100% pass rate |
+| **Tests** | 1985 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 (partiel) |
-| **Gaps MVP restants** | 33 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Gaps MVP restants** | 44 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Prochaine priorité** | 🔥 **Cross-Source** — Recherche multi-sources (12 items) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -117,6 +119,13 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 │  → Actions sur emails avec contexte riche                        │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
+┌═════════════════════════════════════════════════════════════════┐
+║     🔥 SPRINT CROSS-SOURCE : INTELLIGENCE MULTI-SOURCES 🔥      ║
+║  Emails archivés + Calendar + Teams + WhatsApp + Files + Web    ║
+║  → Cerveau étendu : recherche dans TOUTES les sources           ║
+║  → Hook NoteReviewer + ReasoningEngine + Discussions            ║
+╚═════════════════════════════════════════════════════════════════╝
+                              ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │              SPRINT 4 : TEMPS RÉEL & UX                          │
 │  WebSocket + Notifications + UX avancée                          │
@@ -131,7 +140,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │              PHASE 3.0 : NICE-TO-HAVE                            │
-│  Multi-Provider IA, LinkedIn, Apple Shortcuts, Révision espacée │
+│  Multi-Provider IA, LinkedIn, Apple Shortcuts                    │
 │  → Après MVP stable                                              │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -390,12 +399,203 @@ Implémenté en parallèle du Sprint 3 :
 
 ---
 
+## Sprint Cross-Source : Intelligence Multi-Sources 🔥 PRIORITÉ
+
+**Statut** : 🚧 EN COURS — **Phase 2 complétée (6/12 items — 50%)**
+**Objectif** : Recherche intelligente cross-sources pour enrichissement et analyse
+**Items** : 12 MVP (6 complétés)
+**Dépendance** : Sprint 3
+**Spécification** : [CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)
+**Tests** : 63 tests (100% pass)
+
+> **Session 8 janvier 2026** : Calendar et Teams Adapters complétés avec 29 nouveaux tests
+
+> **Vision** : Permettre à Scapin d'interroger TOUTES les sources d'information disponibles
+> pour enrichir les notes et améliorer l'analyse. Le Cross-Source est le cerveau étendu.
+
+### Architecture Cross-Source
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      CrossSourceEngine                               │
+│                                                                      │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
+│  │   Emails    │ │  Calendar   │ │    Teams    │ │  WhatsApp   │   │
+│  │  (archivés) │ │  (events)   │ │ (messages)  │ │ (history)   │   │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘ └──────┬──────┘   │
+│         │               │               │               │           │
+│  ┌──────┴───────────────┴───────────────┴───────────────┴──────┐   │
+│  │                     Unified Search Index                      │   │
+│  │          (entités, dates, personnes, projets)                │   │
+│  └──────────────────────────┬───────────────────────────────────┘   │
+│                             │                                        │
+│  ┌─────────────┐ ┌─────────┴─────────┐ ┌─────────────┐              │
+│  │   Files     │ │   AI Internet     │ │    Notes    │              │
+│  │  (local)    │ │   (web search)    │ │ (Passepartout)             │
+│  └─────────────┘ └───────────────────┘ └─────────────┘              │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+        ┌─────────────────────────────────────────┐
+        │           Utilisateurs                   │
+        │                                          │
+        │  1. NoteReviewer (révision automatique) │
+        │  2. ReasoningEngine (analyse emails)    │
+        │  3. DiscussionService (chat contextuel) │
+        │  4. BriefingGenerator (briefings)       │
+        └─────────────────────────────────────────┘
+```
+
+### Livrables
+
+| Catégorie | Item | Priorité | Statut |
+|-----------|------|----------|--------|
+| **Core Engine** | CrossSourceEngine service | MVP | ✅ |
+| | Unified search interface (models, cache, config) | MVP | ✅ |
+| | Query routing intelligent | MVP | ✅ |
+| **Sources Existantes** | Adapter: Emails archivés (IMAP search) | MVP | ✅ |
+| | Adapter: Calendrier (événements passés/futurs) | MVP | ✅ |
+| | Adapter: Teams (historique messages) | MVP | ✅ |
+| **Nouvelles Sources** | Adapter: WhatsApp (historique SQLite) | MVP | ⬜ |
+| | Adapter: Fichiers locaux (ripgrep) | MVP | ⬜ |
+| | Adapter: Web/Internet (Tavily API) | MVP | ⬜ |
+| **Intégration Pipeline** | Hook dans ReasoningEngine (Pass 2+) | MVP | ⬜ |
+| | Hook dans NoteReviewer | MVP | ⬜ |
+| | API: POST /api/search/cross-source | MVP | ⬜ |
+
+### Cas d'Usage
+
+#### 1. Révision de Note (NoteReviewer)
+
+```
+Note "Marie Dupont" (type: PERSONNE) → Révision due
+    ↓
+CrossSourceEngine.search(entity="Marie Dupont", types=["email", "calendar", "teams", "whatsapp"])
+    ↓
+Résultats:
+  - 3 emails échangés cette semaine
+  - 1 réunion prévue demain
+  - 2 messages Teams non lus
+  - 1 conversation WhatsApp récente
+    ↓
+NoteReviewer: Propositions d'enrichissement
+  - Ajouter "Réunion projet X prévue le 10/01"
+  - Mettre à jour "Dernier contact: 08/01/2026"
+```
+
+#### 2. Analyse Email (ReasoningEngine)
+
+```
+Email de "Client Important" → Analyse Pass 1
+    ↓
+Confiance < 80% + sujet complexe
+    ↓
+CrossSourceEngine.search(
+    query="Client Important projet Y budget",
+    types=["notes", "email_archive", "files", "web"]
+)
+    ↓
+Contexte enrichi:
+  - Note "Client Important" avec historique
+  - Emails précédents sur le projet Y
+  - Fichier devis_projet_Y.pdf
+  - Recherche web: actualités du client
+    ↓
+Pass 2 avec contexte complet → Confiance 95%
+```
+
+#### 3. Chat Contextuel (Discussions)
+
+```
+User: "Qu'est-ce qu'on avait dit avec Pierre sur le budget ?"
+    ↓
+CrossSourceEngine.search(
+    query="Pierre budget",
+    types=["email", "teams", "whatsapp", "notes", "calendar"]
+)
+    ↓
+Scapin: "D'après mes recherches:
+  - Email du 15/12: Pierre proposait 50k€
+  - Teams le 20/12: Discussion ajustement à 45k€
+  - Note 'Projet Alpha': Budget validé 47k€
+  - WhatsApp 02/01: Pierre confirme le GO"
+```
+
+### Sources Détaillées
+
+| Source | Accès | Données Recherchées |
+|--------|-------|---------------------|
+| **Emails archivés** | IMAP SEARCH | Sujet, corps, expéditeur, dates |
+| **Calendrier** | Graph API | Événements, participants, notes |
+| **Teams** | Graph API | Messages, mentions, fichiers partagés |
+| **WhatsApp** | MCP Server | Messages texte, dates, contacts |
+| **Fichiers locaux** | Filesystem + ripgrep | Contenu texte, PDF, Office |
+| **Web/Internet** | AI Search (Perplexity/Tavily) | Actualités, contexte externe |
+| **Notes** | Passepartout (existant) | Contenu, entités, wikilinks |
+
+### Configuration
+
+```yaml
+# config/cross_source.yaml
+cross_source:
+  enabled: true
+
+  sources:
+    email_archive:
+      enabled: true
+      max_results: 20
+      search_body: true
+      date_range_days: 365
+
+    calendar:
+      enabled: true
+      past_days: 90
+      future_days: 30
+
+    teams:
+      enabled: true
+      max_messages: 50
+
+    whatsapp:
+      enabled: true  # Requires MCP server
+      mcp_server: "whatsapp-mcp"
+
+    files:
+      enabled: true
+      paths:
+        - "~/Documents"
+        - "~/Downloads"
+      extensions: [".pdf", ".docx", ".txt", ".md"]
+      max_file_size_mb: 10
+
+    web_search:
+      enabled: true
+      provider: "tavily"  # or "perplexity"
+      api_key: ${WEB_SEARCH_API_KEY}
+      max_results: 5
+
+  # Quand déclencher la recherche cross-source
+  triggers:
+    note_review: true
+    analysis_low_confidence: true  # < 80%
+    explicit_request: true  # User demande plus d'infos
+```
+
+### Valeur Délivrée
+
+- **Extended Mind complet** : Accès à TOUTE l'information disponible
+- **Révisions enrichies** : Notes mises à jour avec contexte multi-sources
+- **Analyse profonde** : Emails analysés avec tout le contexte nécessaire
+- **Proactivité** : Scapin trouve l'information avant qu'on la demande
+
+---
+
 ## Sprint 4 : Temps Réel & UX
 
 **Statut** : 📋 Planifié
 **Objectif** : Expérience fluide et réactive
-**Items** : 14 MVP
-**Dépendance** : Sprint 3
+**Items** : 18 MVP
+**Dépendance** : Sprint Cross-Source
 
 ### Livrables
 
@@ -407,6 +607,10 @@ Implémenté en parallèle du Sprint 3 :
 | | /ws/notifications - push | MVP |
 | **Notifications** | CRUD /api/notifications | MVP |
 | | Centre de Notifications (panneau) | MVP |
+| **Valets Dashboard** 🆕 | UI: Statut workers (running/idle/paused) | MVP |
+| | UI: Activité NoteReviewer en cours | MVP |
+| | UI: Visualisation travail d'équipe valets | MVP |
+| | API: GET /api/valets/status | MVP |
 | **UX Avancée** | Raccourcis clavier complets | MVP |
 | | Quick Actions dans Briefing | MVP |
 | | Mode Focus / Do Not Disturb | MVP |
@@ -415,6 +619,40 @@ Implémenté en parallèle du Sprint 3 :
 | **Settings** | Onglets Comptes/Intégrations/IA | MVP |
 | **Stats** | Page Stats avec Pipeline valets | MVP |
 | **Legacy** | Finir Menu Interactif CLI (20%) | MVP |
+
+### Valets Dashboard (Nouveau)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    🎭 L'Équipe Scapin                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
+│  │ Trivelin │  │  Sancho  │  │Passepartout│ │ Planchet │        │
+│  │  👁️ IDLE │  │ 🧠 BUSY  │  │ 📚 REVIEW │  │ 📋 IDLE │        │
+│  │          │  │ Email #42│  │ Note #17  │  │          │        │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
+│                                                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────────────────┐  │
+│  │  Figaro  │  │Sganarelle│  │ Background Worker            │  │
+│  │ ⚡ EXEC  │  │ 📊 LEARN │  │ ████████░░ 8/50 reviews/jour │  │
+│  │ Archive  │  │ Pattern  │  │ Session: 2:34/5:00           │  │
+│  └──────────┘  └──────────┘  └──────────────────────────────┘  │
+│                                                                  │
+│  Dernière activité:                                              │
+│  • 14:23 Sancho: Email analysé → Archive/Travail (conf: 92%)   │
+│  • 14:21 Passepartout: Note "Marie Dupont" révisée (q=4)       │
+│  • 14:20 Figaro: Email #41 archivé                              │
+│  • 14:18 Sganarelle: Pattern détecté "emails Acme = Archive"   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Fonctionnalités** :
+- Statut en temps réel de chaque valet (idle, busy, error)
+- Tâche en cours pour les valets actifs
+- Progression du Background Worker (reviews/jour, temps session)
+- Timeline des dernières actions
+- Indicateurs visuels (couleurs, animations)
 
 ### Valeur Délivrée
 
@@ -554,15 +792,16 @@ Interfaces:        ████████████████████ 
 === MVP EN COURS ===
 Sprint 1 (Notes):  ████████████████████ 100% ✅ (19/19)
 Sprint 2 (Analyse):████████████████████ 100% ✅ (13/13)
-Sprint 3 (Actions):░░░░░░░░░░░░░░░░░░░░   0% 📋
+Sprint 3 (Actions):███████████░░░░░░░░░  56% 🚧 (10/18)
+Cross-Source 🔥:   ██████████░░░░░░░░░░  50% 🚧 (6/12)
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░   0% 📋
 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        ███████████░░░░░░░░░  47% (32 MVP complétés sur 68)
-                   → 36 items restants
+Global MVP:        ██████████░░░░░░░░░░  42% (42 MVP complétés sur 86)
+                   → 44 items restants
 ```
 
 ### Items par Sprint
@@ -571,10 +810,11 @@ Global MVP:        ███████████░░░░░░░░░ 
 |--------|-----------|-----------|--------|
 | Sprint 1 | 19 | 19 | ✅ 100% |
 | Sprint 2 | 13 | 13 | ✅ 100% |
-| Sprint 3 | 16 | 0 | 📋 Planifié |
-| Sprint 4 | 14 | 0 | 📋 Planifié |
+| Sprint 3 | 18 | 10 | 🚧 56% |
+| **Cross-Source** 🔥 | **12** | **6** | 🚧 **50%** |
+| Sprint 4 | 18 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **68** | **32** | 47% |
+| **Total MVP** | **86** | **48** | 56% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---

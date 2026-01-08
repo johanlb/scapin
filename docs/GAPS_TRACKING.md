@@ -1,9 +1,10 @@
 # Suivi des Écarts — Scapin
 
 **Dernière mise à jour** : 8 janvier 2026
-**Total items** : 117
-**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 57
-**Sprint actuel** : Sprint 3 — Workflow & Actions (10/18 — 56%)
+**Total items** : 132
+**MVP** : 79 | **Nice-to-have** : 53 | **Complétés** : 44
+**Sprint actuel** : Sprint Cross-Source — Phase 2 (6/12 — 50%)
+**Prochaine priorité** : Sprint 3 Finalisation + Cross-Source Phase 3
 
 ---
 
@@ -287,6 +288,56 @@
 
 ---
 
+## 13. 🔥 Cross-Source Intelligence (12 items — 6 complétés) — PRIORITÉ
+
+> **Vision** : Permettre à Scapin d'interroger TOUTES les sources d'information disponibles
+> pour enrichir les notes et améliorer l'analyse.
+>
+> **Phase 2 complétée** : Core Engine + Email/Calendar/Teams Adapters (63 tests)
+
+### Core Engine (3) — ✅ COMPLÉTÉ
+| Status | Item | Priorité |
+|--------|------|----------|
+| ✅ | CrossSourceEngine service | MVP |
+| ✅ | Unified search interface (models, cache, config) | MVP |
+| ✅ | Query routing intelligent | MVP |
+
+### Adapters Sources Existantes (3) — ✅ COMPLÉTÉ
+| Status | Item | Priorité |
+|--------|------|----------|
+| ✅ | Adapter: Emails archivés (IMAP search) | MVP |
+| ✅ | Adapter: Calendrier (événements passés/futurs) | MVP |
+| ✅ | Adapter: Teams (historique messages) | MVP |
+
+### Adapters Nouvelles Sources (3)
+| Status | Item | Priorité |
+|--------|------|----------|
+| ⬜ | Adapter: WhatsApp (historique SQLite local) | MVP |
+| ⬜ | Adapter: Fichiers locaux (ripgrep) | MVP |
+| ⬜ | Adapter: Web/Internet (Tavily API) | MVP |
+
+### Intégration Pipeline (3)
+| Status | Item | Priorité |
+|--------|------|----------|
+| ⬜ | Hook dans ReasoningEngine (Pass 2+ si confiance < 75%) | MVP |
+| ⬜ | Hook dans NoteReviewer (enrichissement révisions) | MVP |
+| ⬜ | API: POST /api/search/cross-source | MVP |
+
+---
+
+## 14. Valets Dashboard (4 items)
+
+> **Vision** : Visualiser le travail d'équipe des valets en temps réel.
+
+| Status | Item | Priorité |
+|--------|------|----------|
+| ⬜ | UI: Statut workers (running/idle/paused) | MVP |
+| ⬜ | UI: Activité NoteReviewer en cours | MVP |
+| ⬜ | UI: Visualisation travail d'équipe valets | MVP |
+| ⬜ | API: GET /api/valets/status | MVP |
+
+---
+
 ## Résumé par Catégorie
 
 | Catégorie | Total | MVP | Nice-to-have |
@@ -303,19 +354,24 @@
 | Phase 0.9+ | 3 | 0 | 3 |
 | UI Components | 6 | 6 | 0 |
 | Qualité & Docs | 3 | 3 | 0 |
-| **TOTAL** | **116** | **63** | **53** |
+| **🔥 Cross-Source** | **12** | **12** | **0** |
+| **Valets Dashboard** | **4** | **4** | **0** |
+| **TOTAL** | **132** | **79** | **53** |
 
 ---
 
 ## Progression
 
 ```
-MVP:          ██████░░░░░░░░░░░░░░ 20/63 (32%)
+MVP:          ███████████░░░░░░░░░ 48/79 (61%)
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
-Total:        ████░░░░░░░░░░░░░░░░ 23/116 (20%)
+Total:        █████████░░░░░░░░░░░ 51/132 (39%)
 
 Sprint 1:     ████████████████████ 19/19 (100%) ✅
-Sprint 2:     ██████████████░░░░░░ 10/14 (71%) 🚧
+Sprint 2:     ████████████████████ 13/13 (100%) ✅
+Sprint 3:     ███████████░░░░░░░░░ 10/18 (56%) 🚧
+Cross-Source: ██████████░░░░░░░░░░  6/12 (50%) 🚧 🔥 Phase 2 ✅
+Valets Dash:  ░░░░░░░░░░░░░░░░░░░░  0/4 (0%) 📋
 ```
 
 ---
@@ -324,6 +380,10 @@ Sprint 2:     ██████████████░░░░░░ 10/14
 
 | Date | Action |
 |------|--------|
+| 2026-01-08 | **Cross-Source Phase 2 ✅** — Calendar + Teams Adapters (63 tests total) |
+| 2026-01-08 | **Cross-Source Phase 1 ✅** — Core Engine + Email Adapter (34 tests) |
+| 2026-01-08 | **🔥 Cross-Source AJOUTÉ** — 12 items MVP prioritaires (emails archivés, calendar, teams, whatsapp, files, web search) |
+| 2026-01-08 | **Valets Dashboard AJOUTÉ** — 4 items MVP (statut workers, activité reviewer, visualisation équipe) |
 | 2026-01-07 | **Discussions Frontend COMPLÉTÉ** — Store Svelte 5, page intégrée, modal création, vue détail |
 | 2026-01-06 | **Sprint 1 COMPLÉTÉ** — 19/19 items (100%) |
 | 2026-01-06 | **Security Hardening** — Analyse profonde + corrections sécurité avant Sprint 2 |
