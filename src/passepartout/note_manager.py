@@ -8,8 +8,9 @@ Provides semantic search via vector store integration.
 import hashlib
 import re
 import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -22,6 +23,9 @@ from src.passepartout.git_versioning import GitVersionManager
 from src.passepartout.vector_store import VectorStore
 
 logger = get_logger("passepartout.note_manager")
+
+# LRU Cache configuration
+DEFAULT_CACHE_MAX_SIZE = 500  # Maximum notes to keep in memory
 
 
 @dataclass
@@ -83,6 +87,7 @@ class NoteManager:
         embedder: Optional[EmbeddingGenerator] = None,
         auto_index: bool = True,
         git_enabled: bool = True,
+        cache_max_size: int = DEFAULT_CACHE_MAX_SIZE,
     ):
         """
         Initialize note manager
@@ -93,6 +98,7 @@ class NoteManager:
             embedder: EmbeddingGenerator instance (creates new if None)
             auto_index: Whether to automatically index existing notes on init
             git_enabled: Whether to enable Git versioning
+            cache_max_size: Maximum number of notes to keep in LRU cache
 
         Raises:
             ValueError: If notes_dir is invalid
@@ -117,8 +123,9 @@ class NoteManager:
                 logger.warning(f"Failed to initialize Git versioning: {e}")
                 self.git = None
 
-        # In-memory note cache: note_id → Note
-        self._note_cache: dict[str, Note] = {}
+        # LRU cache: OrderedDict maintains insertion order for LRU eviction
+        self._note_cache: OrderedDict[str, Note] = OrderedDict()
+        self._cache_max_size = cache_max_size
         self._cache_lock = threading.RLock()  # Thread-safety for cache operations
 
         logger.info(
@@ -127,12 +134,30 @@ class NoteManager:
                 "notes_dir": str(self.notes_dir),
                 "auto_index": auto_index,
                 "git_enabled": self.git is not None,
+                "cache_max_size": cache_max_size,
             }
         )
 
         # Index existing notes
         if auto_index:
             self._index_all_notes()
+
+    def _cache_put(self, note_id: str, note: Note) -> None:
+        """
+        Add note to LRU cache with eviction (must hold _cache_lock)
+
+        Moves existing entries to end (most recently used).
+        Evicts oldest entries when cache exceeds max size.
+        """
+        # If key exists, move it to end (most recently used)
+        if note_id in self._note_cache:
+            self._note_cache.move_to_end(note_id)
+        self._note_cache[note_id] = note
+
+        # Evict oldest entries if over capacity
+        while len(self._note_cache) > self._cache_max_size:
+            evicted_id, _ = self._note_cache.popitem(last=False)
+            logger.debug(f"LRU cache evicted: {evicted_id}")
 
     def create_note(
         self,
@@ -165,10 +190,10 @@ class NoteManager:
             raise ValueError("Note content cannot be empty")
 
         # Generate note ID from title and timestamp
-        timestamp = datetime.now().isoformat()
+        now = datetime.now(timezone.utc)
+        timestamp = now.isoformat()
         note_id = self._generate_note_id(title, timestamp)
 
-        now = datetime.now()
         note = Note(
             note_id=note_id,
             title=title.strip(),
@@ -198,9 +223,9 @@ class NoteManager:
             }
         )
 
-        # Cache (thread-safe)
+        # Cache with LRU eviction (thread-safe)
         with self._cache_lock:
-            self._note_cache[note_id] = note
+            self._cache_put(note_id, note)
 
         # Git commit
         if self.git:
@@ -220,7 +245,7 @@ class NoteManager:
 
     def get_note(self, note_id: str) -> Optional[Note]:
         """
-        Get note by ID (thread-safe)
+        Get note by ID (thread-safe with LRU update)
 
         Args:
             note_id: Note identifier
@@ -231,6 +256,8 @@ class NoteManager:
         # Check cache first (thread-safe)
         with self._cache_lock:
             if note_id in self._note_cache:
+                # Move to end (most recently used)
+                self._note_cache.move_to_end(note_id)
                 return self._note_cache[note_id]
 
         # Try to load from file
@@ -241,7 +268,7 @@ class NoteManager:
         note = self._read_note_file(file_path)
         if note:
             with self._cache_lock:
-                self._note_cache[note_id] = note
+                self._cache_put(note_id, note)
 
         return note
 
@@ -296,7 +323,7 @@ class NoteManager:
         if metadata is not None:
             note.metadata.update(metadata)
 
-        note.updated_at = datetime.now()
+        note.updated_at = datetime.now(timezone.utc)
 
         # Write to file
         file_path = self._get_note_path(note_id)
@@ -499,7 +526,7 @@ class NoteManager:
                 if note:
                     result[note_id] = note
                     with self._cache_lock:
-                        self._note_cache[note_id] = note
+                        self._cache_put(note_id, note)
 
         logger.debug(
             "Batch loaded notes",
@@ -529,7 +556,7 @@ class NoteManager:
             if note:
                 notes.append(note)
                 with self._cache_lock:
-                    self._note_cache[note.note_id] = note
+                    self._cache_put(note.note_id, note)
 
             # Apply limit if specified
             if limit is not None and len(notes) >= limit:
@@ -564,7 +591,7 @@ class NoteManager:
                         )
 
                     with self._cache_lock:
-                        self._note_cache[note.note_id] = note
+                        self._cache_put(note.note_id, note)
                     count += 1
             except Exception as e:
                 logger.warning(f"Failed to index note {file_path}: {e}")

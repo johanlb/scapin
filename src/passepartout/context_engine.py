@@ -181,52 +181,59 @@ class ContextEngine:
         """
         Internal context retrieval logic (async)
 
-        Runs I/O-bound retrieval methods in thread executor to avoid blocking.
+        Runs I/O-bound retrieval methods in parallel using thread executor.
         """
         start_time = time.time()
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         context_candidates: list[tuple[ContextItem, float]] = []
         sources_used = []
 
-        # 1. Entity-based retrieval (run in thread to avoid blocking)
+        # Prepare parallel retrieval tasks
+        tasks = []
+        task_sources = []
+
+        # 1. Entity-based retrieval
         if self.entity_weight > 0 and event.entities:
-            entity_contexts = await loop.run_in_executor(
+            tasks.append(loop.run_in_executor(
                 None,
                 lambda: self._retrieve_by_entities(event.entities, top_k=10)
-            )
-            # Apply memory bound while collecting
-            remaining = self.max_candidates - len(context_candidates)
-            for ctx in entity_contexts[:remaining]:
-                context_candidates.append((ctx, self.entity_weight))
-            if entity_contexts:
-                sources_used.append("entity")
+            ))
+            task_sources.append(("entity", self.entity_weight))
 
-        # 2. Semantic retrieval (run in thread to avoid blocking)
-        if self.semantic_weight > 0 and len(context_candidates) < self.max_candidates:
-            semantic_contexts = await loop.run_in_executor(
+        # 2. Semantic retrieval
+        if self.semantic_weight > 0:
+            tasks.append(loop.run_in_executor(
                 None,
-                lambda: self._retrieve_by_semantic(event, top_k=10)
-            )
-            # Apply memory bound while collecting
-            remaining = self.max_candidates - len(context_candidates)
-            for ctx in semantic_contexts[:remaining]:
-                context_candidates.append((ctx, self.semantic_weight))
-            if semantic_contexts:
-                sources_used.append("semantic")
+                lambda e=event: self._retrieve_by_semantic(e, top_k=10)
+            ))
+            task_sources.append(("semantic", self.semantic_weight))
 
-        # 3. Thread-based retrieval (run in thread to avoid blocking)
-        if self.thread_weight > 0 and event.thread_id and len(context_candidates) < self.max_candidates:
-            thread_contexts = await loop.run_in_executor(
+        # 3. Thread-based retrieval
+        if self.thread_weight > 0 and event.thread_id:
+            thread_id = event.thread_id  # Capture for lambda
+            tasks.append(loop.run_in_executor(
                 None,
-                lambda: self._retrieve_by_thread(event.thread_id, top_k=5)
-            )
-            # Apply memory bound while collecting
-            remaining = self.max_candidates - len(context_candidates)
-            for ctx in thread_contexts[:remaining]:
-                context_candidates.append((ctx, self.thread_weight))
-            if thread_contexts:
-                sources_used.append("thread")
+                lambda tid=thread_id: self._retrieve_by_thread(tid, top_k=5)
+            ))
+            task_sources.append(("thread", self.thread_weight))
+
+        # Execute all retrievals in parallel
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for (source_name, weight), result in zip(task_sources, results):
+                if isinstance(result, Exception):
+                    logger.warning(f"{source_name} retrieval failed: {result}")
+                    continue
+
+                contexts = result
+                # Apply memory bound while collecting
+                remaining = self.max_candidates - len(context_candidates)
+                for ctx in contexts[:remaining]:
+                    context_candidates.append((ctx, weight))
+                if contexts:
+                    sources_used.append(source_name)
 
         # Log if we hit memory bound
         if len(context_candidates) >= self.max_candidates:

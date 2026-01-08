@@ -5,6 +5,7 @@ Enriches notes using AI analysis and optional web search.
 Generates enrichment suggestions with confidence scores.
 """
 
+import asyncio
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -407,30 +408,49 @@ class EnrichmentPipeline:
         self,
         notes: list[tuple[Note, NoteMetadata]],
         max_enrichments_per_note: int = 5,
+        max_concurrent: int = 10,
     ) -> dict[str, EnrichmentResult]:
         """
-        Process enrichments for a batch of notes
+        Process enrichments for a batch of notes in parallel
 
         Args:
             notes: List of (Note, NoteMetadata) tuples
             max_enrichments_per_note: Maximum enrichments to keep per note
+            max_concurrent: Maximum concurrent enrichment tasks
 
         Returns:
             Dictionary mapping note_id to EnrichmentResult
         """
-        results = {}
+        results: dict[str, EnrichmentResult] = {}
 
-        for note, metadata in notes:
-            result = await self.enricher.enrich(note, metadata)
+        # Use semaphore to limit concurrency
+        semaphore = asyncio.Semaphore(max_concurrent)
 
-            # Filter and sort enrichments by confidence
-            result.enrichments = sorted(
-                result.enrichments,
-                key=lambda e: e.confidence,
-                reverse=True,
-            )[:max_enrichments_per_note]
+        async def enrich_note(note: Note, metadata: NoteMetadata) -> tuple[str, EnrichmentResult]:
+            async with semaphore:
+                result = await self.enricher.enrich(note, metadata)
 
-            results[note.note_id] = result
+                # Filter and sort enrichments by confidence
+                result.enrichments = sorted(
+                    result.enrichments,
+                    key=lambda e: e.confidence,
+                    reverse=True,
+                )[:max_enrichments_per_note]
+
+                return note.note_id, result
+
+        # Create tasks for all notes
+        tasks = [enrich_note(note, metadata) for note, metadata in notes]
+
+        # Execute all tasks in parallel with exception handling
+        task_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for task_result in task_results:
+            if isinstance(task_result, Exception):
+                logger.warning(f"Enrichment task failed: {task_result}")
+                continue
+            note_id, enrichment_result = task_result
+            results[note_id] = enrichment_result
 
         return results
 

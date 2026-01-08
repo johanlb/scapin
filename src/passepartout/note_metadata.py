@@ -5,6 +5,7 @@ SQLite storage for note review metadata and spaced repetition data.
 Separates revision metadata from note content for performance and flexibility.
 """
 
+import contextlib
 import hashlib
 import json
 import sqlite3
@@ -243,6 +244,11 @@ class NoteMetadataStore:
                     break
             logger.debug("Closed connection pool")
 
+    def __del__(self) -> None:
+        """Ensure connection pool is closed on garbage collection"""
+        with contextlib.suppress(Exception):
+            self.close()
+
     def _init_db(self) -> None:
         """Initialize database schema"""
         with self._get_connection() as conn:
@@ -437,7 +443,7 @@ class NoteMetadataStore:
         self,
         limit: int = 50,
         note_types: list[NoteType] | None = None,
-        importance_min: ImportanceLevel = ImportanceLevel.LOW,  # noqa: ARG002
+        importance_min: ImportanceLevel = ImportanceLevel.LOW,
     ) -> list[NoteMetadata]:
         """
         Get notes due for review
@@ -445,23 +451,41 @@ class NoteMetadataStore:
         Args:
             limit: Maximum number of notes to return
             note_types: Filter by note types (None = all)
-            importance_min: Minimum importance level
+            importance_min: Minimum importance level to include
 
         Returns:
             List of NoteMetadata due for review, ordered by priority
         """
         now = datetime.now(timezone.utc).isoformat()
 
+        # Map importance levels to numeric values for comparison
+        # Lower numeric value = higher importance
+        importance_order = {
+            ImportanceLevel.CRITICAL: 1,
+            ImportanceLevel.HIGH: 2,
+            ImportanceLevel.NORMAL: 3,
+            ImportanceLevel.LOW: 4,
+            ImportanceLevel.ARCHIVE: 5,
+        }
+        min_importance_value = importance_order.get(importance_min, 4)
+
+        # Build list of allowed importance levels
+        allowed_importance = [
+            level.value for level, value in importance_order.items()
+            if value <= min_importance_value and level != ImportanceLevel.ARCHIVE
+        ]
+
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
             # Build query with filters
-            query = """
+            placeholders_importance = ",".join("?" * len(allowed_importance))
+            query = f"""
                 SELECT * FROM note_metadata
                 WHERE (next_review IS NULL OR next_review <= ?)
-                AND importance != 'archive'
+                AND importance IN ({placeholders_importance})
             """
-            params: list = [now]
+            params: list = [now, *allowed_importance]
 
             if note_types:
                 placeholders = ",".join("?" * len(note_types))
