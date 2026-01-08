@@ -122,3 +122,74 @@ class RecentSearchesResponse(BaseModel):
         default_factory=list, description="Recent search queries"
     )
     total: int = Field(0, description="Total number of recent searches")
+
+
+# =============================================================================
+# Cross-Source Search Models
+# =============================================================================
+
+
+class CrossSourceType(str, Enum):
+    """Types of sources for cross-source search"""
+
+    EMAIL = "email"
+    CALENDAR = "calendar"
+    ICLOUD_CALENDAR = "icloud_calendar"
+    TEAMS = "teams"
+    WHATSAPP = "whatsapp"
+    FILES = "files"
+    WEB = "web"
+
+
+class CrossSourceSearchRequest(BaseModel):
+    """Request for cross-source search"""
+
+    query: str = Field(..., min_length=1, max_length=500, description="Search query")
+    sources: list[CrossSourceType] | None = Field(
+        None, description="Sources to search (default: all available)"
+    )
+    max_results: int = Field(20, ge=1, le=100, description="Maximum total results")
+    min_relevance: float = Field(
+        0.3, ge=0.0, le=1.0, description="Minimum relevance score threshold"
+    )
+    include_content: bool = Field(
+        True, description="Include full content in results"
+    )
+
+
+class CrossSourceResultItem(BaseModel):
+    """A single result from cross-source search"""
+
+    source: str = Field(..., description="Source type (email, calendar, teams, etc.)")
+    type: str = Field(..., description="Item type (event, message, email, etc.)")
+    title: str = Field(..., description="Item title")
+    content: str = Field("", description="Item content/excerpt")
+    timestamp: datetime | None = Field(None, description="Item timestamp")
+    relevance_score: float = Field(
+        0.0, ge=0.0, le=1.0, description="Raw relevance score"
+    )
+    final_score: float = Field(
+        0.0, ge=0.0, le=1.0, description="Final weighted score"
+    )
+    url: str | None = Field(None, description="URL/link to the item")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Source-specific metadata"
+    )
+
+
+class CrossSourceSearchResponse(BaseModel):
+    """Response from cross-source search"""
+
+    query: str = Field(..., description="Original search query")
+    items: list[CrossSourceResultItem] = Field(
+        default_factory=list, description="Search results"
+    )
+    total_results: int = Field(0, description="Total number of results")
+    sources_searched: list[str] = Field(
+        default_factory=list, description="Sources that were searched"
+    )
+    sources_available: list[str] = Field(
+        default_factory=list, description="All available sources"
+    )
+    search_time_ms: float = Field(0, description="Search execution time in milliseconds")
+    cached: bool = Field(False, description="Whether results were from cache")

@@ -12,6 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.core.config_manager import get_config
 from src.jeeves.api.models.responses import APIResponse
 from src.jeeves.api.models.search import (
+    CrossSourceSearchRequest,
+    CrossSourceSearchResponse,
     GlobalSearchResponse,
     RecentSearchesResponse,
     SearchResultType,
@@ -114,6 +116,48 @@ async def get_recent_searches(
     """
     try:
         results = await service.get_recent_searches(limit=limit)
+        return APIResponse(
+            success=True,
+            data=results,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/cross-source", response_model=APIResponse[CrossSourceSearchResponse])
+async def cross_source_search(
+    request: CrossSourceSearchRequest,
+    service: SearchService = Depends(_get_search_service),
+) -> APIResponse[CrossSourceSearchResponse]:
+    """
+    Search across all available sources using CrossSourceEngine
+
+    Unified search across calendar, Teams, emails, and other configured sources.
+    Uses intelligent ranking to return the most relevant results.
+
+    Request body:
+    - query: Search query (required)
+    - sources: List of sources to search (optional, default: all available)
+    - max_results: Maximum results to return (default: 20, max: 100)
+    - min_relevance: Minimum relevance score threshold (default: 0.3)
+    - include_content: Include full content in results (default: true)
+
+    Available sources:
+    - email: Archived emails
+    - calendar: Microsoft Calendar events
+    - icloud_calendar: iCloud Calendar events
+    - teams: Teams messages
+    - whatsapp: WhatsApp messages (if configured)
+    - files: Local files (if configured)
+    - web: Web search (if configured)
+
+    Examples:
+    - POST /api/search/cross-source {"query": "meeting with John"}
+    - POST /api/search/cross-source {"query": "project update", "sources": ["calendar", "teams"]}
+    """
+    try:
+        results = await service.cross_source_search(request)
         return APIResponse(
             success=True,
             data=results,

@@ -14,6 +14,9 @@ from src.core.config_manager import ScapinConfig
 from src.integrations.storage.queue_storage import QueueStorage
 from src.jeeves.api.models.search import (
     CalendarSearchResultItem,
+    CrossSourceResultItem,
+    CrossSourceSearchRequest,
+    CrossSourceSearchResponse,
     EmailSearchResultItem,
     GlobalSearchResponse,
     NoteSearchResultItem,
@@ -417,3 +420,109 @@ class SearchService:
             searches=searches,
             total=len(self._recent_searches),
         )
+
+    async def cross_source_search(
+        self,
+        request: CrossSourceSearchRequest,
+    ) -> CrossSourceSearchResponse:
+        """
+        Search across all available sources using CrossSourceEngine
+
+        Uses the unified CrossSourceEngine to search calendar, Teams,
+        emails, and other sources with intelligent ranking.
+
+        Args:
+            request: Cross-source search request with query and options
+
+        Returns:
+            CrossSourceSearchResponse with results from all sources
+        """
+        start_time = time.time()
+        logger.info(
+            f"Cross-source search: '{request.query}'",
+            extra={
+                "sources": [s.value for s in request.sources] if request.sources else "all",
+                "max_results": request.max_results,
+            }
+        )
+
+        try:
+            # Import and create CrossSourceEngine
+            from src.passepartout.cross_source import create_cross_source_engine
+
+            engine = create_cross_source_engine(self.config)
+
+            # Filter sources if specified
+            sources_filter = None
+            if request.sources:
+                sources_filter = [s.value for s in request.sources]
+
+            # Execute search
+            result = await engine.search(
+                query=request.query,
+                sources=sources_filter,
+                max_results=request.max_results,
+            )
+
+            # Convert SourceItem to CrossSourceResultItem
+            items = []
+            for source_item in result.items:
+                # Filter by min_relevance
+                score = source_item.final_score or source_item.relevance_score
+                if score < request.min_relevance:
+                    continue
+
+                content = source_item.content if request.include_content else ""
+                if len(content) > 500:
+                    content = content[:500] + "..."
+
+                items.append(
+                    CrossSourceResultItem(
+                        source=source_item.source,
+                        type=source_item.type,
+                        title=source_item.title,
+                        content=content,
+                        timestamp=source_item.timestamp,
+                        relevance_score=source_item.relevance_score,
+                        final_score=source_item.final_score or source_item.relevance_score,
+                        url=source_item.url,
+                        metadata=source_item.metadata,
+                    )
+                )
+
+            search_time_ms = (time.time() - start_time) * 1000
+
+            # Track recent search
+            self._add_recent_search(request.query, len(items))
+
+            logger.info(
+                f"Cross-source search completed: {len(items)} results in {search_time_ms:.1f}ms",
+                extra={
+                    "query": request.query,
+                    "total": len(items),
+                    "sources_searched": result.sources_searched,
+                },
+            )
+
+            return CrossSourceSearchResponse(
+                query=request.query,
+                items=items,
+                total_results=len(items),
+                sources_searched=result.sources_searched,
+                sources_available=engine.available_sources,
+                search_time_ms=search_time_ms,
+                cached=result.from_cache,
+            )
+
+        except Exception as e:
+            logger.error(f"Cross-source search failed: {e}", exc_info=True)
+            search_time_ms = (time.time() - start_time) * 1000
+            return CrossSourceSearchResponse(
+                query=request.query,
+                items=[],
+                total_results=0,
+                sources_searched=[],
+                sources_available=[],
+                search_time_ms=search_time_ms,
+                cached=False,
+            )

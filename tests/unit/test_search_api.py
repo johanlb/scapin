@@ -8,7 +8,7 @@ import json
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -27,13 +27,11 @@ from src.jeeves.api.models.search import (
     SearchResultType,
     TeamsSearchResultItem,
 )
-from src.jeeves.api.routers.search import router
 from src.jeeves.api.services.search_service import (
     SearchService,
     _highlight_matches,
     _text_match_score,
 )
-
 
 # =============================================================================
 # Model Tests
@@ -573,3 +571,399 @@ class TestSearchRouter:
 
         assert response.status_code == 200
         mock_service.get_recent_searches.assert_called_once_with(limit=50)
+
+
+# =============================================================================
+# Cross-Source Search Tests
+# =============================================================================
+
+
+class TestCrossSourceModels:
+    """Test cross-source search models"""
+
+    def test_cross_source_type_enum(self):
+        """Test CrossSourceType enum values"""
+        from src.jeeves.api.models.search import CrossSourceType
+
+        assert CrossSourceType.EMAIL.value == "email"
+        assert CrossSourceType.CALENDAR.value == "calendar"
+        assert CrossSourceType.ICLOUD_CALENDAR.value == "icloud_calendar"
+        assert CrossSourceType.TEAMS.value == "teams"
+        assert CrossSourceType.WHATSAPP.value == "whatsapp"
+        assert CrossSourceType.FILES.value == "files"
+        assert CrossSourceType.WEB.value == "web"
+
+    def test_cross_source_search_request(self):
+        """Test CrossSourceSearchRequest model"""
+        from src.jeeves.api.models.search import (
+            CrossSourceSearchRequest,
+            CrossSourceType,
+        )
+
+        request = CrossSourceSearchRequest(
+            query="meeting with John",
+            sources=[CrossSourceType.CALENDAR, CrossSourceType.TEAMS],
+            max_results=30,
+            min_relevance=0.5,
+            include_content=False,
+        )
+
+        assert request.query == "meeting with John"
+        assert len(request.sources) == 2
+        assert request.max_results == 30
+        assert request.min_relevance == 0.5
+        assert request.include_content is False
+
+    def test_cross_source_search_request_defaults(self):
+        """Test CrossSourceSearchRequest default values"""
+        from src.jeeves.api.models.search import CrossSourceSearchRequest
+
+        request = CrossSourceSearchRequest(query="test")
+
+        assert request.sources is None
+        assert request.max_results == 20
+        assert request.min_relevance == 0.3
+        assert request.include_content is True
+
+    def test_cross_source_result_item(self):
+        """Test CrossSourceResultItem model"""
+        from src.jeeves.api.models.search import CrossSourceResultItem
+
+        item = CrossSourceResultItem(
+            source="calendar",
+            type="event",
+            title="Team Meeting",
+            content="Weekly sync",
+            timestamp=datetime.now(timezone.utc),
+            relevance_score=0.9,
+            final_score=0.85,
+            url="https://calendar.com/event/123",
+            metadata={"attendees": 5},
+        )
+
+        assert item.source == "calendar"
+        assert item.type == "event"
+        assert item.title == "Team Meeting"
+        assert item.relevance_score == 0.9
+        assert item.final_score == 0.85
+        assert item.metadata["attendees"] == 5
+
+    def test_cross_source_search_response(self):
+        """Test CrossSourceSearchResponse model"""
+        from src.jeeves.api.models.search import (
+            CrossSourceResultItem,
+            CrossSourceSearchResponse,
+        )
+
+        response = CrossSourceSearchResponse(
+            query="test",
+            items=[
+                CrossSourceResultItem(
+                    source="email",
+                    type="message",
+                    title="Test email",
+                    relevance_score=0.8,
+                    final_score=0.75,
+                )
+            ],
+            total_results=1,
+            sources_searched=["email", "calendar"],
+            sources_available=["email", "calendar", "teams"],
+            search_time_ms=50.0,
+            cached=True,
+        )
+
+        assert response.query == "test"
+        assert len(response.items) == 1
+        assert response.total_results == 1
+        assert "email" in response.sources_searched
+        assert response.cached is True
+
+
+class TestCrossSourceService:
+    """Test cross-source search service"""
+
+    @pytest.fixture
+    def mock_config(self):
+        """Create mock config"""
+        config = MagicMock(spec=ScapinConfig)
+        config.notes_dir = None
+        return config
+
+    @pytest.fixture
+    def service(self, mock_config):
+        """Create service instance"""
+        return SearchService(config=mock_config)
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_basic(self, service):
+        """Test cross-source search with mocked engine"""
+        from src.jeeves.api.models.search import CrossSourceSearchRequest
+
+        # Create a mock SourceItem
+        mock_source_item = MagicMock()
+        mock_source_item.source = "calendar"
+        mock_source_item.type = "event"
+        mock_source_item.title = "Team Meeting"
+        mock_source_item.content = "Weekly sync"
+        mock_source_item.timestamp = datetime.now(timezone.utc)
+        mock_source_item.relevance_score = 0.9
+        mock_source_item.final_score = 0.85
+        mock_source_item.url = None
+        mock_source_item.metadata = {}
+
+        # Create mock search result
+        mock_result = MagicMock()
+        mock_result.items = [mock_source_item]
+        mock_result.sources_searched = ["calendar"]
+        mock_result.from_cache = False
+
+        # Mock the engine
+        mock_engine = MagicMock()
+        mock_engine.search = AsyncMock(return_value=mock_result)
+        mock_engine.available_sources = ["calendar", "email"]
+
+        with patch(
+            "src.passepartout.cross_source.create_cross_source_engine"
+        ) as mock_create:
+            mock_create.return_value = mock_engine
+
+            request = CrossSourceSearchRequest(query="meeting")
+            response = await service.cross_source_search(request)
+
+            assert response.query == "meeting"
+            assert response.total_results == 1
+            assert len(response.items) == 1
+            assert response.items[0].source == "calendar"
+            assert response.items[0].title == "Team Meeting"
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_with_source_filter(self, service):
+        """Test cross-source search with source filtering"""
+        from src.jeeves.api.models.search import (
+            CrossSourceSearchRequest,
+            CrossSourceType,
+        )
+
+        mock_result = MagicMock()
+        mock_result.items = []
+        mock_result.sources_searched = ["calendar"]
+        mock_result.from_cache = False
+
+        mock_engine = MagicMock()
+        mock_engine.search = AsyncMock(return_value=mock_result)
+        mock_engine.available_sources = ["calendar"]
+
+        with patch(
+            "src.passepartout.cross_source.create_cross_source_engine"
+        ) as mock_create:
+            mock_create.return_value = mock_engine
+
+            request = CrossSourceSearchRequest(
+                query="meeting",
+                sources=[CrossSourceType.CALENDAR],
+            )
+            await service.cross_source_search(request)
+
+            mock_engine.search.assert_called_once()
+            call_kwargs = mock_engine.search.call_args.kwargs
+            assert call_kwargs["sources"] == ["calendar"]
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_min_relevance_filter(self, service):
+        """Test that results below min_relevance are filtered out"""
+        from src.jeeves.api.models.search import CrossSourceSearchRequest
+
+        # Create items with different relevance scores
+        high_score_item = MagicMock()
+        high_score_item.source = "calendar"
+        high_score_item.type = "event"
+        high_score_item.title = "High Score"
+        high_score_item.content = "Content"
+        high_score_item.timestamp = datetime.now(timezone.utc)
+        high_score_item.relevance_score = 0.8
+        high_score_item.final_score = 0.8
+        high_score_item.url = None
+        high_score_item.metadata = {}
+
+        low_score_item = MagicMock()
+        low_score_item.source = "email"
+        low_score_item.type = "message"
+        low_score_item.title = "Low Score"
+        low_score_item.content = "Content"
+        low_score_item.timestamp = datetime.now(timezone.utc)
+        low_score_item.relevance_score = 0.2
+        low_score_item.final_score = 0.2
+        low_score_item.url = None
+        low_score_item.metadata = {}
+
+        mock_result = MagicMock()
+        mock_result.items = [high_score_item, low_score_item]
+        mock_result.sources_searched = ["calendar", "email"]
+        mock_result.from_cache = False
+
+        mock_engine = MagicMock()
+        mock_engine.search = AsyncMock(return_value=mock_result)
+        mock_engine.available_sources = ["calendar", "email"]
+
+        with patch(
+            "src.passepartout.cross_source.create_cross_source_engine"
+        ) as mock_create:
+            mock_create.return_value = mock_engine
+
+            request = CrossSourceSearchRequest(
+                query="test",
+                min_relevance=0.5,  # Should filter out low_score_item
+            )
+            response = await service.cross_source_search(request)
+
+            assert response.total_results == 1
+            assert response.items[0].title == "High Score"
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_error_handling(self, service):
+        """Test cross-source search handles errors gracefully"""
+        from src.jeeves.api.models.search import CrossSourceSearchRequest
+
+        with patch(
+            "src.passepartout.cross_source.create_cross_source_engine"
+        ) as mock_create:
+            mock_create.side_effect = Exception("Engine creation failed")
+
+            request = CrossSourceSearchRequest(query="test")
+            response = await service.cross_source_search(request)
+
+            # Should return empty response on error
+            assert response.query == "test"
+            assert response.total_results == 0
+            assert len(response.items) == 0
+
+
+class TestCrossSourceRouter:
+    """Test cross-source search router endpoint"""
+
+    @pytest.fixture
+    def mock_service(self):
+        """Create mock search service"""
+        service = MagicMock(spec=SearchService)
+        return service
+
+    @pytest.fixture
+    def app(self, mock_service):
+        """Create test FastAPI app with mocked service"""
+        from src.jeeves.api.routers import search as search_module
+
+        app = FastAPI()
+
+        def get_mock_service():
+            return mock_service
+
+        app.include_router(search_module.router, prefix="/api/search")
+        app.dependency_overrides[search_module._get_search_service] = get_mock_service
+
+        return app
+
+    @pytest.fixture
+    def client(self, app):
+        """Create test client"""
+        return TestClient(app)
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_endpoint(self, client, mock_service):
+        """Test POST /api/search/cross-source endpoint"""
+        from src.jeeves.api.models.search import (
+            CrossSourceResultItem,
+            CrossSourceSearchResponse,
+        )
+
+        mock_service.cross_source_search.return_value = CrossSourceSearchResponse(
+            query="meeting",
+            items=[
+                CrossSourceResultItem(
+                    source="calendar",
+                    type="event",
+                    title="Team Meeting",
+                    relevance_score=0.9,
+                    final_score=0.85,
+                )
+            ],
+            total_results=1,
+            sources_searched=["calendar"],
+            sources_available=["calendar", "email", "teams"],
+            search_time_ms=25.0,
+            cached=False,
+        )
+
+        response = client.post(
+            "/api/search/cross-source",
+            json={"query": "meeting"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["query"] == "meeting"
+        assert data["data"]["total_results"] == 1
+        assert len(data["data"]["items"]) == 1
+        assert data["data"]["items"][0]["source"] == "calendar"
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_with_options(self, client, mock_service):
+        """Test POST /api/search/cross-source with all options"""
+        from src.jeeves.api.models.search import CrossSourceSearchResponse
+
+        mock_service.cross_source_search.return_value = CrossSourceSearchResponse(
+            query="project update",
+            items=[],
+            total_results=0,
+            sources_searched=["calendar", "teams"],
+            sources_available=["calendar", "teams"],
+            search_time_ms=15.0,
+            cached=False,
+        )
+
+        response = client.post(
+            "/api/search/cross-source",
+            json={
+                "query": "project update",
+                "sources": ["calendar", "teams"],
+                "max_results": 50,
+                "min_relevance": 0.5,
+                "include_content": False,
+            },
+        )
+
+        assert response.status_code == 200
+        mock_service.cross_source_search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_query_required(self, client, mock_service):
+        """Test POST /api/search/cross-source requires query"""
+        response = client.post(
+            "/api/search/cross-source",
+            json={},
+        )
+
+        assert response.status_code == 422  # Validation error
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_query_min_length(self, client, mock_service):
+        """Test query minimum length validation"""
+        response = client.post(
+            "/api/search/cross-source",
+            json={"query": ""},
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_cross_source_search_error_response(self, client, mock_service):
+        """Test error handling in cross-source endpoint"""
+        mock_service.cross_source_search.side_effect = Exception("Search failed")
+
+        response = client.post(
+            "/api/search/cross-source",
+            json={"query": "test"},
+        )
+
+        assert response.status_code == 500
