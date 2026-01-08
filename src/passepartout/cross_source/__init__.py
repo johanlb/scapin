@@ -82,10 +82,17 @@ def create_cross_source_engine(
     # Register Teams adapter (if configured)
     _register_teams_adapter(engine, config)
 
-    # TODO: Register Email adapter (needs IMAP client)
-    # TODO: Register WhatsApp adapter
-    # TODO: Register Files adapter
-    # TODO: Register Web adapter
+    # Register Email adapter (if configured)
+    _register_email_adapter(engine, config)
+
+    # Register WhatsApp adapter
+    _register_whatsapp_adapter(engine)
+
+    # Register Files adapter
+    _register_files_adapter(engine)
+
+    # Register Web adapter (Tavily or DuckDuckGo)
+    _register_web_adapter(engine)
 
     logger.info(
         "CrossSourceEngine created with %d adapters: %s",
@@ -242,3 +249,117 @@ def _register_teams_adapter(
 
     except Exception as e:
         logger.error("Failed to register Teams adapter: %s", e)
+
+
+def _register_email_adapter(
+    engine: CrossSourceEngine,
+    config: ScapinConfig,
+) -> None:
+    """Register Email adapter if configured."""
+    email_config = config.email
+
+    if email_config is None:
+        logger.debug("Email adapter disabled (no email config)")
+        return
+
+    try:
+        from src.core.config_manager import EmailAccountConfig
+        from src.passepartout.cross_source.adapters.email_adapter import EmailAdapter
+        from src.passepartout.cross_source.config import EmailAdapterConfig
+
+        # Get account config - prefer accounts list, fallback to legacy fields
+        account_config: EmailAccountConfig | None = None
+
+        if email_config.accounts:
+            # Use first enabled account (or default if specified)
+            default_id = email_config.default_account_id
+            for account in email_config.accounts:
+                if account.enabled and (default_id is None or account.account_id == default_id):
+                    account_config = account
+                    break
+        elif email_config.imap_host and email_config.imap_username:
+            # Legacy single-account format
+            account_config = EmailAccountConfig(
+                account_id="default",
+                account_name="Default Email",
+                enabled=True,
+                imap_host=email_config.imap_host,
+                imap_port=email_config.imap_port or 993,
+                imap_username=email_config.imap_username,
+                imap_password=email_config.imap_password or "",
+            )
+
+        if account_config is None:
+            logger.debug("Email adapter disabled (no valid account)")
+            return
+
+        # Create adapter config with defaults
+        adapter_config = EmailAdapterConfig(enabled=True)
+
+        # Create and register adapter
+        adapter = EmailAdapter(account_config, adapter_config)
+        engine.register_adapter(adapter)
+
+        logger.info("Registered Email adapter for account: %s", account_config.account_name)
+
+    except Exception as e:
+        logger.error("Failed to register Email adapter: %s", e)
+
+
+def _register_whatsapp_adapter(engine: CrossSourceEngine) -> None:
+    """Register WhatsApp adapter if database is accessible."""
+    try:
+        from src.passepartout.cross_source.adapters.whatsapp_adapter import (
+            WhatsAppAdapter,
+        )
+
+        # Create adapter with default settings
+        # It will auto-detect the database path
+        adapter = WhatsAppAdapter()
+
+        if adapter.is_available:
+            engine.register_adapter(adapter)
+            logger.info("Registered WhatsApp adapter")
+        else:
+            logger.debug("WhatsApp adapter not available (database not found)")
+
+    except Exception as e:
+        logger.error("Failed to register WhatsApp adapter: %s", e)
+
+
+def _register_files_adapter(engine: CrossSourceEngine) -> None:
+    """Register Files adapter for local file search."""
+    try:
+        from src.passepartout.cross_source.adapters.files_adapter import FilesAdapter
+
+        # Create adapter with default settings (Documents, Desktop, Downloads)
+        adapter = FilesAdapter()
+
+        if adapter.is_available:
+            engine.register_adapter(adapter)
+            logger.info("Registered Files adapter")
+        else:
+            logger.debug("Files adapter not available")
+
+    except Exception as e:
+        logger.error("Failed to register Files adapter: %s", e)
+
+
+def _register_web_adapter(engine: CrossSourceEngine) -> None:
+    """Register Web adapter (Tavily or DuckDuckGo fallback)."""
+    try:
+        from src.passepartout.cross_source.adapters.web_adapter import (
+            create_web_adapter,
+        )
+
+        # Create best available web adapter
+        adapter = create_web_adapter()
+
+        if adapter.is_available:
+            engine.register_adapter(adapter)
+            logger.info("Registered Web adapter (%s)", adapter.source_name)
+        else:
+            logger.debug("Web adapter not available (no API keys)")
+
+    except Exception as e:
+        logger.error("Failed to register Web adapter: %s", e)

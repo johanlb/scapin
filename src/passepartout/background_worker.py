@@ -11,13 +11,16 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import NoteManager
 from src.passepartout.note_metadata import NoteMetadataStore
 from src.passepartout.note_reviewer import NoteReviewer, ReviewResult
 from src.passepartout.note_scheduler import NoteScheduler
+
+if TYPE_CHECKING:
+    from src.passepartout.cross_source import CrossSourceEngine
 
 logger = get_logger("passepartout.background_worker")
 
@@ -87,6 +90,7 @@ class BackgroundWorker:
         notes_dir: Path,
         data_dir: Path | None = None,
         config: WorkerConfig | None = None,
+        cross_source_engine: "CrossSourceEngine | None" = None,
         on_review_complete: Callable[[ReviewResult], None] | None = None,
         on_state_change: Callable[[WorkerState], None] | None = None,
     ):
@@ -97,12 +101,14 @@ class BackgroundWorker:
             notes_dir: Directory containing notes
             data_dir: Directory for data storage (default: data/)
             config: Worker configuration
+            cross_source_engine: CrossSourceEngine for multi-source context retrieval
             on_review_complete: Callback when review completes
             on_state_change: Callback when state changes
         """
         self.notes_dir = Path(notes_dir)
         self.data_dir = Path(data_dir) if data_dir else Path("data")
         self.config = config or WorkerConfig()
+        self._cross_source_engine = cross_source_engine
 
         # Callbacks
         self.on_review_complete = on_review_complete
@@ -158,6 +164,7 @@ class BackgroundWorker:
                 note_manager=self._note_manager,
                 metadata_store=self._metadata_store,
                 scheduler=self._scheduler,
+                cross_source_engine=self._cross_source_engine,
             )
 
     def _remaining_today(self) -> int:

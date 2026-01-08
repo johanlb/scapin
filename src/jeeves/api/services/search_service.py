@@ -460,7 +460,7 @@ class SearchService:
             # Execute search
             result = await engine.search(
                 query=request.query,
-                sources=sources_filter,
+                preferred_sources=sources_filter,
                 max_results=request.max_results,
             )
 
