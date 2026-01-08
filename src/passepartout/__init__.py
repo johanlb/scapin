@@ -11,10 +11,12 @@ This module implements:
 - Context retrieval for cognitive reasoning
 - Note review with SM-2 spaced repetition
 - Intelligent note enrichment
+- Cross-source search (email, calendar, teams, files, web)
 
 Usage:
     from src.passepartout import EmbeddingGenerator, VectorStore, NoteManager, ContextEngine
     from src.passepartout import NoteScheduler, NoteReviewer, BackgroundWorker
+    from src.passepartout import CrossSourceEngine, CrossSourceConfig
 """
 
 from src.passepartout.background_worker import (
