@@ -19,6 +19,14 @@ from src.passepartout.note_types import NoteType
 
 logger = get_logger("passepartout.note_enricher")
 
+# Confidence thresholds for different enrichment types
+CONFIDENCE_ENTITY_REFERENCE = 0.6  # Entity found in note content
+CONFIDENCE_EXISTING_SECTION = 0.65  # Update to existing section
+CONFIDENCE_NEW_SECTION = 0.7  # Suggestion for new section
+
+# Pre-compiled regex for date extraction (ISO format: YYYY-MM-DD)
+DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
+
 
 class EnrichmentSource(str, Enum):
     """Sources of enrichment"""
@@ -194,7 +202,7 @@ class NoteEnricher:
                         source=EnrichmentSource.AI_ANALYSIS,
                         section=section_name,
                         content="[Section nécessite plus de contenu]",
-                        confidence=0.6,
+                        confidence=CONFIDENCE_ENTITY_REFERENCE,
                         reasoning=f"La section '{section_name}' semble incomplète",
                     )
                 )
@@ -297,9 +305,8 @@ class NoteEnricher:
                 if keyword not in content:
                     gaps.append(f"Section manquante: {description}")
 
-        # Check for stale dates
-        date_pattern = r"\d{4}-\d{2}-\d{2}"
-        dates = re.findall(date_pattern, content)
+        # Check for stale dates (use pre-compiled regex)
+        dates = DATE_PATTERN.findall(content)
         if dates:
             try:
                 latest_date = max(
@@ -360,7 +367,7 @@ class NoteEnricher:
                         {
                             "section": "Contexte",
                             "content": f"Mentionné dans [[{source_note.title}]]: {para[:200]}...",
-                            "confidence": 0.65,
+                            "confidence": CONFIDENCE_EXISTING_SECTION,
                         }
                     )
 
@@ -386,7 +393,7 @@ class NoteEnricher:
                 {
                     "section": "Dernières interactions",
                     "content": f"Email reçu le {email.get('date', 'N/A')}: {email.get('subject', 'Sans sujet')}",
-                    "confidence": 0.7,
+                    "confidence": CONFIDENCE_NEW_SECTION,
                 }
             )
 

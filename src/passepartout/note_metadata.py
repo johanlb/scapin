@@ -13,7 +13,7 @@ import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from queue import Empty, Queue
 
@@ -32,6 +32,15 @@ logger = get_logger("passepartout.note_metadata")
 
 # Database schema version for migrations
 SCHEMA_VERSION = 1
+
+# Importance level ordering for priority sorting (lower value = higher priority)
+IMPORTANCE_ORDER: dict[ImportanceLevel, int] = {
+    ImportanceLevel.CRITICAL: 1,
+    ImportanceLevel.HIGH: 2,
+    ImportanceLevel.NORMAL: 3,
+    ImportanceLevel.LOW: 4,
+    ImportanceLevel.ARCHIVE: 5,
+}
 
 
 @dataclass
@@ -458,20 +467,12 @@ class NoteMetadataStore:
         """
         now = datetime.now(timezone.utc).isoformat()
 
-        # Map importance levels to numeric values for comparison
-        # Lower numeric value = higher importance
-        importance_order = {
-            ImportanceLevel.CRITICAL: 1,
-            ImportanceLevel.HIGH: 2,
-            ImportanceLevel.NORMAL: 3,
-            ImportanceLevel.LOW: 4,
-            ImportanceLevel.ARCHIVE: 5,
-        }
-        min_importance_value = importance_order.get(importance_min, 4)
+        # Use module constant for importance ordering
+        min_importance_value = IMPORTANCE_ORDER.get(importance_min, 4)
 
         # Build list of allowed importance levels
         allowed_importance = [
-            level.value for level, value in importance_order.items()
+            level.value for level, value in IMPORTANCE_ORDER.items()
             if value <= min_importance_value and level != ImportanceLevel.ARCHIVE
         ]
 
@@ -626,8 +627,6 @@ class NoteMetadataStore:
         if config.skip_revision:
             next_review = None
         else:
-            from datetime import timedelta
-
             next_review = now + timedelta(hours=config.base_interval_hours)
 
         metadata = NoteMetadata(

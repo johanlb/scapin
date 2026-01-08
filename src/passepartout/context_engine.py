@@ -7,6 +7,7 @@ Used by Sancho Pass 2 to improve understanding with historical knowledge.
 
 import asyncio
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -31,6 +32,10 @@ CONTEXT_TYPE_THREAD = "thread"
 # Memory and performance bounds
 MAX_CONTEXT_CANDIDATES = 200  # Cap items before ranking to bound memory
 DEFAULT_RETRIEVAL_TIMEOUT_SECONDS = 10.0  # Timeout for retrieval operations
+MAX_SEMANTIC_QUERY_LENGTH = 5000  # Maximum characters for semantic search query
+
+# Module-level executor for sync wrapper (reused across calls)
+_sync_executor: ThreadPoolExecutor | None = None
 
 
 @dataclass
@@ -224,7 +229,10 @@ class ContextEngine:
 
             for (source_name, weight), result in zip(task_sources, results):
                 if isinstance(result, Exception):
-                    logger.warning(f"{source_name} retrieval failed: {result}")
+                    logger.warning(
+                        "Context source retrieval failed",
+                        extra={"source": source_name, "error": str(result)}
+                    )
                     continue
 
                 contexts = result
@@ -295,17 +303,20 @@ class ContextEngine:
         Returns:
             ContextRetrievalResult with ranked context items
         """
+        global _sync_executor
+
         try:
             # Try to get existing event loop
             asyncio.get_running_loop()
             # If we're already in an async context, run in executor
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    self.retrieve_context(event, top_k, min_relevance)
-                )
-                return future.result()
+            # Reuse module-level executor for performance
+            if _sync_executor is None:
+                _sync_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="context_sync")
+            future = _sync_executor.submit(
+                asyncio.run,
+                self.retrieve_context(event, top_k, min_relevance)
+            )
+            return future.result()
         except RuntimeError:
             # No event loop running, use asyncio.run()
             return asyncio.run(self.retrieve_context(event, top_k, min_relevance))
@@ -384,12 +395,15 @@ class ContextEngine:
                     context_items.append(context_item)
 
             except Exception as e:
-                logger.warning(f"Entity retrieval failed for {entity.value}: {e}")
+                logger.warning(
+                    "Entity retrieval failed",
+                    extra={"entity_value": entity.value, "error": str(e)}
+                )
                 continue
 
         logger.debug(
-            f"Entity retrieval: {len(context_items)} items",
-            extra={"entities": [e.value for e in entities]}
+            "Entity retrieval complete",
+            extra={"items_found": len(context_items), "entities": [e.value for e in entities]}
         )
 
         return context_items
@@ -409,8 +423,14 @@ class ContextEngine:
         Returns:
             List of ContextItem objects
         """
-        # Create search query from event
+        # Create search query from event, limiting size for embedding performance
         query = f"{event.title}\n{event.content}"
+        if len(query) > MAX_SEMANTIC_QUERY_LENGTH:
+            query = query[:MAX_SEMANTIC_QUERY_LENGTH]
+            logger.debug(
+                "Semantic query truncated",
+                extra={"original_length": len(event.title) + len(event.content) + 1}
+            )
 
         try:
             # Get notes with similarity scores
@@ -440,9 +460,10 @@ class ContextEngine:
                 context_items.append(context_item)
 
             logger.debug(
-                f"Semantic retrieval: {len(context_items)} items",
+                "Semantic retrieval complete",
                 extra={
-                    "query": query[:50],
+                    "items_found": len(context_items),
+                    "query_preview": query[:50],
                     "top_score": context_items[0].relevance_score if context_items else 0.0
                 }
             )
@@ -450,7 +471,10 @@ class ContextEngine:
             return context_items
 
         except Exception as e:
-            logger.warning(f"Semantic retrieval failed: {e}")
+            logger.warning(
+                "Semantic retrieval failed",
+                extra={"error": str(e)}
+            )
             return []
 
     def _retrieve_by_thread(
@@ -492,14 +516,17 @@ class ContextEngine:
                     context_items.append(context_item)
 
             logger.debug(
-                f"Thread retrieval: {len(context_items)} items",
-                extra={"thread_id": thread_id}
+                "Thread retrieval complete",
+                extra={"items_found": len(context_items), "thread_id": thread_id}
             )
 
             return context_items
 
         except Exception as e:
-            logger.warning(f"Thread retrieval failed: {e}")
+            logger.warning(
+                "Thread retrieval failed",
+                extra={"thread_id": thread_id, "error": str(e)}
+            )
             return []
 
     def _rank_and_deduplicate(
@@ -514,7 +541,7 @@ class ContextEngine:
         Args:
             candidates: List of (ContextItem, weight) tuples
             top_k: Maximum results to return
-            min_relevance: Minimum relevance threshold
+            min_relevance: Minimum relevance threshold (applied to base score)
 
         Returns:
             Ranked and deduplicated list of ContextItem objects
@@ -522,38 +549,50 @@ class ContextEngine:
         if not candidates:
             return []
 
-        # Calculate final scores (base relevance * strategy weight)
-        scored_items: list[tuple[ContextItem, float]] = []
-        seen_note_ids = set()
+        # Aggregate scores for items from multiple sources
+        # Use weight as a boost factor, not a multiplier that reduces score
+        aggregated: dict[str, tuple[ContextItem, float, float]] = {}  # note_id -> (item, max_score, weight_sum)
 
         for context_item, weight in candidates:
-            # Deduplicate by note_id
-            note_id = context_item.metadata.get("note_id")
-            if note_id and note_id in seen_note_ids:
-                continue
+            note_id = context_item.metadata.get("note_id", id(context_item))
+            base_score = context_item.relevance_score
 
-            # Calculate final score
-            final_score = context_item.relevance_score * weight
+            if note_id in aggregated:
+                existing_item, existing_score, existing_weight = aggregated[note_id]
+                # Keep highest score, accumulate weights for ranking boost
+                if base_score > existing_score:
+                    aggregated[note_id] = (context_item, base_score, existing_weight + weight)
+                else:
+                    aggregated[note_id] = (existing_item, existing_score, existing_weight + weight)
+            else:
+                aggregated[note_id] = (context_item, base_score, weight)
 
-            # Filter by minimum relevance
-            if final_score >= min_relevance:
-                # Update context item with final score
-                context_item.relevance_score = final_score
-                scored_items.append((context_item, final_score))
+        # Filter by minimum relevance (on BASE score, not weighted)
+        # Then calculate final ranking score using weight as boost
+        scored_items: list[tuple[ContextItem, float]] = []
 
-                if note_id:
-                    seen_note_ids.add(note_id)
+        for _note_id, (context_item, base_score, weight_sum) in aggregated.items():
+            if base_score >= min_relevance:
+                # Ranking score: base_score boosted by weight coverage
+                # weight_sum can be >1 if item found by multiple strategies
+                ranking_score = base_score * (1 + weight_sum * 0.5)
+                context_item.relevance_score = base_score  # Keep original score
+                scored_items.append((context_item, ranking_score))
 
-        # Sort by score (descending)
+        # Sort by ranking score (descending)
         scored_items.sort(key=lambda x: x[1], reverse=True)
 
         # Return top K
-        result = [item for item, score in scored_items[:top_k]]
+        result = [item for item, _score in scored_items[:top_k]]
 
         logger.debug(
-            f"Ranking: {len(result)}/{len(candidates)} items",
+            "Ranking complete",
             extra={
-                "top_scores": [round(score, 2) for _, score in scored_items[:3]]
+                "input_candidates": len(candidates),
+                "after_dedup": len(aggregated),
+                "after_filter": len(scored_items),
+                "returned": len(result),
+                "top_scores": [round(item.relevance_score, 2) for item in result[:3]]
             }
         )
 

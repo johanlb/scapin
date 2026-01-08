@@ -5,8 +5,11 @@ Manages notes stored as Markdown files with YAML frontmatter.
 Provides semantic search via vector store integration.
 """
 
+import contextlib
 import hashlib
+import os
 import re
+import tempfile
 import threading
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -689,7 +692,12 @@ class NoteManager:
         return file_path
 
     def _write_note_file(self, note: Note, file_path: Path) -> None:
-        """Write note to Markdown file with YAML frontmatter"""
+        """
+        Write note to Markdown file with YAML frontmatter (atomic write)
+
+        Uses a temporary file and atomic rename to prevent data corruption
+        if the write is interrupted.
+        """
         # Prepare frontmatter
         frontmatter = {
             "title": note.title,
@@ -705,12 +713,25 @@ class NoteManager:
         if note.metadata:
             frontmatter["metadata"] = note.metadata
 
-        # Write file
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write("---\n")
-            yaml.dump(frontmatter, f, default_flow_style=False, allow_unicode=True)
-            f.write("---\n\n")
-            f.write(note.content)
+        # Write to temporary file first, then atomically rename
+        # This prevents data corruption if write is interrupted
+        dir_path = file_path.parent
+        fd, temp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp", prefix=".note_")
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                f.write("---\n")
+                yaml.dump(frontmatter, f, default_flow_style=False, allow_unicode=True)
+                f.write("---\n\n")
+                f.write(note.content)
+                f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
+            # Atomic rename (POSIX guarantees atomicity for same filesystem)
+            os.replace(temp_path, file_path)
+        except Exception:
+            # Clean up temp file on error
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            raise
 
     def _read_note_file(self, file_path: Path) -> Optional[Note]:
         """Read note from Markdown file with YAML frontmatter"""
