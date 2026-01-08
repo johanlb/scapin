@@ -3,11 +3,25 @@ Base protocol for source adapters.
 
 Defines the interface that all source adapters must implement
 to be used with CrossSourceEngine.
+
+Includes standardized error handling utilities for consistent
+behavior across all adapters.
 """
 
-from typing import Any, Protocol, runtime_checkable
+from __future__ import annotations
+
+import functools
+import logging
+from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar, runtime_checkable
 
 from src.passepartout.cross_source.models import SourceItem
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
+logger = logging.getLogger("scapin.cross_source.adapters")
+
+T = TypeVar("T")
 
 
 @runtime_checkable
@@ -163,3 +177,153 @@ class BaseAdapter:
             Normalized query
         """
         return query.strip().lower()
+
+
+# --- Standardized Error Handling Utilities ---
+
+
+class AdapterError(Exception):
+    """Base exception for adapter errors."""
+
+    def __init__(
+        self,
+        message: str,
+        source: str = "unknown",
+        original_error: Exception | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.source = source
+        self.original_error = original_error
+
+
+class AdapterConnectionError(AdapterError):
+    """Raised when adapter cannot connect to its data source."""
+
+    pass
+
+
+class AdapterTimeoutError(AdapterError):
+    """Raised when adapter operation times out."""
+
+    pass
+
+
+class AdapterAuthenticationError(AdapterError):
+    """Raised when adapter fails to authenticate."""
+
+    pass
+
+
+class AdapterRateLimitError(AdapterError):
+    """Raised when adapter is rate limited."""
+
+    pass
+
+
+def safe_search(
+    default_return: list[SourceItem] | None = None,
+) -> Callable[[Callable[..., Awaitable[list[SourceItem]]]], Callable[..., Awaitable[list[SourceItem]]]]:
+    """
+    Decorator for safe error handling in adapter search methods.
+
+    Catches all exceptions, logs them appropriately, and returns
+    empty list (or specified default) instead of raising.
+
+    Args:
+        default_return: Value to return on error (default: empty list)
+
+    Example:
+        @safe_search()
+        async def search(self, query: str, ...) -> list[SourceItem]:
+            # Exceptions will be caught and logged
+            return results
+    """
+    if default_return is None:
+        default_return = []
+
+    def decorator(
+        func: Callable[..., Awaitable[list[SourceItem]]],
+    ) -> Callable[..., Awaitable[list[SourceItem]]]:
+        @functools.wraps(func)
+        async def wrapper(self: Any, *args: Any, **kwargs: Any) -> list[SourceItem]:
+            source_name = getattr(self, "source_name", "unknown")
+            try:
+                return await func(self, *args, **kwargs)
+            except AdapterConnectionError as e:
+                logger.warning(
+                    "[%s] Connection error: %s",
+                    source_name,
+                    str(e),
+                )
+            except AdapterTimeoutError as e:
+                logger.warning(
+                    "[%s] Timeout: %s",
+                    source_name,
+                    str(e),
+                )
+            except AdapterAuthenticationError as e:
+                logger.error(
+                    "[%s] Authentication failed: %s",
+                    source_name,
+                    str(e),
+                )
+            except AdapterRateLimitError as e:
+                logger.warning(
+                    "[%s] Rate limited: %s",
+                    source_name,
+                    str(e),
+                )
+            except AdapterError as e:
+                logger.error(
+                    "[%s] Adapter error: %s",
+                    source_name,
+                    str(e),
+                )
+            except Exception as e:
+                # Log type only to prevent sensitive data leakage
+                logger.error(
+                    "[%s] Unexpected error: %s",
+                    source_name,
+                    type(e).__name__,
+                )
+            return default_return
+
+        return wrapper
+
+    return decorator
+
+
+def log_search_metrics(
+    func: Callable[..., Awaitable[list[SourceItem]]],
+) -> Callable[..., Awaitable[list[SourceItem]]]:
+    """
+    Decorator to log search metrics (duration, result count).
+
+    Example:
+        @log_search_metrics
+        @safe_search()
+        async def search(self, query: str, ...) -> list[SourceItem]:
+            return results
+    """
+    import time
+
+    @functools.wraps(func)
+    async def wrapper(self: Any, *args: Any, **kwargs: Any) -> list[SourceItem]:
+        source_name = getattr(self, "source_name", "unknown")
+        query = args[0] if args else kwargs.get("query", "")
+        start_time = time.perf_counter()
+
+        results = await func(self, *args, **kwargs)
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        logger.debug(
+            "[%s] Search completed: query='%s' results=%d duration=%.0fms",
+            source_name,
+            query[:50] if query else "",
+            len(results),
+            duration_ms,
+        )
+
+        return results
+
+    return wrapper

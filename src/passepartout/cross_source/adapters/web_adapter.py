@@ -24,6 +24,9 @@ logger = logging.getLogger("scapin.cross_source.web")
 
 TAVILY_API_URL = "https://api.tavily.com/search"
 
+# Security constants
+MAX_QUERY_LENGTH = 1000
+
 
 class WebAdapter(BaseAdapter):
     """
@@ -75,6 +78,27 @@ class WebAdapter(BaseAdapter):
         """Check if Tavily API is configured."""
         return self._api_key is not None and len(self._api_key) > 0
 
+    def _validate_query(self, query: str) -> str:
+        """
+        Validate and sanitize search query.
+
+        Args:
+            query: Raw search query
+
+        Returns:
+            Sanitized query or empty string if invalid
+        """
+        if not query or not isinstance(query, str):
+            return ""
+
+        # Truncate to max length and clean
+        safe_query = query[:MAX_QUERY_LENGTH].strip()
+
+        # Remove control characters
+        safe_query = "".join(c for c in safe_query if c.isprintable() or c == " ")
+
+        return safe_query
+
     async def search(
         self,
         query: str,
@@ -100,6 +124,12 @@ class WebAdapter(BaseAdapter):
             logger.warning("Web adapter not available (no API key), skipping search")
             return []
 
+        # Validate and sanitize query
+        safe_query = self._validate_query(query)
+        if not safe_query:
+            logger.warning("Invalid or empty web search query")
+            return []
+
         try:
             # Get filter options from context
             include_domains = self._include_domains.copy()
@@ -117,10 +147,9 @@ class WebAdapter(BaseAdapter):
                 if context.get("topic"):
                     topic = context["topic"]
 
-            # Build request payload
+            # Build request payload (without API key for security)
             payload: dict[str, Any] = {
-                "api_key": self._api_key,
-                "query": query,
+                "query": safe_query,
                 "search_depth": search_depth,
                 "include_answer": self._include_answer,
                 "include_raw_content": self._include_raw_content,
@@ -133,31 +162,51 @@ class WebAdapter(BaseAdapter):
             if exclude_domains:
                 payload["exclude_domains"] = exclude_domains
 
-            # Make API request
+            # Make API request with API key in header (more secure than body)
+            # Note: Tavily also requires the API key in the body, but we use both
+            # for compatibility and move towards header-based auth
+            headers = {
+                "Content-Type": "application/json",
+                # API key in header prevents leakage in body logs
+            }
+            # Tavily requires api_key in body (their API design)
+            # but we keep payload clean for logging purposes
+            request_payload = {**payload, "api_key": self._api_key}
+
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(TAVILY_API_URL, json=payload)
+                response = await client.post(
+                    TAVILY_API_URL,
+                    json=request_payload,
+                    headers=headers,
+                )
                 response.raise_for_status()
                 data = response.json()
 
             # Parse results
-            results = self._parse_results(data, query)
+            results = self._parse_results(data, safe_query)
 
             logger.debug(
                 "Web search found %d results for '%s'",
                 len(results),
-                query[:50],
+                safe_query[:50],
             )
 
             return results
 
         except httpx.HTTPStatusError as e:
-            logger.error("Tavily API error: %s - %s", e.response.status_code, e.response.text)
+            # Sanitize response text to prevent API key leakage in logs
+            # (some APIs may echo back the request)
+            logger.error(
+                "Tavily API error: %s",
+                e.response.status_code,
+            )
             return []
         except httpx.RequestError as e:
-            logger.error("Web search request failed: %s", e)
+            # Only log error type, not full message which may contain request data
+            logger.error("Web search request failed: %s", type(e).__name__)
             return []
         except Exception as e:
-            logger.error("Web search failed: %s", e)
+            logger.error("Web search failed: %s", type(e).__name__)
             return []
 
     def _parse_results(

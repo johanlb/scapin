@@ -40,6 +40,10 @@ DEFAULT_EXCLUDES = [
     ".DS_Store", "Thumbs.db",
 ]
 
+# Security constants
+MAX_PATH_LENGTH = 4096
+MAX_QUERY_LENGTH = 500
+
 
 class FilesAdapter(BaseAdapter):
     """
@@ -99,6 +103,61 @@ class FilesAdapter(BaseAdapter):
         except (subprocess.SubprocessError, FileNotFoundError):
             return False
 
+    def _validate_path(self, path_str: str | None) -> Path | None:
+        """
+        Validate and sanitize a path to prevent path traversal attacks.
+
+        Args:
+            path_str: Path string to validate
+
+        Returns:
+            Validated Path or None if invalid
+        """
+        if not path_str or not isinstance(path_str, str):
+            return None
+
+        # Length check
+        if len(path_str) > MAX_PATH_LENGTH:
+            logger.warning("Path too long: %d chars", len(path_str))
+            return None
+
+        try:
+            # Resolve the path to get absolute path and resolve symlinks
+            path = Path(path_str).resolve()
+
+            # Check if path is within one of the allowed search paths
+            for allowed_path in self._search_paths:
+                allowed_resolved = allowed_path.resolve()
+                try:
+                    # Check if path is relative to any allowed path
+                    path.relative_to(allowed_resolved)
+                    # Path is within allowed directory
+                    if path.exists():
+                        return path
+                    else:
+                        logger.warning("Path does not exist: %s", path)
+                        return None
+                except ValueError:
+                    # Not relative to this allowed path, continue checking
+                    continue
+
+            # Path not within any allowed directory
+            logger.warning(
+                "Path traversal attempt blocked: %s not within allowed paths",
+                path_str
+            )
+            return None
+
+        except (OSError, ValueError) as e:
+            logger.warning("Invalid path: %s - %s", path_str, e)
+            return None
+
+    def _validate_query(self, query: str) -> str:
+        """Validate and sanitize search query."""
+        if not query or not isinstance(query, str):
+            return ""
+        return query[:MAX_QUERY_LENGTH].strip()
+
     @property
     def is_available(self) -> bool:
         """Check if file search is available."""
@@ -128,6 +187,12 @@ class FilesAdapter(BaseAdapter):
             logger.warning("Files adapter not available, skipping search")
             return []
 
+        # Validate query
+        safe_query = self._validate_query(query)
+        if not safe_query:
+            logger.warning("Invalid or empty query")
+            return []
+
         try:
             # Get filter options from context
             path_filter = None
@@ -139,27 +204,32 @@ class FilesAdapter(BaseAdapter):
                 ext_filter = context.get("extension")
                 modified_since = context.get("modified_since")
 
-            # Determine search paths
+            # Determine search paths (with security validation)
             search_paths = self._search_paths
             if path_filter:
-                search_paths = [Path(path_filter)]
+                validated_path = self._validate_path(path_filter)
+                if validated_path:
+                    search_paths = [validated_path]
+                else:
+                    # Path validation failed - use default paths instead
+                    logger.info("Using default search paths due to invalid path filter")
 
             # Determine extensions
             extensions = self._extensions
             if ext_filter:
                 extensions = [ext_filter] if isinstance(ext_filter, str) else ext_filter
 
-            # Perform search
+            # Perform search with sanitized query
             if self._use_ripgrep:
                 matches = await self._search_ripgrep(
-                    query=query,
+                    query=safe_query,
                     paths=search_paths,
                     extensions=extensions,
                     max_results=max_results * 2,  # Get more to filter
                 )
             else:
                 matches = await self._search_python(
-                    query=query,
+                    query=safe_query,
                     paths=search_paths,
                     extensions=extensions,
                     max_results=max_results * 2,
@@ -174,7 +244,7 @@ class FilesAdapter(BaseAdapter):
 
             # Convert to SourceItems
             results = [
-                self._match_to_source_item(match, query)
+                self._match_to_source_item(match, safe_query)
                 for match in matches[:max_results]
             ]
 
@@ -290,6 +360,9 @@ class FilesAdapter(BaseAdapter):
         """
         Search using Python (fallback when ripgrep unavailable).
 
+        Uses single directory walk for O(N) performance instead of
+        O(E*N) where E is number of extensions.
+
         Args:
             query: Search query
             paths: Paths to search
@@ -301,31 +374,41 @@ class FilesAdapter(BaseAdapter):
         """
         matches = []
         query_lower = query.lower()
+        # Convert extensions to set for O(1) lookup
+        extension_set = {ext.lower() for ext in extensions}
 
         for search_path in paths:
             if not search_path.exists():
                 continue
 
-            for ext in extensions:
-                for file_path in search_path.rglob(f"*{ext}"):
-                    # Skip excluded directories
-                    if any(excl in file_path.parts for excl in self._exclude_dirs):
+            # Single directory walk - O(N) instead of O(E*N)
+            for file_path in search_path.rglob("*"):
+                # Skip if not a file
+                if not file_path.is_file():
+                    continue
+
+                # Check extension (O(1) lookup)
+                if file_path.suffix.lower() not in extension_set:
+                    continue
+
+                # Skip excluded directories
+                if any(excl in file_path.parts for excl in self._exclude_dirs):
+                    continue
+
+                # Skip large files
+                try:
+                    if file_path.stat().st_size > self._max_file_size:
                         continue
+                except OSError:
+                    continue
 
-                    # Skip large files
-                    try:
-                        if file_path.stat().st_size > self._max_file_size:
-                            continue
-                    except OSError:
-                        continue
+                # Search file content
+                match = await self._search_file(file_path, query_lower)
+                if match:
+                    matches.append(match)
 
-                    # Search file content
-                    match = await self._search_file(file_path, query_lower)
-                    if match:
-                        matches.append(match)
-
-                    if len(matches) >= max_results:
-                        return matches
+                if len(matches) >= max_results:
+                    return matches
 
         return matches
 

@@ -3,6 +3,8 @@ Email adapter for CrossSourceEngine.
 
 Provides IMAP search functionality for finding relevant emails
 in the user's archived mail.
+
+Uses connection pooling for improved performance across multiple searches.
 """
 
 from __future__ import annotations
@@ -12,6 +14,8 @@ import contextlib
 import email
 import imaplib
 import logging
+import threading
+import time
 from datetime import datetime, timezone
 from email.header import decode_header
 from typing import TYPE_CHECKING, Any
@@ -25,6 +29,204 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("scapin.cross_source.email")
 
+# Security constants
+MAX_QUERY_LENGTH = 500
+# Characters that need escaping in IMAP SEARCH strings
+IMAP_SPECIAL_CHARS = frozenset('"\\()*')
+
+# Connection pool constants
+POOL_MAX_SIZE = 3  # Maximum connections per account
+POOL_CONNECTION_TTL = 300  # 5 minutes
+POOL_ACQUIRE_TIMEOUT = 10  # Seconds to wait for connection
+
+
+class IMAPConnectionPool:
+    """
+    Connection pool for IMAP connections.
+
+    Provides connection reuse and lifecycle management:
+    - Creates connections on demand up to max_size
+    - Recycles connections after TTL expires
+    - Thread-safe for concurrent access
+
+    Example:
+        pool = IMAPConnectionPool(account_config, max_size=3)
+        async with pool.acquire() as conn:
+            conn.select("INBOX")
+            # ... use connection
+        pool.close_all()
+    """
+
+    def __init__(
+        self,
+        account_config: EmailAccountConfig,
+        max_size: int = POOL_MAX_SIZE,
+        ttl_seconds: int = POOL_CONNECTION_TTL,
+    ) -> None:
+        """
+        Initialize the connection pool.
+
+        Args:
+            account_config: IMAP account configuration
+            max_size: Maximum number of connections
+            ttl_seconds: Connection time-to-live in seconds
+        """
+        self._account_config = account_config
+        self._max_size = max_size
+        self._ttl = ttl_seconds
+
+        # Pool storage: (connection, created_at, in_use)
+        self._pool: list[tuple[imaplib.IMAP4_SSL, float, bool]] = []
+        self._lock = threading.Lock()
+
+        # Stats
+        self._connections_created = 0
+        self._connections_reused = 0
+
+    def _create_connection(self) -> imaplib.IMAP4_SSL | None:
+        """Create a new IMAP connection."""
+        try:
+            conn = imaplib.IMAP4_SSL(
+                self._account_config.imap_host,
+                self._account_config.imap_port,
+            )
+            conn.login(
+                self._account_config.imap_username,
+                self._account_config.imap_password,
+            )
+            self._connections_created += 1
+            logger.debug(
+                "IMAP connection created (total_created=%d)",
+                self._connections_created,
+            )
+            return conn
+        except Exception as e:
+            logger.error("Failed to create IMAP connection: %s", type(e).__name__)
+            return None
+
+    def _is_connection_valid(
+        self,
+        conn: imaplib.IMAP4_SSL,
+        created_at: float,
+    ) -> bool:
+        """Check if a connection is still valid."""
+        # Check TTL
+        if time.time() - created_at > self._ttl:
+            return False
+
+        # Check IMAP state
+        try:
+            conn.noop()
+            return True
+        except Exception:
+            return False
+
+    def _close_connection(self, conn: imaplib.IMAP4_SSL) -> None:
+        """Close a connection gracefully."""
+        with contextlib.suppress(Exception):
+            conn.logout()
+
+    def acquire(self) -> IMAPConnectionContext:
+        """
+        Acquire a connection from the pool.
+
+        Returns:
+            Context manager that yields the connection
+
+        Example:
+            async with pool.acquire() as conn:
+                conn.select("INBOX")
+        """
+        return IMAPConnectionContext(self)
+
+    def _acquire_sync(self) -> imaplib.IMAP4_SSL | None:
+        """
+        Synchronously acquire a connection from the pool.
+
+        Returns:
+            IMAP connection or None if unavailable
+        """
+        with self._lock:
+            now = time.time()
+
+            # Find an available, valid connection
+            for i, (conn, created_at, in_use) in enumerate(self._pool):
+                if in_use:
+                    continue
+
+                if self._is_connection_valid(conn, created_at):
+                    self._pool[i] = (conn, created_at, True)
+                    self._connections_reused += 1
+                    logger.debug(
+                        "IMAP connection reused (total_reused=%d)",
+                        self._connections_reused,
+                    )
+                    return conn
+                else:
+                    # Remove invalid connection
+                    self._close_connection(conn)
+                    del self._pool[i]
+                    break
+
+            # Create new connection if pool not full
+            if len(self._pool) < self._max_size:
+                conn = self._create_connection()
+                if conn is not None:
+                    self._pool.append((conn, now, True))
+                    return conn
+
+            # Pool full, wait for availability
+            logger.debug("IMAP pool full, no connections available")
+            return None
+
+    def _release(self, conn: imaplib.IMAP4_SSL) -> None:
+        """Release a connection back to the pool."""
+        with self._lock:
+            for i, (pool_conn, created_at, _in_use) in enumerate(self._pool):
+                if pool_conn is conn:
+                    self._pool[i] = (conn, created_at, False)
+                    return
+
+    def close_all(self) -> None:
+        """Close all connections in the pool."""
+        with self._lock:
+            for conn, _, _ in self._pool:
+                self._close_connection(conn)
+            self._pool.clear()
+            logger.debug("IMAP connection pool closed")
+
+    @property
+    def stats(self) -> dict[str, int]:
+        """Get pool statistics."""
+        with self._lock:
+            return {
+                "pool_size": len(self._pool),
+                "max_size": self._max_size,
+                "in_use": sum(1 for _, _, in_use in self._pool if in_use),
+                "connections_created": self._connections_created,
+                "connections_reused": self._connections_reused,
+            }
+
+
+class IMAPConnectionContext:
+    """Context manager for IMAP pool connections."""
+
+    def __init__(self, pool: IMAPConnectionPool) -> None:
+        self._pool = pool
+        self._conn: imaplib.IMAP4_SSL | None = None
+
+    async def __aenter__(self) -> imaplib.IMAP4_SSL | None:
+        """Acquire connection."""
+        # Run sync acquire in thread to not block event loop
+        loop = asyncio.get_event_loop()
+        self._conn = await loop.run_in_executor(None, self._pool._acquire_sync)
+        return self._conn
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Release connection."""
+        if self._conn is not None:
+            self._pool._release(self._conn)
+
 
 class EmailAdapter(BaseAdapter):
     """
@@ -32,6 +234,10 @@ class EmailAdapter(BaseAdapter):
 
     Searches across all email folders for messages matching
     the query in subject, body, or sender fields.
+
+    Uses connection pooling for improved performance across
+    multiple searches - connections are reused with TTL-based
+    recycling.
     """
 
     _source_name = "email"
@@ -50,7 +256,12 @@ class EmailAdapter(BaseAdapter):
         """
         self._account_config = account_config
         self._adapter_config = adapter_config
+        # Legacy connection field (deprecated, use pool instead)
         self._connection: imaplib.IMAP4_SSL | None = None
+        # Connection pool for improved performance
+        self._pool: IMAPConnectionPool | None = None
+        if account_config is not None:
+            self._pool = IMAPConnectionPool(account_config)
 
     @property
     def is_available(self) -> bool:
@@ -62,6 +273,132 @@ class EmailAdapter(BaseAdapter):
             and self._account_config.imap_username
             and self._account_config.imap_password
         )
+
+    @property
+    def pool_stats(self) -> dict[str, int]:
+        """
+        Get connection pool statistics.
+
+        Returns:
+            Dict with pool_size, in_use, connections_created, connections_reused
+        """
+        if self._pool is None:
+            return {
+                "pool_size": 0,
+                "max_size": 0,
+                "in_use": 0,
+                "connections_created": 0,
+                "connections_reused": 0,
+            }
+        return self._pool.stats
+
+    def close(self) -> None:
+        """
+        Close the adapter and clean up resources.
+
+        Closes all connections in the pool.
+        """
+        if self._pool is not None:
+            self._pool.close_all()
+            logger.debug("Email adapter connection pool closed")
+
+    @staticmethod
+    def _escape_imap_string(value: str) -> str:
+        """
+        Escape special characters for IMAP SEARCH strings.
+
+        IMAP SEARCH has specific quoting requirements:
+        - Strings containing spaces or special chars must be quoted
+        - Backslashes and quotes inside strings must be escaped
+
+        Args:
+            value: Raw search string
+
+        Returns:
+            Escaped string safe for IMAP SEARCH
+        """
+        if not value:
+            return ""
+
+        # Escape backslash first (order matters)
+        result = value.replace("\\", "\\\\")
+        # Escape double quotes
+        result = result.replace('"', '\\"')
+
+        return result
+
+    def _validate_query(self, query: str) -> str:
+        """
+        Validate and sanitize search query.
+
+        Args:
+            query: Raw search query
+
+        Returns:
+            Sanitized query or empty string if invalid
+        """
+        if not query or not isinstance(query, str):
+            return ""
+
+        # Truncate to max length
+        safe_query = query[:MAX_QUERY_LENGTH].strip()
+
+        # Remove control characters that could break IMAP protocol
+        safe_query = "".join(c for c in safe_query if c.isprintable() or c == " ")
+
+        return safe_query
+
+    def _sanitize_email_filter(self, email_filter: str | None) -> str | None:
+        """
+        Sanitize email_filter from context to prevent injection.
+
+        Only allows safe IMAP SEARCH keywords.
+
+        Args:
+            email_filter: Raw email filter from context
+
+        Returns:
+            Sanitized filter or None if invalid
+        """
+        if not email_filter or not isinstance(email_filter, str):
+            return None
+
+        # Whitelist of safe IMAP SEARCH keywords
+        safe_keywords = {
+            "ALL", "ANSWERED", "BCC", "BEFORE", "CC", "DELETED", "DRAFT",
+            "FLAGGED", "FROM", "HEADER", "KEYWORD", "LARGER", "NEW", "NOT",
+            "OLD", "ON", "OR", "RECENT", "SEEN", "SENTBEFORE", "SENTON",
+            "SENTSINCE", "SINCE", "SMALLER", "SUBJECT", "TEXT", "TO",
+            "UID", "UNANSWERED", "UNDELETED", "UNDRAFT", "UNFLAGGED",
+            "UNKEYWORD", "UNSEEN",
+        }
+
+        # Parse and validate filter tokens
+        safe_parts = []
+        tokens = email_filter.upper().split()
+
+        for token in tokens:
+            # Check if it's a known keyword
+            if token in safe_keywords:
+                safe_parts.append(token)
+            # Allow date-like values (YYYY-MM-DD format)
+            elif len(token) == 10 and token.count("-") == 2:
+                try:
+                    # Validate it looks like a date
+                    parts = token.split("-")
+                    if all(p.isdigit() for p in parts):
+                        safe_parts.append(token)
+                except ValueError:
+                    pass
+            # Allow numeric values (for LARGER, SMALLER, etc.)
+            elif token.isdigit():
+                safe_parts.append(token)
+
+        if not safe_parts:
+            logger.warning("Invalid email_filter rejected: %s", email_filter[:50])
+            return None
+
+        return " ".join(safe_parts)
 
     async def search(
         self,
@@ -86,13 +423,19 @@ class EmailAdapter(BaseAdapter):
             logger.warning("Email adapter not available, skipping search")
             return []
 
+        # Validate and sanitize query
+        safe_query = self._validate_query(query)
+        if not safe_query:
+            logger.warning("Invalid or empty email search query")
+            return []
+
         # Run IMAP search in thread pool (blocking I/O)
         loop = asyncio.get_event_loop()
         try:
             results = await loop.run_in_executor(
                 None,
                 self._search_sync,
-                query,
+                safe_query,
                 max_results,
                 context,
             )
@@ -110,6 +453,8 @@ class EmailAdapter(BaseAdapter):
         """
         Synchronous IMAP search implementation.
 
+        Uses connection pooling for improved performance.
+
         Args:
             query: The search query
             max_results: Maximum results
@@ -120,12 +465,12 @@ class EmailAdapter(BaseAdapter):
         """
         results: list[SourceItem] = []
 
-        try:
-            # Connect to IMAP server
-            self._connect()
-            if self._connection is None:
-                return []
+        # Acquire connection from pool (or create new if pool unavailable)
+        conn = self._acquire_connection()
+        if conn is None:
+            return []
 
+        try:
             # Get folders to search
             folders = self._get_search_folders(context)
 
@@ -138,6 +483,7 @@ class EmailAdapter(BaseAdapter):
                     break
 
                 folder_results = self._search_folder(
+                    conn,
                     folder,
                     search_criteria,
                     max_results - len(results),
@@ -154,6 +500,42 @@ class EmailAdapter(BaseAdapter):
             return []
 
         finally:
+            self._release_connection(conn)
+
+    def _acquire_connection(self) -> imaplib.IMAP4_SSL | None:
+        """
+        Acquire an IMAP connection from the pool.
+
+        Falls back to creating a direct connection if pool unavailable.
+
+        Returns:
+            IMAP connection or None if unavailable
+        """
+        # Try pool first
+        if self._pool is not None:
+            conn = self._pool._acquire_sync()
+            if conn is not None:
+                return conn
+
+        # Fallback to direct connection (legacy mode)
+        self._connect()
+        return self._connection
+
+    def _release_connection(self, conn: imaplib.IMAP4_SSL | None) -> None:
+        """
+        Release an IMAP connection back to the pool.
+
+        Args:
+            conn: Connection to release
+        """
+        if conn is None:
+            return
+
+        # If using pool, release to pool
+        if self._pool is not None:
+            self._pool._release(conn)
+        else:
+            # Legacy mode: disconnect
             self._disconnect()
 
     def _connect(self) -> None:
@@ -215,14 +597,14 @@ class EmailAdapter(BaseAdapter):
         - TEXT "text" (searches everywhere)
 
         Args:
-            query: The search query
+            query: The search query (already validated)
             context: Optional context with additional filters
 
         Returns:
             IMAP SEARCH criteria string
         """
-        # Escape query for IMAP
-        escaped_query = query.replace('"', '\\"')
+        # Properly escape query for IMAP SEARCH
+        escaped_query = self._escape_imap_string(query)
 
         # Check if we should search body (can be slow)
         search_body = True
@@ -241,14 +623,17 @@ class EmailAdapter(BaseAdapter):
             # Search only in subject and from
             criteria = f'OR SUBJECT "{escaped_query}" FROM "{escaped_query}"'
 
-        # Add custom filter from context
+        # Add custom filter from context (sanitized)
         if context and "email_filter" in context:
-            criteria = f'{criteria} {context["email_filter"]}'
+            safe_filter = self._sanitize_email_filter(context["email_filter"])
+            if safe_filter:
+                criteria = f"{criteria} {safe_filter}"
 
         return criteria
 
     def _search_folder(
         self,
+        conn: imaplib.IMAP4_SSL,
         folder: str,
         search_criteria: str,
         max_results: int,
@@ -257,6 +642,7 @@ class EmailAdapter(BaseAdapter):
         Search a single folder for matching emails.
 
         Args:
+            conn: IMAP connection to use
             folder: Folder name
             search_criteria: IMAP SEARCH criteria
             max_results: Maximum results from this folder
@@ -264,20 +650,17 @@ class EmailAdapter(BaseAdapter):
         Returns:
             List of SourceItem objects
         """
-        if self._connection is None:
-            return []
-
         results: list[SourceItem] = []
 
         try:
             # Select folder (readonly)
-            status, _ = self._connection.select(folder, readonly=True)
+            status, _ = conn.select(folder, readonly=True)
             if status != "OK":
                 logger.debug("Could not select folder: %s", folder)
                 return []
 
             # Execute search
-            status, message_ids = self._connection.search(None, search_criteria)
+            status, message_ids = conn.search(None, search_criteria)
             if status != "OK":
                 logger.debug("Search failed in folder: %s", folder)
                 return []
@@ -289,7 +672,7 @@ class EmailAdapter(BaseAdapter):
 
             # Batch fetch emails (more efficient than individual fetches)
             if id_list:
-                results.extend(self._batch_fetch_emails(id_list, folder))
+                results.extend(self._batch_fetch_emails(conn, id_list, folder))
 
             logger.debug(
                 "Found %d emails in %s matching search",
@@ -304,6 +687,7 @@ class EmailAdapter(BaseAdapter):
 
     def _batch_fetch_emails(
         self,
+        conn: imaplib.IMAP4_SSL,
         id_list: list[bytes],
         folder: str,
     ) -> list[SourceItem]:
@@ -313,13 +697,14 @@ class EmailAdapter(BaseAdapter):
         More efficient than individual fetches - reduces network roundtrips.
 
         Args:
+            conn: IMAP connection to use
             id_list: List of IMAP message IDs
             folder: Folder name for metadata
 
         Returns:
             List of SourceItem objects
         """
-        if self._connection is None or not id_list:
+        if not id_list:
             return []
 
         results: list[SourceItem] = []
@@ -329,7 +714,7 @@ class EmailAdapter(BaseAdapter):
             id_set = b",".join(id_list)
 
             # Batch fetch headers and partial body for all emails
-            status, response = self._connection.fetch(
+            status, response = conn.fetch(
                 id_set,
                 "(BODY.PEEK[HEADER] BODY.PEEK[TEXT]<0.500>)",
             )

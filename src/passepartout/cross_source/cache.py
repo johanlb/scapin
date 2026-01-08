@@ -4,6 +4,8 @@ TTL Cache for CrossSourceEngine.
 Provides a time-limited cache for cross-source search results,
 reducing redundant searches within the same work session.
 
+Uses OrderedDict for O(1) LRU eviction instead of O(N log N) sorting.
+
 Supports per-source TTL for different freshness requirements
 (e.g., web results cached longer than email results).
 """
@@ -12,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -66,7 +69,8 @@ class CrossSourceCache:
             max_size: Maximum number of entries in the cache
             source_ttls: Per-source TTL values (optional, uses DEFAULT_SOURCE_TTLS if None)
         """
-        self._entries: dict[str, CacheEntry] = {}
+        # OrderedDict maintains insertion order for O(1) LRU eviction
+        self._entries: OrderedDict[str, CacheEntry] = OrderedDict()
         self._default_ttl = ttl_seconds
         self._max_size = max_size
         self._source_ttls = {**DEFAULT_SOURCE_TTLS, **(source_ttls or {})}
@@ -132,19 +136,16 @@ class CrossSourceCache:
             del self._entries[key]
 
     def _evict_oldest(self) -> None:
-        """Evict oldest entries if cache is full."""
+        """Evict oldest entries if cache is full using O(1) LRU eviction."""
         if len(self._entries) < self._max_size:
             return
 
-        # Sort by expiry time and remove oldest
-        sorted_entries = sorted(
-            self._entries.items(),
-            key=lambda x: x[1].expires_at
-        )
-        # Remove oldest 10% or at least 1
-        to_remove = max(1, len(sorted_entries) // 10)
-        for key, _ in sorted_entries[:to_remove]:
-            del self._entries[key]
+        # Remove oldest 10% or at least 1 using O(1) popitem
+        # OrderedDict maintains insertion/access order, so first items are LRU
+        to_remove = max(1, len(self._entries) // 10)
+        for _ in range(to_remove):
+            if self._entries:
+                self._entries.popitem(last=False)  # Remove from front (oldest)
 
     def get(self, query: str, sources: list[str]) -> CrossSourceResult | None:
         """
@@ -175,6 +176,9 @@ class CrossSourceCache:
         self._hits += 1
         logger.debug("Cache HIT for query: %s", query[:50])
 
+        # Move to end for LRU tracking (most recently used)
+        self._entries.move_to_end(key)
+
         # Mark result as coming from cache
         result = entry.result
         result.from_cache = True
@@ -203,6 +207,8 @@ class CrossSourceCache:
         expires_at = time.time() + ttl
 
         self._entries[key] = CacheEntry(result=result, expires_at=expires_at)
+        # Move to end for LRU tracking (most recently set)
+        self._entries.move_to_end(key)
 
         logger.debug(
             "Cached result for query: %s (%d items, ttl=%ds)",

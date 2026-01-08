@@ -381,6 +381,13 @@ class CrossSourceEngine:
         """
         Aggregate, score, and deduplicate results.
 
+        Uses multi-level deduplication:
+        1. URL-based (exact match for web results)
+        2. Content hash-based (similar content across sources)
+        3. Title normalization (fuzzy title matching)
+
+        When duplicates found across sources, boosts score instead of discarding.
+
         Args:
             items: Raw items from all sources
 
@@ -393,25 +400,179 @@ class CrossSourceEngine:
         # Step 1: Normalize relevance scores per source
         self._normalize_scores_per_source(items)
 
-        # Step 2: Calculate final scores
-        for item in items:
+        # Step 2: Deduplicate with cross-source merging
+        merged_items = self._deduplicate_with_merge(items)
+
+        # Step 3: Calculate final scores
+        for item in merged_items:
             item.final_score = self._calculate_score(item)
 
-        # Step 3: Sort by final score (descending)
-        items.sort(key=lambda x: x.final_score, reverse=True)
+        # Step 4: Sort by final score (descending)
+        merged_items.sort(key=lambda x: x.final_score, reverse=True)
 
-        # Step 4: Deduplicate (keep highest scored version)
-        seen_titles: set[str] = set()
-        deduplicated: list[SourceItem] = []
+        return merged_items
+
+    def _deduplicate_with_merge(
+        self,
+        items: list[SourceItem],
+    ) -> list[SourceItem]:
+        """
+        Deduplicate items with cross-source merging.
+
+        When the same content appears in multiple sources, keeps the
+        highest-scored version but boosts its relevance score.
+
+        Args:
+            items: Raw items from all sources
+
+        Returns:
+            Deduplicated items with boosted scores for cross-source matches
+        """
+        # Track seen items by multiple keys
+        seen_urls: dict[str, SourceItem] = {}
+        seen_content_hashes: dict[str, SourceItem] = {}
+        seen_titles: dict[str, SourceItem] = {}
 
         for item in items:
-            # Create dedup key from title and source
-            dedup_key = f"{item.title.lower()}:{item.source}"
-            if dedup_key not in seen_titles:
-                seen_titles.add(dedup_key)
-                deduplicated.append(item)
+            # URL deduplication (for web results)
+            if item.url:
+                url_key = item.url.lower().rstrip("/")
+                if url_key in seen_urls:
+                    self._merge_duplicate(seen_urls[url_key], item)
+                    continue
+                seen_urls[url_key] = item
 
-        return deduplicated
+            # Content hash deduplication
+            content_hash = self._compute_content_hash(item)
+            if content_hash in seen_content_hashes:
+                existing = seen_content_hashes[content_hash]
+                # Only merge if from different sources
+                if existing.source != item.source:
+                    self._merge_duplicate(existing, item)
+                    continue
+            seen_content_hashes[content_hash] = item
+
+            # Title normalization deduplication (fuzzy)
+            title_key = self._normalize_title(item.title)
+            if title_key in seen_titles:
+                existing = seen_titles[title_key]
+                # Only merge if similar content and different sources
+                if (
+                    existing.source != item.source
+                    and self._is_similar_content(existing, item)
+                ):
+                    self._merge_duplicate(existing, item)
+                    continue
+            seen_titles[title_key] = item
+
+        # Return unique items (prefer content_hash as primary key)
+        return list(seen_content_hashes.values())
+
+    def _compute_content_hash(self, item: SourceItem) -> str:
+        """
+        Compute a hash for content deduplication.
+
+        Uses normalized content to detect similar items.
+
+        Args:
+            item: Source item
+
+        Returns:
+            Content hash string
+        """
+        # Normalize content for hashing
+        content = item.content.lower()
+        # Remove extra whitespace
+        content = " ".join(content.split())
+        # Take first 200 chars (enough for uniqueness)
+        content = content[:200]
+
+        # Create hash using built-in hash for speed
+        return f"{hash(content)}:{item.source}"
+
+    def _normalize_title(self, title: str) -> str:
+        """
+        Normalize title for fuzzy matching.
+
+        Args:
+            title: Raw title
+
+        Returns:
+            Normalized title key
+        """
+        # Lowercase and remove punctuation
+        normalized = title.lower()
+        # Remove common prefixes like "Re:", "Fwd:", etc.
+        prefixes = ["re:", "fwd:", "fw:", "aw:", "sv:"]
+        for prefix in prefixes:
+            while normalized.startswith(prefix):
+                normalized = normalized[len(prefix):].strip()
+        # Remove extra whitespace
+        normalized = " ".join(normalized.split())
+        return normalized
+
+    def _is_similar_content(self, item1: SourceItem, item2: SourceItem) -> bool:
+        """
+        Check if two items have similar content.
+
+        Uses simple token overlap for speed.
+
+        Args:
+            item1: First item
+            item2: Second item
+
+        Returns:
+            True if content is similar (>50% token overlap)
+        """
+        # Tokenize content
+        tokens1 = set(item1.content.lower().split()[:100])
+        tokens2 = set(item2.content.lower().split()[:100])
+
+        if not tokens1 or not tokens2:
+            return False
+
+        # Calculate Jaccard similarity
+        intersection = len(tokens1 & tokens2)
+        union = len(tokens1 | tokens2)
+
+        return intersection / union > 0.5
+
+    def _merge_duplicate(
+        self,
+        existing: SourceItem,
+        duplicate: SourceItem,
+    ) -> None:
+        """
+        Merge a duplicate item into an existing one.
+
+        Boosts the relevance score when content appears in multiple sources.
+
+        Args:
+            existing: Item to keep and update
+            duplicate: Duplicate item (will be discarded)
+        """
+        # Boost score by 10% for each additional source (max 30% boost)
+        boost = 0.1
+        max_total_boost = 0.3
+
+        # Track merged sources in metadata
+        merged_sources = existing.metadata.get("merged_sources", [existing.source])
+        if duplicate.source not in merged_sources:
+            merged_sources.append(duplicate.source)
+            existing.metadata["merged_sources"] = merged_sources
+
+            # Apply boost (capped at max)
+            current_boost = (len(merged_sources) - 1) * boost
+            actual_boost = min(current_boost, max_total_boost)
+            existing.relevance_score = min(1.0, existing.relevance_score * (1 + actual_boost))
+
+            logger.debug(
+                "Merged duplicate: '%s' from %s into %s (boost=%.0f%%)",
+                existing.title[:30],
+                duplicate.source,
+                existing.source,
+                actual_boost * 100,
+            )
 
     def _normalize_scores_per_source(
         self,

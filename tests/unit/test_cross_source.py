@@ -535,7 +535,7 @@ class TestCrossSourceEngine:
                 source="email",
                 type="message",
                 title="Old Email",
-                content="Content",
+                content="This is old content from a while back about the project",
                 timestamp=datetime.now(timezone.utc) - timedelta(days=60),
                 relevance_score=0.8,  # Same base relevance
             ),
@@ -543,7 +543,7 @@ class TestCrossSourceEngine:
                 source="email",
                 type="message",
                 title="New Email",
-                content="Content",
+                content="This is new content that just arrived with updates",
                 timestamp=datetime.now(timezone.utc),
                 relevance_score=0.8,  # Same base relevance
             ),

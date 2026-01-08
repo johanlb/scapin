@@ -22,6 +22,10 @@ from src.passepartout.cross_source.models import SourceItem
 
 logger = logging.getLogger("scapin.cross_source.whatsapp")
 
+# Security constants
+MAX_QUERY_LENGTH = 500
+MAX_CONTACT_LENGTH = 100
+
 # Default WhatsApp database paths
 WHATSAPP_DB_PATHS = [
     # WhatsApp Desktop on macOS
@@ -44,6 +48,35 @@ class WhatsAppAdapter(BaseAdapter):
     """
 
     _source_name = "whatsapp"
+
+    @staticmethod
+    def _escape_like_pattern(value: str) -> str:
+        """
+        Escape special characters for SQL LIKE patterns.
+
+        Prevents SQL injection by escaping %, _, and backslash characters.
+
+        Args:
+            value: Raw search value
+
+        Returns:
+            Escaped value safe for LIKE clause
+        """
+        # Escape backslash first, then other special chars
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    def _validate_query(self, query: str) -> str:
+        """Validate and sanitize search query."""
+        if not query or not isinstance(query, str):
+            return ""
+        # Truncate to max length
+        return query[:MAX_QUERY_LENGTH].strip()
+
+    def _validate_contact(self, contact: str | None) -> str | None:
+        """Validate and sanitize contact filter."""
+        if not contact or not isinstance(contact, str):
+            return None
+        return contact[:MAX_CONTACT_LENGTH].strip()
 
     def __init__(
         self,
@@ -287,6 +320,12 @@ class WhatsAppAdapter(BaseAdapter):
         cd_epoch = datetime(2001, 1, 1, tzinfo=timezone.utc)
         since_ts = (since - cd_epoch).total_seconds()
 
+        # Validate and escape inputs to prevent SQL injection
+        safe_query = self._validate_query(query)
+        if not safe_query:
+            return []
+        escaped_query = self._escape_like_pattern(safe_query)
+
         sql = """
             SELECT
                 m.ZTEXT as text,
@@ -296,14 +335,17 @@ class WhatsAppAdapter(BaseAdapter):
                 c.ZPARTNERNAME as contact_name
             FROM ZWAMESSAGE m
             LEFT JOIN ZWACHATSESSION c ON m.ZCHATSESSION = c.Z_PK
-            WHERE m.ZTEXT LIKE ?
+            WHERE m.ZTEXT LIKE ? ESCAPE '\\'
             AND m.ZMESSAGEDATE > ?
         """
-        params: list[Any] = [f"%{query}%", since_ts]
+        params: list[Any] = [f"%{escaped_query}%", since_ts]
 
         if contact:
-            sql += " AND (c.ZPARTNERNAME LIKE ? OR c.ZCONTACTJID LIKE ?)"
-            params.extend([f"%{contact}%", f"%{contact}%"])
+            safe_contact = self._validate_contact(contact)
+            if safe_contact:
+                escaped_contact = self._escape_like_pattern(safe_contact)
+                sql += " AND (c.ZPARTNERNAME LIKE ? ESCAPE '\\' OR c.ZCONTACTJID LIKE ? ESCAPE '\\')"
+                params.extend([f"%{escaped_contact}%", f"%{escaped_contact}%"])
 
         sql += " ORDER BY m.ZMESSAGEDATE DESC LIMIT ?"
         params.append(limit)
@@ -343,6 +385,12 @@ class WhatsAppAdapter(BaseAdapter):
         # Android WhatsApp uses different table structure
         since_ts = int(since.timestamp() * 1000)  # Android uses milliseconds
 
+        # Validate and escape inputs to prevent SQL injection
+        safe_query = self._validate_query(query)
+        if not safe_query:
+            return []
+        escaped_query = self._escape_like_pattern(safe_query)
+
         sql = """
             SELECT
                 m.data as text,
@@ -352,14 +400,17 @@ class WhatsAppAdapter(BaseAdapter):
                 j.display_name as contact_name
             FROM messages m
             LEFT JOIN jid j ON m.key_remote_jid = j.raw_string
-            WHERE m.data LIKE ?
+            WHERE m.data LIKE ? ESCAPE '\\'
             AND m.timestamp > ?
         """
-        params: list[Any] = [f"%{query}%", since_ts]
+        params: list[Any] = [f"%{escaped_query}%", since_ts]
 
         if contact:
-            sql += " AND (j.display_name LIKE ? OR m.key_remote_jid LIKE ?)"
-            params.extend([f"%{contact}%", f"%{contact}%"])
+            safe_contact = self._validate_contact(contact)
+            if safe_contact:
+                escaped_contact = self._escape_like_pattern(safe_contact)
+                sql += " AND (j.display_name LIKE ? ESCAPE '\\' OR m.key_remote_jid LIKE ? ESCAPE '\\')"
+                params.extend([f"%{escaped_contact}%", f"%{escaped_contact}%"])
 
         sql += " ORDER BY m.timestamp DESC LIMIT ?"
         params.append(limit)
