@@ -222,6 +222,7 @@ class CrossSourceConfig:
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
         self._validate_source_weights()
+        self._validate_freshness_decay()
 
     def _validate_source_weights(self) -> None:
         """
@@ -276,6 +277,20 @@ class CrossSourceConfig:
                 self.MIN_WEIGHT,
                 self.MAX_WEIGHT,
             )
+
+    def _validate_freshness_decay(self) -> None:
+        """
+        Validate freshness_decay_days to prevent division by zero.
+
+        If value is <= 0, resets to default (30 days) with warning.
+        """
+        if self.freshness_decay_days <= 0:
+            logger.warning(
+                "freshness_decay_days must be positive (got %d), using default 30",
+                self.freshness_decay_days,
+            )
+            # Use object.__setattr__ to bypass frozen dataclass if needed
+            object.__setattr__(self, "freshness_decay_days", 30)
 
     def get_source_weight(self, source: str) -> float:
         """

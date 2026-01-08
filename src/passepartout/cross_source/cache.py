@@ -8,11 +8,14 @@ Uses OrderedDict for O(1) LRU eviction instead of O(N log N) sorting.
 
 Supports per-source TTL for different freshness requirements
 (e.g., web results cached longer than email results).
+
+Thread-safe implementation using RLock for all operations.
 """
 
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -69,13 +72,16 @@ class CrossSourceCache:
             max_size: Maximum number of entries in the cache
             source_ttls: Per-source TTL values (optional, uses DEFAULT_SOURCE_TTLS if None)
         """
+        # Thread-safety lock for all operations
+        self._lock = threading.RLock()
+
         # OrderedDict maintains insertion order for O(1) LRU eviction
         self._entries: OrderedDict[str, CacheEntry] = OrderedDict()
         self._default_ttl = ttl_seconds
         self._max_size = max_size
         self._source_ttls = {**DEFAULT_SOURCE_TTLS, **(source_ttls or {})}
 
-        # Stats tracking
+        # Stats tracking (protected by _lock)
         self._hits = 0
         self._misses = 0
 
@@ -151,6 +157,8 @@ class CrossSourceCache:
         """
         Get a cached result if available and not expired.
 
+        Thread-safe: Uses lock for all operations.
+
         Args:
             query: The search query
             sources: List of source names to match
@@ -159,30 +167,35 @@ class CrossSourceCache:
             Cached CrossSourceResult or None if not found/expired
         """
         key = self._make_key(query, sources)
-        entry = self._entries.get(key)
 
-        if entry is None:
-            self._misses += 1
-            logger.debug("Cache MISS for query: %s", query[:50])
-            return None
+        with self._lock:
+            entry = self._entries.get(key)
 
-        # Check if expired
-        if entry.expires_at <= time.time():
-            del self._entries[key]
-            self._misses += 1
-            logger.debug("Cache EXPIRED for query: %s", query[:50])
-            return None
+            if entry is None:
+                self._misses += 1
+                logger.debug("Cache MISS for query: %s", query[:50])
+                return None
 
-        self._hits += 1
-        logger.debug("Cache HIT for query: %s", query[:50])
+            # Check if expired
+            if entry.expires_at <= time.time():
+                del self._entries[key]
+                self._misses += 1
+                logger.debug("Cache EXPIRED for query: %s", query[:50])
+                return None
 
-        # Move to end for LRU tracking (most recently used)
-        self._entries.move_to_end(key)
+            self._hits += 1
+            logger.debug("Cache HIT for query: %s", query[:50])
 
-        # Mark result as coming from cache
-        result = entry.result
-        result.from_cache = True
-        return result
+            # Move to end for LRU tracking (most recently used)
+            self._entries.move_to_end(key)
+
+            # Return result with from_cache flag set
+            # Note: We set from_cache on the cached result object. This is safe
+            # because the result is only written once during set() and the flag
+            # is only read by the caller after get().
+            result = entry.result
+            result.from_cache = True
+            return result
 
     def set(
         self,
@@ -193,22 +206,25 @@ class CrossSourceCache:
         """
         Store a result in the cache with per-source TTL.
 
+        Thread-safe: Uses lock for all operations.
+
         Args:
             query: The search query
             sources: List of source names searched
             result: The CrossSourceResult to cache
         """
-        # Cleanup and evict if needed
-        self._cleanup_expired()
-        self._evict_oldest()
-
         key = self._make_key(query, sources)
         ttl = self._calculate_ttl(sources)
         expires_at = time.time() + ttl
 
-        self._entries[key] = CacheEntry(result=result, expires_at=expires_at)
-        # Move to end for LRU tracking (most recently set)
-        self._entries.move_to_end(key)
+        with self._lock:
+            # Cleanup and evict if needed
+            self._cleanup_expired()
+            self._evict_oldest()
+
+            self._entries[key] = CacheEntry(result=result, expires_at=expires_at)
+            # Move to end for LRU tracking (most recently set)
+            self._entries.move_to_end(key)
 
         logger.debug(
             "Cached result for query: %s (%d items, ttl=%ds)",
@@ -218,32 +234,41 @@ class CrossSourceCache:
         )
 
     def clear(self) -> None:
-        """Clear all cached results."""
-        self._entries.clear()
-        self._hits = 0
-        self._misses = 0
+        """Clear all cached results. Thread-safe."""
+        with self._lock:
+            self._entries.clear()
+            self._hits = 0
+            self._misses = 0
         logger.debug("Cache cleared")
 
     def stats(self) -> dict[str, int | float]:
         """
         Get cache statistics.
 
+        Thread-safe: Uses lock for consistent snapshot.
+
         Returns:
             Dict with cache stats including hit ratio
         """
-        total_requests = self._hits + self._misses
-        hit_ratio = self._hits / total_requests if total_requests > 0 else 0.0
+        with self._lock:
+            hits = self._hits
+            misses = self._misses
+            current_size = len(self._entries)
+
+        total_requests = hits + misses
+        hit_ratio = hits / total_requests if total_requests > 0 else 0.0
 
         return {
-            "current_size": len(self._entries),
+            "current_size": current_size,
             "max_size": self._max_size,
             "default_ttl_seconds": self._default_ttl,
-            "hits": self._hits,
-            "misses": self._misses,
+            "hits": hits,
+            "misses": misses,
             "hit_ratio": round(hit_ratio, 3),
         }
 
     @property
     def size(self) -> int:
-        """Current number of entries in the cache."""
-        return len(self._entries)
+        """Current number of entries in the cache. Thread-safe."""
+        with self._lock:
+            return len(self._entries)

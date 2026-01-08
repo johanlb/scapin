@@ -677,3 +677,111 @@ class TestCrossSourceIntegration:
         # All items should have final scores
         for item in result.items:
             assert item.final_score > 0
+
+
+# =============================================================================
+# Config Validation Tests
+# =============================================================================
+
+
+class TestCrossSourceConfigValidation:
+    """Tests for CrossSourceConfig validation."""
+
+    def test_freshness_decay_days_zero_is_corrected(self):
+        """Test that freshness_decay_days=0 is corrected to prevent division by zero."""
+        config = CrossSourceConfig(freshness_decay_days=0)
+
+        # Should be corrected to default (30)
+        assert config.freshness_decay_days == 30
+
+    def test_freshness_decay_days_negative_is_corrected(self):
+        """Test that negative freshness_decay_days is corrected."""
+        config = CrossSourceConfig(freshness_decay_days=-10)
+
+        # Should be corrected to default (30)
+        assert config.freshness_decay_days == 30
+
+    def test_freshness_decay_days_positive_is_kept(self):
+        """Test that positive freshness_decay_days is kept."""
+        config = CrossSourceConfig(freshness_decay_days=60)
+
+        # Should be kept as-is
+        assert config.freshness_decay_days == 60
+
+    def test_source_weights_invalid_clamped(self):
+        """Test that invalid source weights are clamped."""
+        config = CrossSourceConfig(
+            source_weights={
+                "email": 3.0,  # Over max (2.0)
+                "calendar": -1.0,  # Under min (0.0)
+            }
+        )
+
+        assert config.source_weights["email"] == 2.0  # Clamped to max
+        assert config.source_weights["calendar"] == 0.0  # Clamped to min
+
+
+# =============================================================================
+# Thread Safety Tests
+# =============================================================================
+
+
+class TestCrossSourceCacheThreadSafety:
+    """Tests for CrossSourceCache thread safety."""
+
+    def test_concurrent_get_set(self):
+        """Test concurrent get/set operations don't corrupt state."""
+        import threading
+        cache = CrossSourceCache(ttl_seconds=60, max_size=100)
+        errors = []
+
+        def worker(worker_id: int):
+            try:
+                for i in range(50):
+                    query = f"test_{worker_id}_{i}"
+                    result = CrossSourceResult(query=query, items=[])
+                    cache.set(query, ["email"], result)
+                    cached = cache.get(query, ["email"])
+                    if cached is not None and cached.query != query:
+                        errors.append(f"Worker {worker_id}: query mismatch")
+            except Exception as e:
+                errors.append(f"Worker {worker_id}: {e}")
+
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(errors) == 0, f"Thread safety errors: {errors}"
+
+    def test_concurrent_stats(self):
+        """Test that stats() returns consistent snapshot under concurrent access."""
+        import threading
+        cache = CrossSourceCache(ttl_seconds=60, max_size=1000)
+        errors = []
+
+        def writer():
+            for i in range(100):
+                result = CrossSourceResult(query=f"test_{i}", items=[])
+                cache.set(f"test_{i}", ["email"], result)
+
+        def reader():
+            for _ in range(100):
+                stats = cache.stats()
+                # Stats should be internally consistent
+                if stats["hits"] + stats["misses"] > 0:
+                    if stats["hit_ratio"] < 0 or stats["hit_ratio"] > 1:
+                        errors.append("Invalid hit_ratio")
+
+        threads = [
+            threading.Thread(target=writer),
+            threading.Thread(target=reader),
+            threading.Thread(target=reader),
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(errors) == 0, f"Stats consistency errors: {errors}"
