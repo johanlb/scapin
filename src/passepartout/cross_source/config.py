@@ -146,7 +146,7 @@ class CrossSourceConfig:
     # Search limits
     max_results_per_source: int = 20
     max_total_results: int = 50
-    adapter_timeout_seconds: float = 10.0
+    adapter_timeout_seconds: float = 30.0  # CalDAV can be slow
 
     # Auto-trigger threshold
     auto_trigger_confidence_threshold: float = 0.75  # If confidence < 75%
