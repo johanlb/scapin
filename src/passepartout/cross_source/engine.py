@@ -9,7 +9,9 @@ scoring and caching.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -82,6 +84,7 @@ class CrossSourceEngine:
         )
         self._adapters: dict[str, SourceAdapter] = {}
         self._adapter_health: dict[str, AdapterHealth] = {}  # Circuit breaker state
+        self._lock = threading.RLock()  # Thread-safety for adapter registration
 
         logger.info(
             "CrossSourceEngine initialized (cache_ttl=%ds, max_results=%d)",
@@ -97,11 +100,12 @@ class CrossSourceEngine:
     @property
     def available_sources(self) -> list[str]:
         """Get list of available (registered and working) source names."""
-        return [
-            name
-            for name, adapter in self._adapters.items()
-            if adapter.is_available
-        ]
+        with self._lock:
+            return [
+                name
+                for name, adapter in self._adapters.items()
+                if adapter.is_available
+            ]
 
     def register_adapter(self, adapter: SourceAdapter) -> None:
         """
@@ -111,7 +115,8 @@ class CrossSourceEngine:
             adapter: The adapter to register
         """
         source_name = adapter.source_name
-        self._adapters[source_name] = adapter
+        with self._lock:
+            self._adapters[source_name] = adapter
         logger.debug(
             "Registered adapter: %s (available=%s)",
             source_name,
@@ -125,9 +130,10 @@ class CrossSourceEngine:
         Args:
             source_name: Name of the source to unregister
         """
-        if source_name in self._adapters:
-            del self._adapters[source_name]
-            logger.debug("Unregistered adapter: %s", source_name)
+        with self._lock:
+            if source_name in self._adapters:
+                del self._adapters[source_name]
+                logger.debug("Unregistered adapter: %s", source_name)
 
     async def search(
         self,
@@ -251,8 +257,12 @@ class CrossSourceEngine:
         source_names = []
         skipped_sources: list[str] = []
 
+        # Take snapshot of adapters under lock to avoid race conditions
+        with self._lock:
+            adapters_snapshot = dict(self._adapters)
+
         for source_name in sources:
-            adapter = self._adapters.get(source_name)
+            adapter = adapters_snapshot.get(source_name)
             if adapter and adapter.is_available:
                 # Check circuit breaker
                 if self._is_circuit_open(source_name):
@@ -422,6 +432,8 @@ class CrossSourceEngine:
         When the same content appears in multiple sources, keeps the
         highest-scored version but boosts its relevance score.
 
+        Performance: O(N) with hash-based deduplication.
+
         Args:
             items: Raw items from all sources
 
@@ -429,6 +441,7 @@ class CrossSourceEngine:
             Deduplicated items with boosted scores for cross-source matches
         """
         # Track seen items by multiple keys
+        # All lookups are O(1) hash-based for O(N) total performance
         seen_urls: dict[str, SourceItem] = {}
         seen_content_hashes: dict[str, SourceItem] = {}
         seen_titles: dict[str, SourceItem] = {}
@@ -442,7 +455,7 @@ class CrossSourceEngine:
                     continue
                 seen_urls[url_key] = item
 
-            # Content hash deduplication
+            # Content hash deduplication (primary method)
             content_hash = self._compute_content_hash(item)
             if content_hash in seen_content_hashes:
                 existing = seen_content_hashes[content_hash]
@@ -452,15 +465,15 @@ class CrossSourceEngine:
                     continue
             seen_content_hashes[content_hash] = item
 
-            # Title normalization deduplication (fuzzy)
-            title_key = self._normalize_title(item.title)
+            # Title-based deduplication with content similarity hash
+            # Uses combined key of normalized title + content fingerprint
+            # This avoids expensive Jaccard computation while still catching
+            # duplicates with same title from different sources
+            title_key = self._compute_title_key(item)
             if title_key in seen_titles:
                 existing = seen_titles[title_key]
-                # Only merge if similar content and different sources
-                if (
-                    existing.source != item.source
-                    and self._is_similar_content(existing, item)
-                ):
+                # Only merge if from different sources
+                if existing.source != item.source:
                     self._merge_duplicate(existing, item)
                     continue
             seen_titles[title_key] = item
@@ -487,8 +500,9 @@ class CrossSourceEngine:
         # Take first 200 chars (enough for uniqueness)
         content = content[:200]
 
-        # Create hash using built-in hash for speed
-        return f"{hash(content)}:{item.source}"
+        # Create stable hash using SHA-256 (Python's hash() is randomized per process)
+        content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
+        return f"{content_hash}:{item.source}"
 
     def _normalize_title(self, title: str) -> str:
         """
@@ -511,11 +525,38 @@ class CrossSourceEngine:
         normalized = " ".join(normalized.split())
         return normalized
 
+    def _compute_title_key(self, item: SourceItem) -> str:
+        """
+        Compute a combined key for title-based deduplication.
+
+        Combines normalized title with a content fingerprint to avoid
+        false positives while still catching cross-source duplicates.
+
+        Performance: O(1) hash computation.
+
+        Args:
+            item: Source item
+
+        Returns:
+            Combined title + content fingerprint key
+        """
+        # Normalized title
+        title = self._normalize_title(item.title)
+
+        # Content fingerprint: hash of first 50 words
+        words = item.content.lower().split()[:50]
+        content_fp = hashlib.sha256(" ".join(words).encode()).hexdigest()[:8]
+
+        return f"{title}:{content_fp}"
+
     def _is_similar_content(self, item1: SourceItem, item2: SourceItem) -> bool:
         """
         Check if two items have similar content.
 
-        Uses simple token overlap for speed.
+        DEPRECATED: Use _compute_title_key for O(1) hash-based comparison.
+        Kept for backward compatibility.
+
+        Uses simple token overlap for similarity.
 
         Args:
             item1: First item
@@ -524,7 +565,7 @@ class CrossSourceEngine:
         Returns:
             True if content is similar (>50% token overlap)
         """
-        # Tokenize content
+        # Tokenize content (limit to 100 tokens for performance)
         tokens1 = set(item1.content.lower().split()[:100])
         tokens2 = set(item2.content.lower().split()[:100])
 
@@ -681,7 +722,7 @@ class CrossSourceEngine:
     # --- Circuit Breaker Methods ---
 
     def _get_adapter_health(self, source_name: str) -> AdapterHealth:
-        """Get or create health tracker for an adapter."""
+        """Get or create health tracker for an adapter. Must be called with lock held."""
         if source_name not in self._adapter_health:
             self._adapter_health[source_name] = AdapterHealth()
         return self._adapter_health[source_name]
@@ -696,54 +737,57 @@ class CrossSourceEngine:
         Returns:
             True if circuit is open (skip this adapter)
         """
-        health = self._get_adapter_health(source_name)
+        with self._lock:
+            health = self._get_adapter_health(source_name)
 
-        if health.open_until is None:
-            return False
+            if health.open_until is None:
+                return False
 
-        now = datetime.now(timezone.utc)
-        if now >= health.open_until:
-            # Recovery period passed - allow a trial request (half-open state)
-            logger.info("Circuit half-open for %s, allowing trial request", source_name)
-            return False
+            now = datetime.now(timezone.utc)
+            if now >= health.open_until:
+                # Recovery period passed - allow a trial request (half-open state)
+                logger.info("Circuit half-open for %s, allowing trial request", source_name)
+                return False
 
-        return True
+            return True
 
     def _record_failure(self, source_name: str) -> None:
         """Record a failure for an adapter (may open circuit)."""
-        health = self._get_adapter_health(source_name)
+        with self._lock:
+            health = self._get_adapter_health(source_name)
 
-        health.failures += 1
-        health.consecutive_successes = 0
-        health.last_failure = datetime.now(timezone.utc)
+            health.failures += 1
+            health.consecutive_successes = 0
+            health.last_failure = datetime.now(timezone.utc)
 
-        # Check if we should open the circuit
-        if health.failures >= health.failure_threshold:
-            health.open_until = datetime.now(timezone.utc) + timedelta(
-                seconds=health.recovery_timeout
-            )
-            logger.warning(
-                "Circuit OPEN for %s (failures=%d, retry in %ds)",
-                source_name,
-                health.failures,
-                health.recovery_timeout,
-            )
+            # Check if we should open the circuit
+            if health.failures >= health.failure_threshold:
+                health.open_until = datetime.now(timezone.utc) + timedelta(
+                    seconds=health.recovery_timeout
+                )
+                logger.warning(
+                    "Circuit OPEN for %s (failures=%d, retry in %ds)",
+                    source_name,
+                    health.failures,
+                    health.recovery_timeout,
+                )
 
     def _record_success(self, source_name: str) -> None:
         """Record a success for an adapter (may close circuit)."""
-        health = self._get_adapter_health(source_name)
+        with self._lock:
+            health = self._get_adapter_health(source_name)
 
-        health.consecutive_successes += 1
+            health.consecutive_successes += 1
 
-        # If in half-open state and enough successes, close the circuit
-        if (
-            health.open_until is not None
-            and health.consecutive_successes >= health.success_threshold
-        ):
-            logger.info("Circuit CLOSED for %s (recovered)", source_name)
-            health.failures = 0
-            health.open_until = None
-            health.consecutive_successes = 0
+            # If in half-open state and enough successes, close the circuit
+            if (
+                health.open_until is not None
+                and health.consecutive_successes >= health.success_threshold
+            ):
+                logger.info("Circuit CLOSED for %s (recovered)", source_name)
+                health.failures = 0
+                health.open_until = None
+                health.consecutive_successes = 0
 
     def get_adapter_health_stats(self) -> dict[str, dict[str, Any]]:
         """
@@ -752,12 +796,18 @@ class CrossSourceEngine:
         Returns:
             Dict mapping source name to health stats
         """
-        stats = {}
-        for source_name, health in self._adapter_health.items():
-            stats[source_name] = {
-                "failures": health.failures,
-                "last_failure": health.last_failure.isoformat() if health.last_failure else None,
-                "circuit_open": self._is_circuit_open(source_name),
-                "open_until": health.open_until.isoformat() if health.open_until else None,
-            }
-        return stats
+        with self._lock:
+            stats = {}
+            for source_name, health in self._adapter_health.items():
+                # Check circuit status without nested lock (already holding lock)
+                is_open = False
+                if health.open_until is not None:
+                    now = datetime.now(timezone.utc)
+                    is_open = now < health.open_until
+                stats[source_name] = {
+                    "failures": health.failures,
+                    "last_failure": health.last_failure.isoformat() if health.last_failure else None,
+                    "circuit_open": is_open,
+                    "open_until": health.open_until.isoformat() if health.open_until else None,
+                }
+            return stats

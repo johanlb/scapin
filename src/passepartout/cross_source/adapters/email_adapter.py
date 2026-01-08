@@ -139,34 +139,78 @@ class IMAPConnectionPool:
         """
         return IMAPConnectionContext(self)
 
-    def _acquire_sync(self) -> imaplib.IMAP4_SSL | None:
+    def _acquire_sync(self, timeout: float = POOL_ACQUIRE_TIMEOUT) -> imaplib.IMAP4_SSL | None:
         """
-        Synchronously acquire a connection from the pool.
+        Synchronously acquire a connection from the pool with timeout.
+
+        Args:
+            timeout: Maximum seconds to wait for connection (default: 10)
 
         Returns:
-            IMAP connection or None if unavailable
+            IMAP connection or None if unavailable/timeout
+        """
+        start_time = time.time()
+        retry_interval = 0.1  # 100ms between retries
+
+        while time.time() - start_time < timeout:
+            conn = self._try_acquire()
+            if conn is not None:
+                return conn
+
+            # Wait briefly before retry
+            time.sleep(retry_interval)
+            retry_interval = min(retry_interval * 1.5, 1.0)  # Exponential backoff, max 1s
+
+        logger.warning("IMAP pool acquire timeout after %.1fs", timeout)
+        return None
+
+    def _try_acquire(self) -> imaplib.IMAP4_SSL | None:
+        """
+        Single attempt to acquire a connection (internal).
+
+        Returns:
+            IMAP connection or None if none available
         """
         with self._lock:
             now = time.time()
 
-            # Find an available, valid connection
+            # First pass: find available, valid connections
+            # Use index-based loop to safely handle removal
+            to_remove: list[int] = []
+            acquired_conn: imaplib.IMAP4_SSL | None = None
+            acquired_idx: int | None = None
+
             for i, (conn, created_at, in_use) in enumerate(self._pool):
                 if in_use:
                     continue
 
                 if self._is_connection_valid(conn, created_at):
-                    self._pool[i] = (conn, created_at, True)
+                    # Found valid connection - mark for acquisition
+                    acquired_conn = conn
+                    acquired_idx = i
+                    break
+                else:
+                    # Mark invalid connection for removal
+                    to_remove.append(i)
+                    self._close_connection(conn)
+
+            # Remove invalid connections (reverse order to preserve indices)
+            for idx in reversed(to_remove):
+                del self._pool[idx]
+
+            # If we found a valid connection, mark it as in_use
+            if acquired_conn is not None and acquired_idx is not None:
+                # Adjust index if we removed items before it
+                adjusted_idx = acquired_idx - sum(1 for r in to_remove if r < acquired_idx)
+                if 0 <= adjusted_idx < len(self._pool):
+                    conn, created_at, _ = self._pool[adjusted_idx]
+                    self._pool[adjusted_idx] = (conn, created_at, True)
                     self._connections_reused += 1
                     logger.debug(
                         "IMAP connection reused (total_reused=%d)",
                         self._connections_reused,
                     )
                     return conn
-                else:
-                    # Remove invalid connection
-                    self._close_connection(conn)
-                    del self._pool[i]
-                    break
 
             # Create new connection if pool not full
             if len(self._pool) < self._max_size:
@@ -175,17 +219,29 @@ class IMAPConnectionPool:
                     self._pool.append((conn, now, True))
                     return conn
 
-            # Pool full, wait for availability
-            logger.debug("IMAP pool full, no connections available")
+            # Pool full, caller should retry
             return None
 
-    def _release(self, conn: imaplib.IMAP4_SSL) -> None:
-        """Release a connection back to the pool."""
+    def _release(self, conn: imaplib.IMAP4_SSL) -> bool:
+        """
+        Release a connection back to the pool.
+
+        Args:
+            conn: Connection to release
+
+        Returns:
+            True if released successfully, False if connection not found in pool
+        """
         with self._lock:
             for i, (pool_conn, created_at, _in_use) in enumerate(self._pool):
                 if pool_conn is conn:
                     self._pool[i] = (conn, created_at, False)
-                    return
+                    logger.debug("IMAP connection released to pool")
+                    return True
+
+            # Connection not found - might have been removed due to error
+            logger.debug("IMAP connection not found in pool during release")
+            return False
 
     def close_all(self) -> None:
         """Close all connections in the pool."""
@@ -209,23 +265,32 @@ class IMAPConnectionPool:
 
 
 class IMAPConnectionContext:
-    """Context manager for IMAP pool connections."""
+    """
+    Context manager for IMAP pool connections.
+
+    Ensures proper acquire/release semantics and prevents use-after-release.
+    """
 
     def __init__(self, pool: IMAPConnectionPool) -> None:
         self._pool = pool
         self._conn: imaplib.IMAP4_SSL | None = None
+        self._released: bool = False
 
     async def __aenter__(self) -> imaplib.IMAP4_SSL | None:
         """Acquire connection."""
         # Run sync acquire in thread to not block event loop
         loop = asyncio.get_event_loop()
         self._conn = await loop.run_in_executor(None, self._pool._acquire_sync)
+        self._released = False
         return self._conn
 
     async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Release connection."""
-        if self._conn is not None:
+        """Release connection and clear reference to prevent use-after-release."""
+        if self._conn is not None and not self._released:
             self._pool._release(self._conn)
+            self._released = True
+        # Clear reference to prevent accidental use
+        self._conn = None
 
 
 class EmailAdapter(BaseAdapter):
