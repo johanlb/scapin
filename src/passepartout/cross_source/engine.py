@@ -285,19 +285,39 @@ class CrossSourceEngine:
         all_items: list[SourceItem] = []
         sources_searched: list[str] = []
         sources_failed: list[str] = []
+        max_buffer = self._config.max_aggregation_buffer
 
         for source_name, result in zip(source_names, results, strict=True):
             if isinstance(result, Exception):
-                logger.warning("Search failed for %s: %s", source_name, result)
+                # Distinguish timeout from other errors for better diagnostics
+                if isinstance(result, asyncio.TimeoutError):
+                    logger.warning(
+                        "Search timeout for %s (%.1fs limit)",
+                        source_name,
+                        self._config.adapter_timeout_seconds,
+                    )
+                else:
+                    logger.warning("Search failed for %s: %s", source_name, result)
                 sources_failed.append(source_name)
                 self._record_failure(source_name)
             elif isinstance(result, list):
-                all_items.extend(result)
+                # Cap items to bound memory during aggregation
+                remaining_capacity = max_buffer - len(all_items)
+                if remaining_capacity > 0:
+                    all_items.extend(result[:remaining_capacity])
                 sources_searched.append(source_name)
                 self._record_success(source_name)
+                # Note: Empty list is a success (adapter worked, no matches)
+                if not result:
+                    logger.debug("Search for %s returned no results", source_name)
             else:
+                logger.warning("Unexpected result type for %s: %s", source_name, type(result))
                 sources_failed.append(source_name)
                 self._record_failure(source_name)
+
+        # Log if we hit the buffer limit
+        if len(all_items) >= max_buffer:
+            logger.debug("Aggregation buffer capped at %d items", max_buffer)
 
         # Add skipped sources to failed list
         sources_failed.extend(skipped_sources)

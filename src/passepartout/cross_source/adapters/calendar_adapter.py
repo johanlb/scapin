@@ -8,6 +8,7 @@ calendar events in the user's past and upcoming schedule.
 from __future__ import annotations
 
 import asyncio
+import html
 import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -306,21 +307,21 @@ class CalendarAdapter(BaseAdapter):
         else:
             content_parts.append(f"{start_str} - {end_str}")
 
-        # Add location
+        # Add location (escape for XSS protection)
         if event.location:
-            content_parts.append(f"Lieu: {event.location.display_name}")
+            content_parts.append(f"Lieu: {html.escape(event.location.display_name)}")
 
-        # Add organizer
+        # Add organizer (escape for XSS protection)
         if event.organizer:
-            content_parts.append(f"Organisateur: {event.organizer.display_name}")
+            content_parts.append(f"Organisateur: {html.escape(event.organizer.display_name)}")
 
         # Add attendees count
         if event.attendees:
             content_parts.append(f"{len(event.attendees)} participants")
 
-        # Add body preview
+        # Add body preview (escape for XSS protection)
         if event.body_preview:
-            preview = event.body_preview[:200]
+            preview = html.escape(event.body_preview[:200])
             if len(event.body_preview) > 200:
                 preview += "..."
             content_parts.append(preview)
@@ -330,14 +331,14 @@ class CalendarAdapter(BaseAdapter):
         # Calculate relevance
         relevance = self._calculate_relevance(event, query)
 
-        # Build metadata
-        attendee_names = [a.display_name for a in event.attendees] if event.attendees else []
+        # Build metadata (escape names for XSS protection)
+        attendee_names = [html.escape(a.display_name) for a in event.attendees] if event.attendees else []
         attendee_emails = [a.email for a in event.attendees] if event.attendees else []
 
         return SourceItem(
             source="calendar",
             type="event",
-            title=event.subject or "(Sans titre)",
+            title=html.escape(event.subject) if event.subject else "(Sans titre)",
             content=content,
             timestamp=event.start if event.start else datetime.now(timezone.utc),
             relevance_score=relevance,
@@ -349,10 +350,10 @@ class CalendarAdapter(BaseAdapter):
                 "is_online": event.is_online_meeting,
                 "online_url": event.online_meeting_url,
                 "organizer": event.organizer.email if event.organizer else None,
-                "organizer_name": event.organizer.display_name if event.organizer else None,
+                "organizer_name": html.escape(event.organizer.display_name) if event.organizer else None,
                 "attendees": attendee_emails,
                 "attendee_names": attendee_names,
-                "location": event.location.display_name if event.location else None,
+                "location": html.escape(event.location.display_name) if event.location else None,
                 "importance": event.importance.value if event.importance else "normal",
                 "categories": list(event.categories) if event.categories else [],
             },

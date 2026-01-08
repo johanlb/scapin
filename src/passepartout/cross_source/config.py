@@ -151,6 +151,7 @@ class CrossSourceConfig:
     # Search limits
     max_results_per_source: int = 20
     max_total_results: int = 50
+    max_aggregation_buffer: int = 500  # Cap items before deduplication to bound memory
     adapter_timeout_seconds: float = 30.0  # CalDAV can be slow
 
     # Auto-trigger threshold

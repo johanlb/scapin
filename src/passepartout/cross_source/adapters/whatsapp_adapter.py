@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -95,32 +96,34 @@ class WhatsAppAdapter(BaseAdapter):
         self._connection: sqlite3.Connection | None = None
         self._available: bool | None = None
         self._cached_schema: str | None = None  # Cache detected schema type
+        self._lock = threading.RLock()  # Thread-safety for connection management
 
     @property
     def is_available(self) -> bool:
         """Check if WhatsApp database is accessible."""
-        if self._available is not None:
-            return self._available
+        with self._lock:
+            if self._available is not None:
+                return self._available
 
-        # Try to find and connect to database
-        db_path = self._find_database()
-        if db_path is None:
-            self._available = False
-            return False
+            # Try to find and connect to database
+            db_path = self._find_database()
+            if db_path is None:
+                self._available = False
+                return False
 
-        try:
-            # Test connection with read-only mode
-            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-            conn.execute("SELECT 1")
-            conn.close()
-            self._db_path = db_path
-            self._available = True
-            logger.info("WhatsApp database found at %s", db_path)
-            return True
-        except (sqlite3.Error, OSError) as e:
-            logger.debug("WhatsApp database not accessible: %s", e)
-            self._available = False
-            return False
+            try:
+                # Test connection with read-only mode
+                conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+                conn.execute("SELECT 1")
+                conn.close()
+                self._db_path = db_path
+                self._available = True
+                logger.info("WhatsApp database found at %s", db_path)
+                return True
+            except (sqlite3.Error, OSError) as e:
+                logger.debug("WhatsApp database not accessible: %s", e)
+                self._available = False
+                return False
 
     def _find_database(self) -> Path | None:
         """
@@ -175,17 +178,18 @@ class WhatsAppAdapter(BaseAdapter):
             return False
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Get or create database connection."""
-        if self._connection is None:
-            if self._db_path is None:
-                raise RuntimeError("WhatsApp database not found")
-            self._connection = sqlite3.connect(
-                f"file:{self._db_path}?mode=ro",
-                uri=True,
-                timeout=5.0,
-            )
-            self._connection.row_factory = sqlite3.Row
-        return self._connection
+        """Get or create database connection (thread-safe)."""
+        with self._lock:
+            if self._connection is None:
+                if self._db_path is None:
+                    raise RuntimeError("WhatsApp database not found")
+                self._connection = sqlite3.connect(
+                    f"file:{self._db_path}?mode=ro",
+                    uri=True,
+                    timeout=5.0,
+                )
+                self._connection.row_factory = sqlite3.Row
+            return self._connection
 
     async def search(
         self,
@@ -530,7 +534,8 @@ class WhatsAppAdapter(BaseAdapter):
         return min(max(base_score, 0.0), 0.95)
 
     def close(self) -> None:
-        """Close database connection."""
-        if self._connection:
-            self._connection.close()
-            self._connection = None
+        """Close database connection (thread-safe)."""
+        with self._lock:
+            if self._connection:
+                self._connection.close()
+                self._connection = None

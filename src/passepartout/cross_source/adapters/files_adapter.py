@@ -420,6 +420,8 @@ class FilesAdapter(BaseAdapter):
         """
         Search a single file for query matches.
 
+        Caches content preview to avoid double-reading the file later.
+
         Args:
             file_path: Path to file
             query_lower: Lowercase query string
@@ -436,11 +438,16 @@ class FilesAdapter(BaseAdapter):
                 lines = content.split("\n")
                 for i, line in enumerate(lines, 1):
                     if query_lower in line.lower():
+                        # Cache content preview to avoid re-reading file
+                        preview = content[:500]
+                        if len(content) > 500:
+                            preview += "..."
                         return {
                             "path": file_path,
                             "line_number": i,
                             "line_text": line.strip()[:200],
                             "modified": self._get_mtime(file_path),
+                            "content_preview": preview,  # Cache for later use
                         }
         except (OSError, UnicodeDecodeError):
             pass
@@ -482,17 +489,23 @@ class FilesAdapter(BaseAdapter):
         if match.get("line_number"):
             content_parts.append(f"Line {match['line_number']}: {match.get('line_text', '')}")
 
-        # Try to get more context from the file
-        try:
-            full_content = file_path.read_text(encoding="utf-8", errors="ignore")
-            preview = full_content[:500]
-            if len(full_content) > 500:
-                preview += "..."
+        # Use cached content preview if available (avoids double-reading file)
+        if "content_preview" in match:
             content_parts.append("")
             content_parts.append("Preview:")
-            content_parts.append(preview)
-        except OSError:
-            pass
+            content_parts.append(match["content_preview"])
+        else:
+            # Fallback for ripgrep results (no cached content)
+            try:
+                full_content = file_path.read_text(encoding="utf-8", errors="ignore")
+                preview = full_content[:500]
+                if len(full_content) > 500:
+                    preview += "..."
+                content_parts.append("")
+                content_parts.append("Preview:")
+                content_parts.append(preview)
+            except OSError:
+                pass
 
         content = "\n".join(content_parts)
 
