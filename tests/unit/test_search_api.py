@@ -767,7 +767,7 @@ class TestCrossSourceService:
 
             mock_engine.search.assert_called_once()
             call_kwargs = mock_engine.search.call_args.kwargs
-            assert call_kwargs["sources"] == ["calendar"]
+            assert call_kwargs["preferred_sources"] == ["calendar"]
 
     @pytest.mark.asyncio
     async def test_cross_source_search_min_relevance_filter(self, service):

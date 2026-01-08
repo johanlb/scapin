@@ -144,7 +144,8 @@ class TestSemanticSearch:
 class TestContextRetrieval:
     """Test context retrieval from knowledge base"""
 
-    def test_retrieve_context_by_entities(self, note_manager, context_engine):
+    @pytest.mark.asyncio
+    async def test_retrieve_context_by_entities(self, note_manager, context_engine):
         """Test retrieving context based on entities"""
         # Create note with specific entities
         note_manager.create_note(
@@ -178,7 +179,7 @@ class TestContextRetrieval:
         event = EmailNormalizer.normalize(metadata, content, perception_confidence=0.9)
 
         # Retrieve context
-        result = context_engine.retrieve_context(
+        result = await context_engine.retrieve_context(
             event=event,
             top_k=5,
             min_relevance=0.3
@@ -188,8 +189,8 @@ class TestContextRetrieval:
         if result.context_items:
             assert any("Infrastructure Project" in item.content for item in result.context_items)
 
-
-    def test_retrieve_context_by_semantic_similarity(self, note_manager, context_engine):
+    @pytest.mark.asyncio
+    async def test_retrieve_context_by_semantic_similarity(self, note_manager, context_engine):
         """Test retrieving context by semantic similarity"""
         # Create note about budgets
         note_manager.create_note(
@@ -219,7 +220,7 @@ class TestContextRetrieval:
         event = EmailNormalizer.normalize(metadata, content, perception_confidence=0.9)
 
         # Retrieve context
-        result = context_engine.retrieve_context(
+        result = await context_engine.retrieve_context(
             event=event,
             top_k=3,
             min_relevance=0.5
