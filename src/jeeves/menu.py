@@ -401,7 +401,7 @@ class InteractiveMenu:
         """View statistics"""
         console.print()
         console.print(Panel.fit(
-            "[bold cyan]Statistics[/bold cyan]", border_style="cyan"
+            "[bold cyan]📊 Statistics[/bold cyan]", border_style="cyan"
         ))
         console.print()
 
@@ -410,11 +410,34 @@ class InteractiveMenu:
 
         console.print("[bold]Queue Statistics:[/bold]")
         console.print(f"  Total items: {queue_stats['total']}")
-        console.print(f"  By status: {queue_stats['by_status']}")
-        console.print(f"  By account: {queue_stats['by_account']}")
+        if queue_stats.get('by_status'):
+            for status, count in queue_stats['by_status'].items():
+                console.print(f"    - {status}: {count}")
+        if queue_stats.get('by_account'):
+            for account, count in queue_stats['by_account'].items():
+                console.print(f"    - {account}: {count}")
         console.print()
 
-        # TODO: Add more stats (processing history, AI performance, etc.)
+        # Processing stats from state manager
+        from src.core.state_manager import get_state_manager
+        state = get_state_manager()
+
+        console.print("[bold]Processing History:[/bold]")
+        emails_processed = state.get("emails_processed_total", 0)
+        emails_auto_executed = state.get("emails_auto_executed", 0)
+        teams_processed = state.get("teams_messages_processed", 0)
+        console.print(f"  Emails processed: {emails_processed}")
+        console.print(f"  Auto-executed: {emails_auto_executed}")
+        console.print(f"  Teams messages: {teams_processed}")
+        console.print()
+
+        # AI stats
+        console.print("[bold]AI Performance:[/bold]")
+        avg_confidence = state.get("avg_confidence", 0)
+        ai_calls = state.get("ai_calls_total", 0)
+        console.print(f"  Total AI calls: {ai_calls}")
+        console.print(f"  Avg confidence: {avg_confidence:.1f}%" if avg_confidence else "  Avg confidence: N/A")
+        console.print()
 
         questionary.press_any_key_to_continue(
             "Press any key to return to menu...", style=custom_style
@@ -427,14 +450,15 @@ class InteractiveMenu:
         console.print()
 
         choices = [
-            "📧 Manage Email Accounts",
-            "🤖 AI Settings (confidence, rate limit)",
-            "💾 Storage Settings",
+            "📧 View Email Accounts",
+            "🤖 View AI Settings",
+            "💾 View Storage Settings",
+            "🔗 View Integrations",
             "⬅️  Back to Main Menu",
         ]
 
         choice = questionary.select(
-            "Select setting to configure:",
+            "Select setting to view:",
             choices=choices,
             style=custom_style,
         ).ask()
@@ -442,8 +466,102 @@ class InteractiveMenu:
         if not choice or "Back" in choice:
             return
 
-        # TODO: Implement settings management
-        console.print("[dim]Settings management coming soon...[/dim]")
+        if "Email Accounts" in choice:
+            self._show_email_accounts()
+        elif "AI Settings" in choice:
+            self._show_ai_settings()
+        elif "Storage Settings" in choice:
+            self._show_storage_settings()
+        elif "Integrations" in choice:
+            self._show_integrations()
+
+    def _show_email_accounts(self):
+        """Display email account settings"""
+        console.print()
+        console.print("[bold]Email Accounts[/bold]")
+        console.print()
+
+        accounts = self.config.email.get_enabled_accounts()
+
+        if not accounts:
+            console.print("[dim]No email accounts configured[/dim]")
+        else:
+            for i, acc in enumerate(accounts, 1):
+                status = "[green]●[/green]" if acc.enabled else "[red]●[/red]"
+                console.print(f"  {status} Account {i}: {acc.account_name}")
+                console.print(f"      Server: {acc.imap_server}:{acc.imap_port}")
+                console.print(f"      User: {acc.imap_username}")
+                console.print()
+
+        console.print()
+        questionary.press_any_key_to_continue(style=custom_style).ask()
+
+    def _show_ai_settings(self):
+        """Display AI settings"""
+        console.print()
+        console.print("[bold]AI Settings[/bold]")
+        console.print()
+
+        ai_config = self.config.ai
+
+        console.print(f"  Model: {ai_config.model}")
+        console.print(f"  Temperature: {ai_config.temperature}")
+        console.print(f"  Max tokens: {ai_config.max_tokens}")
+
+        # Processing config
+        proc_config = self.config.processing
+        console.print()
+        console.print("[bold]Processing Settings[/bold]")
+        console.print()
+        console.print(f"  Cognitive reasoning: {'Enabled' if proc_config.enable_cognitive_reasoning else 'Disabled'}")
+        console.print(f"  Auto-execute threshold: {proc_config.auto_execute_threshold}%")
+        console.print(f"  Context enrichment: {'Enabled' if proc_config.enable_context_enrichment else 'Disabled'}")
+        console.print(f"  Context top-k: {proc_config.context_top_k}")
+
+        console.print()
+        questionary.press_any_key_to_continue(style=custom_style).ask()
+
+    def _show_storage_settings(self):
+        """Display storage settings"""
+        console.print()
+        console.print("[bold]Storage Settings[/bold]")
+        console.print()
+
+        storage_config = self.config.storage
+
+        console.print(f"  Base directory: {storage_config.base_dir}")
+        console.print(f"  Notes directory: {storage_config.notes_dir}")
+        console.print(f"  Queue directory: {storage_config.queue_dir}")
+
+        # Check if paths exist
+        from pathlib import Path
+        base_path = Path(storage_config.base_dir)
+        if base_path.exists():
+            console.print("  [green]✓[/green] Base directory exists")
+        else:
+            console.print("  [yellow]⚠[/yellow] Base directory does not exist")
+
+        console.print()
+        questionary.press_any_key_to_continue(style=custom_style).ask()
+
+    def _show_integrations(self):
+        """Display integration settings"""
+        console.print()
+        console.print("[bold]Integrations[/bold]")
+        console.print()
+
+        # Teams
+        teams_status = "[green]●[/green] Enabled" if self.config.teams.enabled else "[dim]○ Disabled[/dim]"
+        console.print(f"  Microsoft Teams: {teams_status}")
+        if self.config.teams.enabled:
+            console.print(f"      Poll interval: {self.config.teams.poll_interval_seconds}s")
+
+        # Calendar
+        calendar_status = "[green]●[/green] Enabled" if self.config.calendar.enabled else "[dim]○ Disabled[/dim]"
+        console.print(f"  Microsoft Calendar: {calendar_status}")
+        if self.config.calendar.enabled:
+            console.print(f"      Days ahead: {self.config.calendar.days_ahead}")
+
         console.print()
         questionary.press_any_key_to_continue(style=custom_style).ask()
 
@@ -455,18 +573,95 @@ class InteractiveMenu:
         ))
         console.print()
 
+        import shutil
+        from pathlib import Path
+
         # Check configuration
         try:
             config = get_config()
             console.print("[green]✓[/green] Configuration loaded")
-
-            accounts = config.email.get_enabled_accounts()
-            console.print(f"[green]✓[/green] {len(accounts)} email account(s) configured")
-
-            # TODO: Add more health checks (IMAP connection, AI API, disk space, etc.)
-
         except Exception as e:
             console.print(f"[red]✗[/red] Configuration error: {e}")
+            return
+
+        # Email accounts
+        console.print()
+        console.print("[bold]Email[/bold]")
+        accounts = config.email.get_enabled_accounts()
+        if accounts:
+            console.print(f"  [green]✓[/green] {len(accounts)} email account(s) configured")
+            for acc in accounts:
+                console.print(f"    - {acc.account_name} ({acc.imap_server})")
+        else:
+            console.print("  [yellow]⚠[/yellow] No email accounts configured")
+
+        # Storage
+        console.print()
+        console.print("[bold]Storage[/bold]")
+        base_path = Path(config.storage.base_dir)
+        if base_path.exists():
+            console.print(f"  [green]✓[/green] Data directory exists: {base_path}")
+            # Check disk space
+            _total, _used, free = shutil.disk_usage(base_path)
+            free_gb = free / (1024 ** 3)
+            if free_gb > 1:
+                console.print(f"  [green]✓[/green] Disk space: {free_gb:.1f} GB free")
+            else:
+                console.print(f"  [yellow]⚠[/yellow] Low disk space: {free_gb:.2f} GB free")
+        else:
+            console.print(f"  [yellow]⚠[/yellow] Data directory missing: {base_path}")
+
+        # Queue storage
+        queue_path = Path(config.storage.queue_dir)
+        if queue_path.exists():
+            queue_files = list(queue_path.glob("*.json"))
+            console.print(f"  [green]✓[/green] Queue storage: {len(queue_files)} items")
+        else:
+            console.print("  [dim]○[/dim] Queue directory not created yet")
+
+        # Notes storage
+        notes_path = Path(config.storage.notes_dir)
+        if notes_path.exists():
+            note_files = list(notes_path.rglob("*.md"))
+            console.print(f"  [green]✓[/green] Notes storage: {len(note_files)} notes")
+        else:
+            console.print("  [dim]○[/dim] Notes directory not created yet")
+
+        # AI Configuration
+        console.print()
+        console.print("[bold]AI Configuration[/bold]")
+        if config.ai.anthropic_api_key:
+            key_preview = config.ai.anthropic_api_key[:8] + "..." if len(config.ai.anthropic_api_key) > 8 else "***"
+            console.print(f"  [green]✓[/green] API key configured ({key_preview})")
+        else:
+            console.print("  [red]✗[/red] No API key configured")
+        console.print(f"  [dim]Model: {config.ai.model}[/dim]")
+
+        # Integrations
+        console.print()
+        console.print("[bold]Integrations[/bold]")
+        if config.teams.enabled:
+            console.print("  [green]✓[/green] Microsoft Teams enabled")
+        else:
+            console.print("  [dim]○[/dim] Microsoft Teams disabled")
+
+        if config.calendar.enabled:
+            console.print("  [green]✓[/green] Microsoft Calendar enabled")
+        else:
+            console.print("  [dim]○[/dim] Microsoft Calendar disabled")
+
+        # Processing pipeline
+        console.print()
+        console.print("[bold]Processing Pipeline[/bold]")
+        if config.processing.enable_cognitive_reasoning:
+            console.print("  [green]✓[/green] Cognitive reasoning enabled")
+        else:
+            console.print("  [dim]○[/dim] Cognitive reasoning disabled (legacy mode)")
+
+        if config.processing.enable_context_enrichment:
+            console.print("  [green]✓[/green] Context enrichment enabled")
+        else:
+            console.print("  [dim]○[/dim] Context enrichment disabled")
 
         console.print()
         questionary.press_any_key_to_continue(
