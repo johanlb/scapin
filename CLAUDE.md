@@ -29,7 +29,7 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Le *comment* technique | Implémentation des modules |
 | **[ROADMAP.md](ROADMAP.md)** | Le *quand* | Priorisation des tâches |
 | **[UI_VOCABULARY.md](docs/UI_VOCABULARY.md)** | 🎭 **Vocabulaire UI** — Mapping termes UI ↔ technique | Traitement requêtes utilisateur, génération réponses |
-| **[CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)** | 🔥 **Spec CrossSource** — Prochaine priorité | Implémentation Sprint Cross-Source |
+| **[CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)** | ✅ **Spec CrossSource** — Complété | Référence Sprint Cross-Source |
 | **Ce fichier (CLAUDE.md)** | État actuel | Démarrage de session |
 
 ### Les 5 Principes Directeurs
@@ -2691,10 +2691,10 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ⬜ POST /api/teams/chats/{id}/read
 - ⬜ Calendar CRUD (3 endpoints)
 
-### Sprint Cross-Source : 🔥 PRIORITÉ (En cours — 50%)
+### Sprint Cross-Source : ✅ COMPLÉTÉ (12/12 — 100%)
 
 **Objectif** : Recherche intelligente cross-sources
-**Statut** : 6/12 items complétés
+**Statut** : 12/12 items complétés
 
 **Items complétés** :
 - ✅ CrossSourceEngine service
@@ -2703,14 +2703,12 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Adapter: Emails archivés (IMAP search)
 - ✅ Adapter: Calendrier (événements passés/futurs)
 - ✅ Adapter: Teams (historique messages)
-
-**Prochains items** :
-- ⬜ Adapter: WhatsApp (historique SQLite)
-- ⬜ Adapter: Fichiers locaux (ripgrep)
-- ⬜ Adapter: Web/Internet (Tavily API)
-- ⬜ Hook dans ReasoningEngine (Pass 2+)
-- ⬜ Hook dans NoteReviewer
-- ⬜ API: POST /api/search/cross-source
+- ✅ Adapter: WhatsApp (historique SQLite)
+- ✅ Adapter: Fichiers locaux (ripgrep)
+- ✅ Adapter: Web/Internet (Tavily API)
+- ✅ Hook dans ReasoningEngine (Pass 2+)
+- ✅ Hook dans NoteReviewer
+- ✅ API: POST /api/search/cross-source
 
 Voir [ROADMAP.md](ROADMAP.md) pour les détails complets.
 

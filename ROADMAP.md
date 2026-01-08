@@ -3,7 +3,7 @@
 **Dernière mise à jour** : 8 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
 **Phase actuelle** : Sprint 3 EN COURS 🚧 — Workflow & Actions (10/18 items — 56%)
-**Prochaine priorité** : 🔥 Sprint Cross-Source — Intelligence Multi-Sources
+**Prochaine priorité** : Sprint 4 — Temps Réel & UX
 
 ---
 
@@ -399,14 +399,20 @@ Implémenté en parallèle du Sprint 3 :
 
 ---
 
-## Sprint Cross-Source : Intelligence Multi-Sources 🔥 PRIORITÉ
+## Sprint Cross-Source : Intelligence Multi-Sources ✅ COMPLÉTÉ
 
-**Statut** : 🚧 EN COURS — **Phase 2 complétée (9/12 items — 75%)**
+**Statut** : ✅ COMPLÉTÉ — **12/12 items — 100%**
 **Objectif** : Recherche intelligente cross-sources pour enrichissement et analyse
-**Items** : 12 MVP (9 complétés)
+**Items** : 12 MVP (12 complétés)
 **Dépendance** : Sprint 3
 **Spécification** : [CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)
-**Tests** : 127 tests (100% pass)
+**Tests** : 112 tests (100% pass)
+
+> **Session 8 janvier 2026 (Final)** : Sprint Cross-Source complété !
+> - Tous les adaptateurs enregistrés dans `create_cross_source_engine` factory
+> - Email, WhatsApp, Files, Web adapters connectés
+> - CrossSourceEngine passé à BackgroundWorker → NoteReviewer
+> - Fix bug API: `sources` → `preferred_sources`
 
 > **Session 8 janvier 2026 (Suite)** : NoteReviewer hook implémenté avec 12 nouveaux tests.
 > CrossSourceEngine interroge calendar, teams, email pour enrichir le contexte de révision.
