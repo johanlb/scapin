@@ -1,9 +1,9 @@
 # Suivi des Écarts — Scapin
 
 **Dernière mise à jour** : 8 janvier 2026
-**Total items** : 132
-**MVP** : 79 | **Nice-to-have** : 53 | **Complétés** : 44
-**Sprint actuel** : Sprint Cross-Source — Phase 2 (6/12 — 50%)
+**Total items** : 133
+**MVP** : 80 | **Nice-to-have** : 53 | **Complétés** : 45
+**Sprint actuel** : Sprint Cross-Source — Phase 2 (7/13 — 54%)
 **Prochaine priorité** : Sprint 3 Finalisation + Cross-Source Phase 3
 
 ---
@@ -288,7 +288,7 @@
 
 ---
 
-## 13. 🔥 Cross-Source Intelligence (12 items — 6 complétés) — PRIORITÉ
+## 13. 🔥 Cross-Source Intelligence (13 items — 7 complétés) — PRIORITÉ
 
 > **Vision** : Permettre à Scapin d'interroger TOUTES les sources d'information disponibles
 > pour enrichir les notes et améliorer l'analyse.
@@ -302,11 +302,12 @@
 | ✅ | Unified search interface (models, cache, config) | MVP |
 | ✅ | Query routing intelligent | MVP |
 
-### Adapters Sources Existantes (3) — ✅ COMPLÉTÉ
+### Adapters Sources Existantes (4) — ✅ COMPLÉTÉ
 | Status | Item | Priorité |
 |--------|------|----------|
 | ✅ | Adapter: Emails archivés (IMAP search) | MVP |
-| ✅ | Adapter: Calendrier (événements passés/futurs) | MVP |
+| ✅ | Adapter: Calendrier Microsoft (événements passés/futurs) | MVP |
+| ✅ | Adapter: Calendrier iCloud (CalDAV API) | MVP |
 | ✅ | Adapter: Teams (historique messages) | MVP |
 
 ### Adapters Nouvelles Sources (3)
@@ -354,9 +355,9 @@
 | Phase 0.9+ | 3 | 0 | 3 |
 | UI Components | 6 | 6 | 0 |
 | Qualité & Docs | 3 | 3 | 0 |
-| **🔥 Cross-Source** | **12** | **12** | **0** |
+| **🔥 Cross-Source** | **13** | **13** | **0** |
 | **Valets Dashboard** | **4** | **4** | **0** |
-| **TOTAL** | **132** | **79** | **53** |
+| **TOTAL** | **133** | **80** | **53** |
 
 ---
 
@@ -370,7 +371,7 @@ Total:        █████████░░░░░░░░░░░ 51/13
 Sprint 1:     ████████████████████ 19/19 (100%) ✅
 Sprint 2:     ████████████████████ 13/13 (100%) ✅
 Sprint 3:     ███████████░░░░░░░░░ 10/18 (56%) 🚧
-Cross-Source: ██████████░░░░░░░░░░  6/12 (50%) 🚧 🔥 Phase 2 ✅
+Cross-Source: ██████████░░░░░░░░░░  7/13 (54%) 🚧 🔥 Phase 2 ✅
 Valets Dash:  ░░░░░░░░░░░░░░░░░░░░  0/4 (0%) 📋
 ```
 
@@ -380,6 +381,7 @@ Valets Dash:  ░░░░░░░░░░░░░░░░░░░░  0/4 
 
 | Date | Action |
 |------|--------|
+| 2026-01-08 | **iCloud Calendar Adapter ✅** — CalDAV API support (29 tests) |
 | 2026-01-08 | **Cross-Source Phase 2 ✅** — Calendar + Teams Adapters (63 tests total) |
 | 2026-01-08 | **Cross-Source Phase 1 ✅** — Core Engine + Email Adapter (34 tests) |
 | 2026-01-08 | **🔥 Cross-Source AJOUTÉ** — 12 items MVP prioritaires (emails archivés, calendar, teams, whatsapp, files, web search) |

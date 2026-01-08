@@ -21,13 +21,28 @@ class EmailAdapterConfig:
 
 @dataclass
 class CalendarAdapterConfig:
-    """Configuration for the calendar adapter."""
+    """Configuration for the Microsoft calendar adapter."""
 
     enabled: bool = True
     past_days: int = 365  # 1 year back
     future_days: int = 90  # 3 months ahead
     include_description: bool = True
     max_results: int = 20
+
+
+@dataclass
+class ICloudCalendarAdapterConfig:
+    """Configuration for the iCloud calendar adapter (CalDAV)."""
+
+    enabled: bool = True
+    past_days: int = 365  # 1 year back
+    future_days: int = 90  # 3 months ahead
+    include_description: bool = True
+    max_results: int = 20
+    # CalDAV credentials (set via environment)
+    username: str = ""  # Apple ID email
+    app_specific_password: str = ""  # From appleid.apple.com
+    server_url: str = "https://caldav.icloud.com"
 
 
 @dataclass
@@ -141,6 +156,7 @@ class CrossSourceConfig:
         default_factory=lambda: {
             "email": 1.0,
             "calendar": 1.0,
+            "icloud_calendar": 1.0,
             "teams": 0.9,
             "whatsapp": 0.9,
             "files": 0.8,
@@ -155,6 +171,9 @@ class CrossSourceConfig:
     # Per-adapter configs
     email: EmailAdapterConfig = field(default_factory=EmailAdapterConfig)
     calendar: CalendarAdapterConfig = field(default_factory=CalendarAdapterConfig)
+    icloud_calendar: ICloudCalendarAdapterConfig = field(
+        default_factory=ICloudCalendarAdapterConfig
+    )
     teams: TeamsAdapterConfig = field(default_factory=TeamsAdapterConfig)
     whatsapp: WhatsAppAdapterConfig = field(default_factory=WhatsAppAdapterConfig)
     files: FilesAdapterConfig = field(default_factory=FilesAdapterConfig)
@@ -172,6 +191,8 @@ class CrossSourceConfig:
             sources.append("email")
         if self.calendar.enabled:
             sources.append("calendar")
+        if self.icloud_calendar.enabled:
+            sources.append("icloud_calendar")
         if self.teams.enabled:
             sources.append("teams")
         if self.whatsapp.enabled:

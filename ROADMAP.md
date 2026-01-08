@@ -454,7 +454,8 @@ Implémenté en parallèle du Sprint 3 :
 | | Unified search interface (models, cache, config) | MVP | ✅ |
 | | Query routing intelligent | MVP | ✅ |
 | **Sources Existantes** | Adapter: Emails archivés (IMAP search) | MVP | ✅ |
-| | Adapter: Calendrier (événements passés/futurs) | MVP | ✅ |
+| | Adapter: Calendrier Microsoft (Graph API) | MVP | ✅ |
+| | Adapter: Calendrier iCloud (CalDAV API) | MVP | ✅ |
 | | Adapter: Teams (historique messages) | MVP | ✅ |
 | **Nouvelles Sources** | Adapter: WhatsApp (historique SQLite) | MVP | ⬜ |
 | | Adapter: Fichiers locaux (ripgrep) | MVP | ⬜ |
@@ -793,7 +794,7 @@ Interfaces:        ████████████████████ 
 Sprint 1 (Notes):  ████████████████████ 100% ✅ (19/19)
 Sprint 2 (Analyse):████████████████████ 100% ✅ (13/13)
 Sprint 3 (Actions):███████████░░░░░░░░░  56% 🚧 (10/18)
-Cross-Source 🔥:   ██████████░░░░░░░░░░  50% 🚧 (6/12)
+Cross-Source 🔥:   ███████████░░░░░░░░░  54% 🚧 (7/13)
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░   0% 📋
 
