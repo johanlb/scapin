@@ -17,6 +17,11 @@
 	let snoozeSuccess = $state<string | null>(null);
 	let snoozeError = $state<string | null>(null);
 
+	// Timeout IDs for cleanup
+	let undoErrorTimeout: ReturnType<typeof setTimeout> | null = null;
+	let snoozeSuccessTimeout: ReturnType<typeof setTimeout> | null = null;
+	let snoozeErrorTimeout: ReturnType<typeof setTimeout> | null = null;
+
 	const snoozeOptions: { value: SnoozeOption; label: string }[] = [
 		{ value: 'later_today', label: 'Plus tard (3h)' },
 		{ value: 'tomorrow', label: 'Demain matin' },
@@ -37,6 +42,10 @@
 
 	onDestroy(() => {
 		document.removeEventListener('keydown', handleKeyboard);
+		// Clear all pending timeouts
+		if (undoErrorTimeout) clearTimeout(undoErrorTimeout);
+		if (snoozeSuccessTimeout) clearTimeout(snoozeSuccessTimeout);
+		if (snoozeErrorTimeout) clearTimeout(snoozeErrorTimeout);
 	});
 
 	type StatusFilter = 'pending' | 'approved' | 'rejected';
@@ -112,7 +121,8 @@
 			console.error('Undo failed:', e);
 			undoError = e instanceof Error ? e.message : 'Erreur lors de l\'annulation';
 			// Clear error after 5 seconds
-			setTimeout(() => {
+			if (undoErrorTimeout) clearTimeout(undoErrorTimeout);
+			undoErrorTimeout = setTimeout(() => {
 				undoError = null;
 			}, 5000);
 		} finally {
@@ -281,7 +291,8 @@
 			await queueStore.fetchStats();
 
 			// Clear success message after delay
-			setTimeout(() => {
+			if (snoozeSuccessTimeout) clearTimeout(snoozeSuccessTimeout);
+			snoozeSuccessTimeout = setTimeout(() => {
 				snoozeSuccess = null;
 			}, 3000);
 
@@ -293,7 +304,8 @@
 			console.error('Snooze failed:', e);
 			snoozeError = e instanceof Error ? e.message : 'Erreur lors du report';
 			// Clear error after 5 seconds
-			setTimeout(() => {
+			if (snoozeErrorTimeout) clearTimeout(snoozeErrorTimeout);
+			snoozeErrorTimeout = setTimeout(() => {
 				snoozeError = null;
 			}, 5000);
 		} finally {
@@ -740,9 +752,10 @@
 							{/if}
 
 							{#if showHtmlContent && currentItem.content?.html_body}
+								<!-- Note: sandbox without allow-same-origin for security (prevents script access to parent) -->
 								<iframe
 									srcdoc={currentItem.content.html_body}
-									sandbox="allow-same-origin"
+									sandbox=""
 									class="w-full h-96 rounded-lg border border-[var(--color-border)] bg-white"
 									title="Contenu HTML de l'email"
 								></iframe>

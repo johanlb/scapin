@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 7 janvier 2026
+**Dernière mise à jour** : 8 janvier 2026
 **Projet** : Scapin (anciennement PKM System)  
 **Dépôt** : https://github.com/johanlb/scapin  
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -543,6 +543,40 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-08 — Sprint 3 : UI Brouillons & Code Review
+
+**Focus** : UI Brouillons email + Revue de code approfondie Sprint 3
+
+**Accomplissements** :
+
+1. ✅ **UI Brouillons Email complète**
+   - `web/src/routes/drafts/+page.svelte` — Page liste avec filtres (~335 lignes)
+   - `web/src/routes/drafts/[id]/+page.svelte` — Page édition (~434 lignes)
+   - 10 fonctions API client (list, get, create, update, send, discard, delete...)
+   - Navigation sidebar ajoutée
+
+2. ✅ **Code Review Sprint 3** — Analyse approfondie en 4 axes parallèles
+   - Sécurité : XSS, injection, CSRF
+   - Architecture : Race conditions, memory leaks
+   - Qualité : Code mort, duplication, types
+   - Performance : Optimisation, debouncing
+
+3. ✅ **Security Fixes**
+   - XSS: `{@html}` remplacé par iframe sandboxée dans `flux/[id]/+page.svelte`
+   - iframe sandbox: `allow-same-origin` retiré (trop permissif)
+
+4. ✅ **Memory Leak Fixes**
+   - setTimeout cleanup dans onDestroy (`flux/+page.svelte`)
+   - 3 timeouts nommés avec clearTimeout au démontage
+
+5. ✅ **Race Condition Fixes**
+   - Guards `sendingReply` ajoutés dans `handleInlineReply` et `handleQuickReply`
+   - Empêche les envois concurrents multiples
+
+**Tests** : 1975 passed, 50 skipped, svelte-check 0 errors
+
+---
 
 ### Session 2026-01-07 — Backlog Review & Sprint 2 Planning
 
@@ -2521,10 +2555,9 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ GET /api/status (status temps réel)
 - ✅ Détection et alerte conflits calendrier (ConflictDetector)
 
-### Sprint 2 : Qualité d'Analyse (En cours — 85%)
+### Sprint 2 : Qualité d'Analyse — COMPLÉTÉ ✅
 
-**Objectif** : Boucle Email ↔ Notes bidirectionnelle complète
-**Statut** : 11/13 items complétés
+**Statut** : 100% complété (13/13 items)
 
 **Items complétés** :
 - ✅ Extraction entités automatique (personnes, dates, projets, etc.)
@@ -2538,16 +2571,31 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ POST /api/discussions/quick (quick chat)
 - ✅ Page Discussions multi-sessions (frontend)
 - ✅ UI: Bouton "Discuter de cette note" (chat contextuel)
+- ✅ Mode traitement focus pleine page
+- ✅ Filtrage par mentions directes (Teams)
+
+### Sprint 3 : Workflow & Actions (En cours — 56%)
+
+**Objectif** : Actions sur emails avec contexte riche disponible
+**Statut** : 10/18 items complétés
+
+**Items complétés** :
+- ✅ Events API (4 endpoints snooze/undo)
+- ✅ Undo/Snooze Backend (historique, rappel auto)
+- ✅ Email Drafts Backend (PrepareEmailReplyAction, DraftReply, API)
+- ✅ UI Brouillons Email (liste + édition)
 
 **Prochains items** :
-- ⬜ Mode traitement focus pleine page
-- ⬜ Filtrage par mentions directes (Teams)
+- ⬜ Vue détail email (corps HTML/texte)
+- ⬜ Bouton Snooze/Undo dans l'interface
+- ⬜ POST /api/teams/chats/{id}/read
+- ⬜ Calendar CRUD (3 endpoints)
 
 Voir [ROADMAP.md](ROADMAP.md) pour les détails complets.
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (29 MVP restants sur 64).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (32 MVP restants sur 64).
 
 ---
 
@@ -2565,5 +2613,5 @@ Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (29 MVP r
 
 ---
 
-**Dernière mise à jour** : 7 janvier 2026 par Claude
+**Dernière mise à jour** : 8 janvier 2026 par Claude
 **Prochaine révision** : Début prochaine session

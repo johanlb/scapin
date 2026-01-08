@@ -1,9 +1,9 @@
 # Suivi des Écarts — Scapin
 
-**Dernière mise à jour** : 7 janvier 2026
+**Dernière mise à jour** : 8 janvier 2026
 **Total items** : 117
-**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 56
-**Sprint actuel** : Sprint 3 — Workflow & Actions (9/18 — 50%)
+**MVP** : 64 | **Nice-to-have** : 53 | **Complétés** : 57
+**Sprint actuel** : Sprint 3 — Workflow & Actions (10/18 — 56%)
 
 ---
 
@@ -57,7 +57,7 @@
 | ✅ | PrepareEmailReplyAction - génération brouillons (backend) | MVP |
 | ✅ | DraftReply dataclass - modèle de données brouillons | MVP |
 | ✅ | API brouillons: récupérer/modifier drafts | MVP |
-| ⬜ | UI: Affichage et édition brouillons | MVP |
+| ✅ | UI: Affichage et édition brouillons | MVP |
 
 ### Extraction Entités (3)
 | Status | Item | Priorité |

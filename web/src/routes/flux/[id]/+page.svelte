@@ -351,9 +351,13 @@
 
 					<!-- Content display -->
 					{#if showHtml && hasHtmlBody}
-						<div class="email-content prose prose-invert max-w-none">
-							{@html item.content.html_body}
-						</div>
+						<!-- Use sandboxed iframe for HTML content to prevent XSS -->
+						<iframe
+							srcdoc={item.content.html_body}
+							sandbox=""
+							class="w-full min-h-[400px] rounded-lg border border-[var(--glass-border-subtle)] bg-white"
+							title="Contenu HTML de l'email"
+						></iframe>
 					{:else}
 						<div class="text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed font-mono text-sm">
 							{contentToShow}

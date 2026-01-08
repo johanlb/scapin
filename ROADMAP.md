@@ -1,8 +1,8 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 7 janvier 2026
+**Dernière mise à jour** : 8 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 3 EN COURS 🚧 — Workflow & Actions (9/18 items — 50%)
+**Phase actuelle** : Sprint 3 EN COURS 🚧 — Workflow & Actions (10/18 items — 56%)
 
 ---
 
@@ -14,10 +14,10 @@
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1824 tests, 95% couverture, 100% pass rate |
-| **Qualité Code** | 10/10 (Ruff 0 warnings) |
-| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 (partiel) |
-| **Gaps MVP restants** | 34 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Tests** | 1975 tests, 95% couverture, 100% pass rate |
+| **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
+| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 (partiel) |
+| **Gaps MVP restants** | 33 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -284,9 +284,9 @@ Sganarelle: Apprentissage du feedback
 
 ## Sprint 3 : Workflow & Actions
 
-**Statut** : 🚧 En cours (9/18 — 50%)
+**Statut** : 🚧 En cours (10/18 — 56%)
 **Objectif** : Actions sur emails avec contexte riche disponible
-**Items** : 18 MVP (9 complétés)
+**Items** : 18 MVP (10 complétés)
 **Dépendance** : Sprint 2 ✅
 
 ### Livrables
@@ -302,7 +302,7 @@ Sganarelle: Apprentissage du feedback
 | **Email Drafts** | PrepareEmailReplyAction (backend) | MVP | ✅ |
 | | DraftReply dataclass | MVP | ✅ |
 | | API brouillons: récupérer/modifier | MVP | ✅ |
-| | UI: Affichage et édition brouillons | MVP | ⬜ |
+| | UI: Affichage et édition brouillons | MVP | ✅ |
 | **Email UI** | Vue détail (corps HTML/texte) | MVP | ⬜ |
 | | Bouton Snooze | MVP | ⬜ |
 | | Bouton Undo après approbation | MVP | ⬜ |
@@ -312,7 +312,20 @@ Sganarelle: Apprentissage du feedback
 | | PUT /api/calendar/events/{id} | MVP | ⬜ |
 | | DELETE /api/calendar/events/{id} | MVP | ⬜ |
 
-### Complétés cette session (7 janvier 2026)
+### Complétés cette session (8 janvier 2026)
+
+- ✅ **UI Brouillons Email** — Liste et édition complète
+  - `web/src/routes/drafts/+page.svelte` — Page liste avec filtres (~335 lignes)
+  - `web/src/routes/drafts/[id]/+page.svelte` — Page édition (~434 lignes)
+  - 10 fonctions API client (list, get, create, update, send, discard, delete...)
+  - Navigation sidebar ajoutée
+- ✅ **Code Review & Security Fixes**
+  - XSS fix: `{@html}` remplacé par iframe sandboxée dans flux/[id]
+  - Memory leaks: setTimeout cleanup dans onDestroy (flux/+page)
+  - Race conditions: Guards ajoutés dans teams reply handlers
+  - iframe sandbox: `allow-same-origin` retiré (trop permissif)
+
+### Complétés session précédente (7 janvier 2026)
 
 - ✅ **Events API complète** — 4 endpoints Snooze/Undo
   - `src/jeeves/api/routers/events.py` — Router avec 4 endpoints (~200 lignes)

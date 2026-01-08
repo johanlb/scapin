@@ -57,6 +57,8 @@
 	}
 
 	async function handleInlineReply(messageId: string) {
+		// Guard against concurrent sends
+		if (sendingReply) return;
 		if (!inlineReplyContent.trim()) return;
 
 		sendingReply = true;
@@ -74,6 +76,8 @@
 	}
 
 	async function handleQuickReply() {
+		// Guard against concurrent sends
+		if (sendingReply) return;
 		if (!quickReplyContent.trim() || messages.length === 0) return;
 
 		sendingReply = true;
