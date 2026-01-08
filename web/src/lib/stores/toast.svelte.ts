@@ -42,6 +42,7 @@ function createToastStore() {
 	let toasts = $state<Toast[]>([]);
 	let counter = 0;
 	const timeouts = new Map<string, ReturnType<typeof setTimeout>>();
+	const executingUndos = new Set<string>(); // Prevent double-execution
 
 	function add(type: ToastType, message: string, options: ToastOptions = {}) {
 		const id = `toast-${++counter}`;
@@ -150,12 +151,20 @@ function createToastStore() {
 
 	/**
 	 * Execute undo action for a toast and dismiss it
+	 * Protected against double-execution from rapid clicks
 	 */
 	async function executeUndo(id: string): Promise<boolean> {
+		// Prevent double-execution
+		if (executingUndos.has(id)) {
+			return false;
+		}
+
 		const toast = toasts.find((t) => t.id === id);
 		if (!toast || toast.type !== 'undo' || !toast.onUndo) {
 			return false;
 		}
+
+		executingUndos.add(id);
 
 		try {
 			await toast.onUndo();
@@ -167,6 +176,8 @@ function createToastStore() {
 			console.error('Undo failed:', err);
 			error('Échec de l\'annulation');
 			return false;
+		} finally {
+			executingUndos.delete(id);
 		}
 	}
 

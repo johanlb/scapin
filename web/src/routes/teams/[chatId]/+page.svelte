@@ -3,7 +3,7 @@
 	 * Teams Chat Detail Page
 	 * Shows full thread with all messages and reply functionality
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { Card, Button, Skeleton } from '$lib/components/ui';
@@ -20,6 +20,9 @@
 
 	// Get chat ID from route params (always defined in this route)
 	const chatId = $derived($page.params.chatId ?? '');
+
+	// AbortController for cleanup on unmount
+	let abortController: AbortController | null = null;
 
 	// State
 	let messages = $state<TeamsMessage[]>([]);
@@ -47,7 +50,16 @@
 		await loadMessages();
 	});
 
+	onDestroy(() => {
+		// Cancel any pending requests on unmount
+		abortController?.abort();
+	});
+
 	async function loadMessages() {
+		// Cancel any existing request
+		abortController?.abort();
+		abortController = new AbortController();
+
 		loading = true;
 		error = null;
 
@@ -57,6 +69,10 @@
 			hasMore = response.has_more;
 			currentPage = 1;
 		} catch (e) {
+			// Ignore AbortError (intentional cancellation)
+			if (e instanceof Error && e.name === 'AbortError') {
+				return;
+			}
 			console.error('Failed to load messages:', e);
 			error = e instanceof Error ? e.message : 'Erreur lors du chargement des messages';
 		} finally {
@@ -75,6 +91,10 @@
 			hasMore = response.has_more;
 			currentPage = nextPage;
 		} catch (e) {
+			// Ignore AbortError
+			if (e instanceof Error && e.name === 'AbortError') {
+				return;
+			}
 			console.error('Failed to load more messages:', e);
 			toastStore.error('Erreur lors du chargement');
 		} finally {
@@ -389,8 +409,14 @@
 									<textarea
 										class="w-full p-2 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:border-[var(--color-accent)] focus:outline-none resize-none"
 										rows="3"
-										placeholder="Votre réponse..."
+										placeholder="Votre réponse... (⌘+Entrée pour envoyer)"
 										bind:value={replyContent}
+									onkeydown={(e) => {
+										if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && replyContent.trim() && !sendingReply) {
+											e.preventDefault();
+											sendReply();
+										}
+									}}
 									></textarea>
 									<div class="flex gap-2 mt-2">
 										<Button
