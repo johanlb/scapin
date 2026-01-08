@@ -27,6 +27,7 @@ from src.passepartout.note_types import (
 # Connection pool configuration
 DEFAULT_POOL_SIZE = 5
 CONNECTION_TIMEOUT = 30.0  # seconds
+WAL_CHECKPOINT_THRESHOLD = 1000  # Checkpoint after this many operations
 
 logger = get_logger("passepartout.note_metadata")
 
@@ -193,6 +194,11 @@ class NoteMetadataStore:
         self._pool: Queue[sqlite3.Connection] = Queue(maxsize=pool_size)
         self._pool_lock = threading.Lock()
         self._active_connections = 0
+        # Statistics tracking
+        self._operations_since_checkpoint = 0
+        self._total_operations = 0
+        self._pool_wait_count = 0
+        self._pool_exhausted_count = 0
         self._init_db()
         self._init_pool()
 
@@ -220,13 +226,20 @@ class NoteMetadataStore:
     def _get_connection(self) -> Iterator[sqlite3.Connection]:
         """Get a connection from the pool (thread-safe)"""
         conn: sqlite3.Connection | None = None
+        from_pool = False
         try:
             # Try to get from pool with timeout
             conn = self._pool.get(timeout=CONNECTION_TIMEOUT)
+            from_pool = True
+            self._pool_wait_count += 1
             yield conn
         except Empty:
             # Pool exhausted, create a temporary connection
-            logger.warning("Connection pool exhausted, creating temporary connection")
+            self._pool_exhausted_count += 1
+            logger.warning(
+                "Connection pool exhausted, creating temporary connection",
+                extra={"exhausted_count": self._pool_exhausted_count}
+            )
             conn = self._create_connection()
             yield conn
             # Close temporary connection instead of returning to pool
@@ -234,15 +247,75 @@ class NoteMetadataStore:
             conn = None  # Mark as handled
         finally:
             # Return connection to pool if it came from there
-            if conn is not None:
+            if conn is not None and from_pool:
                 try:
                     self._pool.put_nowait(conn)
                 except Exception:
                     # Pool full (shouldn't happen), close connection
                     conn.close()
 
+            # Track operations and checkpoint WAL if needed
+            self._total_operations += 1
+            self._operations_since_checkpoint += 1
+            if self._operations_since_checkpoint >= WAL_CHECKPOINT_THRESHOLD:
+                self._checkpoint_wal()
+
+    def _checkpoint_wal(self) -> None:
+        """
+        Checkpoint the WAL file to prevent unbounded growth
+
+        WAL (Write-Ahead Logging) files can grow indefinitely without checkpoints.
+        This method forces a checkpoint to merge WAL back into the main database.
+
+        Note: Uses direct pool access to avoid recursion through _get_connection.
+        """
+        conn: sqlite3.Connection | None = None
+        try:
+            # Get connection directly from pool to avoid recursion
+            conn = self._pool.get(timeout=5.0)
+            # PRAGMA wal_checkpoint(TRUNCATE) checkpoints and truncates the WAL
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            self._operations_since_checkpoint = 0
+            logger.debug(
+                "WAL checkpoint completed",
+                extra={"total_operations": self._total_operations}
+            )
+        except Empty:
+            logger.warning("WAL checkpoint skipped - pool exhausted")
+        except Exception as e:
+            logger.warning(
+                "WAL checkpoint failed",
+                extra={"error": str(e)}
+            )
+        finally:
+            if conn is not None:
+                try:
+                    self._pool.put_nowait(conn)
+                except Exception:
+                    conn.close()
+
+    def get_pool_stats(self) -> dict:
+        """
+        Get connection pool statistics for monitoring
+
+        Returns:
+            Dictionary with pool metrics
+        """
+        return {
+            "pool_size": self._pool_size,
+            "active_connections": self._active_connections,
+            "available_connections": self._pool.qsize(),
+            "total_operations": self._total_operations,
+            "operations_since_checkpoint": self._operations_since_checkpoint,
+            "pool_wait_count": self._pool_wait_count,
+            "pool_exhausted_count": self._pool_exhausted_count,
+        }
+
     def close(self) -> None:
         """Close all connections in the pool"""
+        # Final WAL checkpoint before closing
+        self._checkpoint_wal()
+
         with self._pool_lock:
             while not self._pool.empty():
                 try:
@@ -251,7 +324,10 @@ class NoteMetadataStore:
                     self._active_connections -= 1
                 except Empty:
                     break
-            logger.debug("Closed connection pool")
+            logger.debug(
+                "Closed connection pool",
+                extra={"final_stats": self.get_pool_stats()}
+            )
 
     def __del__(self) -> None:
         """Ensure connection pool is closed on garbage collection"""

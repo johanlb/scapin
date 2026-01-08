@@ -52,12 +52,13 @@ def _cleanup_executor() -> None:
 atexit.register(_cleanup_executor)
 
 
-@dataclass
+@dataclass(slots=True)
 class ContextRetrievalResult:
     """
     Result of context retrieval
 
     Contains all context items retrieved and metadata about the retrieval.
+    Uses slots=True for memory efficiency.
     """
     context_items: list[ContextItem]
     total_retrieved: int

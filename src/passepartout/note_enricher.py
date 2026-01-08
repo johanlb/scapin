@@ -24,6 +24,10 @@ CONFIDENCE_ENTITY_REFERENCE = 0.6  # Entity found in note content
 CONFIDENCE_EXISTING_SECTION = 0.65  # Update to existing section
 CONFIDENCE_NEW_SECTION = 0.7  # Suggestion for new section
 
+# Timeout configuration for async operations (seconds)
+DEFAULT_AI_TIMEOUT = 30.0  # Timeout for AI gap analysis
+DEFAULT_WEB_TIMEOUT = 15.0  # Timeout for web research
+
 # Pre-compiled regex for date extraction (ISO format: YYYY-MM-DD)
 DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
 
@@ -40,9 +44,9 @@ class EnrichmentSource(str, Enum):
     WEB_SEARCH = "web_search"  # From web search
 
 
-@dataclass
+@dataclass(slots=True)
 class Enrichment:
-    """A single enrichment suggestion"""
+    """A single enrichment suggestion. Uses slots=True for memory efficiency."""
 
     source: EnrichmentSource
     section: str  # Target section in note
@@ -55,9 +59,9 @@ class Enrichment:
         return f"[{self.source.value}] {self.section}: {self.content[:50]}... (conf={self.confidence:.2f})"
 
 
-@dataclass
+@dataclass(slots=True)
 class EnrichmentContext:
-    """Context for enrichment analysis"""
+    """Context for enrichment analysis. Uses slots=True for memory efficiency."""
 
     note: Note
     metadata: NoteMetadata
@@ -66,9 +70,9 @@ class EnrichmentContext:
     related_entities: list[dict[str, Any]] = field(default_factory=list)
 
 
-@dataclass
+@dataclass(slots=True)
 class EnrichmentResult:
-    """Result of enrichment analysis"""
+    """Result of enrichment analysis. Uses slots=True for memory efficiency."""
 
     note_id: str
     enrichments: list[Enrichment]
@@ -92,6 +96,8 @@ class NoteEnricher:
         self,
         ai_router: Any | None = None,
         web_search_enabled: bool = False,
+        ai_timeout: float = DEFAULT_AI_TIMEOUT,
+        web_timeout: float = DEFAULT_WEB_TIMEOUT,
     ):
         """
         Initialize enricher
@@ -99,9 +105,13 @@ class NoteEnricher:
         Args:
             ai_router: Optional AI router (Sancho) for analysis
             web_search_enabled: Global flag for web search
+            ai_timeout: Timeout for AI gap analysis in seconds
+            web_timeout: Timeout for web research in seconds
         """
         self.ai_router = ai_router
         self.web_search_enabled = web_search_enabled
+        self.ai_timeout = ai_timeout
+        self.web_timeout = web_timeout
 
     async def enrich(
         self,
@@ -129,13 +139,21 @@ class NoteEnricher:
         gaps = []
         sources_used = []
 
-        # 1. AI-based gap analysis
+        # 1. AI-based gap analysis (with timeout)
         if self.ai_router and metadata.auto_enrich:
             try:
-                ai_enrichments = await self._ai_gap_analysis(context)
+                ai_enrichments = await asyncio.wait_for(
+                    self._ai_gap_analysis(context),
+                    timeout=self.ai_timeout
+                )
                 enrichments.extend(ai_enrichments)
                 if ai_enrichments:
                     sources_used.append(EnrichmentSource.AI_ANALYSIS)
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "AI gap analysis timed out",
+                    extra={"note_id": note.note_id, "timeout": self.ai_timeout}
+                )
             except Exception as e:
                 logger.warning("AI gap analysis failed", extra={"error": str(e)})
 
@@ -152,13 +170,21 @@ class NoteEnricher:
             if email_enrichments:
                 sources_used.append(EnrichmentSource.EMAIL_CONTEXT)
 
-        # 4. Web search (if enabled for this note)
+        # 4. Web search (if enabled for this note, with timeout)
         if self.web_search_enabled and metadata.web_search_enabled:
             try:
-                web_enrichments = await self._web_research(context)
+                web_enrichments = await asyncio.wait_for(
+                    self._web_research(context),
+                    timeout=self.web_timeout
+                )
                 enrichments.extend(web_enrichments)
                 if web_enrichments:
                     sources_used.append(EnrichmentSource.WEB_SEARCH)
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "Web research timed out",
+                    extra={"note_id": note.note_id, "timeout": self.web_timeout}
+                )
             except Exception as e:
                 logger.warning("Web research failed", extra={"error": str(e)})
 

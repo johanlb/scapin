@@ -34,12 +34,13 @@ DEFAULT_CACHE_MAX_SIZE = 500  # Maximum notes to keep in memory
 FRONTMATTER_PATTERN = re.compile(r'^---\s*\n(.*?)\n---\s*\n(.*)$', re.DOTALL)
 
 
-@dataclass
+@dataclass(slots=True)
 class Note:
     """
     Note data structure
 
     Represents a single note with metadata and content.
+    Uses slots=True for ~30% memory reduction per instance.
     """
     note_id: str
     title: str
@@ -137,6 +138,11 @@ class NoteManager:
         self._cache_max_size = cache_max_size
         self._cache_lock = threading.RLock()  # Thread-safety for cache operations
 
+        # Cache statistics for monitoring
+        self._cache_hits = 0
+        self._cache_misses = 0
+        self._cache_evictions = 0
+
         logger.info(
             "Initialized NoteManager",
             extra={
@@ -166,6 +172,7 @@ class NoteManager:
         # Evict oldest entries if over capacity
         while len(self._note_cache) > self._cache_max_size:
             evicted_id, _ = self._note_cache.popitem(last=False)
+            self._cache_evictions += 1
             logger.debug("LRU cache evicted", extra={"note_id": evicted_id})
 
     def create_note(
@@ -267,9 +274,11 @@ class NoteManager:
             if note_id in self._note_cache:
                 # Move to end (most recently used)
                 self._note_cache.move_to_end(note_id)
+                self._cache_hits += 1
                 return self._note_cache[note_id]
 
-        # Try to load from file
+        # Cache miss - try to load from file
+        self._cache_misses += 1
         file_path = self._get_note_path(note_id)
         if not file_path.exists():
             return None
@@ -577,31 +586,42 @@ class NoteManager:
         """
         Index all existing notes in directory (thread-safe)
 
+        Uses batch indexing for better performance with large note collections.
+
         Returns:
             Number of notes indexed
         """
+        # Batch size for vector store operations
+        BATCH_SIZE = 50
+
+        notes_to_index: list[tuple[Note, str, dict[str, Any]]] = []
         count = 0
+
         for file_path in self.notes_dir.glob("*.md"):
             try:
                 note = self._read_note_file(file_path)
                 if note:
-                    # Add to vector store if not already there
+                    # Check if already indexed
                     if not self.vector_store.get_document(note.note_id):
                         search_text = f"{note.title}\n\n{note.content}"
-                        self.vector_store.add(
-                            doc_id=note.note_id,
-                            text=search_text,
-                            metadata={
-                                "title": note.title,
-                                "tags": note.tags,
-                                "created_at": note.created_at.isoformat(),
-                                "entities": [e.value for e in note.entities]
-                            }
-                        )
+                        metadata = {
+                            "title": note.title,
+                            "tags": note.tags,
+                            "created_at": note.created_at.isoformat(),
+                            "entities": [e.value for e in note.entities]
+                        }
+                        notes_to_index.append((note, search_text, metadata))
 
+                    # Always cache the note
                     with self._cache_lock:
                         self._cache_put(note.note_id, note)
                     count += 1
+
+                    # Batch index when we have enough notes
+                    if len(notes_to_index) >= BATCH_SIZE:
+                        self._batch_add_to_vector_store(notes_to_index)
+                        notes_to_index = []
+
             except Exception as e:
                 logger.warning(
                     "Failed to index note",
@@ -609,8 +629,55 @@ class NoteManager:
                 )
                 continue
 
+        # Index any remaining notes
+        if notes_to_index:
+            self._batch_add_to_vector_store(notes_to_index)
+
         logger.info("Indexed notes", extra={"count": count})
         return count
+
+    def _batch_add_to_vector_store(
+        self,
+        notes_data: list[tuple[Note, str, dict[str, Any]]]
+    ) -> None:
+        """
+        Add multiple notes to vector store in a single batch operation
+
+        Args:
+            notes_data: List of (Note, search_text, metadata) tuples
+        """
+        if not notes_data:
+            return
+
+        try:
+            # Prepare documents for batch add
+            documents = [
+                (note.note_id, search_text, metadata)
+                for note, search_text, metadata in notes_data
+            ]
+            self.vector_store.add_batch(documents)
+            logger.debug(
+                "Batch added notes to vector store",
+                extra={"count": len(documents)}
+            )
+        except Exception as e:
+            # Fallback to individual adds if batch fails
+            logger.warning(
+                "Batch add failed, falling back to individual adds",
+                extra={"error": str(e)}
+            )
+            for note, search_text, metadata in notes_data:
+                try:
+                    self.vector_store.add(
+                        doc_id=note.note_id,
+                        text=search_text,
+                        metadata=metadata
+                    )
+                except Exception as add_error:
+                    logger.warning(
+                        "Failed to add note to vector store",
+                        extra={"note_id": note.note_id, "error": str(add_error)}
+                    )
 
     def _sanitize_title(self, title: str) -> str:
         """
@@ -867,13 +934,37 @@ class NoteManager:
 
         return sorted(folders)
 
+    def get_cache_stats(self) -> dict[str, Any]:
+        """
+        Get cache statistics for monitoring
+
+        Returns:
+            Dictionary with cache metrics including hit rate
+        """
+        with self._cache_lock:
+            total_requests = self._cache_hits + self._cache_misses
+            hit_rate = (
+                self._cache_hits / total_requests if total_requests > 0 else 0.0
+            )
+            return {
+                "cache_size": len(self._note_cache),
+                "cache_max_size": self._cache_max_size,
+                "cache_hits": self._cache_hits,
+                "cache_misses": self._cache_misses,
+                "cache_evictions": self._cache_evictions,
+                "hit_rate": round(hit_rate, 3),
+                "total_requests": total_requests,
+            }
+
     def __repr__(self) -> str:
         """String representation"""
         stats = self.vector_store.get_stats()
+        cache_stats = self.get_cache_stats()
         return (
             f"NoteManager(dir={self.notes_dir}, "
             f"notes={stats['active_docs']}, "
-            f"cached={len(self._note_cache)})"
+            f"cached={cache_stats['cache_size']}, "
+            f"hit_rate={cache_stats['hit_rate']:.1%})"
         )
 
 
