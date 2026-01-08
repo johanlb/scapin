@@ -420,7 +420,7 @@ class TestRetrieveContext:
             thread_id="thread123"
         )
 
-        result = engine.retrieve_context(event, top_k=10, min_relevance=0.1)
+        result = engine.retrieve_context_sync(event, top_k=10, min_relevance=0.1)
 
         assert isinstance(result, ContextRetrievalResult)
         assert len(result.context_items) > 0
@@ -452,7 +452,7 @@ class TestRetrieveContext:
             content="Test"
         )
 
-        result = engine.retrieve_context(event, top_k=5)
+        result = engine.retrieve_context_sync(event, top_k=5)
 
         # Should only return 5 items
         assert len(result.context_items) <= 5
@@ -483,7 +483,7 @@ class TestRetrieveContext:
         )
 
         # High threshold should filter out more items
-        result = engine.retrieve_context(event, top_k=10, min_relevance=0.9)
+        result = engine.retrieve_context_sync(event, top_k=10, min_relevance=0.9)
 
         # All returned items should meet threshold
         for item in result.context_items:
@@ -510,7 +510,7 @@ class TestRetrieveContext:
             entities=[]  # No entities
         )
 
-        result = engine.retrieve_context(event, top_k=10, min_relevance=0.1)
+        result = engine.retrieve_context_sync(event, top_k=10, min_relevance=0.1)
 
         # Should still use semantic search
         assert "entity" not in result.sources_used
@@ -537,7 +537,7 @@ class TestRetrieveContext:
             thread_id=None  # No thread
         )
 
-        result = engine.retrieve_context(event, top_k=10)
+        result = engine.retrieve_context_sync(event, top_k=10)
 
         # Should not use thread search
         assert "thread" not in result.sources_used

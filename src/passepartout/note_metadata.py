@@ -8,11 +8,13 @@ Separates revision metadata from note content for performance and flexibility.
 import hashlib
 import json
 import sqlite3
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from queue import Empty, Queue
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_types import (
@@ -20,6 +22,10 @@ from src.passepartout.note_types import (
     NoteType,
     get_review_config,
 )
+
+# Connection pool configuration
+DEFAULT_POOL_SIZE = 5
+CONNECTION_TIMEOUT = 30.0  # seconds
 
 logger = get_logger("passepartout.note_metadata")
 
@@ -143,10 +149,15 @@ class NoteMetadata:
 
 class NoteMetadataStore:
     """
-    SQLite-based storage for note metadata
+    SQLite-based storage for note metadata with connection pooling
 
     Provides efficient queries for scheduling and tracking
     without loading note content.
+
+    Features:
+    - Connection pooling for better performance
+    - Thread-safe connection management
+    - Automatic connection recycling
 
     Usage:
         store = NoteMetadataStore(Path("data/notes_meta.db"))
@@ -154,26 +165,83 @@ class NoteMetadataStore:
         due_notes = store.get_due_for_review(limit=50)
     """
 
-    def __init__(self, db_path: Path):
+    def __init__(
+        self,
+        db_path: Path,
+        pool_size: int = DEFAULT_POOL_SIZE,
+    ):
         """
-        Initialize metadata store
+        Initialize metadata store with connection pool
 
         Args:
             db_path: Path to SQLite database file
+            pool_size: Number of connections to maintain in pool
         """
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._pool_size = pool_size
+        self._pool: Queue[sqlite3.Connection] = Queue(maxsize=pool_size)
+        self._pool_lock = threading.Lock()
+        self._active_connections = 0
         self._init_db()
+        self._init_pool()
+
+    def _init_pool(self) -> None:
+        """Initialize the connection pool with connections"""
+        for _ in range(self._pool_size):
+            conn = self._create_connection()
+            self._pool.put(conn)
+            self._active_connections += 1
+        logger.debug(
+            "Initialized connection pool",
+            extra={"pool_size": self._pool_size, "db_path": str(self.db_path)}
+        )
+
+    def _create_connection(self) -> sqlite3.Connection:
+        """Create a new SQLite connection"""
+        conn = sqlite3.connect(str(self.db_path), timeout=CONNECTION_TIMEOUT)
+        conn.row_factory = sqlite3.Row
+        # Enable WAL mode for better concurrent read performance
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        return conn
 
     @contextmanager
     def _get_connection(self) -> Iterator[sqlite3.Connection]:
-        """Get database connection with proper cleanup"""
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
+        """Get a connection from the pool (thread-safe)"""
+        conn: sqlite3.Connection | None = None
         try:
+            # Try to get from pool with timeout
+            conn = self._pool.get(timeout=CONNECTION_TIMEOUT)
             yield conn
-        finally:
+        except Empty:
+            # Pool exhausted, create a temporary connection
+            logger.warning("Connection pool exhausted, creating temporary connection")
+            conn = self._create_connection()
+            yield conn
+            # Close temporary connection instead of returning to pool
             conn.close()
+            conn = None  # Mark as handled
+        finally:
+            # Return connection to pool if it came from there
+            if conn is not None:
+                try:
+                    self._pool.put_nowait(conn)
+                except Exception:
+                    # Pool full (shouldn't happen), close connection
+                    conn.close()
+
+    def close(self) -> None:
+        """Close all connections in the pool"""
+        with self._pool_lock:
+            while not self._pool.empty():
+                try:
+                    conn = self._pool.get_nowait()
+                    conn.close()
+                    self._active_connections -= 1
+                except Empty:
+                    break
+            logger.debug("Closed connection pool")
 
     def _init_db(self) -> None:
         """Initialize database schema"""
@@ -221,6 +289,12 @@ class NoteMetadataStore:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_review_priority
                 ON note_metadata(importance, next_review, note_type)
+            """)
+
+            # Index for count_reviews_today query optimization
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_reviewed_at
+                ON note_metadata(reviewed_at)
             """)
 
             # Schema version table

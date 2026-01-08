@@ -5,6 +5,8 @@ Retrieves relevant context from the knowledge base to enrich reasoning.
 Used by Sancho Pass 2 to improve understanding with historical knowledge.
 """
 
+import asyncio
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -25,6 +27,10 @@ CONTEXT_SOURCE_HISTORY = "conversation_history"
 CONTEXT_TYPE_ENTITY = "entity"
 CONTEXT_TYPE_SEMANTIC = "semantic"
 CONTEXT_TYPE_THREAD = "thread"
+
+# Memory and performance bounds
+MAX_CONTEXT_CANDIDATES = 200  # Cap items before ranking to bound memory
+DEFAULT_RETRIEVAL_TIMEOUT_SECONDS = 10.0  # Timeout for retrieval operations
 
 
 @dataclass
@@ -73,7 +79,9 @@ class ContextEngine:
         note_manager: NoteManager,
         entity_weight: float = 0.4,
         semantic_weight: float = 0.4,
-        thread_weight: float = 0.2
+        thread_weight: float = 0.2,
+        timeout_seconds: float = DEFAULT_RETRIEVAL_TIMEOUT_SECONDS,
+        max_candidates: int = MAX_CONTEXT_CANDIDATES,
     ):
         """
         Initialize context engine
@@ -83,6 +91,8 @@ class ContextEngine:
             entity_weight: Weight for entity-based retrieval (0-1)
             semantic_weight: Weight for semantic similarity (0-1)
             thread_weight: Weight for thread-based retrieval (0-1)
+            timeout_seconds: Timeout for retrieval operations
+            max_candidates: Maximum candidates before ranking (memory bound)
 
         Raises:
             ValueError: If weights don't sum to 1.0
@@ -97,6 +107,8 @@ class ContextEngine:
         self.entity_weight = entity_weight
         self.semantic_weight = semantic_weight
         self.thread_weight = thread_weight
+        self.timeout_seconds = timeout_seconds
+        self.max_candidates = max_candidates
 
         logger.info(
             "Initialized ContextEngine",
@@ -105,18 +117,20 @@ class ContextEngine:
                     "entity": entity_weight,
                     "semantic": semantic_weight,
                     "thread": thread_weight
-                }
+                },
+                "timeout_seconds": timeout_seconds,
+                "max_candidates": max_candidates,
             }
         )
 
-    def retrieve_context(
+    async def retrieve_context(
         self,
         event: PerceivedEvent,
         top_k: int = 5,
         min_relevance: float = 0.5
     ) -> ContextRetrievalResult:
         """
-        Retrieve relevant context for event
+        Retrieve relevant context for event (async with timeout)
 
         Args:
             event: PerceivedEvent to get context for
@@ -126,38 +140,100 @@ class ContextEngine:
         Returns:
             ContextRetrievalResult with ranked context items
         """
-        import time
         start_time = time.time()
+
+        try:
+            # Run retrieval with timeout
+            result = await asyncio.wait_for(
+                self._retrieve_context_internal(event, top_k, min_relevance),
+                timeout=self.timeout_seconds
+            )
+            return result
+        except asyncio.TimeoutError:
+            duration = time.time() - start_time
+            logger.warning(
+                "Context retrieval timed out",
+                extra={
+                    "event_id": event.event_id,
+                    "timeout_seconds": self.timeout_seconds,
+                    "duration_seconds": duration,
+                }
+            )
+            # Return empty result on timeout
+            return ContextRetrievalResult(
+                context_items=[],
+                total_retrieved=0,
+                sources_used=[],
+                retrieval_duration_seconds=duration,
+                metadata={
+                    "event_id": event.event_id,
+                    "event_title": event.title,
+                    "timed_out": True,
+                }
+            )
+
+    async def _retrieve_context_internal(
+        self,
+        event: PerceivedEvent,
+        top_k: int,
+        min_relevance: float
+    ) -> ContextRetrievalResult:
+        """
+        Internal context retrieval logic (async)
+
+        Runs I/O-bound retrieval methods in thread executor to avoid blocking.
+        """
+        start_time = time.time()
+        loop = asyncio.get_event_loop()
 
         context_candidates: list[tuple[ContextItem, float]] = []
         sources_used = []
 
-        # 1. Entity-based retrieval
+        # 1. Entity-based retrieval (run in thread to avoid blocking)
         if self.entity_weight > 0 and event.entities:
-            entity_contexts = self._retrieve_by_entities(event.entities, top_k=10)
-            context_candidates.extend([
-                (ctx, self.entity_weight) for ctx in entity_contexts
-            ])
+            entity_contexts = await loop.run_in_executor(
+                None,
+                lambda: self._retrieve_by_entities(event.entities, top_k=10)
+            )
+            # Apply memory bound while collecting
+            remaining = self.max_candidates - len(context_candidates)
+            for ctx in entity_contexts[:remaining]:
+                context_candidates.append((ctx, self.entity_weight))
             if entity_contexts:
                 sources_used.append("entity")
 
-        # 2. Semantic retrieval
-        if self.semantic_weight > 0:
-            semantic_contexts = self._retrieve_by_semantic(event, top_k=10)
-            context_candidates.extend([
-                (ctx, self.semantic_weight) for ctx in semantic_contexts
-            ])
+        # 2. Semantic retrieval (run in thread to avoid blocking)
+        if self.semantic_weight > 0 and len(context_candidates) < self.max_candidates:
+            semantic_contexts = await loop.run_in_executor(
+                None,
+                lambda: self._retrieve_by_semantic(event, top_k=10)
+            )
+            # Apply memory bound while collecting
+            remaining = self.max_candidates - len(context_candidates)
+            for ctx in semantic_contexts[:remaining]:
+                context_candidates.append((ctx, self.semantic_weight))
             if semantic_contexts:
                 sources_used.append("semantic")
 
-        # 3. Thread-based retrieval
-        if self.thread_weight > 0 and event.thread_id:
-            thread_contexts = self._retrieve_by_thread(event.thread_id, top_k=5)
-            context_candidates.extend([
-                (ctx, self.thread_weight) for ctx in thread_contexts
-            ])
+        # 3. Thread-based retrieval (run in thread to avoid blocking)
+        if self.thread_weight > 0 and event.thread_id and len(context_candidates) < self.max_candidates:
+            thread_contexts = await loop.run_in_executor(
+                None,
+                lambda: self._retrieve_by_thread(event.thread_id, top_k=5)
+            )
+            # Apply memory bound while collecting
+            remaining = self.max_candidates - len(context_candidates)
+            for ctx in thread_contexts[:remaining]:
+                context_candidates.append((ctx, self.thread_weight))
             if thread_contexts:
                 sources_used.append("thread")
+
+        # Log if we hit memory bound
+        if len(context_candidates) >= self.max_candidates:
+            logger.debug(
+                "Context candidates capped at %d items",
+                self.max_candidates
+            )
 
         # 4. Rank and deduplicate
         ranked_contexts = self._rank_and_deduplicate(
@@ -191,6 +267,41 @@ class ContextEngine:
         )
 
         return result
+
+    def retrieve_context_sync(
+        self,
+        event: PerceivedEvent,
+        top_k: int = 5,
+        min_relevance: float = 0.5
+    ) -> ContextRetrievalResult:
+        """
+        Synchronous wrapper for retrieve_context (for backward compatibility)
+
+        Uses asyncio.run() to execute the async method from sync code.
+        For new code, prefer the async retrieve_context() method.
+
+        Args:
+            event: PerceivedEvent to get context for
+            top_k: Maximum number of context items to return
+            min_relevance: Minimum relevance score (0-1)
+
+        Returns:
+            ContextRetrievalResult with ranked context items
+        """
+        try:
+            # Try to get existing event loop
+            asyncio.get_running_loop()
+            # If we're already in an async context, run in executor
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    self.retrieve_context(event, top_k, min_relevance)
+                )
+                return future.result()
+        except RuntimeError:
+            # No event loop running, use asyncio.run()
+            return asyncio.run(self.retrieve_context(event, top_k, min_relevance))
 
     def _distance_to_relevance(self, distance: float) -> float:
         """

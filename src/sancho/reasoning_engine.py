@@ -351,7 +351,7 @@ class ReasoningEngine:
             # Retrieve context from ContextEngine (notes/knowledge base)
             if self.context_engine:
                 try:
-                    result = self.context_engine.retrieve_context(
+                    result = self.context_engine.retrieve_context_sync(
                         wm.event,
                         top_k=self.context_top_k,
                         min_relevance=self.context_min_relevance

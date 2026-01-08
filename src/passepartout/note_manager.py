@@ -7,6 +7,7 @@ Provides semantic search via vector store integration.
 
 import hashlib
 import re
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -118,6 +119,7 @@ class NoteManager:
 
         # In-memory note cache: note_id → Note
         self._note_cache: dict[str, Note] = {}
+        self._cache_lock = threading.RLock()  # Thread-safety for cache operations
 
         logger.info(
             "Initialized NoteManager",
@@ -196,8 +198,9 @@ class NoteManager:
             }
         )
 
-        # Cache
-        self._note_cache[note_id] = note
+        # Cache (thread-safe)
+        with self._cache_lock:
+            self._note_cache[note_id] = note
 
         # Git commit
         if self.git:
@@ -217,7 +220,7 @@ class NoteManager:
 
     def get_note(self, note_id: str) -> Optional[Note]:
         """
-        Get note by ID
+        Get note by ID (thread-safe)
 
         Args:
             note_id: Note identifier
@@ -225,9 +228,10 @@ class NoteManager:
         Returns:
             Note object or None if not found
         """
-        # Check cache first
-        if note_id in self._note_cache:
-            return self._note_cache[note_id]
+        # Check cache first (thread-safe)
+        with self._cache_lock:
+            if note_id in self._note_cache:
+                return self._note_cache[note_id]
 
         # Try to load from file
         file_path = self._get_note_path(note_id)
@@ -236,7 +240,8 @@ class NoteManager:
 
         note = self._read_note_file(file_path)
         if note:
-            self._note_cache[note_id] = note
+            with self._cache_lock:
+                self._note_cache[note_id] = note
 
         return note
 
@@ -338,9 +343,10 @@ class NoteManager:
         # Remove from vector store
         self.vector_store.remove(note_id)
 
-        # Remove from cache
-        if note_id in self._note_cache:
-            del self._note_cache[note_id]
+        # Remove from cache (thread-safe)
+        with self._cache_lock:
+            if note_id in self._note_cache:
+                del self._note_cache[note_id]
 
         # Delete file
         file_path = self._get_note_path(note_id)
@@ -363,7 +369,7 @@ class NoteManager:
         return_scores: bool = False
     ) -> Union[list[Note], list[tuple[Note, float]]]:
         """
-        Semantic search for notes
+        Semantic search for notes (optimized with batch loading)
 
         Args:
             query: Search query
@@ -389,26 +395,30 @@ class NoteManager:
             filter_fn=tag_filter if tags else None
         )
 
-        # Convert to Note objects (with scores if requested)
-        notes = []
+        # Batch load notes: check cache first, then load missing from disk
+        doc_ids = [doc_id for doc_id, _, _ in results]
+        notes_map = self._batch_get_notes(doc_ids)
+
+        # Build result list preserving order and scores
+        notes_result: list[Any] = []
         for doc_id, score, _metadata in results:
-            note = self.get_note(doc_id)
+            note = notes_map.get(doc_id)
             if note:
                 if return_scores:
-                    notes.append((note, score))
+                    notes_result.append((note, score))
                 else:
-                    notes.append(note)
+                    notes_result.append(note)
 
         logger.debug(
             "Search completed",
             extra={
                 "query": query[:50],
-                "results": len(notes),
+                "results": len(notes_result),
                 "tags": tags
             }
         )
 
-        return notes
+        return notes_result
 
     def get_notes_by_entity(
         self,
@@ -417,7 +427,7 @@ class NoteManager:
         return_scores: bool = False
     ) -> Union[list[Note], list[tuple[Note, float]]]:
         """
-        Get notes mentioning specific entity
+        Get notes mentioning specific entity (optimized with batch loading)
 
         Args:
             entity: Entity to search for
@@ -441,9 +451,14 @@ class NoteManager:
             filter_fn=entity_filter
         )
 
-        notes = []
+        # Batch load notes
+        doc_ids = [doc_id for doc_id, _, _ in results]
+        notes_map = self._batch_get_notes(doc_ids)
+
+        # Build result list preserving order and scores
+        notes: list[Any] = []
         for doc_id, score, _metadata in results:
-            note = self.get_note(doc_id)
+            note = notes_map.get(doc_id)
             if note:
                 if return_scores:
                     notes.append((note, score))
@@ -452,25 +467,79 @@ class NoteManager:
 
         return notes
 
-    def get_all_notes(self) -> list[Note]:
+    def _batch_get_notes(self, note_ids: list[str]) -> dict[str, Note]:
         """
-        Get all notes
+        Batch load multiple notes efficiently (thread-safe)
+
+        Checks cache first, then loads missing notes from disk in a single pass.
+        This avoids the N+1 problem of calling get_note() for each result.
+
+        Args:
+            note_ids: List of note identifiers to load
 
         Returns:
-            List of all Note objects
+            Dict mapping note_id → Note (missing notes are omitted)
+        """
+        result: dict[str, Note] = {}
+        missing_ids: list[str] = []
+
+        # First pass: check cache for all IDs
+        with self._cache_lock:
+            for note_id in note_ids:
+                if note_id in self._note_cache:
+                    result[note_id] = self._note_cache[note_id]
+                else:
+                    missing_ids.append(note_id)
+
+        # Second pass: load missing notes from disk
+        for note_id in missing_ids:
+            file_path = self._get_note_path(note_id)
+            if file_path.exists():
+                note = self._read_note_file(file_path)
+                if note:
+                    result[note_id] = note
+                    with self._cache_lock:
+                        self._note_cache[note_id] = note
+
+        logger.debug(
+            "Batch loaded notes",
+            extra={
+                "requested": len(note_ids),
+                "from_cache": len(note_ids) - len(missing_ids),
+                "from_disk": len(missing_ids),
+                "found": len(result),
+            }
+        )
+
+        return result
+
+    def get_all_notes(self, limit: int | None = None) -> list[Note]:
+        """
+        Get all notes with optional pagination
+
+        Args:
+            limit: Maximum number of notes to return (None = all)
+
+        Returns:
+            List of Note objects
         """
         notes = []
         for file_path in self.notes_dir.glob("*.md"):
             note = self._read_note_file(file_path)
             if note:
                 notes.append(note)
-                self._note_cache[note.note_id] = note
+                with self._cache_lock:
+                    self._note_cache[note.note_id] = note
+
+            # Apply limit if specified
+            if limit is not None and len(notes) >= limit:
+                break
 
         return notes
 
     def _index_all_notes(self) -> int:
         """
-        Index all existing notes in directory
+        Index all existing notes in directory (thread-safe)
 
         Returns:
             Number of notes indexed
@@ -494,7 +563,8 @@ class NoteManager:
                             }
                         )
 
-                    self._note_cache[note.note_id] = note
+                    with self._cache_lock:
+                        self._note_cache[note.note_id] = note
                     count += 1
             except Exception as e:
                 logger.warning(f"Failed to index note {file_path}: {e}")
