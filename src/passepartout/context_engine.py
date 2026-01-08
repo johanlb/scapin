@@ -6,6 +6,7 @@ Used by Sancho Pass 2 to improve understanding with historical knowledge.
 """
 
 import asyncio
+import atexit
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -36,6 +37,19 @@ MAX_SEMANTIC_QUERY_LENGTH = 5000  # Maximum characters for semantic search query
 
 # Module-level executor for sync wrapper (reused across calls)
 _sync_executor: ThreadPoolExecutor | None = None
+
+
+def _cleanup_executor() -> None:
+    """Clean up the module-level executor at program exit"""
+    global _sync_executor
+    if _sync_executor is not None:
+        _sync_executor.shutdown(wait=False)
+        _sync_executor = None
+        logger.debug("Cleaned up sync executor")
+
+
+# Register cleanup handler to prevent resource leaks
+atexit.register(_cleanup_executor)
 
 
 @dataclass
@@ -199,10 +213,12 @@ class ContextEngine:
         task_sources = []
 
         # 1. Entity-based retrieval
+        # Note: Capture entities explicitly to avoid closure issues with loop variables
         if self.entity_weight > 0 and event.entities:
+            entities = event.entities  # Capture for lambda
             tasks.append(loop.run_in_executor(
                 None,
-                lambda: self._retrieve_by_entities(event.entities, top_k=10)
+                lambda ents=entities: self._retrieve_by_entities(ents, top_k=10)
             ))
             task_sources.append(("entity", self.entity_weight))
 
@@ -223,31 +239,48 @@ class ContextEngine:
             ))
             task_sources.append(("thread", self.thread_weight))
 
+        # Fast-path: no retrieval tasks to run
+        if not tasks:
+            duration = time.time() - start_time
+            logger.debug(
+                "No retrieval sources available",
+                extra={"event_id": event.event_id, "duration_seconds": duration}
+            )
+            return ContextRetrievalResult(
+                context_items=[],
+                total_retrieved=0,
+                sources_used=[],
+                retrieval_duration_seconds=duration,
+                metadata={
+                    "event_id": event.event_id,
+                    "event_title": event.title
+                }
+            )
+
         # Execute all retrievals in parallel
-        if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for (source_name, weight), result in zip(task_sources, results):
-                if isinstance(result, Exception):
-                    logger.warning(
-                        "Context source retrieval failed",
-                        extra={"source": source_name, "error": str(result)}
-                    )
-                    continue
+        for (source_name, weight), result in zip(task_sources, results):
+            if isinstance(result, Exception):
+                logger.warning(
+                    "Context source retrieval failed",
+                    extra={"source": source_name, "error": str(result)}
+                )
+                continue
 
-                contexts = result
-                # Apply memory bound while collecting
-                remaining = self.max_candidates - len(context_candidates)
-                for ctx in contexts[:remaining]:
-                    context_candidates.append((ctx, weight))
-                if contexts:
-                    sources_used.append(source_name)
+            contexts = result
+            # Apply memory bound while collecting
+            remaining = self.max_candidates - len(context_candidates)
+            for ctx in contexts[:remaining]:
+                context_candidates.append((ctx, weight))
+            if contexts:
+                sources_used.append(source_name)
 
         # Log if we hit memory bound
         if len(context_candidates) >= self.max_candidates:
             logger.debug(
-                "Context candidates capped at %d items",
-                self.max_candidates
+                "Context candidates capped at max_candidates",
+                extra={"max_candidates": self.max_candidates}
             )
 
         # 4. Rank and deduplicate

@@ -27,6 +27,9 @@ CONFIDENCE_NEW_SECTION = 0.7  # Suggestion for new section
 # Pre-compiled regex for date extraction (ISO format: YYYY-MM-DD)
 DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
 
+# Pre-compiled regex for section header detection (markdown headers)
+SECTION_HEADER_PATTERN = re.compile(r'^(#+)\s+(.*)$')
+
 
 class EnrichmentSource(str, Enum):
     """Sources of enrichment"""
@@ -117,7 +120,7 @@ class NoteEnricher:
         Returns:
             EnrichmentResult with suggestions
         """
-        logger.info(f"Generating enrichments for note {note.note_id}")
+        logger.info("Generating enrichments for note", extra={"note_id": note.note_id})
 
         if context is None:
             context = EnrichmentContext(note=note, metadata=metadata)
@@ -134,7 +137,7 @@ class NoteEnricher:
                 if ai_enrichments:
                     sources_used.append(EnrichmentSource.AI_ANALYSIS)
             except Exception as e:
-                logger.warning(f"AI gap analysis failed: {e}")
+                logger.warning("AI gap analysis failed", extra={"error": str(e)})
 
         # 2. Cross-reference analysis
         xref_enrichments = self._cross_reference_analysis(context)
@@ -157,7 +160,7 @@ class NoteEnricher:
                 if web_enrichments:
                     sources_used.append(EnrichmentSource.WEB_SEARCH)
             except Exception as e:
-                logger.warning(f"Web research failed: {e}")
+                logger.warning("Web research failed", extra={"error": str(e)})
 
         # Identify gaps based on note type
         gaps = self._identify_gaps(context)
@@ -171,7 +174,10 @@ class NoteEnricher:
         else:
             summary = "Aucun enrichissement identifié"
 
-        logger.info(f"Enrichment complete for {note.note_id}: {summary}")
+        logger.info(
+            "Enrichment complete",
+            extra={"note_id": note.note_id, "summary": summary}
+        )
 
         return EnrichmentResult(
             note_id=note.note_id,
@@ -324,18 +330,19 @@ class NoteEnricher:
         return gaps
 
     def _parse_sections(self, content: str) -> dict[str, str]:
-        """Parse markdown sections from content"""
+        """Parse markdown sections from content using pre-compiled regex"""
         sections = {}
         current_section = "Introduction"
-        current_content = []
+        current_content: list[str] = []
 
         for line in content.split("\n"):
-            if line.startswith("#"):
+            match = SECTION_HEADER_PATTERN.match(line)
+            if match:
                 # Save previous section
                 if current_content:
                     sections[current_section] = "\n".join(current_content)
-                # Start new section
-                current_section = line.lstrip("#").strip()
+                # Start new section (extract title from regex group 2)
+                current_section = match.group(2).strip()
                 current_content = []
             else:
                 current_content.append(line)
@@ -454,7 +461,10 @@ class EnrichmentPipeline:
 
         for task_result in task_results:
             if isinstance(task_result, Exception):
-                logger.warning(f"Enrichment task failed: {task_result}")
+                logger.warning(
+                    "Enrichment task failed",
+                    extra={"error": str(task_result)}
+                )
                 continue
             note_id, enrichment_result = task_result
             results[note_id] = enrichment_result

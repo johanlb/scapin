@@ -30,6 +30,9 @@ logger = get_logger("passepartout.note_manager")
 # LRU Cache configuration
 DEFAULT_CACHE_MAX_SIZE = 500  # Maximum notes to keep in memory
 
+# Pre-compiled regex for frontmatter parsing (performance optimization)
+FRONTMATTER_PATTERN = re.compile(r'^---\s*\n(.*?)\n---\s*\n(.*)$', re.DOTALL)
+
 
 @dataclass
 class Note:
@@ -123,7 +126,10 @@ class NoteManager:
                 self.git = GitVersionManager(self.notes_dir)
                 logger.info("Git versioning enabled for notes")
             except Exception as e:
-                logger.warning(f"Failed to initialize Git versioning: {e}")
+                logger.warning(
+                    "Failed to initialize Git versioning",
+                    extra={"error": str(e)}
+                )
                 self.git = None
 
         # LRU cache: OrderedDict maintains insertion order for LRU eviction
@@ -160,7 +166,7 @@ class NoteManager:
         # Evict oldest entries if over capacity
         while len(self._note_cache) > self._cache_max_size:
             evicted_id, _ = self._note_cache.popitem(last=False)
-            logger.debug(f"LRU cache evicted: {evicted_id}")
+            logger.debug("LRU cache evicted", extra={"note_id": evicted_id})
 
     def create_note(
         self,
@@ -350,7 +356,7 @@ class NoteManager:
         if self.git:
             self.git.commit(f"{note_id}.md", "Update note", note_title=note.title)
 
-        logger.info(f"Updated note: {note_id}")
+        logger.info("Updated note", extra={"note_id": note_id})
         return True
 
     def delete_note(self, note_id: str) -> bool:
@@ -367,7 +373,7 @@ class NoteManager:
         """
         note = self.get_note(note_id)
         if not note:
-            logger.warning(f"Note not found for deletion: {note_id}")
+            logger.warning("Note not found for deletion", extra={"note_id": note_id})
             return False
 
         # Remove from vector store
@@ -382,13 +388,13 @@ class NoteManager:
         file_path = self._get_note_path(note_id)
         if file_path.exists():
             file_path.unlink()
-            logger.info(f"Deleted note file: {file_path}")
+            logger.info("Deleted note file", extra={"file_path": str(file_path)})
 
             # Git commit deletion
             if self.git:
                 self.git.commit_delete(f"{note_id}.md", note_title=note.title)
 
-        logger.info(f"Deleted note: {note_id}")
+        logger.info("Deleted note", extra={"note_id": note_id})
         return True
 
     def search_notes(
@@ -597,10 +603,13 @@ class NoteManager:
                         self._cache_put(note.note_id, note)
                     count += 1
             except Exception as e:
-                logger.warning(f"Failed to index note {file_path}: {e}")
+                logger.warning(
+                    "Failed to index note",
+                    extra={"file_path": str(file_path), "error": str(e)}
+                )
                 continue
 
-        logger.info(f"Indexed {count} notes")
+        logger.info("Indexed notes", extra={"count": count})
         return count
 
     def _sanitize_title(self, title: str) -> str:
@@ -640,6 +649,7 @@ class NoteManager:
         Generate unique note ID from title and timestamp
 
         Uses sanitized title to prevent path traversal attacks.
+        Uses SHA256 for consistency with content hashing.
 
         Args:
             title: Note title (will be sanitized)
@@ -655,8 +665,9 @@ class NoteManager:
         slug = re.sub(r'[^a-z0-9]+', '-', safe_title.lower()).strip('-')[:50]
 
         # Add hash for uniqueness (use original title for hash input)
+        # Using SHA256 for consistency with content hashing elsewhere
         hash_input = f"{title}{timestamp}"
-        hash_suffix = hashlib.md5(hash_input.encode()).hexdigest()[:8]
+        hash_suffix = hashlib.sha256(hash_input.encode()).hexdigest()[:8]
 
         return f"{slug}-{hash_suffix}"
 
@@ -739,10 +750,13 @@ class NoteManager:
             with open(file_path, encoding='utf-8') as f:
                 content = f.read()
 
-            # Parse frontmatter
-            match = re.match(r'^---\s*\n(.*?)\n---\s*\n(.*)$', content, re.DOTALL)
+            # Parse frontmatter using pre-compiled regex
+            match = FRONTMATTER_PATTERN.match(content)
             if not match:
-                logger.warning(f"No frontmatter in note: {file_path}")
+                logger.warning(
+                    "No frontmatter in note",
+                    extra={"file_path": str(file_path)}
+                )
                 return None
 
             frontmatter_str, body = match.groups()
@@ -776,7 +790,11 @@ class NoteManager:
             return note
 
         except Exception as e:
-            logger.error(f"Failed to read note {file_path}: {e}", exc_info=True)
+            logger.error(
+                "Failed to read note",
+                extra={"file_path": str(file_path), "error": str(e)},
+                exc_info=True
+            )
             return None
 
     def create_folder(self, path: str) -> Path:
@@ -824,7 +842,7 @@ class NoteManager:
         # Create folder structure
         folder_path.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Created folder: {folder_path}")
+        logger.info("Created folder", extra={"folder_path": str(folder_path)})
         return folder_path
 
     def list_folders(self) -> list[str]:
@@ -859,8 +877,9 @@ class NoteManager:
         )
 
 
-# Singleton instance
+# Singleton instance with thread-safe initialization
 _note_manager: Optional[NoteManager] = None
+_note_manager_lock = threading.Lock()
 
 
 def get_note_manager(
@@ -868,7 +887,9 @@ def get_note_manager(
     git_enabled: bool = True
 ) -> NoteManager:
     """
-    Get or create singleton NoteManager instance
+    Get or create singleton NoteManager instance (thread-safe)
+
+    Uses double-check locking pattern for thread-safe lazy initialization.
 
     Args:
         notes_dir: Directory for notes (default: ~/Documents/Notes)
@@ -879,10 +900,17 @@ def get_note_manager(
     """
     global _note_manager
 
-    if _note_manager is None:
-        if notes_dir is None:
-            notes_dir = Path.home() / "Documents" / "Notes"
+    # First check without lock for performance (common case)
+    if _note_manager is not None:
+        return _note_manager
 
-        _note_manager = NoteManager(notes_dir, git_enabled=git_enabled)
+    # Double-check with lock for thread safety
+    with _note_manager_lock:
+        # Check again inside lock (another thread may have initialized)
+        if _note_manager is None:
+            if notes_dir is None:
+                notes_dir = Path.home() / "Documents" / "Notes"
+
+            _note_manager = NoteManager(notes_dir, git_enabled=git_enabled)
 
     return _note_manager

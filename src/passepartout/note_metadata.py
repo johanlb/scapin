@@ -324,15 +324,34 @@ class NoteMetadataStore:
             )
 
             conn.commit()
-            logger.debug(f"Database initialized at {self.db_path}")
+            logger.debug("Database initialized", extra={"db_path": str(self.db_path)})
+
+    def _parse_datetime_safe(self, val: str | None, field_name: str = "") -> datetime | None:
+        """
+        Safely parse datetime string with error handling
+
+        Args:
+            val: ISO format datetime string or None
+            field_name: Field name for error logging
+
+        Returns:
+            Parsed datetime or None if parsing fails
+        """
+        if val is None:
+            return None
+        try:
+            return datetime.fromisoformat(val)
+        except (ValueError, TypeError) as e:
+            logger.warning(
+                "Failed to parse datetime",
+                extra={"field": field_name, "value": val, "error": str(e)}
+            )
+            return None
 
     def _row_to_metadata(self, row: sqlite3.Row) -> NoteMetadata:
         """Convert database row to NoteMetadata"""
 
-        def parse_datetime(val: str | None) -> datetime | None:
-            if val is None:
-                return None
-            return datetime.fromisoformat(val)
+        note_id = row["note_id"]
 
         # Parse enrichment history JSON
         history_json = row["enrichment_history"]
@@ -341,17 +360,18 @@ class NoteMetadataStore:
             history = [EnrichmentRecord.from_dict(h) for h in history_data]
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning(
-                f"Failed to parse enrichment history for note {row['note_id']}: {e}"
+                "Failed to parse enrichment history",
+                extra={"note_id": note_id, "error": str(e)}
             )
             history = []
 
         return NoteMetadata(
-            note_id=row["note_id"],
+            note_id=note_id,
             note_type=NoteType(row["note_type"]),
-            created_at=parse_datetime(row["created_at"]) or datetime.now(timezone.utc),
-            updated_at=parse_datetime(row["updated_at"]) or datetime.now(timezone.utc),
-            reviewed_at=parse_datetime(row["reviewed_at"]),
-            next_review=parse_datetime(row["next_review"]),
+            created_at=self._parse_datetime_safe(row["created_at"], "created_at") or datetime.now(timezone.utc),
+            updated_at=self._parse_datetime_safe(row["updated_at"], "updated_at") or datetime.now(timezone.utc),
+            reviewed_at=self._parse_datetime_safe(row["reviewed_at"], "reviewed_at"),
+            next_review=self._parse_datetime_safe(row["next_review"], "next_review"),
             easiness_factor=row["easiness_factor"],
             repetition_number=row["repetition_number"],
             interval_hours=row["interval_hours"],
@@ -408,7 +428,72 @@ class NoteMetadataStore:
             )
 
             conn.commit()
-            logger.debug(f"Saved metadata for note {metadata.note_id}")
+            logger.debug(
+                "Saved metadata",
+                extra={"note_id": metadata.note_id}
+            )
+
+    def save_batch(self, metadata_list: list[NoteMetadata]) -> int:
+        """
+        Save multiple metadata records in a single transaction
+
+        Uses executemany for better performance with large batches.
+
+        Args:
+            metadata_list: List of NoteMetadata to save
+
+        Returns:
+            Number of records saved
+        """
+        if not metadata_list:
+            return 0
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Prepare all data tuples
+            data_tuples = []
+            for metadata in metadata_list:
+                history_json = json.dumps([h.to_dict() for h in metadata.enrichment_history])
+                data_tuples.append((
+                    metadata.note_id,
+                    metadata.note_type.value,
+                    metadata.created_at.isoformat(),
+                    metadata.updated_at.isoformat(),
+                    metadata.reviewed_at.isoformat() if metadata.reviewed_at else None,
+                    metadata.next_review.isoformat() if metadata.next_review else None,
+                    metadata.easiness_factor,
+                    metadata.repetition_number,
+                    metadata.interval_hours,
+                    metadata.review_count,
+                    metadata.last_quality,
+                    metadata.content_hash,
+                    metadata.importance.value,
+                    int(metadata.auto_enrich),
+                    int(metadata.web_search_enabled),
+                    history_json,
+                ))
+
+            cursor.executemany(
+                """
+                INSERT OR REPLACE INTO note_metadata (
+                    note_id, note_type, created_at, updated_at,
+                    reviewed_at, next_review, easiness_factor,
+                    repetition_number, interval_hours, review_count,
+                    last_quality, content_hash, importance,
+                    auto_enrich, web_search_enabled, enrichment_history
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                data_tuples,
+            )
+
+            conn.commit()
+            saved_count = len(data_tuples)
+            logger.info(
+                "Batch saved metadata",
+                extra={"count": saved_count}
+            )
+            return saved_count
 
     def get(self, note_id: str) -> NoteMetadata | None:
         """
@@ -644,7 +729,10 @@ class NoteMetadataStore:
         )
 
         self.save(metadata)
-        logger.info(f"Created metadata for note {note_id} (type={note_type.value})")
+        logger.info(
+            "Created metadata for note",
+            extra={"note_id": note_id, "note_type": note_type.value}
+        )
 
         return metadata
 
