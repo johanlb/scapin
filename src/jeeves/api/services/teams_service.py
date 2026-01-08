@@ -305,6 +305,31 @@ class TeamsService:
             logger.error(f"Failed to mark chat {chat_id} as read: {e}")
             return False
 
+    async def mark_chat_as_unread(self, chat_id: str) -> bool:
+        """
+        Mark a chat as unread
+
+        Args:
+            chat_id: Chat ID to mark as unread
+
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._config.teams.enabled:
+            return False
+
+        processor = self._get_processor()
+
+        try:
+            success = await processor.teams_client.mark_chat_as_unread(chat_id)
+            if success:
+                # Update local state
+                self._state.increment("teams_chats_marked_unread")
+            return success
+        except Exception as e:
+            logger.error(f"Failed to mark chat {chat_id} as unread: {e}")
+            return False
+
     def _message_to_dict(self, message: Any, chat_id: str) -> dict[str, Any]:
         """Convert TeamsMessage to dictionary"""
         return {

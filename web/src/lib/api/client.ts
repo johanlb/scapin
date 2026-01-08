@@ -807,7 +807,7 @@ export async function deleteQueueItem(itemId: string): Promise<{ deleted: string
 }
 
 // Snooze types
-export type SnoozeOption = 'later_today' | 'tomorrow' | 'this_weekend' | 'next_week' | 'custom';
+export type SnoozeOption = 'in_30_min' | 'in_2_hours' | 'tomorrow' | 'next_week' | 'custom';
 
 export interface SnoozeResponse {
 	snooze_id: string;
@@ -1141,6 +1141,18 @@ export async function markChatAsRead(
 ): Promise<{ chat_id: string; marked_as_read: boolean }> {
 	return fetchApi<{ chat_id: string; marked_as_read: boolean }>(
 		`/teams/chats/${encodeURIComponent(chatId)}/read`,
+		{ method: 'POST' }
+	);
+}
+
+/**
+ * Mark a chat as unread
+ */
+export async function markChatAsUnread(
+	chatId: string
+): Promise<{ chat_id: string; marked_as_unread: boolean }> {
+	return fetchApi<{ chat_id: string; marked_as_unread: boolean }>(
+		`/teams/chats/${encodeURIComponent(chatId)}/unread`,
 		{ method: 'POST' }
 	);
 }

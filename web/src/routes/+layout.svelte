@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { Sidebar, MobileNav, ChatPanel } from '$lib/components/layout';
-	import { CommandPalette } from '$lib/components/ui';
+	import { CommandPalette, ToastContainer } from '$lib/components/ui';
 	import { showCommandPalette, openCommandPalette, closeCommandPalette, authStore, wsStore, notificationStore } from '$lib/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -147,6 +147,9 @@
 				onselect={handleSearchSelect}
 			/>
 		{/if}
+
+		<!-- Toast Notifications -->
+		<ToastContainer position="top-right" />
 	</div>
 {/if}
 

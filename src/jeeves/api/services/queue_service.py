@@ -425,8 +425,12 @@ class QueueService:
         # Calculate snooze_until based on option
         now = now_utc()
 
-        if snooze_option == "later_today":
-            snooze_until = now + timedelta(hours=3)
+        if snooze_option == "in_30_min":
+            snooze_until = now + timedelta(minutes=30)
+            snooze_reason = SnoozeReason.CUSTOM
+        elif snooze_option == "in_2_hours" or snooze_option == "later_today":
+            # 2 hours from now (Sprint 3 decision)
+            snooze_until = now + timedelta(hours=2)
             snooze_reason = SnoozeReason.LATER_TODAY
         elif snooze_option == "tomorrow":
             # Tomorrow at 9 AM

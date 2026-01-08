@@ -4,6 +4,7 @@
 	import { Card, Button, Input, VirtualList } from '$lib/components/ui';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
+	import { toastStore } from '$lib/stores/toast.svelte';
 	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem } from '$lib/api';
 	import type { QueueItem, ActionOption, SnoozeOption } from '$lib/api';
 
@@ -23,9 +24,9 @@
 	let snoozeErrorTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	const snoozeOptions: { value: SnoozeOption; label: string }[] = [
-		{ value: 'later_today', label: 'Plus tard (3h)' },
+		{ value: 'in_30_min', label: '30 minutes' },
+		{ value: 'in_2_hours', label: '2 heures' },
 		{ value: 'tomorrow', label: 'Demain matin' },
-		{ value: 'this_weekend', label: 'Ce weekend' },
 		{ value: 'next_week', label: 'Semaine prochaine' }
 	];
 
@@ -188,9 +189,25 @@
 		if (isProcessing) return;
 		isProcessing = true;
 
+		// Save item info for undo
+		const itemId = item.id;
+		const itemSubject = item.metadata.subject;
+		const actionLabel = getActionLabel(option.action);
+
 		try {
 			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, option.destination);
 			queueStore.removeFromList(item.id);
+
+			// Show undo toast with 5-minute countdown
+			toastStore.undo(
+				`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
+				async () => {
+					await undoQueueItem(itemId);
+					await queueStore.fetchQueue('pending');
+					await queueStore.fetchStats();
+				},
+				{ itemId, title: 'Action effectuée' }
+			);
 
 			// Move to next or reset
 			if (currentIndex >= queueStore.items.length) {
@@ -207,10 +224,25 @@
 		if (isProcessing || !customInstruction.trim()) return;
 		isProcessing = true;
 
+		// Save item info for undo
+		const itemId = item.id;
+		const itemSubject = item.metadata.subject;
+
 		try {
 			// For custom instruction, we approve with the instruction as reasoning
 			await approveQueueItem(item.id, 'custom', item.analysis.category || undefined);
 			queueStore.removeFromList(item.id);
+
+			// Show undo toast with 5-minute countdown
+			toastStore.undo(
+				`Instruction personnalisée : ${itemSubject.slice(0, 30)}${itemSubject.length > 30 ? '...' : ''}`,
+				async () => {
+					await undoQueueItem(itemId);
+					await queueStore.fetchQueue('pending');
+					await queueStore.fetchStats();
+				},
+				{ itemId, title: 'Action effectuée' }
+			);
 
 			if (currentIndex >= queueStore.items.length) {
 				currentIndex = Math.max(0, queueStore.items.length - 1);
@@ -244,10 +276,25 @@
 		if (isProcessing) return;
 		isProcessing = true;
 
+		// Save item info for undo
+		const itemId = item.id;
+		const itemSubject = item.metadata.subject;
+
 		try {
 			// Approve with delete action
 			await approveQueueItem(item.id, 'delete', item.analysis.category || undefined);
 			queueStore.removeFromList(item.id);
+
+			// Show undo toast with 5-minute countdown
+			toastStore.undo(
+				`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
+				async () => {
+					await undoQueueItem(itemId);
+					await queueStore.fetchQueue('pending');
+					await queueStore.fetchStats();
+				},
+				{ itemId, title: 'Email déplacé vers la corbeille' }
+			);
 
 			if (currentIndex >= queueStore.items.length) {
 				currentIndex = Math.max(0, queueStore.items.length - 1);

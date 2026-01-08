@@ -17,7 +17,7 @@
 
 	let { id, type, message, title, dismissible = true, ondismiss }: Props = $props();
 
-	const typeConfig = {
+	const typeConfig: Record<ToastType, { bg: string; border: string; icon: string; iconPath: string }> = {
 		success: {
 			bg: 'bg-[var(--color-success)]/10',
 			border: 'border-[var(--color-success)]/30',
@@ -41,6 +41,12 @@
 			border: 'border-[var(--color-accent)]/30',
 			icon: 'text-[var(--color-accent)]',
 			iconPath: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+		},
+		undo: {
+			bg: 'bg-[var(--color-accent)]/10',
+			border: 'border-[var(--color-accent)]/30',
+			icon: 'text-[var(--color-accent)]',
+			iconPath: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6'
 		}
 	};
 

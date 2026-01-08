@@ -10,3 +10,8 @@ export { default as CommandPalette } from './CommandPalette.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as VirtualList } from './VirtualList.svelte';
 export { default as ConfidenceBar } from './ConfidenceBar.svelte';
+export { default as Tabs } from './Tabs.svelte';
+export { default as Toast } from './Toast.svelte';
+export { default as ToastContainer } from './ToastContainer.svelte';
+export { default as UndoToast } from './UndoToast.svelte';
+export { default as ProgressRing } from './ProgressRing.svelte';

@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import DOMPurify from 'isomorphic-dompurify';
 	import { Card, Badge, Button, Skeleton } from '$lib/components/ui';
 	import { ConfidenceBar } from '$lib/components/ui';
 	import { formatRelativeTime } from '$lib/utils/formatters';
@@ -40,6 +41,40 @@
 	const contentToShow = $derived(
 		showHtml && hasHtmlBody ? item?.content?.html_body : item?.content?.full_text || item?.content?.preview || ''
 	);
+
+	// Sanitize HTML content with DOMPurify
+	// Allows safe HTML rendering while preventing XSS attacks
+	const sanitizedHtml = $derived(() => {
+		if (!hasHtmlBody || !item?.content?.html_body) return '';
+
+		// Configure DOMPurify to allow safe email content
+		const config = {
+			ALLOWED_TAGS: [
+				'a', 'abbr', 'address', 'article', 'aside', 'b', 'bdi', 'bdo', 'blockquote',
+				'br', 'caption', 'cite', 'code', 'col', 'colgroup', 'data', 'dd', 'del', 'dfn',
+				'div', 'dl', 'dt', 'em', 'figcaption', 'figure', 'footer', 'h1', 'h2', 'h3',
+				'h4', 'h5', 'h6', 'header', 'hr', 'i', 'img', 'ins', 'kbd', 'li', 'main', 'mark',
+				'nav', 'ol', 'p', 'pre', 'q', 'rp', 'rt', 'ruby', 's', 'samp', 'section', 'small',
+				'span', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead',
+				'time', 'tr', 'u', 'ul', 'var', 'wbr', 'font', 'center'
+			],
+			ALLOWED_ATTR: [
+				'href', 'src', 'alt', 'title', 'class', 'id', 'style', 'target', 'rel',
+				'width', 'height', 'colspan', 'rowspan', 'align', 'valign', 'border',
+				'cellpadding', 'cellspacing', 'bgcolor', 'color', 'face', 'size', 'dir', 'lang'
+			],
+			ALLOW_DATA_ATTR: false,
+			ADD_ATTR: ['target'], // Allow target on links
+			FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button'],
+			FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+		};
+
+		// Sanitize the HTML
+		const clean = DOMPurify.sanitize(item.content.html_body, config);
+
+		// Add target="_blank" and rel="noopener" to all links for security
+		return clean.replace(/<a\s+(?![^>]*target=)/gi, '<a target="_blank" rel="noopener noreferrer" ');
+	});
 
 	// Check if this is a REPLY action with a draft
 	const hasDraftReply = $derived(
@@ -169,9 +204,9 @@
 
 	function getSnoozeLabel(option: SnoozeOption): string {
 		const labels: Record<SnoozeOption, string> = {
-			later_today: 'Plus tard (3h)',
+			in_30_min: '30 minutes',
+			in_2_hours: '2 heures',
 			tomorrow: 'Demain matin',
-			this_weekend: 'Ce weekend',
 			next_week: 'Semaine prochaine',
 			custom: 'Personnalisé'
 		};
@@ -351,13 +386,12 @@
 
 					<!-- Content display -->
 					{#if showHtml && hasHtmlBody}
-						<!-- Use sandboxed iframe for HTML content to prevent XSS -->
-						<iframe
-							srcdoc={item.content.html_body}
-							sandbox=""
-							class="w-full min-h-[400px] rounded-lg border border-[var(--glass-border-subtle)] bg-white"
-							title="Contenu HTML de l'email"
-						></iframe>
+						<!-- Sanitized HTML content with DOMPurify for XSS prevention -->
+						<div
+							class="email-content prose prose-invert max-w-none p-4 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--glass-border-subtle)] overflow-auto"
+						>
+							{@html sanitizedHtml()}
+						</div>
 					{:else}
 						<div class="text-[var(--color-text-secondary)] whitespace-pre-wrap leading-relaxed font-mono text-sm">
 							{contentToShow}
@@ -618,21 +652,21 @@
 									<div class="py-1">
 										<button
 											class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--glass-tint)] transition-colors"
-											onclick={() => handleSnooze('later_today')}
+											onclick={() => handleSnooze('in_30_min')}
 										>
-											&#9203; Plus tard (3h)
+											&#9203; 30 minutes
+										</button>
+										<button
+											class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--glass-tint)] transition-colors"
+											onclick={() => handleSnooze('in_2_hours')}
+										>
+											&#9203; 2 heures
 										</button>
 										<button
 											class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--glass-tint)] transition-colors"
 											onclick={() => handleSnooze('tomorrow')}
 										>
 											&#127749; Demain matin
-										</button>
-										<button
-											class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--glass-tint)] transition-colors"
-											onclick={() => handleSnooze('this_weekend')}
-										>
-											&#127774; Ce weekend
 										</button>
 										<button
 											class="w-full px-4 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--glass-tint)] transition-colors"

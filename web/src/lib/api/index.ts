@@ -50,6 +50,7 @@ export {
 	pollTeams,
 	getTeamsStats,
 	markChatAsRead,
+	markChatAsUnread,
 	listRecentTeamsMessages,
 	// Error
 	ApiError

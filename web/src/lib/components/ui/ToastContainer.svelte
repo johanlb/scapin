@@ -2,9 +2,11 @@
 	/**
 	 * ToastContainer Component
 	 * Renders all active toast notifications in a fixed position
+	 * Supports both regular toasts and special Undo toasts with countdown
 	 */
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import Toast from './Toast.svelte';
+	import UndoToast from './UndoToast.svelte';
 
 	interface Props {
 		position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
@@ -24,6 +26,10 @@
 	function handleDismiss(id: string) {
 		toastStore.dismiss(id);
 	}
+
+	function handleUndo(id: string) {
+		toastStore.executeUndo(id);
+	}
 </script>
 
 {#if toastStore.toasts.length > 0}
@@ -33,14 +39,25 @@
 	>
 		{#each toastStore.toasts as toast (toast.id)}
 			<div class="pointer-events-auto">
-				<Toast
-					id={toast.id}
-					type={toast.type}
-					message={toast.message}
-					title={toast.title}
-					dismissible={toast.dismissible}
-					ondismiss={handleDismiss}
-				/>
+				{#if toast.type === 'undo'}
+					<UndoToast
+						id={toast.id}
+						message={toast.message}
+						title={toast.title}
+						countdownSeconds={toast.countdownSeconds ?? 300}
+						onUndo={() => handleUndo(toast.id)}
+						onDismiss={() => handleDismiss(toast.id)}
+					/>
+				{:else}
+					<Toast
+						id={toast.id}
+						type={toast.type}
+						message={toast.message}
+						title={toast.title}
+						dismissible={toast.dismissible}
+						ondismiss={handleDismiss}
+					/>
+				{/if}
 			</div>
 		{/each}
 	</div>
