@@ -19,7 +19,7 @@
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 (partiel) |
 | **Gaps MVP restants** | 44 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
-| **Prochaine priorité** | 🔥 **Cross-Source** — Recherche multi-sources (12 items) |
+| **Prochaine priorité** | 🔥 **Cross-Source** — Recherche multi-sources (4 items restants) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -401,14 +401,16 @@ Implémenté en parallèle du Sprint 3 :
 
 ## Sprint Cross-Source : Intelligence Multi-Sources 🔥 PRIORITÉ
 
-**Statut** : 🚧 EN COURS — **Phase 2 complétée (6/12 items — 50%)**
+**Statut** : 🚧 EN COURS — **Phase 2 complétée (8/12 items — 67%)**
 **Objectif** : Recherche intelligente cross-sources pour enrichissement et analyse
-**Items** : 12 MVP (6 complétés)
+**Items** : 12 MVP (8 complétés)
 **Dépendance** : Sprint 3
 **Spécification** : [CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)
-**Tests** : 63 tests (100% pass)
+**Tests** : 115 tests (100% pass)
 
-> **Session 8 janvier 2026** : Calendar et Teams Adapters complétés avec 29 nouveaux tests
+> **Session 8 janvier 2026** : Calendar et Teams Adapters complétés avec 29 nouveaux tests.
+> CrossSourceEngine intégré dans ReasoningEngine pour context enrichment.
+> POST /api/search/cross-source endpoint implémenté avec 14 nouveaux tests.
 
 > **Vision** : Permettre à Scapin d'interroger TOUTES les sources d'information disponibles
 > pour enrichir les notes et améliorer l'analyse. Le Cross-Source est le cerveau étendu.
@@ -460,9 +462,9 @@ Implémenté en parallèle du Sprint 3 :
 | **Nouvelles Sources** | Adapter: WhatsApp (historique SQLite) | MVP | ⬜ |
 | | Adapter: Fichiers locaux (ripgrep) | MVP | ⬜ |
 | | Adapter: Web/Internet (Tavily API) | MVP | ⬜ |
-| **Intégration Pipeline** | Hook dans ReasoningEngine (Pass 2+) | MVP | ⬜ |
+| **Intégration Pipeline** | Hook dans ReasoningEngine (Pass 2+) | MVP | ✅ |
 | | Hook dans NoteReviewer | MVP | ⬜ |
-| | API: POST /api/search/cross-source | MVP | ⬜ |
+| | API: POST /api/search/cross-source | MVP | ✅ |
 
 ### Cas d'Usage
 
