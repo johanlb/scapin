@@ -24,11 +24,13 @@ from src.jeeves.api.routers import (
     events_router,
     journal_router,
     notes_router,
+    notifications_router,
     queue_router,
     search_router,
     stats_router,
     system_router,
     teams_router,
+    valets_router,
 )
 from src.jeeves.api.websocket import ws_router
 from src.monitoring.logger import get_logger
@@ -124,6 +126,8 @@ def create_app() -> FastAPI:
     app.include_router(notes_router, prefix="/api/notes", tags=["Notes"])
     app.include_router(search_router, prefix="/api/search", tags=["Search"])
     app.include_router(stats_router, prefix="/api/stats", tags=["Stats"])
+    app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
+    app.include_router(valets_router, prefix="/api/valets", tags=["Valets"])
     app.include_router(ws_router, prefix="/ws", tags=["WebSocket"])
 
     # Root endpoint

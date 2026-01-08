@@ -5,6 +5,7 @@ Pydantic models for aggregated statistics endpoints.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +14,33 @@ from src.jeeves.api.models.email import EmailStatsResponse
 from src.jeeves.api.models.notes import ReviewStatsResponse
 from src.jeeves.api.models.queue import QueueStatsResponse
 from src.jeeves.api.models.teams import TeamsStatsResponse
+
+
+class TrendDataPoint(BaseModel):
+    """A single data point in a trend"""
+
+    date: str = Field(..., description="Date in YYYY-MM-DD format")
+    value: int = Field(0, description="Value for this date")
+
+
+class SourceTrend(BaseModel):
+    """Trend data for a single source"""
+
+    source: str = Field(..., description="Source identifier")
+    label: str = Field(..., description="Display label")
+    color: str = Field(..., description="Color for chart")
+    data: list[TrendDataPoint] = Field(default_factory=list, description="Data points")
+    total: int = Field(0, description="Total over the period")
+
+
+class StatsTrendsResponse(BaseModel):
+    """Historical trends data for charts"""
+
+    period: Literal["7d", "30d"] = Field(..., description="Time period")
+    start_date: str = Field(..., description="Start date of period")
+    end_date: str = Field(..., description="End date of period")
+    trends: list[SourceTrend] = Field(default_factory=list, description="Trends by source")
+    total_processed: int = Field(0, description="Total items processed in period")
 
 
 class StatsOverviewResponse(BaseModel):

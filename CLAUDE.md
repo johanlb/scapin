@@ -2674,22 +2674,22 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Mode traitement focus pleine page
 - ✅ Filtrage par mentions directes (Teams)
 
-### Sprint 3 : Workflow & Actions (En cours — 56%)
+### Sprint 3 : Workflow & Actions — COMPLÉTÉ ✅
 
-**Objectif** : Actions sur emails avec contexte riche disponible
-**Statut** : 10/18 items complétés
+**Statut** : 100% complété (18/18 items)
 
 **Items complétés** :
 - ✅ Events API (4 endpoints snooze/undo)
 - ✅ Undo/Snooze Backend (historique, rappel auto)
 - ✅ Email Drafts Backend (PrepareEmailReplyAction, DraftReply, API)
 - ✅ UI Brouillons Email (liste + édition)
-
-**Prochains items** :
-- ⬜ Vue détail email (corps HTML/texte)
-- ⬜ Bouton Snooze/Undo dans l'interface
-- ⬜ POST /api/teams/chats/{id}/read
-- ⬜ Calendar CRUD (3 endpoints)
+- ✅ Vue détail email (corps HTML/texte) — `flux/[id]/+page.svelte`
+- ✅ Bouton Snooze dans l'interface — `flux/+page.svelte`
+- ✅ Bouton Undo après approbation — `flux/+page.svelte` + `UndoToast.svelte`
+- ✅ POST /api/teams/chats/{id}/read — `teams.py:267`
+- ✅ POST /api/teams/chats/{id}/unread — `teams.py:300`
+- ✅ UI: Vue détail message Teams — `teams/[chatId]/+page.svelte`
+- ✅ Calendar CRUD (POST/PUT/DELETE /api/calendar/events)
 
 ### Sprint Cross-Source : ✅ COMPLÉTÉ (12/12 — 100%)
 
@@ -2710,11 +2710,43 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Hook dans NoteReviewer
 - ✅ API: POST /api/search/cross-source
 
+### Sprint 4 : Temps Réel & UX — EN COURS 🚧
+
+**Objectif** : Expérience fluide et réactive
+**Statut** : 0/18 items complétés
+
+**Décisions techniques** (9 janvier 2026) :
+
+| Composant | Décision |
+|-----------|----------|
+| WebSocket Events | Tout diffuser (emails, Teams, calendar, queue, notes, status) |
+| WS Reconnexion | Exponential backoff (1s → 30s max) |
+| Notifications | In-app + persistées (7 jours rétention) |
+| Notif UI | Panel latéral droit, liste chronologique |
+| Valets Dashboard | Simple (statut, tâche en cours, dernières actions) |
+| Stats Pipeline | Temps + Volume + Tendances (graphiques 7/30j) |
+| Raccourcis clavier | J/K navigation, A/R/S/E actions, Cmd+K recherche |
+| Swipe mobile | Swipe gauche/droite + long press menu |
+| Mode Focus | Masque tout sauf haute priorité/urgence |
+| Quick Actions | Contextuelles selon état |
+| Settings | Tout configurable (Connexions, IA, Processing, Valets, Dev) |
+| Menu CLI | Finir dans ce sprint |
+
+**Ordre d'implémentation** :
+1. WebSocket Infrastructure (4 endpoints)
+2. Notifications (CRUD + Panel)
+3. Valets Dashboard (API + UI)
+4. UX Avancée (raccourcis, Quick Actions, Focus)
+5. UX Mobile (swipe + long press)
+6. Settings (page complète)
+7. Stats (tendances)
+8. CLI (finir menu)
+
 Voir [ROADMAP.md](ROADMAP.md) pour les détails complets.
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (38 MVP restants sur 86).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (24 MVP restants sur 86).
 
 ---
 

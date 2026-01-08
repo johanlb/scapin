@@ -42,6 +42,8 @@ export {
 	updateDiscussion,
 	deleteDiscussion,
 	quickChat,
+	// Notes
+	syncAppleNotes,
 	// Teams
 	listTeamsChats,
 	listTeamsMessages,

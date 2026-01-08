@@ -2,8 +2,8 @@
 
 **Dernière mise à jour** : 8 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 3 EN COURS 🚧 — Workflow & Actions (10/18 items — 56%)
-**Prochaine priorité** : Sprint 4 — Temps Réel & UX
+**Phase actuelle** : Sprint 4 📋 — Temps Réel & UX (0/18 items — 0%)
+**Prochaine priorité** : WebSocket + Notifications + Valets Dashboard
 
 ---
 
@@ -11,15 +11,15 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 32 items MVP restants sur 86 (Cross-Source 100% complété)
+**État** : MVP en cours — 24 items MVP restants sur 86 (Sprints 1-3 + Cross-Source complétés)
 
 | Métrique | Valeur |
 |----------|--------|
 | **Tests** | 2192 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
-| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 (partiel) |
-| **Gaps MVP restants** | 44 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
-| **Prochaine priorité** | 🔥 **Sprint 3** — Workflow & Actions (8 items restants) |
+| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 + Cross-Source |
+| **Gaps MVP restants** | 24 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
+| **Prochaine priorité** | 🔥 **Sprint 4** — Temps Réel & UX (18 items) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -293,9 +293,9 @@ Sganarelle: Apprentissage du feedback
 
 ## Sprint 3 : Workflow & Actions
 
-**Statut** : 🚧 En cours (10/18 — 56%)
+**Statut** : ✅ COMPLÉTÉ (18/18 — 100%)
 **Objectif** : Actions sur emails avec contexte riche disponible
-**Items** : 18 MVP (10 complétés)
+**Items** : 18 MVP (18 complétés)
 **Dépendance** : Sprint 2 ✅
 
 ### Livrables
@@ -312,15 +312,15 @@ Sganarelle: Apprentissage du feedback
 | | DraftReply dataclass | MVP | ✅ |
 | | API brouillons: récupérer/modifier | MVP | ✅ |
 | | UI: Affichage et édition brouillons | MVP | ✅ |
-| **Email UI** | Vue détail (corps HTML/texte) | MVP | ⬜ |
-| | Bouton Snooze | MVP | ⬜ |
-| | Bouton Undo après approbation | MVP | ⬜ |
-| **Teams** | POST /api/teams/chats/{id}/read | MVP | ⬜ |
-| | POST /api/teams/chats/{id}/unread | MVP | ⬜ |
-| | UI: Vue détail message (thread complet) | MVP | ⬜ |
-| **Calendar CRUD** | POST /api/calendar/events | MVP | ⬜ |
-| | PUT /api/calendar/events/{id} | MVP | ⬜ |
-| | DELETE /api/calendar/events/{id} | MVP | ⬜ |
+| **Email UI** | Vue détail (corps HTML/texte) | MVP | ✅ |
+| | Bouton Snooze | MVP | ✅ |
+| | Bouton Undo après approbation | MVP | ✅ |
+| **Teams** | POST /api/teams/chats/{id}/read | MVP | ✅ |
+| | POST /api/teams/chats/{id}/unread | MVP | ✅ |
+| | UI: Vue détail message (thread complet) | MVP | ✅ |
+| **Calendar CRUD** | POST /api/calendar/events | MVP | ✅ |
+| | PUT /api/calendar/events/{id} | MVP | ✅ |
+| | DELETE /api/calendar/events/{id} | MVP | ✅ |
 
 ### Décisions Techniques (8 janvier 2026)
 
@@ -619,50 +619,104 @@ cross_source:
 
 ## Sprint 4 : Temps Réel & UX
 
-**Statut** : 📋 Planifié
+**Statut** : 📋 Planifié (0/18 — 0%)
 **Objectif** : Expérience fluide et réactive
 **Items** : 18 MVP
-**Dépendance** : Sprint Cross-Source
+**Dépendance** : Sprint 3 ✅
 
 ### Livrables
 
-| Catégorie | Item | Priorité |
-|-----------|------|----------|
-| **WebSocket** | /ws/events - événements temps réel | MVP |
-| | /ws/discussions/{id} - chat temps réel | MVP |
-| | /ws/status - status Scapin | MVP |
-| | /ws/notifications - push | MVP |
-| **Notifications** | CRUD /api/notifications | MVP |
-| | Centre de Notifications (panneau) | MVP |
-| **Valets Dashboard** 🆕 | UI: Statut workers (running/idle/paused) | MVP |
-| | UI: Activité NoteReviewer en cours | MVP |
-| | UI: Visualisation travail d'équipe valets | MVP |
-| | API: GET /api/valets/status | MVP |
-| **UX Avancée** | Raccourcis clavier complets | MVP |
-| | Quick Actions dans Briefing | MVP |
-| | Mode Focus / Do Not Disturb | MVP |
-| | Snooze événements avec rappel | MVP |
-| **UX Mobile** | Swipe gestures complet | MVP |
-| **Settings** | Onglets Comptes/Intégrations/IA | MVP |
-| **Stats** | Page Stats avec Pipeline valets | MVP |
-| **Legacy** | Finir Menu Interactif CLI (20%) | MVP |
+| Catégorie | Item | Priorité | Statut |
+|-----------|------|----------|--------|
+| **WebSocket** | /ws/events - événements temps réel | MVP | ⬜ |
+| | /ws/discussions/{id} - chat temps réel | MVP | ⬜ |
+| | /ws/status - status Scapin | MVP | ⬜ |
+| | /ws/notifications - push | MVP | ⬜ |
+| **Notifications** | CRUD /api/notifications | MVP | ⬜ |
+| | Centre de Notifications (panneau latéral) | MVP | ⬜ |
+| **Valets Dashboard** | UI: Statut workers (running/idle/error) | MVP | ⬜ |
+| | UI: Activité NoteReviewer en cours | MVP | ⬜ |
+| | UI: Timeline dernières actions | MVP | ⬜ |
+| | API: GET /api/valets/status | MVP | ⬜ |
+| **UX Avancée** | Raccourcis clavier (J/K/A/R/S/E) | MVP | ⬜ |
+| | Quick Actions contextuelles Briefing | MVP | ⬜ |
+| | Mode Focus (filtre priorité) | MVP | ⬜ |
+| **UX Mobile** | Swipe gestures + long press | MVP | ⬜ |
+| **Settings** | Page Settings complète (tout configurable) | MVP | ⬜ |
+| **Stats** | Page Stats avec tendances 7/30j | MVP | ⬜ |
+| **Legacy** | Finir Menu Interactif CLI (20%) | MVP | ⬜ |
 
-### Valets Dashboard (Nouveau)
+### Décisions Techniques (9 janvier 2026)
+
+| Composant | Décision | Détails |
+|-----------|----------|---------|
+| **WebSocket Events** | Tout diffuser | Emails, Teams, calendar, queue, notes reviews, processing status |
+| **WS Reconnexion** | Exponential backoff | 1s → 2s → 4s → 8s → ... → 30s max |
+| **Notifications** | In-app + persistées | Centre de notifications, stockées en base, marquables comme lues |
+| **Notif UI** | Panel latéral droit | Slide-in depuis la droite (comme ChatPanel) |
+| **Notif Rétention** | 7 jours | Purge automatique après 7 jours |
+| **Notif Groupement** | Chronologique | Liste simple triée par date, pas de groupement |
+| **Valets Dashboard** | Simple | Statut par valet, tâche en cours, dernières actions |
+| **Stats Pipeline** | Temps + Volume + Tendances | Métriques + graphiques évolution 7/30 jours |
+| **Raccourcis clavier** | Navigation + Actions | J/K navigation, A approuver, R rejeter, S snooze, E éditer, Cmd+K recherche |
+| **Swipe mobile** | Swipe + long press | Swipe pour actions rapides, long press pour menu contextuel |
+| **Mode Focus** | Notifs + Filter priorité | Masque tout sauf items haute priorité/urgence |
+| **Quick Actions** | Contextuelles | Actions différentes selon l'état (inbox vide/pleine, notes dues/à jour) |
+| **Settings** | Tout configurable | Connexions, IA, Processing, Valets, Développeur (logs, debug) |
+| **Menu CLI** | Finir maintenant | Compléter le menu interactif dans ce sprint |
+
+### Ordre d'Implémentation
+
+```
+1. WebSocket Infrastructure
+   ├── Backend: 4 endpoints WS (/ws/events, discussions, status, notifications)
+   ├── Frontend: Store WebSocket avec exponential backoff
+   └── Intégration: EventBus → WebSocket broadcast
+
+2. Notifications
+   ├── Backend: CRUD API + Storage SQLite
+   ├── Frontend: Panel latéral + Badge compteur
+   └── Intégration: WebSocket → Notifications
+
+3. Valets Dashboard
+   ├── Backend: GET /api/valets/status
+   ├── Frontend: Page/Widget dashboard valets
+   └── Intégration: WebSocket status updates
+
+4. UX Avancée
+   ├── Raccourcis clavier globaux
+   ├── Quick Actions contextuelles
+   └── Mode Focus
+
+5. UX Mobile
+   └── Swipe gestures + long press menu
+
+6. Settings
+   └── Page complète avec tous les onglets
+
+7. Stats
+   └── Page avec graphiques tendances
+
+8. CLI
+   └── Finir menu interactif (20% restant)
+```
+
+### Valets Dashboard (Design)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    🎭 L'Équipe Scapin                            │
+│                    L'Équipe Scapin                               │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
 │  │ Trivelin │  │  Sancho  │  │Passepartout│ │ Planchet │        │
-│  │  👁️ IDLE │  │ 🧠 BUSY  │  │ 📚 REVIEW │  │ 📋 IDLE │        │
+│  │   IDLE   │  │   BUSY   │  │  REVIEW   │  │   IDLE   │        │
 │  │          │  │ Email #42│  │ Note #17  │  │          │        │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘        │
 │                                                                  │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────────────────────┐  │
 │  │  Figaro  │  │Sganarelle│  │ Background Worker            │  │
-│  │ ⚡ EXEC  │  │ 📊 LEARN │  │ ████████░░ 8/50 reviews/jour │  │
+│  │   EXEC   │  │  LEARN   │  │ ████████░░ 8/50 reviews/jour │  │
 │  │ Archive  │  │ Pattern  │  │ Session: 2:34/5:00           │  │
 │  └──────────┘  └──────────┘  └──────────────────────────────┘  │
 │                                                                  │
@@ -670,22 +724,50 @@ cross_source:
 │  • 14:23 Sancho: Email analysé → Archive/Travail (conf: 92%)   │
 │  • 14:21 Passepartout: Note "Marie Dupont" révisée (q=4)       │
 │  • 14:20 Figaro: Email #41 archivé                              │
-│  • 14:18 Sganarelle: Pattern détecté "emails Acme = Archive"   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Fonctionnalités** :
-- Statut en temps réel de chaque valet (idle, busy, error)
-- Tâche en cours pour les valets actifs
-- Progression du Background Worker (reviews/jour, temps session)
-- Timeline des dernières actions
-- Indicateurs visuels (couleurs, animations)
+### Raccourcis Clavier
+
+| Raccourci | Action | Contexte |
+|-----------|--------|----------|
+| `J` / `K` | Item suivant / précédent | Listes (Flux, Notes, etc.) |
+| `A` | Approuver | Item sélectionné dans Flux |
+| `R` | Rejeter | Item sélectionné dans Flux |
+| `S` | Snooze | Item sélectionné dans Flux |
+| `E` | Éditer | Item sélectionné |
+| `Enter` | Ouvrir détail | Item sélectionné |
+| `Escape` | Fermer / Retour | Modal, panel, détail |
+| `Cmd+K` | Recherche globale | Global |
+| `Cmd+N` | Nouvelle note | Global |
+| `Cmd+F` | Mode Focus toggle | Global |
+| `?` | Aide raccourcis | Global |
+
+### Swipe Gestures Mobile
+
+| Geste | Action |
+|-------|--------|
+| Swipe gauche | Rejeter / Archiver |
+| Swipe droite | Approuver / Valider |
+| Long press | Menu contextuel (snooze, éditer, détails...) |
+
+### Quick Actions Contextuelles
+
+| État | Actions affichées |
+|------|-------------------|
+| Inbox non vide | "Traiter le courrier" (primary) |
+| Inbox vide | "Tout est traité ✓" (disabled) |
+| Notes dues > 0 | "Réviser X notes" |
+| Notes à jour | "Notes à jour ✓" |
+| Mode Focus OFF | "Activer Focus" |
+| Mode Focus ON | "Désactiver Focus" |
 
 ### Valeur Délivrée
 
-- **Proactivité maximale** : Notifications temps réel
-- **Expérience fluide** : WebSocket, raccourcis clavier
-- **Mobile-first** : Gestures complets
+- **Proactivité maximale** : Notifications temps réel via WebSocket
+- **Expérience fluide** : Raccourcis clavier, feedback instantané
+- **Mobile-first** : Gestures complets, responsive
+- **Transparence** : Dashboard valets, on voit Scapin travailler
 
 ---
 
@@ -819,16 +901,16 @@ Interfaces:        ████████████████████ 
 === MVP EN COURS ===
 Sprint 1 (Notes):  ████████████████████ 100% ✅ (19/19)
 Sprint 2 (Analyse):████████████████████ 100% ✅ (13/13)
-Sprint 3 (Actions):███████████░░░░░░░░░  56% 🚧 (10/18)
-Cross-Source 🔥:   ████████████████████  100% ✅ (12/12)
+Sprint 3 (Actions):████████████████████ 100% ✅ (18/18)
+Cross-Source 🔥:   ████████████████████ 100% ✅ (12/12)
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░   0% 📋
 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        ██████████░░░░░░░░░░  42% (42 MVP complétés sur 86)
-                   → 44 items restants
+Global MVP:        ██████████████░░░░░░  72% (62 MVP complétés sur 86)
+                   → 24 items restants
 ```
 
 ### Items par Sprint
@@ -837,11 +919,11 @@ Global MVP:        ██████████░░░░░░░░░░ 
 |--------|-----------|-----------|--------|
 | Sprint 1 | 19 | 19 | ✅ 100% |
 | Sprint 2 | 13 | 13 | ✅ 100% |
-| Sprint 3 | 18 | 10 | 🚧 56% |
+| Sprint 3 | 18 | 18 | ✅ 100% |
 | **Cross-Source** 🔥 | **12** | **12** | ✅ **100%** |
 | Sprint 4 | 18 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **86** | **54** | 63% |
+| **Total MVP** | **86** | **62** | 72% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -992,7 +1074,7 @@ Global MVP:        ██████████░░░░░░░░░░ 
 
 ---
 
-**Statut** : Sprint 1 COMPLÉTÉ ✅ — Prêt pour Sprint 2
+**Statut** : Sprints 1-3 + Cross-Source COMPLÉTÉS ✅ — Prêt pour Sprint 4
 **Qualité** : 10/10 Production Ready Core (Security Hardened)
-**Tests** : 1697 tests, 95% couverture, 100% pass
-**Prochaine étape** : Sprint 2 — Qualité d'Analyse (extraction entités, proposed_notes, discussions)
+**Tests** : 2192 tests, 95% couverture, 100% pass
+**Prochaine étape** : Sprint 4 — Temps Réel & UX (WebSocket, Notifications, Valets Dashboard)

@@ -15,6 +15,7 @@
 		{ href: '/notes', label: 'Carnets', icon: '📝' },
 		{ href: '/discussions', label: 'Conversations', icon: '💬' },
 		{ href: '/journal', label: 'Journal', icon: '📖' },
+		{ href: '/valets', label: 'Valets', icon: '🎭' },
 		{ href: '/stats', label: 'Registres', icon: '📊' },
 		{ href: '/settings', label: 'Réglages', icon: '⚙️' }
 	];

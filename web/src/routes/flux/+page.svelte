@@ -1,12 +1,18 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { Card, Button, Input, VirtualList } from '$lib/components/ui';
+	import { browser } from '$app/environment';
+	import { Card, Button, Input, VirtualList, SwipeableCard, LongPressMenu } from '$lib/components/ui';
+	import type { MenuItem } from '$lib/components/ui/LongPressMenu.svelte';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem } from '$lib/api';
 	import type { QueueItem, ActionOption, SnoozeOption } from '$lib/api';
+	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
+
+	// Detect touch device
+	const isTouchDevice = $derived(browser && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
 
 	// Track undo state per item
 	let undoableItems = $state<Set<string>>(new Set());
@@ -34,15 +40,36 @@
 		goto('/flux/focus');
 	}
 
+	// Cleanup function for keyboard shortcuts
+	let unregisterShortcuts: (() => void) | null = null;
+
 	// Load queue on mount
 	onMount(async () => {
 		await queueStore.fetchQueue('pending');
 		await queueStore.fetchStats();
 		document.addEventListener('keydown', handleKeyboard);
+
+		// Register context-specific keyboard shortcuts
+		const navigationShortcuts = createNavigationShortcuts(
+			() => navigatePrevious(),
+			() => navigateNext(),
+			'/flux'
+		);
+
+		const actionShortcuts = createQueueActionShortcuts(
+			() => handleApproveRecommended(),
+			() => currentItem && handleReject(currentItem),
+			() => toggleSnoozeMenu(),
+			() => { showLevel3 = !showLevel3; },
+			'/flux'
+		);
+
+		unregisterShortcuts = registerShortcuts([...navigationShortcuts, ...actionShortcuts]);
 	});
 
 	onDestroy(() => {
 		document.removeEventListener('keydown', handleKeyboard);
+		unregisterShortcuts?.();
 		// Clear all pending timeouts
 		if (undoErrorTimeout) clearTimeout(undoErrorTimeout);
 		if (snoozeSuccessTimeout) clearTimeout(snoozeSuccessTimeout);
@@ -142,6 +169,8 @@
 
 		const options = currentItem.analysis.options || [];
 
+		// Note: j, k, a, r, s, e are handled by centralized keyboard-shortcuts system
+		// This handler only handles numeric keys, d, i, v, and Escape
 		switch (e.key) {
 			case '1':
 				if (options[0]) handleSelectOption(currentItem, options[0]);
@@ -152,21 +181,9 @@
 			case '3':
 				if (options[2]) handleSelectOption(currentItem, options[2]);
 				break;
-			case 's':
-			case 'S':
-				handleSkip();
-				break;
-			case 'z':
-			case 'Z':
-				toggleSnoozeMenu();
-				break;
 			case 'd':
 			case 'D':
 				handleDelete(currentItem);
-				break;
-			case 'r':
-			case 'R':
-				handleReject(currentItem);
 				break;
 			case 'i':
 			case 'I':
@@ -174,6 +191,7 @@
 				break;
 			case 'v':
 			case 'V':
+				// v for details (legacy shortcut, e also works via centralized system)
 				showLevel3 = !showLevel3;
 				break;
 			case 'Escape':
@@ -318,6 +336,50 @@
 		showLevel3 = false;
 	}
 
+	// Navigation helpers for keyboard shortcuts
+	function navigatePrevious() {
+		if (activeFilter === 'pending' && queueStore.items.length > 0) {
+			if (currentIndex > 0) {
+				currentIndex--;
+			} else {
+				currentIndex = queueStore.items.length - 1; // Loop to end
+			}
+		}
+	}
+
+	function navigateNext() {
+		if (activeFilter === 'pending' && queueStore.items.length > 0) {
+			if (currentIndex < queueStore.items.length - 1) {
+				currentIndex++;
+			} else {
+				currentIndex = 0; // Loop to start
+			}
+		}
+	}
+
+	// Approve recommended option (for 'a' shortcut)
+	function handleApproveRecommended() {
+		if (!currentItem || isProcessing) return;
+
+		const options = currentItem.analysis.options || [];
+		// Find recommended option, or use first option as fallback
+		const recommended = options.find((o) => o.is_recommended) || options[0];
+
+		if (recommended) {
+			handleSelectOption(currentItem, recommended);
+		} else {
+			// Fallback: approve with current analysis action
+			handleSelectOption(currentItem, {
+				action: currentItem.analysis.action,
+				confidence: currentItem.analysis.confidence,
+				reasoning: currentItem.analysis.reasoning,
+				reasoning_detailed: null,
+				destination: null,
+				is_recommended: true
+			});
+		}
+	}
+
 	function toggleSnoozeMenu() {
 		showSnoozeMenu = !showSnoozeMenu;
 	}
@@ -442,6 +504,64 @@
 		if (confidence >= 70) return 'Scapin hésite entre plusieurs options';
 		return 'Scapin manque d\'éléments pour décider seul';
 	}
+
+	// Mobile context menu items
+	const getMobileMenuItems = $derived((item: QueueItem): MenuItem[] => {
+		const options = item.analysis.options || [];
+		const recommended = options.find((o) => o.is_recommended) || options[0];
+		const menuItems: MenuItem[] = [];
+
+		// Add action options
+		options.forEach((option, idx) => {
+			menuItems.push({
+				id: `action-${idx}`,
+				label: `${getActionIcon(option.action)} ${getActionLabel(option.action)}${option.is_recommended ? ' (Recommandé)' : ''}`,
+				handler: () => handleSelectOption(item, option)
+			});
+		});
+
+		// Separator - snooze
+		menuItems.push({
+			id: 'snooze',
+			label: 'Reporter...',
+			icon: '⏰',
+			handler: () => { showSnoozeMenu = true; }
+		});
+
+		// Reject
+		menuItems.push({
+			id: 'reject',
+			label: 'Rejeter',
+			icon: '🚫',
+			variant: 'danger',
+			handler: () => handleReject(item)
+		});
+
+		// View details
+		menuItems.push({
+			id: 'details',
+			label: 'Voir l\'email complet',
+			icon: '📧',
+			handler: () => goto(`/flux/${item.id}`)
+		});
+
+		return menuItems;
+	});
+
+	// Swipe actions for mobile
+	const swipeRightAction = $derived(currentItem ? {
+		icon: '✓',
+		label: 'Approuver',
+		color: 'var(--color-success)',
+		action: () => handleApproveRecommended()
+	} : undefined);
+
+	const swipeLeftAction = $derived(currentItem ? {
+		icon: '✕',
+		label: 'Rejeter',
+		color: 'var(--color-urgency-urgent)',
+		action: () => currentItem && handleReject(currentItem)
+	} : undefined);
 
 	const stats = $derived(queueStore.stats);
 </script>
@@ -573,21 +693,38 @@
 		{@const options = currentItem.analysis.options || []}
 		{@const hasOptions = options.length > 0}
 
-		<Card padding="lg">
-			<div class="space-y-5">
-				<!-- Progress indicator -->
-				<div class="flex items-center justify-between text-xs text-[var(--color-text-tertiary)]">
-					<span>Pli {currentIndex + 1} sur {queueStore.items.length}</span>
-					<div class="flex gap-1">
-						{#each queueStore.items as _, idx}
-							<div
-								class="w-2 h-2 rounded-full transition-colors"
-								class:bg-[var(--color-accent)]={idx === currentIndex}
-								class:bg-[var(--color-border)]={idx !== currentIndex}
-							></div>
-						{/each}
-					</div>
-				</div>
+		<!-- Mobile hint for swipe gestures (shown only on touch devices) -->
+		<div class="text-xs text-center text-[var(--color-text-tertiary)] py-2 mb-2 md:hidden">
+			<span class="opacity-70">← Glisser pour rejeter</span>
+			<span class="mx-3">•</span>
+			<span class="font-medium">Appui long = menu</span>
+			<span class="mx-3">•</span>
+			<span class="opacity-70">Approuver →</span>
+		</div>
+
+		<!-- SwipeableCard wraps for mobile swipe gestures (no-op on desktop) -->
+		<SwipeableCard
+			rightAction={swipeRightAction}
+			leftAction={swipeLeftAction}
+			threshold={100}
+		>
+			<!-- LongPressMenu for mobile context menu (right-click on desktop) -->
+			<LongPressMenu items={getMobileMenuItems(currentItem)}>
+				<Card padding="lg">
+					<div class="space-y-5">
+						<!-- Progress indicator -->
+						<div class="flex items-center justify-between text-xs text-[var(--color-text-tertiary)]">
+							<span>Pli {currentIndex + 1} sur {queueStore.items.length}</span>
+							<div class="flex gap-1">
+								{#each queueStore.items as _, idx}
+									<div
+										class="w-2 h-2 rounded-full transition-colors"
+										class:bg-[var(--color-accent)]={idx === currentIndex}
+										class:bg-[var(--color-border)]={idx !== currentIndex}
+									></div>
+								{/each}
+							</div>
+						</div>
 
 				<!-- Snooze feedback -->
 				{#if snoozeSuccess}
@@ -984,13 +1121,22 @@
 					</p>
 					<div class="flex flex-wrap gap-2">
 						<Button
+							variant="primary"
+							size="sm"
+							onclick={handleApproveRecommended}
+							disabled={isProcessing}
+						>
+							<span class="mr-1">✅</span> Approuver
+							<span class="ml-1 text-xs opacity-60 font-mono">A</span>
+						</Button>
+						<Button
 							variant="secondary"
 							size="sm"
-							onclick={handleSkip}
-							disabled={isProcessing || queueStore.items.length <= 1}
+							onclick={() => handleReject(currentItem)}
+							disabled={isProcessing}
 						>
-							<span class="mr-1">⏭️</span> Passer
-							<span class="ml-1 text-xs opacity-60 font-mono">S</span>
+							<span class="mr-1">🚫</span> Rejeter
+							<span class="ml-1 text-xs opacity-60 font-mono">R</span>
 						</Button>
 						<div class="relative">
 							<Button
@@ -999,8 +1145,8 @@
 								onclick={toggleSnoozeMenu}
 								disabled={isProcessing}
 							>
-								<span class="mr-1">💤</span> Plus tard
-								<span class="ml-1 text-xs opacity-60 font-mono">Z</span>
+								<span class="mr-1">💤</span> Reporter
+								<span class="ml-1 text-xs opacity-60 font-mono">S</span>
 							</Button>
 
 							<!-- Snooze dropdown menu -->
@@ -1028,6 +1174,15 @@
 							{/if}
 						</div>
 						<Button
+							variant={showLevel3 ? 'primary' : 'secondary'}
+							size="sm"
+							onclick={() => showLevel3 = !showLevel3}
+						>
+							<span class="mr-1">{showLevel3 ? '📖' : '📋'}</span>
+							{showLevel3 ? 'Vue simple' : 'Détails'}
+							<span class="ml-1 text-xs opacity-60 font-mono">E</span>
+						</Button>
+						<Button
 							variant="secondary"
 							size="sm"
 							onclick={() => handleDelete(currentItem)}
@@ -1035,15 +1190,6 @@
 						>
 							<span class="mr-1">🗑️</span> Supprimer
 							<span class="ml-1 text-xs opacity-60 font-mono">D</span>
-						</Button>
-						<Button
-							variant={showLevel3 ? 'primary' : 'secondary'}
-							size="sm"
-							onclick={() => showLevel3 = !showLevel3}
-						>
-							<span class="mr-1">{showLevel3 ? '📖' : '📋'}</span>
-							{showLevel3 ? 'Vue simple' : 'Détails'}
-							<span class="ml-1 text-xs opacity-60 font-mono">V</span>
 						</Button>
 						{#if !showCustomInput}
 							<Button
@@ -1056,35 +1202,33 @@
 								<span class="ml-1 text-xs opacity-60 font-mono">I</span>
 							</Button>
 						{/if}
-						<Button
-							variant="secondary"
-							size="sm"
-							onclick={() => handleReject(currentItem)}
-							disabled={isProcessing}
-						>
-							<span class="mr-1">🚫</span> Ignorer
-							<span class="ml-1 text-xs opacity-60 font-mono">R</span>
-						</Button>
 					</div>
 				</div>
 
 				<!-- Keyboard shortcuts help -->
 				<div class="text-xs text-center text-[var(--color-text-tertiary)] pt-3 flex flex-wrap justify-center gap-x-3 gap-y-1">
 					<span>
+						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">J</span>
+						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-0.5">K</span>
+						<span class="ml-1">naviguer</span>
+					</span>
+					<span>
 						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">1</span>
 						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-0.5">2</span>
 						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-0.5">3</span>
 						<span class="ml-1">options</span>
 					</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span> passer</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">Z</span> reporter</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">A</span> approuver</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span> rejeter</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span> reporter</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">E</span> détails</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">D</span> supprimer</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">V</span> détails</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">I</span> autre</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span> ignorer</span>
 				</div>
 			</div>
-		</Card>
+				</Card>
+			</LongPressMenu>
+		</SwipeableCard>
 
 	<!-- LIST VIEW for other filters (approved, rejected, auto) -->
 	{:else}

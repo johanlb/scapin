@@ -1,13 +1,23 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Card, Skeleton } from '$lib/components/ui';
-	import { getStatsOverview, getStatsBySource } from '$lib/api/client';
-	import type { StatsOverview, StatsBySource } from '$lib/api/client';
+	import { Card, Skeleton, LineChart, Tabs } from '$lib/components/ui';
+	import { getStatsOverview, getStatsBySource, getStatsTrends } from '$lib/api/client';
+	import type { StatsOverview, StatsBySource, StatsTrends } from '$lib/api/client';
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let overview = $state<StatsOverview | null>(null);
 	let bySource = $state<StatsBySource | null>(null);
+	let trends = $state<StatsTrends | null>(null);
+
+	// Period selection for trends
+	let trendPeriod = $state<'7d' | '30d'>('7d');
+	let loadingTrends = $state(false);
+
+	const periodTabs = [
+		{ id: '7d', label: '7 jours' },
+		{ id: '30d', label: '30 jours' }
+	];
 
 	// Derived stats for display
 	let uptimeDisplay = $derived(() => {
@@ -33,18 +43,38 @@
 		loading = true;
 		error = null;
 		try {
-			const [overviewData, bySourceData] = await Promise.all([
+			const [overviewData, bySourceData, trendsData] = await Promise.all([
 				getStatsOverview(),
-				getStatsBySource()
+				getStatsBySource(),
+				getStatsTrends(trendPeriod)
 			]);
 			overview = overviewData;
 			bySource = bySourceData;
+			trends = trendsData;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Erreur lors du chargement des statistiques';
 		} finally {
 			loading = false;
 		}
 	}
+
+	async function fetchTrends(period: '7d' | '30d') {
+		loadingTrends = true;
+		try {
+			trends = await getStatsTrends(period);
+		} catch (e) {
+			console.error('Failed to fetch trends:', e);
+		} finally {
+			loadingTrends = false;
+		}
+	}
+
+	// React to period changes
+	$effect(() => {
+		if (!loading && trendPeriod) {
+			fetchTrends(trendPeriod);
+		}
+	});
 
 	onMount(() => {
 		fetchStats();
@@ -166,6 +196,48 @@
 						Uptime: {uptimeDisplay()}
 					</p>
 				</div>
+			</Card>
+		</section>
+
+		<!-- Trends Chart -->
+		<section class="mb-8">
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-xl font-semibold text-[var(--color-text-primary)]">
+					Tendances d'activité
+				</h2>
+				<div class="w-48">
+					<Tabs
+						tabs={periodTabs}
+						bind:activeTab={trendPeriod}
+						variant="pills"
+					/>
+				</div>
+			</div>
+			<Card padding="lg">
+				{#if loadingTrends}
+					<div class="h-[200px] flex items-center justify-center">
+						<div class="w-6 h-6 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"></div>
+					</div>
+				{:else if trends && trends.trends.length > 0}
+					<LineChart
+						trends={trends.trends}
+						height={220}
+						showLegend={true}
+						showTooltip={true}
+					/>
+					<div class="mt-4 pt-4 border-t border-[var(--color-border)] flex justify-between text-sm text-[var(--color-text-tertiary)]">
+						<span>
+							Période: {trends.start_date} — {trends.end_date}
+						</span>
+						<span class="font-medium text-[var(--color-text-primary)]">
+							Total: {trends.total_processed} éléments
+						</span>
+					</div>
+				{:else}
+					<div class="h-[200px] flex items-center justify-center text-[var(--color-text-tertiary)]">
+						Aucune donnée disponible
+					</div>
+				{/if}
 			</Card>
 		</section>
 

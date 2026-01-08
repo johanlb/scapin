@@ -5,11 +5,16 @@ API endpoints for aggregated statistics.
 """
 
 from datetime import datetime, timezone
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.jeeves.api.models.responses import APIResponse
-from src.jeeves.api.models.stats import StatsBySourceResponse, StatsOverviewResponse
+from src.jeeves.api.models.stats import (
+    StatsBySourceResponse,
+    StatsOverviewResponse,
+    StatsTrendsResponse,
+)
 from src.jeeves.api.services.stats_service import StatsService
 
 router = APIRouter()
@@ -58,6 +63,31 @@ async def get_stats_by_source(
         return APIResponse(
             success=True,
             data=by_source,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/trends", response_model=APIResponse[StatsTrendsResponse])
+async def get_stats_trends(
+    period: Literal["7d", "30d"] = Query(
+        "7d", description="Time period for trends (7d or 30d)"
+    ),
+    service: StatsService = Depends(_get_stats_service),
+) -> APIResponse[StatsTrendsResponse]:
+    """
+    Get historical trends for charts
+
+    Returns daily data points for the specified period.
+    Useful for displaying activity trends over time.
+    """
+    try:
+        trends = await service.get_trends(period)
+
+        return APIResponse(
+            success=True,
+            data=trends,
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:

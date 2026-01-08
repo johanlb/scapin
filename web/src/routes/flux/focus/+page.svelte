@@ -2,9 +2,14 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui';
-	import { queueStore } from '$lib/stores';
-	import { approveQueueItem, rejectQueueItem } from '$lib/api';
-	import type { QueueItem, ActionOption } from '$lib/api';
+	import { queueStore, notificationCenterStore } from '$lib/stores';
+	import { approveQueueItem, rejectQueueItem, snoozeQueueItem } from '$lib/api';
+	import type { QueueItem, ActionOption, SnoozeOption } from '$lib/api';
+
+	// Focus mode filters
+	type FocusFilter = 'all' | 'high-priority' | 'urgent';
+	let activeFilter: FocusFilter = $state('all');
+	let showFilterMenu: boolean = $state(false);
 
 	let currentIndex: number = $state(0);
 	let isProcessing: boolean = $state(false);
@@ -12,6 +17,43 @@
 	let processedCount: number = $state(0);
 	let sessionStartTime: Date = $state(new Date());
 	let showExitConfirm: boolean = $state(false);
+	let showSnoozeMenu: boolean = $state(false);
+	let isSnoozing: boolean = $state(false);
+
+	// Snooze options
+	const snoozeOptions: { value: SnoozeOption; label: string }[] = [
+		{ value: 'in_30_min', label: '30 minutes' },
+		{ value: 'in_2_hours', label: '2 heures' },
+		{ value: 'tomorrow', label: 'Demain matin' },
+		{ value: 'next_week', label: 'Semaine prochaine' }
+	];
+
+	// Filter items based on priority/urgency
+	const filteredItems = $derived(() => {
+		const items = queueStore.items;
+		if (activeFilter === 'all') return items;
+
+		return items.filter((item) => {
+			const confidence = item.analysis.confidence;
+			const category = item.analysis.category?.toLowerCase() || '';
+
+			if (activeFilter === 'high-priority') {
+				// High priority: low confidence (needs attention) or work category
+				return confidence < 70 || category === 'work';
+			}
+
+			if (activeFilter === 'urgent') {
+				// Urgent: very low confidence or has deadline entities
+				const hasDateEntity = item.analysis.entities?.date?.length > 0;
+				return confidence < 50 || hasDateEntity;
+			}
+
+			return true;
+		});
+	});
+
+	// Track if notifications were paused by us
+	let notificationsPausedByUs = false;
 
 	// Load queue on mount
 	onMount(async () => {
@@ -20,15 +62,26 @@
 		document.addEventListener('keydown', handleKeyboard);
 		// Hide layout elements
 		document.body.classList.add('focus-mode-active');
+		// Pause notifications in focus mode
+		if (!notificationCenterStore.isPaused) {
+			notificationCenterStore.pauseNotifications();
+			notificationsPausedByUs = true;
+		}
 	});
 
 	onDestroy(() => {
 		document.removeEventListener('keydown', handleKeyboard);
 		document.body.classList.remove('focus-mode-active');
+		// Resume notifications if we paused them
+		if (notificationsPausedByUs) {
+			notificationCenterStore.resumeNotifications();
+		}
 	});
 
+	// Use filtered items for current item
+	const items = $derived(filteredItems());
 	const currentItem = $derived(
-		queueStore.items.length > 0 ? queueStore.items[currentIndex] || null : null
+		items.length > 0 ? items[currentIndex] || null : null
 	);
 
 	const sessionDuration = $derived(() => {
@@ -40,10 +93,16 @@
 	});
 
 	const progress = $derived(
-		queueStore.items.length > 0
-			? Math.round((processedCount / (processedCount + queueStore.items.length)) * 100)
+		items.length > 0
+			? Math.round((processedCount / (processedCount + items.length)) * 100)
 			: 100
 	);
+
+	const filterLabel = $derived({
+		'all': 'Tous',
+		'high-priority': 'Prioritaires',
+		'urgent': 'Urgents'
+	}[activeFilter]);
 
 	function handleKeyboard(e: KeyboardEvent) {
 		// Don't handle if processing or in exit confirm
@@ -51,6 +110,20 @@
 			if (e.key === 'Escape' && showExitConfirm) {
 				showExitConfirm = false;
 			}
+			return;
+		}
+
+		// Close menus on Escape
+		if (e.key === 'Escape') {
+			if (showSnoozeMenu) {
+				showSnoozeMenu = false;
+				return;
+			}
+			if (showFilterMenu) {
+				showFilterMenu = false;
+				return;
+			}
+			showExitConfirm = true;
 			return;
 		}
 
@@ -68,9 +141,15 @@
 			case '3':
 				if (options[2]) handleSelectOption(currentItem, options[2]);
 				break;
-			case 's':
-			case 'S':
+			case 'n':
+			case 'N':
+				// N for Next (skip)
 				handleSkip();
+				break;
+			case 'z':
+			case 'Z':
+				// Z for snooZe
+				showSnoozeMenu = !showSnoozeMenu;
 				break;
 			case 'd':
 			case 'D':
@@ -84,8 +163,10 @@
 			case 'V':
 				showLevel3 = !showLevel3;
 				break;
-			case 'Escape':
-				showExitConfirm = true;
+			case 'f':
+			case 'F':
+				// F for Filter
+				showFilterMenu = !showFilterMenu;
 				break;
 		}
 	}
@@ -99,9 +180,9 @@
 			queueStore.removeFromList(item.id);
 			processedCount++;
 
-			// Move to next or reset
-			if (currentIndex >= queueStore.items.length) {
-				currentIndex = Math.max(0, queueStore.items.length - 1);
+			// Move to next or reset (using items.length for filtered view)
+			if (currentIndex >= items.length - 1) {
+				currentIndex = Math.max(0, items.length - 2);
 			}
 		} finally {
 			isProcessing = false;
@@ -117,8 +198,8 @@
 			queueStore.removeFromList(item.id);
 			processedCount++;
 
-			if (currentIndex >= queueStore.items.length) {
-				currentIndex = Math.max(0, queueStore.items.length - 1);
+			if (currentIndex >= items.length - 1) {
+				currentIndex = Math.max(0, items.length - 2);
 			}
 		} finally {
 			isProcessing = false;
@@ -134,20 +215,46 @@
 			queueStore.removeFromList(item.id);
 			processedCount++;
 
-			if (currentIndex >= queueStore.items.length) {
-				currentIndex = Math.max(0, queueStore.items.length - 1);
+			if (currentIndex >= items.length - 1) {
+				currentIndex = Math.max(0, items.length - 2);
 			}
 		} finally {
 			isProcessing = false;
 		}
 	}
 
+	async function handleSnooze(option: SnoozeOption) {
+		if (!currentItem || isSnoozing) return;
+		isSnoozing = true;
+		showSnoozeMenu = false;
+
+		try {
+			await snoozeQueueItem(currentItem.id, option);
+			queueStore.removeFromList(currentItem.id);
+			processedCount++;
+
+			if (currentIndex >= items.length - 1) {
+				currentIndex = Math.max(0, items.length - 2);
+			}
+		} catch (e) {
+			console.error('Snooze failed:', e);
+		} finally {
+			isSnoozing = false;
+		}
+	}
+
 	function handleSkip() {
-		if (currentIndex < queueStore.items.length - 1) {
+		if (currentIndex < items.length - 1) {
 			currentIndex++;
 		} else {
 			currentIndex = 0;
 		}
+	}
+
+	function setFilter(filter: FocusFilter) {
+		activeFilter = filter;
+		currentIndex = 0;
+		showFilterMenu = false;
 	}
 
 	function exitFocusMode() {
@@ -230,11 +337,55 @@
 			</div>
 		</div>
 
-		<!-- Progress -->
+		<!-- Filter dropdown + Progress -->
 		<div class="flex items-center gap-4">
+			<!-- Filter dropdown -->
+			<div class="relative">
+				<button
+					type="button"
+					class="px-3 py-1.5 rounded-lg text-sm font-medium bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors flex items-center gap-2"
+					onclick={() => showFilterMenu = !showFilterMenu}
+					aria-haspopup="true"
+					aria-expanded={showFilterMenu}
+				>
+					<span class="text-[var(--color-text-secondary)]">Filtre:</span>
+					<span class="text-[var(--color-text-primary)]">{filterLabel}</span>
+					<span class="text-xs opacity-60">▼</span>
+				</button>
+
+				{#if showFilterMenu}
+					<div class="absolute right-0 mt-2 w-48 py-1 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] shadow-xl z-50">
+						<button
+							type="button"
+							class="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-bg-tertiary)] transition-colors {activeFilter === 'all' ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-primary)]'}"
+							onclick={() => setFilter('all')}
+						>
+							Tous les plis
+						</button>
+						<button
+							type="button"
+							class="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-bg-tertiary)] transition-colors {activeFilter === 'high-priority' ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-primary)]'}"
+							onclick={() => setFilter('high-priority')}
+						>
+							⚡ Prioritaires
+						</button>
+						<button
+							type="button"
+							class="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-bg-tertiary)] transition-colors {activeFilter === 'urgent' ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-primary)]'}"
+							onclick={() => setFilter('urgent')}
+						>
+							🔴 Urgents
+						</button>
+					</div>
+				{/if}
+			</div>
+
 			<div class="text-right">
 				<p class="text-sm font-medium text-[var(--color-text-primary)]">
-					{queueStore.items.length} restant{queueStore.items.length !== 1 ? 's' : ''}
+					{items.length} restant{items.length !== 1 ? 's' : ''}
+					{#if activeFilter !== 'all'}
+						<span class="text-[var(--color-text-tertiary)]">({queueStore.items.length} total)</span>
+					{/if}
 				</p>
 				<div class="w-32 h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
 					<div
@@ -398,11 +549,39 @@
 						variant="secondary"
 						size="sm"
 						onclick={handleSkip}
-						disabled={isProcessing || queueStore.items.length <= 1}
+						disabled={isProcessing || items.length <= 1}
 					>
 						<span class="mr-1">⏭️</span> Passer
-						<span class="ml-1 text-xs opacity-60 font-mono">S</span>
+						<span class="ml-1 text-xs opacity-60 font-mono">N</span>
 					</Button>
+
+					<!-- Snooze button with dropdown -->
+					<div class="relative">
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={() => showSnoozeMenu = !showSnoozeMenu}
+							disabled={isProcessing || isSnoozing}
+						>
+							<span class="mr-1">⏰</span> Reporter
+							<span class="ml-1 text-xs opacity-60 font-mono">Z</span>
+						</Button>
+
+						{#if showSnoozeMenu}
+							<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 py-1 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] shadow-xl z-50">
+								{#each snoozeOptions as option}
+									<button
+										type="button"
+										class="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-bg-tertiary)] transition-colors text-[var(--color-text-primary)]"
+										onclick={() => handleSnooze(option.value)}
+									>
+										{option.label}
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+
 					<Button
 						variant="secondary"
 						size="sm"
@@ -437,16 +616,20 @@
 
 	<!-- Footer with keyboard hints -->
 	<footer class="px-6 py-3 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-		<div class="flex justify-center gap-6 text-xs text-[var(--color-text-tertiary)]">
+		<div class="flex justify-center flex-wrap gap-x-6 gap-y-2 text-xs text-[var(--color-text-tertiary)]">
 			<span>
 				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">1</span>
 				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-1">2</span>
 				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-1">3</span>
-				<span class="ml-1">choisir action</span>
+				<span class="ml-1">action</span>
 			</span>
 			<span>
-				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span>
-				<span class="ml-1">passer</span>
+				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">N</span>
+				<span class="ml-1">suivant</span>
+			</span>
+			<span>
+				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">Z</span>
+				<span class="ml-1">reporter</span>
 			</span>
 			<span>
 				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">D</span>
@@ -459,6 +642,10 @@
 			<span>
 				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span>
 				<span class="ml-1">ignorer</span>
+			</span>
+			<span>
+				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">F</span>
+				<span class="ml-1">filtrer</span>
 			</span>
 			<span>
 				<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">Esc</span>

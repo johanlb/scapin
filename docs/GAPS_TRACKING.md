@@ -1,10 +1,10 @@
 # Suivi des Écarts — Scapin
 
-**Dernière mise à jour** : 8 janvier 2026
+**Dernière mise à jour** : 9 janvier 2026
 **Total items** : 133
-**MVP** : 80 | **Nice-to-have** : 53 | **Complétés** : 51
-**Sprint actuel** : Sprint 3 — Workflow & Actions (10/18 — 56%)
-**Prochaine priorité** : Vue détail email, Boutons Snooze/Undo, Calendar CRUD
+**MVP** : 80 | **Nice-to-have** : 53 | **Complétés** : 62
+**Sprint actuel** : Sprint 4 — Temps Réel & UX (0/18 — 0%)
+**Prochaine priorité** : WebSocket Infrastructure, Notifications, Valets Dashboard
 
 ---
 
@@ -90,9 +90,9 @@
 ### UI Email (3)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Vue détail email (corps HTML/texte complet) | MVP |
-| ⬜ | Bouton Snooze dans l'interface | MVP |
-| ⬜ | Bouton Undo après approbation | MVP |
+| ✅ | Vue détail email (corps HTML/texte complet) | MVP |
+| ✅ | Bouton Snooze dans l'interface | MVP |
+| ✅ | Bouton Undo après approbation | MVP |
 
 ### Données Enrichies (2)
 | Status | Item | Priorité |
@@ -112,9 +112,9 @@
 ### CRUD Événements (3)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | POST /api/calendar/events - créer événement | MVP |
-| ⬜ | PUT /api/calendar/events/{id} - modifier événement | MVP |
-| ⬜ | DELETE /api/calendar/events/{id} - supprimer événement | MVP |
+| ✅ | POST /api/calendar/events - créer événement | MVP |
+| ✅ | PUT /api/calendar/events/{id} - modifier événement | MVP |
+| ✅ | DELETE /api/calendar/events/{id} - supprimer événement | MVP |
 
 ### Fonctionnalités (4)
 | Status | Item | Priorité |
@@ -130,11 +130,11 @@
 
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | POST /api/teams/chats/{id}/read - marquer lu | MVP |
+| ✅ | POST /api/teams/chats/{id}/read - marquer lu | MVP |
 | ⬜ | Support channels Teams (pas juste chats 1:1) | Nice-to-have |
-| ⬜ | Filtrage par mentions directes | MVP |
+| ✅ | Filtrage par mentions directes | MVP |
 | ⬜ | Déduplication si même info par email et Teams | Nice-to-have |
-| ⬜ | UI: Vue détail message Teams | MVP |
+| ✅ | UI: Vue détail message Teams | MVP |
 
 ---
 
@@ -364,15 +364,15 @@
 ## Progression
 
 ```
-MVP:          ███████████░░░░░░░░░ 48/79 (61%)
-Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 3/53 (6%)
-Total:        █████████░░░░░░░░░░░ 51/132 (39%)
+MVP:          ██████████████░░░░░░ 56/80 (70%)
+Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 6/53 (11%)
+Total:        ████████████░░░░░░░░ 62/133 (47%)
 
 Sprint 1:     ████████████████████ 19/19 (100%) ✅
 Sprint 2:     ████████████████████ 13/13 (100%) ✅
-Sprint 3:     ███████████░░░░░░░░░ 10/18 (56%) 🚧
+Sprint 3:     ████████████████████ 18/18 (100%) ✅
 Cross-Source: ████████████████████ 12/12 (100%) ✅ COMPLÉTÉ
-Valets Dash:  ░░░░░░░░░░░░░░░░░░░░  0/4 (0%) 📋
+Sprint 4:     ░░░░░░░░░░░░░░░░░░░░  0/18 (0%) 🚧
 ```
 
 ---
@@ -381,6 +381,8 @@ Valets Dash:  ░░░░░░░░░░░░░░░░░░░░  0/4 
 
 | Date | Action |
 |------|--------|
+| 2026-01-09 | **Sprint 3 COMPLÉTÉ ✅** — Vue détail email, Snooze/Undo, Teams read/unread, Calendar CRUD (62 items total) |
+| 2026-01-09 | **Sprint 4 EN COURS 🚧** — Temps Réel & UX (WebSocket, Notifications, Valets Dashboard) |
 | 2026-01-08 | **Cross-Source COMPLET ✅** — WhatsApp, Files, Web adapters (112 tests total) |
 | 2026-01-08 | **iCloud Calendar Adapter ✅** — CalDAV API support (29 tests) |
 | 2026-01-08 | **Cross-Source Phase 2 ✅** — Calendar + Teams Adapters (63 tests total) |

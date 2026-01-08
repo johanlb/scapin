@@ -152,6 +152,31 @@ interface StatsBySource {
 	notes: NotesReviewStats | null;
 }
 
+// ============================================================================
+// STATS TRENDS TYPES
+// ============================================================================
+
+interface TrendDataPoint {
+	date: string;
+	value: number;
+}
+
+interface SourceTrend {
+	source: string;
+	label: string;
+	color: string;
+	data: TrendDataPoint[];
+	total: number;
+}
+
+interface StatsTrends {
+	period: '7d' | '30d';
+	start_date: string;
+	end_date: string;
+	trends: SourceTrend[];
+	total_processed: number;
+}
+
 interface IntegrationStatus {
 	id: string;
 	name: string;
@@ -363,6 +388,10 @@ export async function getStatsOverview(): Promise<StatsOverview> {
 
 export async function getStatsBySource(): Promise<StatsBySource> {
 	return fetchApi<StatsBySource>('/stats/by-source');
+}
+
+export async function getStatsTrends(period: '7d' | '30d' = '7d'): Promise<StatsTrends> {
+	return fetchApi<StatsTrends>(`/stats/trends?period=${period}`);
 }
 
 export async function getConfig(): Promise<SystemConfig> {
@@ -1935,6 +1964,282 @@ export async function deleteDraft(draftId: string): Promise<{ deleted: string }>
 	});
 }
 
+// ============================================================================
+// NOTIFICATIONS TYPES
+// ============================================================================
+
+type NotificationType =
+	| 'email_received'
+	| 'email_processed'
+	| 'teams_message'
+	| 'calendar_event'
+	| 'calendar_conflict'
+	| 'item_approved'
+	| 'item_rejected'
+	| 'item_snoozed'
+	| 'snooze_expired'
+	| 'notes_due'
+	| 'note_enriched'
+	| 'system_info'
+	| 'system_warning'
+	| 'system_error';
+
+type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+interface Notification {
+	id: string;
+	user_id: string;
+	type: NotificationType;
+	title: string;
+	message: string;
+	priority: NotificationPriority;
+	link: string | null;
+	metadata: Record<string, unknown> | null;
+	is_read: boolean;
+	read_at: string | null;
+	created_at: string;
+	expires_at: string;
+}
+
+interface NotificationListResponse {
+	notifications: Notification[];
+	total: number;
+	unread_count: number;
+	page: number;
+	page_size: number;
+	has_more: boolean;
+}
+
+interface NotificationStats {
+	total: number;
+	unread: number;
+	by_type: Record<string, number>;
+	by_priority: Record<string, number>;
+}
+
+interface NotificationCreateRequest {
+	type: NotificationType;
+	title: string;
+	message: string;
+	priority?: NotificationPriority;
+	link?: string;
+	metadata?: Record<string, unknown>;
+}
+
+interface MarkReadResponse {
+	marked_count: number;
+	timestamp: string;
+}
+
+// ============================================================================
+// NOTIFICATIONS API FUNCTIONS
+// ============================================================================
+
+/**
+ * List notifications with optional filters
+ */
+export async function listNotifications(
+	page = 1,
+	pageSize = 50,
+	options?: {
+		types?: NotificationType[];
+		priorities?: NotificationPriority[];
+		isRead?: boolean;
+		since?: string;
+	}
+): Promise<NotificationListResponse> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize)
+	});
+
+	if (options?.types) {
+		options.types.forEach((t) => params.append('types', t));
+	}
+	if (options?.priorities) {
+		options.priorities.forEach((p) => params.append('priorities', p));
+	}
+	if (options?.isRead !== undefined) {
+		params.set('is_read', String(options.isRead));
+	}
+	if (options?.since) {
+		params.set('since', options.since);
+	}
+
+	return fetchApi<NotificationListResponse>(`/notifications?${params.toString()}`);
+}
+
+/**
+ * List unread notifications only
+ */
+export async function listUnreadNotifications(
+	page = 1,
+	pageSize = 50
+): Promise<NotificationListResponse> {
+	const params = new URLSearchParams({
+		page: String(page),
+		page_size: String(pageSize)
+	});
+	return fetchApi<NotificationListResponse>(`/notifications/unread?${params.toString()}`);
+}
+
+/**
+ * Get notification statistics
+ */
+export async function getNotificationStats(): Promise<NotificationStats> {
+	return fetchApi<NotificationStats>('/notifications/stats');
+}
+
+/**
+ * Get a specific notification
+ */
+export async function getNotification(notificationId: string): Promise<Notification> {
+	return fetchApi<Notification>(`/notifications/${encodeURIComponent(notificationId)}`);
+}
+
+/**
+ * Create a notification
+ */
+export async function createNotification(notification: NotificationCreateRequest): Promise<Notification> {
+	return fetchApi<Notification>('/notifications', {
+		method: 'POST',
+		body: JSON.stringify(notification)
+	});
+}
+
+/**
+ * Mark notifications as read
+ */
+export async function markNotificationsRead(
+	notificationIds?: string[],
+	markAll = false
+): Promise<MarkReadResponse> {
+	return fetchApi<MarkReadResponse>('/notifications/read', {
+		method: 'POST',
+		body: JSON.stringify({
+			notification_ids: notificationIds,
+			mark_all: markAll
+		})
+	});
+}
+
+/**
+ * Mark a single notification as read
+ */
+export async function markNotificationRead(notificationId: string): Promise<MarkReadResponse> {
+	return fetchApi<MarkReadResponse>(`/notifications/${encodeURIComponent(notificationId)}/read`, {
+		method: 'POST'
+	});
+}
+
+/**
+ * Delete a notification
+ */
+export async function deleteNotification(notificationId: string): Promise<{ success: boolean }> {
+	return fetchApi<{ success: boolean }>(`/notifications/${encodeURIComponent(notificationId)}`, {
+		method: 'DELETE'
+	});
+}
+
+// ============================================================================
+// VALETS DASHBOARD TYPES
+// ============================================================================
+
+type ValetStatus = 'running' | 'idle' | 'paused' | 'error';
+
+type ValetType =
+	| 'trivelin'
+	| 'sancho'
+	| 'passepartout'
+	| 'planchet'
+	| 'figaro'
+	| 'sganarelle'
+	| 'jeeves';
+
+interface ValetActivity {
+	timestamp: string;
+	action: string;
+	details: string | null;
+	duration_ms: number | null;
+	success: boolean;
+}
+
+interface ValetInfo {
+	name: ValetType;
+	display_name: string;
+	description: string;
+	status: ValetStatus;
+	current_task: string | null;
+	last_activity: string | null;
+	tasks_completed_today: number;
+	avg_task_duration_ms: number | null;
+	error_count_today: number;
+	recent_activities: ValetActivity[];
+}
+
+interface ValetsDashboardResponse {
+	valets: ValetInfo[];
+	system_status: 'healthy' | 'degraded' | 'error';
+	active_workers: number;
+	total_tasks_today: number;
+	avg_confidence: number;
+	timestamp: string;
+}
+
+interface ValetMetrics {
+	name: ValetType;
+	tasks_completed: number;
+	tasks_failed: number;
+	avg_duration_ms: number;
+	p95_duration_ms: number;
+	success_rate: number;
+	tokens_used: number;
+	api_calls: number;
+}
+
+interface ValetsMetricsResponse {
+	period: string;
+	metrics: ValetMetrics[];
+	total_tasks: number;
+	total_tokens: number;
+	total_api_calls: number;
+	timestamp: string;
+}
+
+// ============================================================================
+// VALETS API FUNCTIONS
+// ============================================================================
+
+/**
+ * Get valets dashboard with status of all workers
+ */
+export async function getValetsDashboard(): Promise<ValetsDashboardResponse> {
+	return fetchApi<ValetsDashboardResponse>('/valets');
+}
+
+/**
+ * Get detailed metrics for all valets
+ */
+export async function getValetsMetrics(period = 'today'): Promise<ValetsMetricsResponse> {
+	const params = new URLSearchParams({ period });
+	return fetchApi<ValetsMetricsResponse>(`/valets/metrics?${params.toString()}`);
+}
+
+/**
+ * Get status of a specific valet
+ */
+export async function getValetStatus(valetName: ValetType): Promise<ValetInfo> {
+	return fetchApi<ValetInfo>(`/valets/${valetName}`);
+}
+
+/**
+ * Get recent activities for a specific valet
+ */
+export async function getValetActivities(valetName: ValetType, limit = 50): Promise<ValetActivity[]> {
+	const params = new URLSearchParams({ limit: String(limit) });
+	return fetchApi<ValetActivity[]>(`/valets/${valetName}/activities?${params.toString()}`);
+}
+
 // Export types for use in components
 export type {
 	ApiResponse,
@@ -1943,6 +2248,9 @@ export type {
 	Stats,
 	StatsOverview,
 	StatsBySource,
+	StatsTrends,
+	SourceTrend,
+	TrendDataPoint,
 	CalendarStats,
 	NotesReviewStats,
 	IntegrationStatus,
@@ -2049,7 +2357,23 @@ export type {
 	DraftCreateRequest,
 	DraftUpdateRequest,
 	DraftStats,
-	GenerateDraftRequest
+	GenerateDraftRequest,
+	// Notification types
+	NotificationType,
+	NotificationPriority,
+	Notification,
+	NotificationListResponse,
+	NotificationStats,
+	NotificationCreateRequest,
+	MarkReadResponse,
+	// Valets types
+	ValetStatus,
+	ValetType,
+	ValetActivity,
+	ValetInfo,
+	ValetsDashboardResponse,
+	ValetMetrics,
+	ValetsMetricsResponse
 };
 
 export { ApiError };

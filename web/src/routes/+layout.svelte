@@ -1,37 +1,84 @@
 <script lang="ts">
 	import '../app.css';
-	import { Sidebar, MobileNav, ChatPanel } from '$lib/components/layout';
-	import { CommandPalette, ToastContainer } from '$lib/components/ui';
-	import { showCommandPalette, openCommandPalette, closeCommandPalette, authStore, wsStore, notificationStore } from '$lib/stores';
+	import { Sidebar, MobileNav, ChatPanel, NotificationsPanel } from '$lib/components/layout';
+	import { CommandPalette, ToastContainer, KeyboardShortcutsHelp, QuickActionsMenu } from '$lib/components/ui';
+	import { showCommandPalette, openCommandPalette, closeCommandPalette, authStore, wsStore, notificationStore, notificationCenterStore, getQuickActions } from '$lib/stores';
+	import { initializeShortcuts, isHelpVisible, registerShortcut } from '$lib/utils/keyboard-shortcuts';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
+
+	// Reactive state for help visibility
+	let helpVisible = $state(false);
+
+	// Reactive quick actions based on current page
+	const quickActions = $derived(browser ? getQuickActions() : []);
+
+	// Update help visibility reactively
+	$effect(() => {
+		if (browser) {
+			const checkHelp = () => {
+				helpVisible = isHelpVisible();
+			};
+			const interval = setInterval(checkHelp, 100);
+			return () => clearInterval(interval);
+		}
+	});
 
 	let { children } = $props();
 
 	// Check if current route is login page
 	const isLoginPage = $derived($page.url.pathname === '/login');
 
-	// Initialize auth, service worker, and notifications
-	onMount(async () => {
-		// Initialize auth state
-		await authStore.initialize();
+	// Cleanup functions for keyboard shortcuts
+	let cleanupShortcuts: (() => void) | null = null;
+	let unregisterSearch: (() => void) | null = null;
 
-		// Register service worker for PWA
-		if (browser && 'serviceWorker' in navigator) {
-			navigator.serviceWorker.register('/sw.js')
-				.then((registration) => {
-					console.log('[PWA] Service worker registered:', registration.scope);
-				})
-				.catch((error) => {
-					console.error('[PWA] Service worker registration failed:', error);
-				});
-		}
+	// Initialize auth, service worker, notifications, and shortcuts
+	onMount(() => {
+		// Async initialization
+		(async () => {
+			// Initialize auth state
+			await authStore.initialize();
 
-		// Initialize notifications and setup event listener
-		await notificationStore.initialize();
-		notificationStore.setupEventListener();
+			// Register service worker for PWA
+			if (browser && 'serviceWorker' in navigator) {
+				navigator.serviceWorker.register('/sw.js')
+					.then((registration) => {
+						console.log('[PWA] Service worker registered:', registration.scope);
+					})
+					.catch((error) => {
+						console.error('[PWA] Service worker registration failed:', error);
+					});
+			}
+
+			// Initialize push notifications and setup event listener
+			await notificationStore.initialize();
+			notificationStore.setupEventListener();
+
+			// Initialize in-app notification center
+			await notificationCenterStore.initialize();
+		})();
+
+		// Initialize keyboard shortcuts system (sync)
+		cleanupShortcuts = initializeShortcuts();
+
+		// Register global shortcuts
+		unregisterSearch = registerShortcut({
+			id: 'global-search',
+			key: 'k',
+			ctrl: true,
+			description: 'Recherche globale',
+			handler: openCommandPalette,
+			global: true
+		});
+
+		// Cleanup on unmount
+		return () => {
+			cleanupShortcuts?.();
+			unregisterSearch?.();
+		};
 	});
 
 	// Auth guard: redirect to login if needed
@@ -135,6 +182,9 @@
 			<ChatPanel />
 		</div>
 
+		<!-- Notifications Panel (Desktop: slide-in from right, Mobile: slide-up) -->
+		<NotificationsPanel />
+
 		<!-- Mobile Bottom Nav -->
 		<div class="layout-mobile-nav">
 			<MobileNav />
@@ -150,6 +200,18 @@
 
 		<!-- Toast Notifications -->
 		<ToastContainer position="top-right" />
+
+		<!-- Keyboard Shortcuts Help -->
+		<KeyboardShortcutsHelp visible={helpVisible} />
+
+		<!-- Quick Actions FAB (mobile only - desktop has sidebar) -->
+		<div class="md:hidden">
+			<QuickActionsMenu
+				actions={quickActions}
+				position="bottom-right"
+				trigger="click"
+			/>
+		</div>
 	</div>
 {/if}
 
