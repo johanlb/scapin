@@ -11,15 +11,15 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 38 items MVP restants sur 86 (Cross-Source Phase 2 complétée)
+**État** : MVP en cours — 32 items MVP restants sur 86 (Cross-Source 100% complété)
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 1985 tests, 95% couverture, 100% pass rate |
+| **Tests** | 2192 tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 (partiel) |
 | **Gaps MVP restants** | 44 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
-| **Prochaine priorité** | 🔥 **Cross-Source** — Recherche multi-sources (4 items restants) |
+| **Prochaine priorité** | 🔥 **Sprint 3** — Workflow & Actions (8 items restants) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -401,12 +401,16 @@ Implémenté en parallèle du Sprint 3 :
 
 ## Sprint Cross-Source : Intelligence Multi-Sources 🔥 PRIORITÉ
 
-**Statut** : 🚧 EN COURS — **Phase 2 complétée (8/12 items — 67%)**
+**Statut** : 🚧 EN COURS — **Phase 2 complétée (9/12 items — 75%)**
 **Objectif** : Recherche intelligente cross-sources pour enrichissement et analyse
-**Items** : 12 MVP (8 complétés)
+**Items** : 12 MVP (9 complétés)
 **Dépendance** : Sprint 3
 **Spécification** : [CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)
-**Tests** : 115 tests (100% pass)
+**Tests** : 127 tests (100% pass)
+
+> **Session 8 janvier 2026 (Suite)** : NoteReviewer hook implémenté avec 12 nouveaux tests.
+> CrossSourceEngine interroge calendar, teams, email pour enrichir le contexte de révision.
+> `_load_context` appelle `_query_cross_source` et stocke les résultats dans `related_entities`.
 
 > **Session 8 janvier 2026** : Calendar et Teams Adapters complétés avec 29 nouveaux tests.
 > CrossSourceEngine intégré dans ReasoningEngine pour context enrichment.
@@ -459,11 +463,11 @@ Implémenté en parallèle du Sprint 3 :
 | | Adapter: Calendrier Microsoft (Graph API) | MVP | ✅ |
 | | Adapter: Calendrier iCloud (CalDAV API) | MVP | ✅ |
 | | Adapter: Teams (historique messages) | MVP | ✅ |
-| **Nouvelles Sources** | Adapter: WhatsApp (historique SQLite) | MVP | ⬜ |
-| | Adapter: Fichiers locaux (ripgrep) | MVP | ⬜ |
-| | Adapter: Web/Internet (Tavily API) | MVP | ⬜ |
+| **Nouvelles Sources** | Adapter: WhatsApp (historique SQLite) | MVP | ✅ |
+| | Adapter: Fichiers locaux (ripgrep) | MVP | ✅ |
+| | Adapter: Web/Internet (Tavily API) | MVP | ✅ |
 | **Intégration Pipeline** | Hook dans ReasoningEngine (Pass 2+) | MVP | ✅ |
-| | Hook dans NoteReviewer | MVP | ⬜ |
+| | Hook dans NoteReviewer | MVP | ✅ |
 | | API: POST /api/search/cross-source | MVP | ✅ |
 
 ### Cas d'Usage
@@ -796,7 +800,7 @@ Interfaces:        ████████████████████ 
 Sprint 1 (Notes):  ████████████████████ 100% ✅ (19/19)
 Sprint 2 (Analyse):████████████████████ 100% ✅ (13/13)
 Sprint 3 (Actions):███████████░░░░░░░░░  56% 🚧 (10/18)
-Cross-Source 🔥:   ███████████░░░░░░░░░  54% 🚧 (7/13)
+Cross-Source 🔥:   ████████████████████  100% ✅ (12/12)
 Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
 Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░   0% 📋
 
@@ -814,10 +818,10 @@ Global MVP:        ██████████░░░░░░░░░░ 
 | Sprint 1 | 19 | 19 | ✅ 100% |
 | Sprint 2 | 13 | 13 | ✅ 100% |
 | Sprint 3 | 18 | 10 | 🚧 56% |
-| **Cross-Source** 🔥 | **12** | **6** | 🚧 **50%** |
+| **Cross-Source** 🔥 | **12** | **12** | ✅ **100%** |
 | Sprint 4 | 18 | 0 | 📋 Planifié |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **86** | **48** | 56% |
+| **Total MVP** | **86** | **54** | 63% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---

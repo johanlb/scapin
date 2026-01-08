@@ -2,9 +2,9 @@
 
 **Dernière mise à jour** : 8 janvier 2026
 **Total items** : 133
-**MVP** : 80 | **Nice-to-have** : 53 | **Complétés** : 45
-**Sprint actuel** : Sprint Cross-Source — Phase 2 (7/13 — 54%)
-**Prochaine priorité** : Sprint 3 Finalisation + Cross-Source Phase 3
+**MVP** : 80 | **Nice-to-have** : 53 | **Complétés** : 51
+**Sprint actuel** : Sprint 3 — Workflow & Actions (10/18 — 56%)
+**Prochaine priorité** : Vue détail email, Boutons Snooze/Undo, Calendar CRUD
 
 ---
 
@@ -288,7 +288,7 @@
 
 ---
 
-## 13. 🔥 Cross-Source Intelligence (13 items — 7 complétés) — PRIORITÉ
+## 13. ✅ Cross-Source Intelligence (12 items — 12 complétés) — COMPLÉTÉ
 
 > **Vision** : Permettre à Scapin d'interroger TOUTES les sources d'information disponibles
 > pour enrichir les notes et améliorer l'analyse.
@@ -313,9 +313,9 @@
 ### Adapters Nouvelles Sources (3)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Adapter: WhatsApp (historique SQLite local) | MVP |
-| ⬜ | Adapter: Fichiers locaux (ripgrep) | MVP |
-| ⬜ | Adapter: Web/Internet (Tavily API) | MVP |
+| ✅ | Adapter: WhatsApp (historique SQLite local) | MVP |
+| ✅ | Adapter: Fichiers locaux (ripgrep) | MVP |
+| ✅ | Adapter: Web/Internet (Tavily API) | MVP |
 
 ### Intégration Pipeline (3)
 | Status | Item | Priorité |
@@ -355,7 +355,7 @@
 | Phase 0.9+ | 3 | 0 | 3 |
 | UI Components | 6 | 6 | 0 |
 | Qualité & Docs | 3 | 3 | 0 |
-| **🔥 Cross-Source** | **13** | **13** | **0** |
+| **✅ Cross-Source** | **12** | **12** | **0** |
 | **Valets Dashboard** | **4** | **4** | **0** |
 | **TOTAL** | **133** | **80** | **53** |
 
@@ -371,7 +371,7 @@ Total:        █████████░░░░░░░░░░░ 51/13
 Sprint 1:     ████████████████████ 19/19 (100%) ✅
 Sprint 2:     ████████████████████ 13/13 (100%) ✅
 Sprint 3:     ███████████░░░░░░░░░ 10/18 (56%) 🚧
-Cross-Source: ██████████░░░░░░░░░░  7/13 (54%) 🚧 🔥 Phase 2 ✅
+Cross-Source: ████████████████████ 12/12 (100%) ✅ COMPLÉTÉ
 Valets Dash:  ░░░░░░░░░░░░░░░░░░░░  0/4 (0%) 📋
 ```
 
@@ -381,10 +381,11 @@ Valets Dash:  ░░░░░░░░░░░░░░░░░░░░  0/4 
 
 | Date | Action |
 |------|--------|
+| 2026-01-08 | **Cross-Source COMPLET ✅** — WhatsApp, Files, Web adapters (112 tests total) |
 | 2026-01-08 | **iCloud Calendar Adapter ✅** — CalDAV API support (29 tests) |
 | 2026-01-08 | **Cross-Source Phase 2 ✅** — Calendar + Teams Adapters (63 tests total) |
 | 2026-01-08 | **Cross-Source Phase 1 ✅** — Core Engine + Email Adapter (34 tests) |
-| 2026-01-08 | **🔥 Cross-Source AJOUTÉ** — 12 items MVP prioritaires (emails archivés, calendar, teams, whatsapp, files, web search) |
+| 2026-01-08 | **Cross-Source AJOUTÉ** — 12 items MVP prioritaires (emails archivés, calendar, teams, whatsapp, files, web search) |
 | 2026-01-08 | **Valets Dashboard AJOUTÉ** — 4 items MVP (statut workers, activité reviewer, visualisation équipe) |
 | 2026-01-07 | **Discussions Frontend COMPLÉTÉ** — Store Svelte 5, page intégrée, modal création, vue détail |
 | 2026-01-06 | **Sprint 1 COMPLÉTÉ** — 19/19 items (100%) |

@@ -545,6 +545,59 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-08 (Suite 2) — Cross-Source COMPLÉTÉ : WhatsApp, Files, Web Adapters ✅
+
+**Focus** : Implémentation des 3 derniers adaptateurs pour compléter CrossSourceEngine
+
+**Accomplissements** :
+
+1. ✅ **WhatsApp Adapter** (`src/passepartout/cross_source/adapters/whatsapp_adapter.py` ~480 lignes)
+   - Recherche dans l'historique SQLite WhatsApp
+   - Support schemas iOS backup et Android
+   - Filtres : query, contact, since (days_back)
+   - Détection automatique du schéma de base de données
+   - Scoring de pertinence : content match, contact match, recency
+
+2. ✅ **Files Adapter** (`src/passepartout/cross_source/adapters/files_adapter.py` ~475 lignes)
+   - Recherche dans les fichiers locaux
+   - Primary : ripgrep (rg) pour performance
+   - Fallback : recherche Python native
+   - Filtres : extensions, exclude_dirs, path, max_file_size
+   - Scoring de pertinence : filename match, content match, recency, file type
+
+3. ✅ **Web Adapter** (`src/passepartout/cross_source/adapters/web_adapter.py` ~410 lignes)
+   - Primary : Tavily API (AI-optimized search)
+   - Fallback : DuckDuckGo (duckduckgo-search library)
+   - Filtres : include_domains, exclude_domains, search_depth, topic
+   - Factory function `create_web_adapter()` pour sélection automatique
+   - Support AI-generated answers + web results
+
+4. ✅ **Tests complets** (`tests/unit/test_cross_source_new_adapters.py` ~700 lignes, 49 tests)
+   - TestWhatsAppAdapter : 14 tests
+   - TestFilesAdapter : 14 tests
+   - TestWebAdapter : 15 tests
+   - TestDuckDuckGoAdapter : 3 tests
+   - TestCreateWebAdapter : 3 tests
+   - TestAdapterIntegration : 3 tests
+
+5. ✅ **Code Quality**
+   - Ruff : 0 warnings (fixes applied)
+   - All 112 cross-source tests pass
+
+**Fichiers créés/modifiés** :
+```
+src/passepartout/cross_source/adapters/whatsapp_adapter.py    # NEW (~480 lignes)
+src/passepartout/cross_source/adapters/files_adapter.py       # NEW (~475 lignes)
+src/passepartout/cross_source/adapters/web_adapter.py         # NEW (~410 lignes)
+src/passepartout/cross_source/adapters/__init__.py            # MODIFIED (exports)
+tests/unit/test_cross_source_new_adapters.py                  # NEW (49 tests)
+```
+
+**Sprint Cross-Source COMPLÉTÉ** : 12/12 items (100%)
+**Tests** : 112 cross-source tests, 2192 tests total
+
+---
+
 ### Session 2026-01-08 (Suite) — Cross-Source Phase 2 : Calendar & Teams Adapters ✅
 
 **Focus** : Implémentation des adaptateurs Calendar et Teams pour CrossSourceEngine

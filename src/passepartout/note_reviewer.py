@@ -3,13 +3,14 @@ Note Reviewer
 
 Analyzes notes and determines what actions are needed during review.
 Integrates with Sancho for AI-powered analysis and Passepartout for context.
+Uses CrossSourceEngine to enrich reviews with external context.
 """
 
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import Note, NoteManager
@@ -23,6 +24,9 @@ from src.passepartout.note_types import (
     DEFAULT_CONSERVATION_CRITERIA,
     ConservationCriteria,
 )
+
+if TYPE_CHECKING:
+    from src.passepartout.cross_source import CrossSourceEngine
 
 logger = get_logger("passepartout.note_reviewer")
 
@@ -124,6 +128,7 @@ class NoteReviewer:
         scheduler: NoteScheduler,
         conservation_criteria: ConservationCriteria | None = None,
         ai_router: Any | None = None,
+        cross_source_engine: "CrossSourceEngine | None" = None,
     ):
         """
         Initialize reviewer
@@ -134,12 +139,14 @@ class NoteReviewer:
             scheduler: Scheduler for updating review times
             conservation_criteria: Rules for what to keep/remove
             ai_router: Optional AI router for analysis (Sancho)
+            cross_source_engine: Optional CrossSourceEngine for external context
         """
         self.notes = note_manager
         self.store = metadata_store
         self.scheduler = scheduler
         self.criteria = conservation_criteria or DEFAULT_CONSERVATION_CRITERIA
         self.ai_router = ai_router
+        self.cross_source_engine = cross_source_engine
 
     async def review_note(self, note_id: str) -> ReviewResult:
         """
@@ -281,13 +288,86 @@ class NoteReviewer:
             except Exception as e:
                 logger.debug(f"Could not load git history: {e}")
 
+        # Query CrossSourceEngine for related items from external sources
+        related_entities = await self._query_cross_source(note)
+
         return ReviewContext(
             note=note,
             metadata=metadata,
             linked_notes=linked_notes,
             linked_note_excerpts=linked_excerpts,
             recent_changes=recent_changes,
+            related_entities=related_entities,
         )
+
+    async def _query_cross_source(self, note: Note) -> list[dict[str, Any]]:
+        """
+        Query CrossSourceEngine for related items from external sources.
+
+        Builds a search query from the note's title and key terms,
+        then retrieves relevant items from emails, calendar, teams, etc.
+
+        Args:
+            note: The note being reviewed
+
+        Returns:
+            List of related items as dictionaries
+        """
+        if self.cross_source_engine is None:
+            return []
+
+        try:
+            # Build search query from note title and first 200 chars of content
+            query_parts = [note.title]
+
+            # Add key tags if available
+            if note.tags:
+                query_parts.extend(note.tags[:3])  # Limit to 3 tags
+
+            # Extract key terms from content (first line after title often has context)
+            content_lines = note.content.strip().split("\n")
+            if len(content_lines) > 1:
+                # Skip title (usually first line), get next non-empty line
+                for line in content_lines[1:4]:
+                    clean_line = line.strip()
+                    if clean_line and not clean_line.startswith("#"):
+                        # Add first 100 chars of context
+                        query_parts.append(clean_line[:100])
+                        break
+
+            query = " ".join(query_parts)
+            logger.debug(f"CrossSource query for note {note.note_id}: {query[:100]}...")
+
+            # Search cross-source with reasonable limits
+            result = await self.cross_source_engine.search(
+                query=query,
+                max_results=5,  # Limit to top 5 most relevant
+            )
+
+            # Convert SourceItems to dictionaries for storage
+            related_items = []
+            for item in result.items:
+                related_items.append({
+                    "source": item.source,
+                    "type": item.type,
+                    "title": item.title,
+                    "content": item.content[:300] if item.content else "",  # Limit content
+                    "timestamp": item.timestamp.isoformat() if item.timestamp else None,
+                    "relevance_score": item.relevance_score,
+                    "url": item.url,
+                    "metadata": item.metadata,
+                })
+
+            logger.info(
+                f"CrossSource found {len(related_items)} related items for note {note.note_id}",
+                extra={"sources": result.sources_searched},
+            )
+
+            return related_items
+
+        except Exception as e:
+            logger.warning(f"CrossSource query failed for note {note.note_id}: {e}")
+            return []
 
     def _extract_wikilinks(self, content: str) -> list[str]:
         """Extract wikilinks from content"""
