@@ -557,6 +557,70 @@ class CalendarConfig(BaseModel):
         return self
 
 
+class ICloudCalendarConfig(BaseModel):
+    """
+    Configuration for iCloud Calendar integration
+
+    Uses CalDAV protocol to access iCloud Calendar.
+    Requires an app-specific password generated from appleid.apple.com.
+    """
+
+    enabled: bool = Field(
+        False,
+        description="Enable iCloud Calendar integration (opt-in, default OFF)"
+    )
+    username: str = Field(
+        "",
+        description="Apple ID email address"
+    )
+    app_specific_password: str = Field(
+        "",
+        description="App-specific password from appleid.apple.com"
+    )
+    server_url: str = Field(
+        "https://caldav.icloud.com",
+        description="iCloud CalDAV server URL"
+    )
+    past_days: int = Field(
+        365,
+        ge=0,
+        le=730,
+        description="Number of days in the past to search (default: 1 year)"
+    )
+    future_days: int = Field(
+        90,
+        ge=1,
+        le=365,
+        description="Number of days in the future to search (default: 3 months)"
+    )
+    max_results: int = Field(
+        20,
+        ge=1,
+        le=100,
+        description="Maximum number of results to return per search"
+    )
+    calendar_names: Optional[list[str]] = Field(
+        None,
+        description="List of calendar names to include (None = all calendars)"
+    )
+
+    @model_validator(mode='after')
+    def validate_credentials_when_enabled(self):
+        """Ensure credentials are configured when iCloud Calendar is enabled"""
+        if self.enabled:
+            if not self.username:
+                raise ValueError(
+                    "iCloud username (Apple ID) must be configured when iCloud Calendar "
+                    "is enabled. Set ICLOUD_CALENDAR__USERNAME in .env"
+                )
+            if not self.app_specific_password:
+                raise ValueError(
+                    "iCloud app-specific password must be configured. Generate one at "
+                    "appleid.apple.com and set ICLOUD_CALENDAR__APP_SPECIFIC_PASSWORD in .env"
+                )
+        return self
+
+
 class BriefingConfig(BaseModel):
     """
     Configuration for the intelligent briefing system
@@ -668,7 +732,10 @@ class AuthConfig(BaseModel):
     jwt_secret_key: str = Field(
         ...,  # Required - no default for security
         min_length=32,
-        description="Secret key for JWT signing (min 32 characters). Generate with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+        description=(
+            "Secret key for JWT signing (min 32 characters). "
+            "Generate with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+        )
     )
     jwt_algorithm: str = Field(
         "HS256",
@@ -716,6 +783,7 @@ class ScapinConfig(BaseSettings):
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     teams: TeamsConfig = Field(default_factory=TeamsConfig)
     calendar: CalendarConfig = Field(default_factory=CalendarConfig)
+    icloud_calendar: ICloudCalendarConfig = Field(default_factory=ICloudCalendarConfig)
     briefing: BriefingConfig = Field(default_factory=BriefingConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
     api: APIConfig = Field(default_factory=APIConfig)
