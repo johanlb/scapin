@@ -223,6 +223,7 @@ class FilesAdapter(BaseAdapter):
                 "--max-count", "3",  # Max matches per file
                 "--max-filesize", f"{self._max_file_size}",
                 "-i",  # Case insensitive
+                "-m", str(max_results),  # Limit total matches to avoid OOM
             ]
 
             # Add extension filters

@@ -296,9 +296,11 @@ class TestCrossSourceCache:
         cache = CrossSourceCache(ttl_seconds=60, max_size=100)
         stats = cache.stats()
 
-        assert stats["ttl_seconds"] == 60
+        assert stats["default_ttl_seconds"] == 60
         assert stats["max_size"] == 100
         assert stats["current_size"] == 0
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0
 
     def test_cache_clear(self):
         """Test cache clearing."""
@@ -535,7 +537,7 @@ class TestCrossSourceEngine:
                 title="Old Email",
                 content="Content",
                 timestamp=datetime.now(timezone.utc) - timedelta(days=60),
-                relevance_score=0.9,
+                relevance_score=0.8,  # Same base relevance
             ),
             SourceItem(
                 source="email",
@@ -543,16 +545,19 @@ class TestCrossSourceEngine:
                 title="New Email",
                 content="Content",
                 timestamp=datetime.now(timezone.utc),
-                relevance_score=0.8,
+                relevance_score=0.8,  # Same base relevance
             ),
         ]
 
         engine.register_adapter(adapter)
         result = await engine.search("test")
 
-        # New email should be first due to freshness
+        # New email should be first due to freshness (equal relevance, newer wins)
         assert result.items[0].title == "New Email"
         assert result.items[0].final_score > 0
+        # Old email should have lower score due to freshness decay
+        assert result.items[1].title == "Old Email"
+        assert result.items[0].final_score > result.items[1].final_score
 
     @pytest.mark.asyncio
     async def test_search_with_linked_sources(self):

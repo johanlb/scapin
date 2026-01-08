@@ -7,6 +7,7 @@ calendar events in the user's past and upcoming schedule.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -60,6 +61,8 @@ class CalendarAdapter(BaseAdapter):
         """
         Search calendar events for relevant meetings.
 
+        Fetches past and future events in parallel for better performance.
+
         Args:
             query: The search query string
             max_results: Maximum number of results to return
@@ -88,12 +91,11 @@ class CalendarAdapter(BaseAdapter):
             days_behind = self._get_days_behind(context) if include_past else 0
             days_ahead = self._get_days_ahead(context) if include_future else 0
 
-            # Fetch events
-            events = await self._calendar_client.get_events(
-                days_ahead=days_ahead,
+            # Fetch past and future events in parallel for better performance
+            events = await self._fetch_events_parallel(
                 days_behind=days_behind,
-                limit=max(max_results * 3, 100),  # Fetch more to filter
-                include_cancelled=False,
+                days_ahead=days_ahead,
+                limit_per_query=max(max_results * 2, 50),
             )
 
             # Filter events by query
@@ -126,6 +128,81 @@ class CalendarAdapter(BaseAdapter):
         except Exception as e:
             logger.error("Calendar search failed: %s", e)
             return []
+
+    async def _fetch_events_parallel(
+        self,
+        days_behind: int,
+        days_ahead: int,
+        limit_per_query: int,
+    ) -> list[Any]:
+        """
+        Fetch past and future events in parallel.
+
+        This is more efficient than a single query with both directions,
+        as it allows the Graph API to process two smaller queries concurrently.
+
+        Args:
+            days_behind: Days to look back
+            days_ahead: Days to look ahead
+            limit_per_query: Max results per direction
+
+        Returns:
+            Combined list of events from both queries
+        """
+        if self._calendar_client is None:
+            return []
+
+        tasks = []
+
+        # Create task for past events if requested
+        if days_behind > 0:
+            tasks.append(
+                self._calendar_client.get_events(
+                    days_ahead=0,
+                    days_behind=days_behind,
+                    limit=limit_per_query,
+                    include_cancelled=False,
+                )
+            )
+
+        # Create task for future events if requested
+        if days_ahead > 0:
+            tasks.append(
+                self._calendar_client.get_events(
+                    days_ahead=days_ahead,
+                    days_behind=0,
+                    limit=limit_per_query,
+                    include_cancelled=False,
+                )
+            )
+
+        if not tasks:
+            return []
+
+        # Execute all tasks in parallel
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Combine results, filtering out exceptions
+        all_events: list[Any] = []
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning("Parallel calendar fetch partial failure: %s", result)
+                continue
+            if isinstance(result, list):
+                all_events.extend(result)
+
+        # Deduplicate by event_id (events on today might appear in both)
+        seen_ids: set[str] = set()
+        unique_events: list[Any] = []
+        for event in all_events:
+            event_id = getattr(event, "event_id", None)
+            if event_id and event_id not in seen_ids:
+                seen_ids.add(event_id)
+                unique_events.append(event)
+            elif not event_id:
+                unique_events.append(event)
+
+        return unique_events
 
     def _get_days_behind(self, context: dict[str, Any] | None) -> int:
         """Get number of days to look behind from context or config."""

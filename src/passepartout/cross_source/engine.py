@@ -11,7 +11,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from src.passepartout.cross_source.cache import CrossSourceCache
@@ -22,6 +23,21 @@ from src.passepartout.cross_source.models import (
     LinkedSource,
     SourceItem,
 )
+
+
+@dataclass
+class AdapterHealth:
+    """Track health status for a source adapter (circuit breaker pattern)."""
+
+    failures: int = 0
+    last_failure: datetime | None = None
+    open_until: datetime | None = None  # Circuit is open (failing) until this time
+    consecutive_successes: int = 0
+
+    # Circuit breaker thresholds
+    failure_threshold: int = 3  # Open circuit after N failures
+    recovery_timeout: int = 60  # Seconds before trying again
+    success_threshold: int = 2  # Successes needed to fully close circuit
 
 if TYPE_CHECKING:
     from src.passepartout.cross_source.adapters.base import SourceAdapter
@@ -65,6 +81,7 @@ class CrossSourceEngine:
             max_size=self._config.cache_max_size,
         )
         self._adapters: dict[str, SourceAdapter] = {}
+        self._adapter_health: dict[str, AdapterHealth] = {}  # Circuit breaker state
 
         logger.info(
             "CrossSourceEngine initialized (cache_ttl=%ds, max_results=%d)",
@@ -229,12 +246,20 @@ class CrossSourceEngine:
         # Build context for adapters
         context = self._build_adapter_context(linked_sources)
 
-        # Create search tasks
+        # Create search tasks (skip adapters with open circuit)
         tasks = []
         source_names = []
+        skipped_sources: list[str] = []
+
         for source_name in sources:
             adapter = self._adapters.get(source_name)
             if adapter and adapter.is_available:
+                # Check circuit breaker
+                if self._is_circuit_open(source_name):
+                    logger.debug("Skipping %s (circuit open)", source_name)
+                    skipped_sources.append(source_name)
+                    continue
+
                 task = self._search_with_timeout(
                     adapter,
                     request.query,
@@ -246,7 +271,7 @@ class CrossSourceEngine:
         # Execute in parallel
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Process results
+        # Process results and update circuit breaker state
         all_items: list[SourceItem] = []
         sources_searched: list[str] = []
         sources_failed: list[str] = []
@@ -255,11 +280,17 @@ class CrossSourceEngine:
             if isinstance(result, Exception):
                 logger.warning("Search failed for %s: %s", source_name, result)
                 sources_failed.append(source_name)
+                self._record_failure(source_name)
             elif isinstance(result, list):
                 all_items.extend(result)
                 sources_searched.append(source_name)
+                self._record_success(source_name)
             else:
                 sources_failed.append(source_name)
+                self._record_failure(source_name)
+
+        # Add skipped sources to failed list
+        sources_failed.extend(skipped_sources)
 
         # Aggregate and score results
         scored_items = self._aggregate_results(all_items)
@@ -356,14 +387,20 @@ class CrossSourceEngine:
         Returns:
             Sorted, deduplicated items with final_score
         """
-        # Calculate final scores
+        if not items:
+            return []
+
+        # Step 1: Normalize relevance scores per source
+        self._normalize_scores_per_source(items)
+
+        # Step 2: Calculate final scores
         for item in items:
             item.final_score = self._calculate_score(item)
 
-        # Sort by final score (descending)
+        # Step 3: Sort by final score (descending)
         items.sort(key=lambda x: x.final_score, reverse=True)
 
-        # Deduplicate (keep highest scored version)
+        # Step 4: Deduplicate (keep highest scored version)
         seen_titles: set[str] = set()
         deduplicated: list[SourceItem] = []
 
@@ -375,6 +412,48 @@ class CrossSourceEngine:
                 deduplicated.append(item)
 
         return deduplicated
+
+    def _normalize_scores_per_source(
+        self,
+        items: list[SourceItem],
+    ) -> None:
+        """
+        Normalize relevance scores within each source to 0-1 range.
+
+        This ensures fair comparison when combining results from different
+        sources that may have different scoring distributions.
+
+        Args:
+            items: Items to normalize (modified in place)
+        """
+        # Group items by source
+        by_source: dict[str, list[SourceItem]] = {}
+        for item in items:
+            if item.source not in by_source:
+                by_source[item.source] = []
+            by_source[item.source].append(item)
+
+        # Normalize each source independently
+        for source_items in by_source.values():
+            if len(source_items) < 2:
+                # Single item, no normalization needed
+                continue
+
+            # Find min/max scores for this source
+            scores = [item.relevance_score for item in source_items]
+            min_score = min(scores)
+            max_score = max(scores)
+
+            # Skip if all scores are identical (avoid division by zero)
+            if max_score == min_score:
+                continue
+
+            # Normalize to 0.3-1.0 range (preserve some differentiation)
+            # We use 0.3 as floor to avoid very low scores for the worst item
+            score_range = max_score - min_score
+            for item in source_items:
+                normalized = (item.relevance_score - min_score) / score_range
+                item.relevance_score = 0.3 + (normalized * 0.7)
 
     def _calculate_score(self, item: SourceItem) -> float:
         """
@@ -437,3 +516,87 @@ class CrossSourceEngine:
             Dict with cache stats
         """
         return self._cache.stats()
+
+    # --- Circuit Breaker Methods ---
+
+    def _get_adapter_health(self, source_name: str) -> AdapterHealth:
+        """Get or create health tracker for an adapter."""
+        if source_name not in self._adapter_health:
+            self._adapter_health[source_name] = AdapterHealth()
+        return self._adapter_health[source_name]
+
+    def _is_circuit_open(self, source_name: str) -> bool:
+        """
+        Check if circuit breaker is open (adapter should be skipped).
+
+        Args:
+            source_name: Name of the source adapter
+
+        Returns:
+            True if circuit is open (skip this adapter)
+        """
+        health = self._get_adapter_health(source_name)
+
+        if health.open_until is None:
+            return False
+
+        now = datetime.now(timezone.utc)
+        if now >= health.open_until:
+            # Recovery period passed - allow a trial request (half-open state)
+            logger.info("Circuit half-open for %s, allowing trial request", source_name)
+            return False
+
+        return True
+
+    def _record_failure(self, source_name: str) -> None:
+        """Record a failure for an adapter (may open circuit)."""
+        health = self._get_adapter_health(source_name)
+
+        health.failures += 1
+        health.consecutive_successes = 0
+        health.last_failure = datetime.now(timezone.utc)
+
+        # Check if we should open the circuit
+        if health.failures >= health.failure_threshold:
+            health.open_until = datetime.now(timezone.utc) + timedelta(
+                seconds=health.recovery_timeout
+            )
+            logger.warning(
+                "Circuit OPEN for %s (failures=%d, retry in %ds)",
+                source_name,
+                health.failures,
+                health.recovery_timeout,
+            )
+
+    def _record_success(self, source_name: str) -> None:
+        """Record a success for an adapter (may close circuit)."""
+        health = self._get_adapter_health(source_name)
+
+        health.consecutive_successes += 1
+
+        # If in half-open state and enough successes, close the circuit
+        if (
+            health.open_until is not None
+            and health.consecutive_successes >= health.success_threshold
+        ):
+            logger.info("Circuit CLOSED for %s (recovered)", source_name)
+            health.failures = 0
+            health.open_until = None
+            health.consecutive_successes = 0
+
+    def get_adapter_health_stats(self) -> dict[str, dict[str, Any]]:
+        """
+        Get health statistics for all adapters.
+
+        Returns:
+            Dict mapping source name to health stats
+        """
+        stats = {}
+        for source_name, health in self._adapter_health.items():
+            stats[source_name] = {
+                "failures": health.failures,
+                "last_failure": health.last_failure.isoformat() if health.last_failure else None,
+                "circuit_open": self._is_circuit_open(source_name),
+                "open_until": health.open_until.isoformat() if health.open_until else None,
+            }
+        return stats

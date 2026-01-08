@@ -63,6 +63,9 @@ class ICloudCalendarAdapter(BaseAdapter):
         """
         Search iCloud Calendar events for relevant meetings.
 
+        Fetches past and future events in parallel using CalDAV time-range
+        filtering for better performance.
+
         Args:
             query: The search query string
             max_results: Maximum number of results to return
@@ -95,17 +98,13 @@ class ICloudCalendarAdapter(BaseAdapter):
             days_behind = self._get_days_behind(context) if include_past else 0
             days_ahead = self._get_days_ahead(context) if include_future else 0
 
-            # Run sync search in thread pool to avoid blocking
-            loop = asyncio.get_event_loop()
-            events = await loop.run_in_executor(
-                None,
-                lambda: self._icloud_client.search_events(
-                    query=query,
-                    days_ahead=days_ahead,
-                    days_behind=days_behind,
-                    calendar_names=calendar_names,
-                    max_results=max(max_results * 2, 50),  # Fetch more to filter
-                ),
+            # Fetch events using parallel past/future queries
+            events = await self._fetch_events_parallel(
+                query=query,
+                days_behind=days_behind,
+                days_ahead=days_ahead,
+                calendar_names=calendar_names,
+                max_results=max(max_results * 2, 50),
             )
 
             # Convert to SourceItems
@@ -128,6 +127,94 @@ class ICloudCalendarAdapter(BaseAdapter):
         except Exception as e:
             logger.error("iCloud Calendar search failed: %s", e)
             return []
+
+    async def _fetch_events_parallel(
+        self,
+        query: str,
+        days_behind: int,
+        days_ahead: int,
+        calendar_names: list[str] | None,
+        max_results: int,
+    ) -> list[Any]:
+        """
+        Fetch past and future events in parallel.
+
+        Uses CalDAV time-range filtering at the server level and then
+        filters by query text locally.
+
+        Args:
+            query: Search query for text filtering
+            days_behind: Days to look back
+            days_ahead: Days to look ahead
+            calendar_names: Optional calendar filter
+            max_results: Maximum results
+
+        Returns:
+            Combined list of matching events
+        """
+        if self._icloud_client is None:
+            return []
+
+        loop = asyncio.get_event_loop()
+        tasks = []
+
+        # Create task for past events if requested
+        if days_behind > 0:
+            tasks.append(
+                loop.run_in_executor(
+                    None,
+                    lambda db=days_behind: self._icloud_client.search_events(
+                        query=query,
+                        days_ahead=0,
+                        days_behind=db,
+                        calendar_names=calendar_names,
+                        max_results=max_results,
+                    ),
+                )
+            )
+
+        # Create task for future events if requested
+        if days_ahead > 0:
+            tasks.append(
+                loop.run_in_executor(
+                    None,
+                    lambda da=days_ahead: self._icloud_client.search_events(
+                        query=query,
+                        days_ahead=da,
+                        days_behind=0,
+                        calendar_names=calendar_names,
+                        max_results=max_results,
+                    ),
+                )
+            )
+
+        if not tasks:
+            return []
+
+        # Execute all tasks in parallel
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Combine results, filtering out exceptions
+        all_events: list[Any] = []
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning("Parallel iCloud Calendar fetch partial failure: %s", result)
+                continue
+            if isinstance(result, list):
+                all_events.extend(result)
+
+        # Deduplicate by event UID (events today might appear in both)
+        seen_uids: set[str] = set()
+        unique_events: list[Any] = []
+        for event in all_events:
+            uid = getattr(event, "uid", None)
+            if uid and uid not in seen_uids:
+                seen_uids.add(uid)
+                unique_events.append(event)
+            elif not uid:
+                unique_events.append(event)
+
+        return unique_events
 
     def _get_days_behind(self, context: dict[str, Any] | None) -> int:
         """Get number of days to look behind from context or config."""

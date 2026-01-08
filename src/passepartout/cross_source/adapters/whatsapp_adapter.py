@@ -61,6 +61,7 @@ class WhatsAppAdapter(BaseAdapter):
         self._days_back = days_back
         self._connection: sqlite3.Connection | None = None
         self._available: bool | None = None
+        self._cached_schema: str | None = None  # Cache detected schema type
 
     @property
     def is_available(self) -> bool:
@@ -237,8 +238,10 @@ class WhatsAppAdapter(BaseAdapter):
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        # Determine database schema and build appropriate query
-        schema = self._detect_schema(cursor)
+        # Use cached schema or detect (avoid repeated detection)
+        if self._cached_schema is None:
+            self._cached_schema = self._detect_schema(cursor)
+        schema = self._cached_schema
 
         if schema == "ios_backup":
             return self._search_ios_backup(cursor, query, since, contact, limit)

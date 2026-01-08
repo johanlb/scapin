@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
@@ -304,13 +304,20 @@ class DuckDuckGoAdapter(BaseAdapter):
     Uses the duckduckgo-search library.
 
     Note: Rate limited and may be less reliable than Tavily.
+    Implements exponential backoff on rate limit errors.
     """
 
     _source_name = "web"
 
+    # Rate limit handling
+    MAX_RETRIES = 3
+    INITIAL_BACKOFF_SECONDS = 5.0
+    MAX_BACKOFF_SECONDS = 60.0
+
     def __init__(self) -> None:
         """Initialize DuckDuckGo adapter."""
         self._duckduckgo_available: bool | None = None
+        self._rate_limited_until: datetime | None = None  # Track rate limit cooldown
 
     @property
     def is_available(self) -> bool:
@@ -323,6 +330,15 @@ class DuckDuckGoAdapter(BaseAdapter):
                 self._duckduckgo_available = False
         return self._duckduckgo_available
 
+    def _is_rate_limited(self) -> bool:
+        """Check if we're currently in a rate limit cooldown period."""
+        if self._rate_limited_until is None:
+            return False
+        if datetime.now(timezone.utc) >= self._rate_limited_until:
+            self._rate_limited_until = None
+            return False
+        return True
+
     async def search(
         self,
         query: str,
@@ -330,7 +346,7 @@ class DuckDuckGoAdapter(BaseAdapter):
         _context: dict[str, Any] | None = None,
     ) -> list[SourceItem]:
         """
-        Search using DuckDuckGo.
+        Search using DuckDuckGo with rate limit handling.
 
         Args:
             query: Search query
@@ -340,42 +356,92 @@ class DuckDuckGoAdapter(BaseAdapter):
         Returns:
             List of SourceItem objects
         """
+        import asyncio
+
         if not self.is_available:
             logger.warning("DuckDuckGo adapter not available, skipping search")
             return []
 
+        # Check if we're in a rate limit cooldown period
+        if self._is_rate_limited():
+            remaining = (self._rate_limited_until - datetime.now(timezone.utc)).total_seconds()
+            logger.warning(
+                "DuckDuckGo rate limited, skipping search (cooldown: %.0fs remaining)",
+                remaining,
+            )
+            return []
+
+        # Import here to handle optional dependency
         try:
             from duckduckgo_search import DDGS
-
-            results = []
-            with DDGS() as ddgs:
-                # Perform text search
-                for item in ddgs.text(query, max_results=max_results):
-                    result = SourceItem(
-                        source="web",
-                        type="web_result",
-                        title=item.get("title", ""),
-                        content=item.get("body", ""),
-                        timestamp=datetime.now(timezone.utc),
-                        relevance_score=0.7,  # DuckDuckGo doesn't provide scores
-                        url=item.get("href", ""),
-                        metadata={
-                            "domain": self._extract_domain(item.get("href", "")),
-                        },
-                    )
-                    results.append(result)
-
-            logger.debug(
-                "DuckDuckGo search found %d results for '%s'",
-                len(results),
-                query[:50],
-            )
-
-            return results
-
-        except Exception as e:
-            logger.error("DuckDuckGo search failed: %s", e)
+            from duckduckgo_search.exceptions import RatelimitException
+        except ImportError:
+            logger.warning("duckduckgo-search not installed")
             return []
+
+        # Retry loop with exponential backoff
+        backoff = self.INITIAL_BACKOFF_SECONDS
+        last_error: Exception | None = None
+
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                results = []
+                with DDGS() as ddgs:
+                    # Perform text search
+                    for item in ddgs.text(query, max_results=max_results):
+                        result = SourceItem(
+                            source="web",
+                            type="web_result",
+                            title=item.get("title", ""),
+                            content=item.get("body", ""),
+                            timestamp=datetime.now(timezone.utc),
+                            relevance_score=0.7,  # DuckDuckGo doesn't provide scores
+                            url=item.get("href", ""),
+                            metadata={
+                                "domain": self._extract_domain(item.get("href", "")),
+                            },
+                        )
+                        results.append(result)
+
+                logger.debug(
+                    "DuckDuckGo search found %d results for '%s'",
+                    len(results),
+                    query[:50],
+                )
+
+                return results
+
+            except RatelimitException as e:
+                last_error = e
+                logger.warning(
+                    "DuckDuckGo rate limited (attempt %d/%d), backing off %.1fs",
+                    attempt + 1,
+                    self.MAX_RETRIES,
+                    backoff,
+                )
+
+                if attempt < self.MAX_RETRIES - 1:
+                    # Wait before retry
+                    await asyncio.sleep(backoff)
+                    # Exponential backoff with cap
+                    backoff = min(backoff * 2, self.MAX_BACKOFF_SECONDS)
+                else:
+                    # Set cooldown period after all retries exhausted
+                    self._rate_limited_until = datetime.now(timezone.utc) + timedelta(
+                        seconds=self.MAX_BACKOFF_SECONDS
+                    )
+                    logger.warning(
+                        "DuckDuckGo rate limit retries exhausted, entering cooldown (%.0fs)",
+                        self.MAX_BACKOFF_SECONDS,
+                    )
+
+            except Exception as e:
+                logger.error("DuckDuckGo search failed: %s", e)
+                return []
+
+        # All retries exhausted due to rate limiting
+        logger.error("DuckDuckGo search failed after %d retries: %s", self.MAX_RETRIES, last_error)
+        return []
 
     def _extract_domain(self, url: str) -> str:
         """Extract domain from URL."""

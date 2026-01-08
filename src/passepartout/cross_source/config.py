@@ -5,8 +5,13 @@ Defines configuration dataclasses for the cross-source search system
 and individual source adapters.
 """
 
+from __future__ import annotations
+
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger("scapin.cross_source.config")
 
 
 @dataclass
@@ -203,6 +208,74 @@ class CrossSourceConfig:
             sources.append("web")
         return sources
 
+    # Known valid source names
+    VALID_SOURCES: frozenset[str] = frozenset({
+        "email", "calendar", "icloud_calendar", "teams",
+        "whatsapp", "files", "web", "notes"
+    })
+
+    # Weight validation bounds
+    MIN_WEIGHT: float = 0.0
+    MAX_WEIGHT: float = 2.0
+
+    def __post_init__(self) -> None:
+        """Validate configuration after initialization."""
+        self._validate_source_weights()
+
+    def _validate_source_weights(self) -> None:
+        """
+        Validate source_weights configuration.
+
+        - Clamps weights to valid range [0.0, 2.0]
+        - Warns about unknown source names
+        - Logs validation issues
+        """
+        if not self.source_weights:
+            logger.warning("source_weights is empty, using default weight 0.5 for all sources")
+            return
+
+        invalid_sources = []
+        clamped_weights = []
+
+        for source, weight in list(self.source_weights.items()):
+            # Check if source is known
+            if source not in self.VALID_SOURCES:
+                invalid_sources.append(source)
+
+            # Validate weight range and clamp if necessary
+            if not isinstance(weight, (int, float)):
+                logger.error(
+                    "Invalid weight type for source '%s': %s (using default 0.5)",
+                    source,
+                    type(weight).__name__,
+                )
+                self.source_weights[source] = 0.5
+            elif weight < self.MIN_WEIGHT:
+                clamped_weights.append((source, weight, self.MIN_WEIGHT))
+                self.source_weights[source] = self.MIN_WEIGHT
+            elif weight > self.MAX_WEIGHT:
+                clamped_weights.append((source, weight, self.MAX_WEIGHT))
+                self.source_weights[source] = self.MAX_WEIGHT
+
+        # Log warnings for unknown sources
+        if invalid_sources:
+            logger.warning(
+                "Unknown source names in source_weights: %s (valid: %s)",
+                invalid_sources,
+                list(self.VALID_SOURCES),
+            )
+
+        # Log warnings for clamped weights
+        for source, original, clamped in clamped_weights:
+            logger.warning(
+                "Weight for '%s' clamped from %.2f to %.2f (valid range: %.1f-%.1f)",
+                source,
+                original,
+                clamped,
+                self.MIN_WEIGHT,
+                self.MAX_WEIGHT,
+            )
+
     def get_source_weight(self, source: str) -> float:
         """
         Get the weight for a source.
@@ -211,6 +284,6 @@ class CrossSourceConfig:
             source: Source name
 
         Returns:
-            Weight value (0.0 - 1.0)
+            Weight value (0.0 - 2.0), defaults to 0.5 for unknown sources
         """
         return self.source_weights.get(source, 0.5)

@@ -287,14 +287,9 @@ class EmailAdapter(BaseAdapter):
             id_list = list(reversed(id_list))  # Newest first
             id_list = id_list[:max_results]
 
-            # Fetch each email
-            for msg_id in id_list:
-                try:
-                    item = self._fetch_email_item(msg_id, folder)
-                    if item:
-                        results.append(item)
-                except Exception as e:
-                    logger.debug("Failed to fetch email %s: %s", msg_id, e)
+            # Batch fetch emails (more efficient than individual fetches)
+            if id_list:
+                results.extend(self._batch_fetch_emails(id_list, folder))
 
             logger.debug(
                 "Found %d emails in %s matching search",
@@ -306,6 +301,150 @@ class EmailAdapter(BaseAdapter):
             logger.debug("Error searching folder %s: %s", folder, e)
 
         return results
+
+    def _batch_fetch_emails(
+        self,
+        id_list: list[bytes],
+        folder: str,
+    ) -> list[SourceItem]:
+        """
+        Batch fetch multiple emails in a single IMAP command.
+
+        More efficient than individual fetches - reduces network roundtrips.
+
+        Args:
+            id_list: List of IMAP message IDs
+            folder: Folder name for metadata
+
+        Returns:
+            List of SourceItem objects
+        """
+        if self._connection is None or not id_list:
+            return []
+
+        results: list[SourceItem] = []
+
+        try:
+            # Build comma-separated ID list for batch fetch
+            id_set = b",".join(id_list)
+
+            # Batch fetch headers and partial body for all emails
+            status, response = self._connection.fetch(
+                id_set,
+                "(BODY.PEEK[HEADER] BODY.PEEK[TEXT]<0.500>)",
+            )
+            if status != "OK" or not response:
+                logger.debug("Batch fetch failed for folder: %s", folder)
+                return []
+
+            # Process response - each email comes in pairs (header info, data)
+            current_msg_id = None
+            header_data = b""
+            body_preview = b""
+
+            for item in response:
+                if item is None:
+                    continue
+
+                if isinstance(item, tuple) and len(item) >= 2:
+                    header = item[0]
+                    data = item[1]
+
+                    if isinstance(header, bytes):
+                        # Extract message ID from header
+                        if b"HEADER" in header:
+                            header_data = data
+                            # Try to extract msg ID from the header line
+                            header_str = header.decode("ascii", errors="ignore")
+                            # Format: "1 (BODY[HEADER] ..."
+                            parts = header_str.split()
+                            if parts:
+                                current_msg_id = parts[0].encode()
+                        elif b"TEXT" in header:
+                            body_preview = data
+
+                            # We have both header and body - create SourceItem
+                            if header_data:
+                                source_item = self._parse_email_parts(
+                                    current_msg_id or b"",
+                                    header_data,
+                                    body_preview,
+                                    folder,
+                                )
+                                if source_item:
+                                    results.append(source_item)
+
+                            # Reset for next email
+                            header_data = b""
+                            body_preview = b""
+
+            logger.debug(
+                "Batch fetched %d emails from %s",
+                len(results),
+                folder,
+            )
+
+        except Exception as e:
+            logger.debug("Batch fetch error: %s", e)
+
+        return results
+
+    def _parse_email_parts(
+        self,
+        msg_id: bytes,
+        header_data: bytes,
+        body_preview: bytes,
+        folder: str,
+    ) -> SourceItem | None:
+        """
+        Parse email header and body into a SourceItem.
+
+        Args:
+            msg_id: IMAP message ID
+            header_data: Raw email headers
+            body_preview: Partial body text
+            folder: Folder name
+
+        Returns:
+            SourceItem or None if parsing failed
+        """
+        try:
+            # Parse headers
+            msg = email.message_from_bytes(header_data)
+
+            # Extract fields
+            subject = self._decode_header(msg.get("Subject", ""))
+            from_header = self._decode_header(msg.get("From", ""))
+            date_str = msg.get("Date", "")
+            message_id_header = msg.get("Message-ID", "")
+
+            # Parse date
+            timestamp = self._parse_date(date_str)
+
+            # Build content preview
+            content = self._build_content_preview(body_preview, from_header)
+
+            # Calculate relevance (higher for more recent emails)
+            relevance = self._calculate_relevance(timestamp)
+
+            return SourceItem(
+                source="email",
+                type="message",
+                title=subject or "(No Subject)",
+                content=content,
+                timestamp=timestamp,
+                relevance_score=relevance,
+                url=None,
+                metadata={
+                    "message_id": message_id_header,
+                    "from": from_header,
+                    "folder": folder,
+                    "imap_id": msg_id.decode() if isinstance(msg_id, bytes) else msg_id,
+                },
+            )
+        except Exception as e:
+            logger.debug("Error parsing email: %s", e)
+            return None
 
     def _fetch_email_item(
         self,

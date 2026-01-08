@@ -220,10 +220,21 @@ class TestCalendarAdapter:
 
         await adapter.search("test")
 
-        # Verify future_days and past_days were used
-        call_args = mock_client.get_events.call_args
-        assert call_args.kwargs["days_ahead"] == 30
-        assert call_args.kwargs["days_behind"] == 90
+        # With parallel fetch, get_events is called twice (past + future)
+        assert mock_client.get_events.call_count == 2
+
+        # Verify past_days and future_days were used in separate calls
+        all_calls = mock_client.get_events.call_args_list
+        past_call = [c for c in all_calls if c.kwargs.get("days_behind", 0) > 0]
+        future_call = [c for c in all_calls if c.kwargs.get("days_ahead", 0) > 0]
+
+        assert len(past_call) == 1
+        assert past_call[0].kwargs["days_behind"] == 90
+        assert past_call[0].kwargs["days_ahead"] == 0
+
+        assert len(future_call) == 1
+        assert future_call[0].kwargs["days_ahead"] == 30
+        assert future_call[0].kwargs["days_behind"] == 0
 
     @pytest.mark.asyncio
     async def test_search_handles_exception(self):
@@ -642,10 +653,19 @@ class TestAdapterIntegration:
             },
         )
 
-        call_args = mock_client.get_events.call_args
-        # Config values should be passed to client
-        assert call_args.kwargs["days_behind"] == 180
-        assert call_args.kwargs["days_ahead"] == 60
+        # With parallel fetch, get_events is called twice
+        assert mock_client.get_events.call_count == 2
+
+        # Verify config values were used in separate calls
+        all_calls = mock_client.get_events.call_args_list
+        past_call = [c for c in all_calls if c.kwargs.get("days_behind", 0) > 0]
+        future_call = [c for c in all_calls if c.kwargs.get("days_ahead", 0) > 0]
+
+        assert len(past_call) == 1
+        assert past_call[0].kwargs["days_behind"] == 180
+
+        assert len(future_call) == 1
+        assert future_call[0].kwargs["days_ahead"] == 60
 
     @pytest.mark.asyncio
     async def test_teams_adapter_with_config(self):
