@@ -316,10 +316,24 @@ Sganarelle: Apprentissage du feedback
 | | Bouton Snooze | MVP | ⬜ |
 | | Bouton Undo après approbation | MVP | ⬜ |
 | **Teams** | POST /api/teams/chats/{id}/read | MVP | ⬜ |
-| | UI: Vue détail message | MVP | ⬜ |
+| | POST /api/teams/chats/{id}/unread | MVP | ⬜ |
+| | UI: Vue détail message (thread complet) | MVP | ⬜ |
 | **Calendar CRUD** | POST /api/calendar/events | MVP | ⬜ |
 | | PUT /api/calendar/events/{id} | MVP | ⬜ |
 | | DELETE /api/calendar/events/{id} | MVP | ⬜ |
+
+### Décisions Techniques (8 janvier 2026)
+
+| Item | Décision | Détails |
+|------|----------|---------|
+| Email HTML | DOMPurify sanitization | Intégré visuellement, nettoie les scripts |
+| Snooze durées | 30min, 2h, Demain, Semaine prochaine | Options prédéfinies + custom picker |
+| Calendar CRUD | Complet | Récurrence, rappels, lieu, participants |
+| Undo durée | 5 minutes | Toast persistant avec countdown |
+| Teams Read | Read + Unread | Flexibilité complète |
+| UI Snooze/Undo | Toast après action | Snooze dans menu actions de chaque item |
+| Teams Detail | Thread complet | Affiche replies et reactions |
+| Calendar Tag | Catégorie 'Scapin' | Events identifiables dans Outlook |
 
 ### Complétés cette session (8 janvier 2026)
 
