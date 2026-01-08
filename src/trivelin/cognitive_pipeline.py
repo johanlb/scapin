@@ -30,6 +30,7 @@ from src.sancho.templates import TemplateManager
 
 if TYPE_CHECKING:
     from src.passepartout.context_engine import ContextEngine
+    from src.passepartout.cross_source import CrossSourceEngine
 
 logger = get_logger("trivelin.cognitive_pipeline")
 
@@ -155,6 +156,7 @@ class CognitivePipeline:
         config: Optional[ProcessingConfig] = None,
         template_manager: Optional[TemplateManager] = None,
         context_engine: Optional["ContextEngine"] = None,
+        cross_source_engine: Optional["CrossSourceEngine"] = None,
         planning_engine: Optional[PlanningEngine] = None,
         orchestrator: Optional[ActionOrchestrator] = None,
         learning_engine: Optional[Any] = None,  # Avoid circular import
@@ -167,6 +169,7 @@ class CognitivePipeline:
             config: Processing configuration (uses defaults if None)
             template_manager: Template manager for prompts
             context_engine: Passepartout context engine for knowledge base retrieval
+            cross_source_engine: CrossSourceEngine for multi-source context retrieval
             planning_engine: Planchet planning engine
             orchestrator: Figaro action orchestrator
             learning_engine: Sganarelle learning engine (optional)
@@ -175,15 +178,17 @@ class CognitivePipeline:
         self.config = config or ProcessingConfig()
         self.template_manager = template_manager
         self.context_engine = context_engine
+        self.cross_source_engine = cross_source_engine
 
-        # Initialize reasoning engine (Sancho) with context engine
+        # Initialize reasoning engine (Sancho) with context and cross-source engines
         self.reasoning_engine = ReasoningEngine(
             ai_router=ai_router,
             template_manager=template_manager,
             context_engine=context_engine,
+            cross_source_engine=cross_source_engine,
             max_iterations=self.config.cognitive_max_passes,
             confidence_threshold=self.config.cognitive_confidence_threshold,
-            enable_context=context_engine is not None,
+            enable_context=context_engine is not None or cross_source_engine is not None,
             context_top_k=self.config.context_top_k,
             context_min_relevance=self.config.context_min_relevance,
         )
@@ -206,6 +211,7 @@ class CognitivePipeline:
                 "fallback_enabled": self.config.fallback_on_failure,
                 "learning_enabled": learning_engine is not None,
                 "context_enabled": context_engine is not None,
+                "cross_source_enabled": cross_source_engine is not None,
             }
         )
 

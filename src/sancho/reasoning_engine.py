@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from src.core.events import PerceivedEvent
 from src.core.memory.working_memory import (
+    ContextItem,
     Hypothesis,
     ReasoningPass,
     WorkingMemory,
@@ -35,6 +36,7 @@ from src.sancho.templates import TemplateManager, get_template_manager
 
 if TYPE_CHECKING:
     from src.passepartout.context_engine import ContextEngine
+    from src.passepartout.cross_source import CrossSourceEngine
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +102,7 @@ class ReasoningEngine:
         ai_router: AIRouter,
         template_manager: Optional[TemplateManager] = None,
         context_engine: Optional["ContextEngine"] = None,
+        cross_source_engine: Optional["CrossSourceEngine"] = None,
         max_iterations: int = 5,
         confidence_threshold: float = 0.95,
         enable_context: bool = False,  # Phase 0.5 Week 3 feature
@@ -114,6 +117,7 @@ class ReasoningEngine:
             ai_router: AI router for LLM calls
             template_manager: Template manager (optional, uses singleton if None)
             context_engine: ContextEngine for knowledge base retrieval (Sprint 2)
+            cross_source_engine: CrossSourceEngine for multi-source retrieval
             max_iterations: Maximum reasoning passes (default 5)
             confidence_threshold: Target confidence 0.0-1.0 (default 0.95 = 95%)
             enable_context: Enable Pass 2 context retrieval (requires Passepartout)
@@ -124,6 +128,7 @@ class ReasoningEngine:
         self.ai_router = ai_router
         self.template_manager = template_manager or get_template_manager()
         self.context_engine = context_engine
+        self.cross_source_engine = cross_source_engine
         self.max_iterations = max_iterations
         self.confidence_threshold = confidence_threshold
         self.enable_context = enable_context
@@ -139,6 +144,7 @@ class ReasoningEngine:
                 "enable_context": enable_context,
                 "enable_validation": enable_validation,
                 "has_context_engine": context_engine is not None,
+                "has_cross_source_engine": cross_source_engine is not None,
                 "context_top_k": context_top_k,
                 "context_min_relevance": context_min_relevance,
             }
@@ -340,9 +346,9 @@ class ReasoningEngine:
         wm.start_reasoning_pass(2, "context_enrichment")
 
         try:
-            context_items = []
+            context_items: list[ContextItem] = []
 
-            # Retrieve context from ContextEngine if available
+            # Retrieve context from ContextEngine (notes/knowledge base)
             if self.context_engine:
                 try:
                     result = self.context_engine.retrieve_context(
@@ -350,7 +356,7 @@ class ReasoningEngine:
                         top_k=self.context_top_k,
                         min_relevance=self.context_min_relevance
                     )
-                    context_items = result.context_items
+                    context_items = list(result.context_items)
 
                     # Add context to working memory
                     for ctx in context_items:
@@ -367,6 +373,24 @@ class ReasoningEngine:
                     )
                 except Exception as e:
                     logger.warning(f"Context retrieval failed: {e}")
+
+            # Retrieve context from CrossSourceEngine (calendar, teams, etc.)
+            cross_source_items = self._retrieve_cross_source_context(wm.event)
+            if cross_source_items:
+                context_items.extend(cross_source_items)
+
+                # Add cross-source context to working memory
+                for ctx in cross_source_items:
+                    wm.add_context_simple(
+                        source=ctx.source,
+                        type=ctx.type,
+                        content=ctx.content,
+                        relevance=ctx.relevance_score
+                    )
+
+                logger.debug(
+                    f"Retrieved {len(cross_source_items)} items from cross-source search"
+                )
 
             # Get Pass 1 hypothesis for re-analysis
             pass1_hyp = wm.get_hypothesis("pass1_initial")
@@ -455,6 +479,122 @@ class ReasoningEngine:
     def _parse_pass2_response(self, response: str) -> Optional[dict[str, Any]]:
         """Parse Pass 2 JSON response"""
         return self._extract_json(response)
+
+    def _retrieve_cross_source_context(
+        self,
+        event: PerceivedEvent
+    ) -> list[ContextItem]:
+        """
+        Retrieve context from CrossSourceEngine (calendar, teams, etc.)
+
+        Converts SourceItem results to ContextItem format for consistency
+        with the ContextEngine results.
+
+        Args:
+            event: PerceivedEvent to search context for
+
+        Returns:
+            List of ContextItem objects from cross-source search
+        """
+        if not self.cross_source_engine:
+            return []
+
+        import asyncio
+
+        context_items: list[ContextItem] = []
+
+        try:
+            # Build query from event title and content
+            query = f"{event.title}"
+            if event.content:
+                # Include first 500 chars of content for better search
+                query += f" {event.content[:500]}"
+
+            # Run async search in sync context
+            # Check if we're already in an event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, create a task
+                future = asyncio.ensure_future(
+                    self.cross_source_engine.search(query, max_results=5)
+                )
+                result = loop.run_until_complete(future)
+            except RuntimeError:
+                # No event loop running, create new one
+                result = asyncio.run(
+                    self.cross_source_engine.search(query, max_results=5)
+                )
+
+            # Convert SourceItem to ContextItem
+            for source_item in result.items:
+                # Map source type to context source
+                source_map = {
+                    "calendar": "cross_source_calendar",
+                    "icloud_calendar": "cross_source_calendar",
+                    "teams": "cross_source_teams",
+                    "email": "cross_source_email",
+                }
+                source = source_map.get(source_item.source, f"cross_source_{source_item.source}")
+
+                context_item = ContextItem(
+                    source=source,
+                    type=source_item.type,
+                    content=self._format_source_item_content(source_item),
+                    relevance_score=source_item.final_score or source_item.relevance_score,
+                    metadata={
+                        "source_type": source_item.source,
+                        "item_type": source_item.type,
+                        "title": source_item.title,
+                        "timestamp": source_item.timestamp.isoformat() if source_item.timestamp else None,
+                        "url": source_item.url,
+                        **source_item.metadata,
+                    }
+                )
+                context_items.append(context_item)
+
+            logger.debug(
+                f"Cross-source context: {len(context_items)} items",
+                extra={
+                    "query": query[:50],
+                    "sources": result.sources_searched,
+                    "total_found": result.total_results,
+                }
+            )
+
+        except Exception as e:
+            logger.warning(f"Cross-source retrieval failed: {e}")
+
+        return context_items
+
+    def _format_source_item_content(self, source_item: Any) -> str:
+        """
+        Format a SourceItem for inclusion in context.
+
+        Args:
+            source_item: SourceItem from CrossSourceEngine
+
+        Returns:
+            Formatted string content for the AI prompt
+        """
+        parts = []
+
+        if source_item.title:
+            parts.append(f"**{source_item.title}**")
+
+        if source_item.timestamp:
+            parts.append(f"Date: {source_item.timestamp.strftime('%Y-%m-%d %H:%M')}")
+
+        if source_item.source:
+            parts.append(f"Source: {source_item.source}")
+
+        if source_item.content:
+            # Limit content length
+            content = source_item.content[:1000]
+            if len(source_item.content) > 1000:
+                content += "..."
+            parts.append(f"\n{content}")
+
+        return "\n".join(parts)
 
     # ========================================================================
     # PASS 3: DEEP REASONING

@@ -117,10 +117,26 @@ class EmailProcessor:
             except Exception as e:
                 logger.warning(f"ContextEngine not available: {e}")
 
+        # Initialize CrossSourceEngine for multi-source context retrieval
+        cross_source_engine = None
+        try:
+            from src.passepartout.cross_source import create_cross_source_engine
+
+            cross_source_engine = create_cross_source_engine(self.config)
+            logger.info(
+                "CrossSourceEngine initialized for cognitive pipeline",
+                extra={
+                    "available_sources": cross_source_engine.available_sources,
+                }
+            )
+        except Exception as e:
+            logger.warning(f"CrossSourceEngine not available: {e}")
+
         self.cognitive_pipeline = CognitivePipeline(
             ai_router=self.ai_router,
             config=self.config.processing,
             context_engine=context_engine,
+            cross_source_engine=cross_source_engine,
         )
         logger.info(
             "Cognitive pipeline initialized",
@@ -129,6 +145,7 @@ class EmailProcessor:
                 "timeout_seconds": self.config.processing.cognitive_timeout_seconds,
                 "max_passes": self.config.processing.cognitive_max_passes,
                 "context_enabled": context_engine is not None,
+                "cross_source_enabled": cross_source_engine is not None,
             }
         )
 
