@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.jeeves.api.app import create_app
-from src.jeeves.api.deps import get_cached_config
+from src.jeeves.api.deps import get_cached_config, get_current_user
 from src.jeeves.api.models.stats import StatsBySourceResponse, StatsOverviewResponse
 from src.jeeves.api.services.stats_service import StatsService
 
@@ -28,20 +28,29 @@ def mock_config() -> MagicMock:
     account.enabled = True
     config.email.get_enabled_accounts.return_value = [account]
 
+    # Auth config - disable for tests
+    config.auth.enabled = False
+    config.auth.warn_disabled_in_production = False
+
     # Integration configs
     config.teams.enabled = True
     config.calendar.enabled = True
     config.briefing.enabled = True
     config.ai.model = "claude-3-5-haiku-20241022"
 
+    # Environment
+    config.environment = "test"
+
     return config
 
 
 @pytest.fixture
 def client(mock_config: MagicMock) -> TestClient:
-    """Create test client with mocked config"""
+    """Create test client with mocked config and disabled auth"""
     app = create_app()
     app.dependency_overrides[get_cached_config] = lambda: mock_config
+    # Disable auth by returning None (simulates auth disabled)
+    app.dependency_overrides[get_current_user] = lambda: None
     yield TestClient(app)
     app.dependency_overrides.clear()
 

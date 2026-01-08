@@ -112,6 +112,13 @@ class NotificationService:
                 ON notifications(expires_at)
             """)
 
+            # Composite index for efficient list queries
+            # Covers: WHERE user_id=? AND expires_at>? ORDER BY created_at DESC
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_notifications_user_active
+                ON notifications(user_id, expires_at DESC, is_read, created_at DESC)
+            """)
+
             conn.commit()
 
     def _row_to_notification(self, row: sqlite3.Row) -> NotificationResponse:
@@ -331,7 +338,7 @@ class NotificationService:
     async def mark_read(
         self,
         user_id: str,
-        notification_ids: Optional[List[str]] = None,
+        notification_ids: Optional[List[str]] = None,  # noqa: UP006
         mark_all: bool = False,
     ) -> MarkReadResponse:
         """

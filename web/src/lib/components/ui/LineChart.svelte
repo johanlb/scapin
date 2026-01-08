@@ -17,40 +17,95 @@
 	// Chart dimensions
 	const padding = { top: 20, right: 20, bottom: 30, left: 40 };
 
-	// Calculate chart bounds from data
-	const chartData = $derived(() => {
+	// Maximum data points before downsampling (for performance)
+	const MAX_DATA_POINTS = 100;
+
+	/**
+	 * Downsample data points for performance
+	 * Uses LTTB (Largest Triangle Three Buckets) simplification
+	 */
+	function downsampleData<T extends { value: number }>(data: T[], targetPoints: number): T[] {
+		if (data.length <= targetPoints) return data;
+
+		const sampled: T[] = [];
+		const bucketSize = (data.length - 2) / (targetPoints - 2);
+
+		// Always keep first point
+		sampled.push(data[0]);
+
+		for (let i = 0; i < targetPoints - 2; i++) {
+			const bucketStart = Math.floor((i + 0) * bucketSize) + 1;
+			const bucketEnd = Math.floor((i + 1) * bucketSize) + 1;
+
+			// Find point with largest triangle area in bucket
+			let maxArea = -1;
+			let maxIndex = bucketStart;
+
+			const prevPoint = sampled[sampled.length - 1];
+
+			for (let j = bucketStart; j < bucketEnd && j < data.length - 1; j++) {
+				// Calculate triangle area
+				const area = Math.abs(
+					(prevPoint.value - data[j].value) * (j - sampled.length) -
+					(prevPoint.value - data[data.length - 1].value) * (j - sampled.length)
+				);
+				if (area > maxArea) {
+					maxArea = area;
+					maxIndex = j;
+				}
+			}
+
+			sampled.push(data[maxIndex]);
+		}
+
+		// Always keep last point
+		sampled.push(data[data.length - 1]);
+
+		return sampled;
+	}
+
+	// Calculate chart bounds from data (with downsampling)
+	const chartData = $derived.by(() => {
 		if (!trends.length || !trends[0].data.length) {
 			return {
 				maxValue: 100,
 				minValue: 0,
 				dates: [] as string[],
-				width: 400
+				width: 400,
+				sampledTrends: [] as typeof trends
 			};
 		}
 
-		const allValues = trends.flatMap(t => t.data.map(d => d.value));
+		// Downsample trends if needed for performance
+		const sampledTrends = trends.map(trend => ({
+			...trend,
+			data: downsampleData(trend.data, MAX_DATA_POINTS)
+		}));
+
+		const allValues = sampledTrends.flatMap(t => t.data.map(d => d.value));
 		const maxValue = Math.max(...allValues, 10); // Minimum 10 for scale
 		const minValue = Math.min(...allValues, 0);
-		const dates = trends[0].data.map(d => d.date);
+		const dates = sampledTrends[0].data.map(d => d.date);
 
 		return {
 			maxValue,
 			minValue,
 			dates,
-			width: Math.max(400, dates.length * 30)
+			width: Math.max(400, dates.length * 30),
+			sampledTrends
 		};
 	});
 
-	// Calculate point positions for a trend line
-	function getPoints(trend: SourceTrend, width: number): string {
-		const { maxValue, dates } = chartData();
+	// Calculate point positions for a trend line (using sampled data)
+	function getPoints(trend: (typeof chartData.sampledTrends)[number], width: number): string {
+		const { maxValue, dates } = chartData;
 		if (!dates.length) return '';
 
 		const chartWidth = width - padding.left - padding.right;
 		const chartHeight = height - padding.top - padding.bottom;
 
 		return trend.data.map((point, i) => {
-			const x = padding.left + (i / (dates.length - 1)) * chartWidth;
+			const x = padding.left + (i / (dates.length - 1 || 1)) * chartWidth;
 			const y = padding.top + chartHeight - (point.value / maxValue) * chartHeight;
 			return `${x},${y}`;
 		}).join(' ');
@@ -69,8 +124,8 @@
 	}
 
 	// Get Y-axis ticks
-	const yTicks = $derived(() => {
-		const { maxValue } = chartData();
+	const yTicks = $derived.by(() => {
+		const { maxValue } = chartData;
 		const step = Math.ceil(maxValue / 4);
 		return [0, step, step * 2, step * 3, maxValue].filter(v => v <= maxValue);
 	});
@@ -102,17 +157,17 @@
 		<svg
 			width="100%"
 			height={height}
-			viewBox="0 0 {chartData().width} {height}"
+			viewBox="0 0 {chartData.width} {height}"
 			preserveAspectRatio="xMidYMid meet"
 			class="overflow-visible"
 		>
 			<!-- Y-axis grid lines -->
-			{#each yTicks() as tick}
-				{@const y = padding.top + (height - padding.top - padding.bottom) * (1 - tick / chartData().maxValue)}
+			{#each yTicks as tick}
+				{@const y = padding.top + (height - padding.top - padding.bottom) * (1 - tick / chartData.maxValue)}
 				<line
 					x1={padding.left}
 					y1={y}
-					x2={chartData().width - padding.right}
+					x2={chartData.width - padding.right}
 					y2={y}
 					stroke="var(--color-border)"
 					stroke-dasharray="2,2"
@@ -129,9 +184,9 @@
 			{/each}
 
 			<!-- X-axis date labels (show a subset) -->
-			{#each chartData().dates as date, i}
-				{#if i % Math.ceil(chartData().dates.length / 7) === 0 || i === chartData().dates.length - 1}
-					{@const x = padding.left + (i / (chartData().dates.length - 1)) * (chartData().width - padding.left - padding.right)}
+			{#each chartData.dates as date, i}
+				{#if i % Math.ceil(chartData.dates.length / 7) === 0 || i === chartData.dates.length - 1}
+					{@const x = padding.left + (i / (chartData.dates.length - 1 || 1)) * (chartData.width - padding.left - padding.right)}
 					<text
 						x={x}
 						y={height - 8}
@@ -143,10 +198,10 @@
 				{/if}
 			{/each}
 
-			<!-- Trend lines -->
-			{#each trends as trend}
+			<!-- Trend lines (using sampled data for performance) -->
+			{#each chartData.sampledTrends as trend}
 				<polyline
-					points={getPoints(trend, chartData().width)}
+					points={getPoints(trend, chartData.width)}
 					fill="none"
 					stroke={trend.color}
 					stroke-width="2"
@@ -158,15 +213,15 @@
 
 				<!-- Area fill under line -->
 				<polygon
-					points="{padding.left},{height - padding.bottom} {getPoints(trend, chartData().width)} {chartData().width - padding.right},{height - padding.bottom}"
+					points="{padding.left},{height - padding.bottom} {getPoints(trend, chartData.width)} {chartData.width - padding.right},{height - padding.bottom}"
 					fill={trend.color}
 					opacity="0.1"
 				/>
 
 				<!-- Data points -->
 				{#each trend.data as point, i}
-					{@const x = padding.left + (i / (chartData().dates.length - 1)) * (chartData().width - padding.left - padding.right)}
-					{@const y = padding.top + (height - padding.top - padding.bottom) * (1 - point.value / chartData().maxValue)}
+					{@const x = padding.left + (i / (chartData.dates.length - 1 || 1)) * (chartData.width - padding.left - padding.right)}
+					{@const y = padding.top + (height - padding.top - padding.bottom) * (1 - point.value / chartData.maxValue)}
 					<circle
 						cx={x}
 						cy={y}

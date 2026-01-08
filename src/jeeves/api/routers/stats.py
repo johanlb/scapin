@@ -9,6 +9,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from src.jeeves.api.deps import get_current_user
 from src.jeeves.api.models.responses import APIResponse
 from src.jeeves.api.models.stats import (
     StatsBySourceResponse,
@@ -16,6 +17,9 @@ from src.jeeves.api.models.stats import (
     StatsTrendsResponse,
 )
 from src.jeeves.api.services.stats_service import StatsService
+from src.monitoring.logger import get_logger
+
+logger = get_logger("api.stats")
 
 router = APIRouter()
 
@@ -28,6 +32,7 @@ def _get_stats_service() -> StatsService:
 @router.get("/overview", response_model=APIResponse[StatsOverviewResponse])
 async def get_stats_overview(
     service: StatsService = Depends(_get_stats_service),
+    _user: str = Depends(get_current_user),
 ) -> APIResponse[StatsOverviewResponse]:
     """
     Get aggregated statistics overview
@@ -44,12 +49,14 @@ async def get_stats_overview(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get stats overview: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve statistics") from e
 
 
 @router.get("/by-source", response_model=APIResponse[StatsBySourceResponse])
 async def get_stats_by_source(
     service: StatsService = Depends(_get_stats_service),
+    _user: str = Depends(get_current_user),
 ) -> APIResponse[StatsBySourceResponse]:
     """
     Get detailed statistics per source
@@ -66,7 +73,8 @@ async def get_stats_by_source(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get stats by source: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve statistics") from e
 
 
 @router.get("/trends", response_model=APIResponse[StatsTrendsResponse])
@@ -75,6 +83,7 @@ async def get_stats_trends(
         "7d", description="Time period for trends (7d or 30d)"
     ),
     service: StatsService = Depends(_get_stats_service),
+    _user: str = Depends(get_current_user),
 ) -> APIResponse[StatsTrendsResponse]:
     """
     Get historical trends for charts
@@ -91,4 +100,5 @@ async def get_stats_trends(
             timestamp=datetime.now(timezone.utc),
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.error(f"Failed to get stats trends: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve trends") from e

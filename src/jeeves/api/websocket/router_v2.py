@@ -8,6 +8,7 @@ Authentication via first message: {"type": "auth", "token": "JWT"}
 """
 
 import json
+import time
 from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -22,6 +23,10 @@ from src.jeeves.api.websocket.channels import (
 from src.monitoring.logger import ScapinLogger
 
 logger = ScapinLogger.get_logger(__name__)
+
+# Rate limiting configuration
+RATE_LIMIT_MESSAGES = 30  # Max messages
+RATE_LIMIT_WINDOW = 60  # Per 60 seconds
 
 router = APIRouter()
 
@@ -86,10 +91,29 @@ async def handle_client_messages(
         - {"type": "ping"} → {"type": "pong"}
         - {"type": "subscribe", "channel": "...", "room_id": "..."} → Subscribe to channel
         - {"type": "unsubscribe", "channel": "...", "room_id": "..."} → Unsubscribe
+
+    Includes rate limiting to prevent abuse.
     """
+    # Rate limiting state
+    message_times: list[float] = []
+
     while True:
         try:
             data = await websocket.receive_text()
+
+            # Rate limiting check
+            now = time.time()
+            # Remove old timestamps outside the window
+            message_times = [t for t in message_times if now - t < RATE_LIMIT_WINDOW]
+            message_times.append(now)
+
+            if len(message_times) > RATE_LIMIT_MESSAGES:
+                logger.warning(f"Rate limit exceeded for user {user_id}")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Rate limit exceeded. Please slow down.",
+                })
+                continue
 
             # Handle ping/pong
             if data == "ping":
@@ -138,7 +162,7 @@ async def handle_client_messages(
                         "success": success,
                     })
                 except ValueError:
-                    pass
+                    logger.warning(f"Invalid channel for unsubscribe: {channel_str}")
 
             else:
                 logger.debug(f"Unknown message type from {user_id}: {msg_type}")

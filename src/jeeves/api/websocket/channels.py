@@ -3,17 +3,24 @@ WebSocket Channel Manager
 
 Manages WebSocket channels for topic-based subscriptions.
 Supports: events, status, notifications, discussions/{id}
+
+Bridges EventBus events to EVENTS channel subscribers.
 """
 
 import asyncio
 import json
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
 from fastapi import WebSocket
 
+from src.core.processing_events import (
+    ProcessingEvent,
+    ProcessingEventType,
+    get_event_bus,
+)
 from src.monitoring.logger import ScapinLogger
 
 logger = ScapinLogger.get_logger(__name__)
@@ -78,6 +85,7 @@ class ChannelManager:
     Manages WebSocket channels and client subscriptions
 
     Thread-safe for concurrent connections and broadcasts.
+    Bridges EventBus events to EVENTS channel subscribers.
 
     Usage:
         manager = ChannelManager()
@@ -91,7 +99,64 @@ class ChannelManager:
         """Initialize channel manager"""
         self._clients: dict[WebSocket, ConnectedClient] = {}
         self._lock = asyncio.Lock()
+        self._event_bus = get_event_bus()
+        self._eventbus_subscribed = False
         logger.info("WebSocket ChannelManager initialized")
+
+    def _subscribe_to_eventbus(self) -> None:
+        """Subscribe to EventBus for bridging events to WebSocket"""
+        if self._eventbus_subscribed:
+            return
+
+        for event_type in ProcessingEventType:
+            self._event_bus.subscribe(event_type, self._on_processing_event)
+
+        self._eventbus_subscribed = True
+        logger.debug("ChannelManager subscribed to EventBus")
+
+    def _unsubscribe_from_eventbus(self) -> None:
+        """Unsubscribe from EventBus"""
+        if not self._eventbus_subscribed:
+            return
+
+        for event_type in ProcessingEventType:
+            self._event_bus.unsubscribe(event_type, self._on_processing_event)
+
+        self._eventbus_subscribed = False
+        logger.debug("ChannelManager unsubscribed from EventBus")
+
+    def _on_processing_event(self, event: ProcessingEvent) -> None:
+        """
+        Callback for EventBus events - bridges to EVENTS channel
+
+        Schedules async broadcast in the event loop.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            # Convert ProcessingEvent to message dict
+            message = self._event_to_dict(event)
+            loop.create_task(self.broadcast_to_channel(ChannelType.EVENTS, message))
+        except RuntimeError:
+            # No running event loop - log and skip
+            logger.debug(f"No event loop for EventBus bridge: {event.event_type.value}")
+
+    def _event_to_dict(self, event: ProcessingEvent) -> dict:
+        """Convert ProcessingEvent to JSON-serializable dict"""
+        data = asdict(event)
+
+        # Convert enum to string
+        data["event_type"] = event.event_type.value
+
+        # Convert datetime to ISO format
+        if event.timestamp:
+            data["timestamp"] = event.timestamp.isoformat()
+        if event.email_date:
+            data["email_date"] = event.email_date.isoformat()
+
+        return {
+            "type": "processing_event",
+            "data": data,
+        }
 
     async def connect(
         self,
@@ -119,11 +184,16 @@ class ChannelManager:
                     client.subscribe(channel)
 
             self._clients[websocket] = client
+            client_count = len(self._clients)
+
+            # Subscribe to EventBus when first client connects
+            if client_count == 1:
+                self._subscribe_to_eventbus()
 
         logger.info(
             f"Client connected: {user_id}, "
             f"subscriptions: {[s.channel.value for s in client.subscriptions]}, "
-            f"total clients: {len(self._clients)}"
+            f"total clients: {client_count}"
         )
 
         return client
@@ -133,7 +203,13 @@ class ChannelManager:
         async with self._lock:
             if websocket in self._clients:
                 client = self._clients.pop(websocket)
-                logger.info(f"Client disconnected: {client.user_id}, total: {len(self._clients)}")
+                client_count = len(self._clients)
+
+                # Unsubscribe from EventBus when last client disconnects
+                if client_count == 0:
+                    self._unsubscribe_from_eventbus()
+
+                logger.info(f"Client disconnected: {client.user_id}, total: {client_count}")
 
     async def subscribe(
         self,
@@ -202,13 +278,17 @@ class ChannelManager:
         Returns:
             Number of clients that received the message
         """
+        # Quick snapshot of clients under lock
         async with self._lock:
-            subscribers = [
-                client
-                for client in self._clients.values()
-                if client.is_subscribed(channel, room_id)
-                and client.websocket != exclude_websocket
-            ]
+            clients_snapshot = list(self._clients.values())
+
+        # Filter subscribers outside the lock
+        subscribers = [
+            client
+            for client in clients_snapshot
+            if client.is_subscribed(channel, room_id)
+            and client.websocket != exclude_websocket
+        ]
 
         if not subscribers:
             return 0
@@ -221,15 +301,27 @@ class ChannelManager:
             **message,
         }
 
-        disconnected: list[WebSocket] = []
-        sent_count = 0
+        # Serialize once for all clients
+        message_text = json.dumps(enriched_message, default=str)
 
-        for client in subscribers:
+        # Send in parallel using asyncio.gather
+        async def send_to_client(client: ConnectedClient) -> tuple[ConnectedClient, bool]:
             try:
-                await client.websocket.send_text(json.dumps(enriched_message, default=str))
-                sent_count += 1
+                await client.websocket.send_text(message_text)
+                return (client, True)
             except Exception as e:
                 logger.warning(f"Failed to send to {client.user_id}: {e}")
+                return (client, False)
+
+        results = await asyncio.gather(*[send_to_client(c) for c in subscribers])
+
+        # Process results
+        disconnected: list[WebSocket] = []
+        sent_count = 0
+        for client, success in results:
+            if success:
+                sent_count += 1
+            else:
                 disconnected.append(client.websocket)
 
         # Clean up disconnected clients
@@ -255,8 +347,12 @@ class ChannelManager:
         Returns:
             Number of connections that received the message
         """
+        # Quick snapshot of clients under lock
         async with self._lock:
-            user_clients = [c for c in self._clients.values() if c.user_id == user_id]
+            clients_snapshot = list(self._clients.values())
+
+        # Filter user clients outside the lock
+        user_clients = [c for c in clients_snapshot if c.user_id == user_id]
 
         if not user_clients:
             return 0
@@ -267,14 +363,27 @@ class ChannelManager:
             **message,
         }
 
+        # Serialize once for all clients
+        message_text = json.dumps(enriched_message, default=str)
+
+        # Send in parallel
+        async def send_to_client(client: ConnectedClient) -> tuple[ConnectedClient, bool]:
+            try:
+                await client.websocket.send_text(message_text)
+                return (client, True)
+            except Exception as e:
+                logger.warning(f"Failed to send to user {user_id}: {e}")
+                return (client, False)
+
+        results = await asyncio.gather(*[send_to_client(c) for c in user_clients])
+
+        # Process results
         disconnected: list[WebSocket] = []
         sent_count = 0
-
-        for client in user_clients:
-            try:
-                await client.websocket.send_text(json.dumps(enriched_message, default=str))
+        for client, success in results:
+            if success:
                 sent_count += 1
-            except Exception:
+            else:
                 disconnected.append(client.websocket)
 
         for ws in disconnected:

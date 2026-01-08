@@ -4,6 +4,8 @@ FastAPI Application
 Main FastAPI application configuration and setup.
 """
 
+import asyncio
+import contextlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -32,10 +34,34 @@ from src.jeeves.api.routers import (
     teams_router,
     valets_router,
 )
+from src.jeeves.api.services.notification_service import get_notification_service
 from src.jeeves.api.websocket import ws_router
 from src.monitoring.logger import get_logger
 
 logger = get_logger("jeeves.api")
+
+# Cleanup interval in seconds (1 hour)
+NOTIFICATION_CLEANUP_INTERVAL = 3600
+
+
+async def notification_cleanup_task() -> None:
+    """
+    Background task to periodically clean up expired notifications.
+
+    Runs every NOTIFICATION_CLEANUP_INTERVAL seconds.
+    """
+    while True:
+        try:
+            await asyncio.sleep(NOTIFICATION_CLEANUP_INTERVAL)
+            service = get_notification_service()
+            deleted = await service.cleanup_expired()
+            if deleted > 0:
+                logger.info(f"Notification cleanup: removed {deleted} expired notifications")
+        except asyncio.CancelledError:
+            logger.debug("Notification cleanup task cancelled")
+            break
+        except Exception as e:
+            logger.warning(f"Notification cleanup error: {e}")
 
 
 @asynccontextmanager
@@ -55,7 +81,16 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             "Set AUTH__ENABLED=true or ENVIRONMENT=development"
         )
 
+    # Start background cleanup task for notifications
+    cleanup_task = asyncio.create_task(notification_cleanup_task())
+
     yield
+
+    # Cancel cleanup task on shutdown
+    cleanup_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await cleanup_task
+
     logger.info("Shutting down Scapin API server")
 
 
