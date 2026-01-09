@@ -2,9 +2,9 @@
 
 **Dernière mise à jour** : 9 janvier 2026
 **Total items** : 139
-**MVP** : 86 | **Nice-to-have** : 53 | **Complétés** : 80
-**Sprint actuel** : Sprint 5 — Qualité & Release (0/6 — 0%)
-**Prochaine priorité** : Tests E2E Playwright, Lighthouse > 90, Guide Utilisateur
+**MVP** : 86 | **Nice-to-have** : 53 | **Complétés** : 81
+**Sprint actuel** : Sprint 5 — Qualité & Release (1/6 — 17%)
+**Prochaine priorité** : Lighthouse > 90, Guide Utilisateur, Audit sécurité
 
 ---
 
@@ -282,7 +282,7 @@
 
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Tests E2E Playwright (toutes pages, desktop + mobile) | MVP |
+| ✅ | Tests E2E Playwright (toutes pages, desktop + mobile) | MVP |
 | ⬜ | Performance Lighthouse > 90 (toutes métriques) | MVP |
 | ⬜ | Guide utilisateur complet (7 sections) | MVP |
 | ⬜ | Page /help in-app | MVP |
@@ -357,38 +357,38 @@
 | Cognitif | 3 | 0 | 3 | 1 |
 | Phase 0.9+ | 3 | 0 | 3 | 0 |
 | UI Components | 6 | 6 | 0 | 6 ✅ |
-| Qualité & Docs | 6 | 6 | 0 | 0 |
+| Qualité & Docs | 6 | 6 | 0 | 1 |
 | **✅ Cross-Source** | **12** | **12** | **0** | **12 ✅** |
 | **✅ Valets Dashboard** | **4** | **4** | **0** | **4 ✅** |
-| **TOTAL** | **139** | **86** | **53** | **80** |
+| **TOTAL** | **139** | **86** | **53** | **81** |
 
 ---
 
 ## Progression
 
 ```
-MVP:          ██████████████████░░ 80/86 (93%)
+MVP:          ██████████████████░░ 81/86 (94%)
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 7/53 (13%)
-Total:        █████████████████░░░ 87/139 (63%)
+Total:        █████████████████░░░ 88/139 (63%)
 
 Sprint 1:     ████████████████████ 19/19 (100%) ✅
 Sprint 2:     ████████████████████ 13/13 (100%) ✅
 Sprint 3:     ████████████████████ 18/18 (100%) ✅
 Cross-Source: ████████████████████ 12/12 (100%) ✅
 Sprint 4:     ████████████████████ 18/18 (100%) ✅
-Sprint 5:     ░░░░░░░░░░░░░░░░░░░░  0/6  (0%)  📋 PRÊT
+Sprint 5:     ███░░░░░░░░░░░░░░░░░  1/6  (17%) 🟡 EN COURS
 ```
 
 ---
 
-## 15. Sprint 5 : Qualité & Release (6 items) — 📋 PRÊT
+## 15. Sprint 5 : Qualité & Release (6 items) — 🟡 EN COURS
 
 > **Objectif** : v1.0 Release Candidate
 > **Spécification** : [SPRINT_5_SPEC.md](specs/SPRINT_5_SPEC.md)
 
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Tests E2E Playwright (toutes pages, desktop + mobile) | MVP |
+| ✅ | Tests E2E Playwright (132 tests × 5 browsers = 660 tests) | MVP |
 | ⬜ | Performance Lighthouse > 90 (toutes métriques) | MVP |
 | ⬜ | Guide utilisateur complet (7 sections) | MVP |
 | ⬜ | Page /help in-app | MVP |
@@ -401,7 +401,8 @@ Sprint 5:     ░░░░░░░░░░░░░░░░░░░░  0/6 
 
 | Date | Action |
 |------|--------|
-| 2026-01-09 | **Sprint 5 PLANIFIÉ 📋** — Tests E2E, Lighthouse > 90, Guide utilisateur, Audit sécurité |
+| 2026-01-09 | **Tests E2E COMPLÉTÉS ✅** — 132 tests × 5 browsers = 660 tests (10 fichiers: login, briefing, flux, notes, discussions, journal, stats, settings, search, notifications) |
+| 2026-01-09 | **Sprint 5 DÉMARRÉ 🟡** — Tests E2E, Lighthouse > 90, Guide utilisateur, Audit sécurité |
 | 2026-01-09 | **Sprint 4 COMPLÉTÉ ✅** — WebSocket (4), Notifications (9), Valets Dashboard (4), UX Avancée (raccourcis, focus, swipe) |
 | 2026-01-09 | **Sprint 3 COMPLÉTÉ ✅** — Vue détail email, Snooze/Undo, Teams read/unread, Calendar CRUD (62 items total) |
 | 2026-01-08 | **Cross-Source COMPLET ✅** — WhatsApp, Files, Web adapters (112 tests total) |
