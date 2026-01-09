@@ -569,7 +569,7 @@ class NoteManager:
             List of Note objects
         """
         notes = []
-        for file_path in self.notes_dir.glob("*.md"):
+        for file_path in self.notes_dir.rglob("*.md"):
             note = self._read_note_file(file_path)
             if note:
                 notes.append(note)
@@ -597,7 +597,7 @@ class NoteManager:
         notes_to_index: list[tuple[Note, str, dict[str, Any]]] = []
         count = 0
 
-        for file_path in self.notes_dir.glob("*.md"):
+        for file_path in self.notes_dir.rglob("*.md"):
             try:
                 note = self._read_note_file(file_path)
                 if note:
@@ -827,7 +827,17 @@ class NoteManager:
                 return None
 
             frontmatter_str, body = match.groups()
-            frontmatter = yaml.safe_load(frontmatter_str)
+
+            # Try to parse YAML frontmatter, with fallback for malformed YAML
+            try:
+                frontmatter = yaml.safe_load(frontmatter_str) or {}
+            except yaml.YAMLError as yaml_err:
+                # Fallback: create minimal frontmatter from filename
+                logger.warning(
+                    "YAML parsing failed, using filename as title",
+                    extra={"file_path": str(file_path), "error": str(yaml_err)}
+                )
+                frontmatter = {}
 
             # Extract note ID from filename
             note_id = file_path.stem
@@ -841,13 +851,39 @@ class NoteManager:
                     confidence=e_dict.get("confidence", 1.0)
                 ))
 
+            # Get dates - support both formats (created_at/updated_at and created/modified)
+            # Use file modification time as fallback
+            # PyYAML may parse ISO dates as datetime objects automatically
+            file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+
+            created_at_raw = frontmatter.get("created_at") or frontmatter.get("created")
+            updated_at_raw = frontmatter.get("updated_at") or frontmatter.get("modified")
+
+            # Handle both string and datetime (YAML may parse dates automatically)
+            if isinstance(created_at_raw, datetime):
+                created_at = created_at_raw
+            elif created_at_raw:
+                created_at = datetime.fromisoformat(str(created_at_raw))
+            else:
+                created_at = file_mtime
+
+            if isinstance(updated_at_raw, datetime):
+                updated_at = updated_at_raw
+            elif updated_at_raw:
+                updated_at = datetime.fromisoformat(str(updated_at_raw))
+            else:
+                updated_at = file_mtime
+
+            # Get title - use filename as fallback
+            title = frontmatter.get("title") or file_path.stem
+
             # Create Note object
             note = Note(
                 note_id=note_id,
-                title=frontmatter["title"],
+                title=title,
                 content=body.strip(),
-                created_at=datetime.fromisoformat(frontmatter["created_at"]),
-                updated_at=datetime.fromisoformat(frontmatter["updated_at"]),
+                created_at=created_at,
+                updated_at=updated_at,
                 tags=frontmatter.get("tags", []),
                 entities=entities,
                 metadata=frontmatter.get("metadata", {}),

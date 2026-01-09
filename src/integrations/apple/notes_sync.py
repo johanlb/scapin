@@ -531,14 +531,50 @@ class AppleNotesSync:
         title = scapin_path.stem
         return self.client.update_note(apple_id, title=title, body_html=html_body)
 
+    def _yaml_safe_string(self, value: str) -> str:
+        """
+        Format a string value for YAML safely.
+
+        Quotes strings that contain special YAML characters:
+        - Colon followed by space (:)
+        - Leading dash (-)
+        - Brackets ([ ])
+        - Hash (#)
+        - Other special chars that could break parsing
+        """
+        # Characters that require quoting
+        needs_quoting = (
+            ": " in value
+            or value.startswith("-")
+            or value.startswith("[")
+            or "#" in value
+            or value.startswith("@")
+            or value.startswith("!")
+            or value.startswith("&")
+            or value.startswith("*")
+            or value.startswith(">")
+            or value.startswith("|")
+            or "'" in value
+            or '"' in value
+        )
+
+        if needs_quoting:
+            # Escape double quotes and wrap in double quotes
+            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+            return f'"{escaped}"'
+        return value
+
     def _format_scapin_note(self, apple_note: AppleNote) -> str:
         """Format an Apple note as Scapin Markdown"""
-        # Add frontmatter with metadata
+        # Add frontmatter with metadata - properly quote strings
+        safe_title = self._yaml_safe_string(apple_note.name)
+        safe_folder = self._yaml_safe_string(apple_note.folder)
+
         frontmatter = f"""---
-title: {apple_note.name}
+title: {safe_title}
 source: apple_notes
 apple_id: {apple_note.id}
-apple_folder: {apple_note.folder}
+apple_folder: {safe_folder}
 created: {apple_note.created_at.isoformat()}
 modified: {apple_note.modified_at.isoformat()}
 synced: {datetime.now(timezone.utc).isoformat()}
