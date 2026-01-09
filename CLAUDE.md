@@ -2926,7 +2926,7 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 ### Sprint 5 : Qualité & Release — EN COURS 🚧
 
 **Objectif** : v1.0 Release Candidate
-**Statut** : 4/6 items MVP (67%)
+**Statut** : 5/6 items MVP (83%)
 **Spécification** : [SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)
 
 **Items complétés** :
@@ -2940,9 +2940,13 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
   - `docs/user-guide/` avec README + 7 sections
 - ✅ Page /help in-app
   - `web/src/routes/help/+page.svelte`
+- ✅ Audit sécurité OWASP + dépendances
+  - Rapport détaillé: `reports/security/AUDIT_REPORT.md`
+  - pip-audit: urllib3 corrigé 2.6.2 → 2.6.3
+  - bandit: Tous faux positifs ou risques acceptables documentés
+  - OWASP Top 10: Conforme
 
 **Items restants** :
-- ⬜ Audit sécurité OWASP + dépendances
 - ⬜ Revue code finale
 
 #### Décisions Validées (9 janvier 2026)
@@ -2962,9 +2966,9 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 |---|------|----------|--------|
 | 1 | Tests E2E Playwright | MVP | ✅ |
 | 2 | Lighthouse audit | MVP | ✅ |
-| 3 | Guide utilisateur (7 sections Markdown) | MVP | ⬜ |
-| 4 | Page /help in-app | MVP | ⬜ |
-| 5 | Audit sécurité OWASP + dépendances | MVP | ⬜ |
+| 3 | Guide utilisateur (7 sections Markdown) | MVP | ✅ |
+| 4 | Page /help in-app | MVP | ✅ |
+| 5 | Audit sécurité OWASP + dépendances | MVP | ✅ |
 | 6 | Revue code finale | — | ⬜ |
 
 #### Ordre d'Exécution
@@ -2995,12 +2999,12 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - [x] Tests E2E passent (desktop + mobile, 3 navigateurs) — 660 tests ✅
 - [x] Lighthouse audité (A11y 98%, BP 96%, SEO 100%, Perf 86-95%) ✅
 - [x] Guide utilisateur complet (7 sections + /help in-app) ✅
-- [ ] Zéro bug critique connu
-- [ ] Audit sécurité validé (0 CRITICAL/HIGH non résolu)
+- [x] Zéro bug critique connu ✅
+- [x] Audit sécurité validé (0 CRITICAL/HIGH non résolu) ✅
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (2 MVP restants sur 86).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (1 MVP restant sur 86).
 
 ---
 
