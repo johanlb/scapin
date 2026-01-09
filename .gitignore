@@ -298,3 +298,11 @@ docker-compose.override.yml
 *.mov
 *.avi
 *.mkv
+
+# ============================================================================
+# BACKUPS & REPORTS
+# ============================================================================
+backups/
+reports/lighthouse/*.html
+reports/lighthouse/*.json
+web/playwright-report/
