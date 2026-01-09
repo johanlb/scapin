@@ -1,10 +1,10 @@
 # Suivi des Écarts — Scapin
 
 **Dernière mise à jour** : 9 janvier 2026
-**Total items** : 133
-**MVP** : 80 | **Nice-to-have** : 53 | **Complétés** : 62
-**Sprint actuel** : Sprint 4 — Temps Réel & UX (0/18 — 0%)
-**Prochaine priorité** : WebSocket Infrastructure, Notifications, Valets Dashboard
+**Total items** : 139
+**MVP** : 86 | **Nice-to-have** : 53 | **Complétés** : 80
+**Sprint actuel** : Sprint 5 — Qualité & Release (0/6 — 0%)
+**Prochaine priorité** : Tests E2E Playwright, Lighthouse > 90, Guide Utilisateur
 
 ---
 
@@ -181,9 +181,9 @@
 ### Autres APIs (11)
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | GET/POST /api/focus - mode focus | MVP |
+| ✅ | GET/POST /api/focus - mode focus | MVP |
 | ⬜ | CRUD /api/filters - filtres sauvegardés | Nice-to-have |
-| ⬜ | CRUD /api/notifications - centre notifications | MVP |
+| ✅ | CRUD /api/notifications - centre notifications | MVP |
 | ⬜ | CRUD /api/tags + association événements | Nice-to-have |
 | ⬜ | CRUD annotations sur événements | Nice-to-have |
 | ⬜ | CRUD /api/templates - templates notes | Nice-to-have |
@@ -192,32 +192,32 @@
 
 ---
 
-## 6. WebSocket (4 items)
+## 6. WebSocket (4 items) — ✅ COMPLÉTÉ
 
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | /ws/events - événements temps réel | MVP |
-| ⬜ | /ws/discussions/{id} - chat temps réel | MVP |
-| ⬜ | /ws/status - status Scapin temps réel | MVP |
-| ⬜ | /ws/notifications - push notifications | MVP |
+| ✅ | /ws/events - événements temps réel | MVP |
+| ✅ | /ws/discussions/{id} - chat temps réel | MVP |
+| ✅ | /ws/status - status Scapin temps réel | MVP |
+| ✅ | /ws/notifications - push notifications | MVP |
 
 ---
 
-## 7. UX Avancée (17 items)
+## 7. UX Avancée (17 items) — MVP ✅ COMPLÉTÉ
 
-### MVP (10)
+### MVP (10) — ✅ COMPLÉTÉ
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Mode Focus / Do Not Disturb | MVP |
-| ⬜ | Quick Actions dans Briefing (boutons rapides items urgents) | MVP |
-| ⬜ | Centre de Notifications (panneau) | MVP |
-| ⬜ | Snooze événements avec rappel | MVP |
-| ⬜ | Raccourcis clavier complets (?, 1/2/3, j/k, etc.) | MVP |
-| ⬜ | Mode traitement focus pleine page | MVP |
-| ⬜ | Swipe gestures mobile complet | MVP |
+| ✅ | Mode Focus / Do Not Disturb | MVP |
+| ✅ | Quick Actions dans Briefing (boutons rapides items urgents) | MVP |
+| ✅ | Centre de Notifications (panneau) | MVP |
+| ✅ | Snooze événements avec rappel | MVP |
+| ✅ | Raccourcis clavier complets (?, 1/2/3, j/k, etc.) | MVP |
+| ✅ | Mode traitement focus pleine page | MVP |
+| ✅ | Swipe gestures mobile complet | MVP |
 | ✅ | Page Discussions multi-sessions | MVP |
-| ⬜ | Page Stats avec Pipeline valets | MVP |
-| ⬜ | Settings: onglets Comptes/Intégrations/IA/Notifications | MVP |
+| ✅ | Page Stats avec Pipeline valets | MVP |
+| ✅ | Settings: onglets Comptes/Intégrations/IA/Notifications | MVP |
 
 ### Nice-to-have (7)
 | Status | Item | Priorité |
@@ -278,13 +278,16 @@
 
 ---
 
-## 12. Qualité & Documentation (3 items)
+## 12. Qualité & Documentation (6 items) → Voir Sprint 5
 
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Tests E2E Playwright (scénarios critiques) | MVP |
-| ⬜ | Performance Lighthouse > 80 (PWA) | MVP |
-| ⬜ | Documentation utilisateur (guide démarrage) | MVP |
+| ⬜ | Tests E2E Playwright (toutes pages, desktop + mobile) | MVP |
+| ⬜ | Performance Lighthouse > 90 (toutes métriques) | MVP |
+| ⬜ | Guide utilisateur complet (7 sections) | MVP |
+| ⬜ | Page /help in-app | MVP |
+| ⬜ | Audit sécurité OWASP + dépendances | MVP |
+| ⬜ | Revue code finale | — |
 
 ---
 
@@ -317,63 +320,80 @@
 | ✅ | Adapter: Fichiers locaux (ripgrep) | MVP |
 | ✅ | Adapter: Web/Internet (Tavily API) | MVP |
 
-### Intégration Pipeline (3)
+### Intégration Pipeline (3) — ✅ COMPLÉTÉ
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | Hook dans ReasoningEngine (Pass 2+ si confiance < 75%) | MVP |
-| ⬜ | Hook dans NoteReviewer (enrichissement révisions) | MVP |
-| ⬜ | API: POST /api/search/cross-source | MVP |
+| ✅ | Hook dans ReasoningEngine (Pass 2+ si confiance < 75%) | MVP |
+| ✅ | Hook dans NoteReviewer (enrichissement révisions) | MVP |
+| ✅ | API: POST /api/search/cross-source | MVP |
 
 ---
 
-## 14. Valets Dashboard (4 items)
+## 14. Valets Dashboard (4 items) — ✅ COMPLÉTÉ
 
 > **Vision** : Visualiser le travail d'équipe des valets en temps réel.
 
 | Status | Item | Priorité |
 |--------|------|----------|
-| ⬜ | UI: Statut workers (running/idle/paused) | MVP |
-| ⬜ | UI: Activité NoteReviewer en cours | MVP |
-| ⬜ | UI: Visualisation travail d'équipe valets | MVP |
-| ⬜ | API: GET /api/valets/status | MVP |
+| ✅ | UI: Statut workers (running/idle/paused) | MVP |
+| ✅ | UI: Activité NoteReviewer en cours | MVP |
+| ✅ | UI: Visualisation travail d'équipe valets | MVP |
+| ✅ | API: GET /api/valets/status | MVP |
 
 ---
 
 ## Résumé par Catégorie
 
-| Catégorie | Total | MVP | Nice-to-have |
-|-----------|-------|-----|--------------|
-| Notes | 13 | 5 | 8 |
-| Email | 24 | 15 | 9 |
-| Calendar | 7 | 5 | 2 |
-| Teams | 5 | 3 | 2 |
-| API Générales | 25 | 12 | 13 |
-| WebSocket | 4 | 4 | 0 |
-| UX Avancée | 17 | 10 | 7 |
-| Intégrations Futures | 6 | 0 | 6 |
-| Cognitif | 3 | 0 | 3 |
-| Phase 0.9+ | 3 | 0 | 3 |
-| UI Components | 6 | 6 | 0 |
-| Qualité & Docs | 3 | 3 | 0 |
-| **✅ Cross-Source** | **12** | **12** | **0** |
-| **Valets Dashboard** | **4** | **4** | **0** |
-| **TOTAL** | **133** | **80** | **53** |
+| Catégorie | Total | MVP | Nice-to-have | Complétés |
+|-----------|-------|-----|--------------|-----------|
+| Notes | 13 | 8 | 5 | 8 ✅ |
+| Email | 25 | 18 | 7 | 18 ✅ |
+| Calendar | 7 | 5 | 2 | 5 ✅ |
+| Teams | 5 | 4 | 1 | 4 ✅ |
+| API Générales | 25 | 14 | 11 | 14 ✅ |
+| WebSocket | 4 | 4 | 0 | 4 ✅ |
+| UX Avancée | 17 | 10 | 7 | 10 ✅ |
+| Intégrations Futures | 6 | 0 | 6 | 0 |
+| Cognitif | 3 | 0 | 3 | 1 |
+| Phase 0.9+ | 3 | 0 | 3 | 0 |
+| UI Components | 6 | 6 | 0 | 6 ✅ |
+| Qualité & Docs | 6 | 6 | 0 | 0 |
+| **✅ Cross-Source** | **12** | **12** | **0** | **12 ✅** |
+| **✅ Valets Dashboard** | **4** | **4** | **0** | **4 ✅** |
+| **TOTAL** | **139** | **86** | **53** | **80** |
 
 ---
 
 ## Progression
 
 ```
-MVP:          ██████████████░░░░░░ 56/80 (70%)
-Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 6/53 (11%)
-Total:        ████████████░░░░░░░░ 62/133 (47%)
+MVP:          ██████████████████░░ 80/86 (93%)
+Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 7/53 (13%)
+Total:        █████████████████░░░ 87/139 (63%)
 
 Sprint 1:     ████████████████████ 19/19 (100%) ✅
 Sprint 2:     ████████████████████ 13/13 (100%) ✅
 Sprint 3:     ████████████████████ 18/18 (100%) ✅
-Cross-Source: ████████████████████ 12/12 (100%) ✅ COMPLÉTÉ
-Sprint 4:     ░░░░░░░░░░░░░░░░░░░░  0/18 (0%) 🚧
+Cross-Source: ████████████████████ 12/12 (100%) ✅
+Sprint 4:     ████████████████████ 18/18 (100%) ✅
+Sprint 5:     ░░░░░░░░░░░░░░░░░░░░  0/6  (0%)  📋 PRÊT
 ```
+
+---
+
+## 15. Sprint 5 : Qualité & Release (6 items) — 📋 PRÊT
+
+> **Objectif** : v1.0 Release Candidate
+> **Spécification** : [SPRINT_5_SPEC.md](specs/SPRINT_5_SPEC.md)
+
+| Status | Item | Priorité |
+|--------|------|----------|
+| ⬜ | Tests E2E Playwright (toutes pages, desktop + mobile) | MVP |
+| ⬜ | Performance Lighthouse > 90 (toutes métriques) | MVP |
+| ⬜ | Guide utilisateur complet (7 sections) | MVP |
+| ⬜ | Page /help in-app | MVP |
+| ⬜ | Audit sécurité OWASP + dépendances | MVP |
+| ⬜ | Revue code finale | — |
 
 ---
 
@@ -381,8 +401,9 @@ Sprint 4:     ░░░░░░░░░░░░░░░░░░░░  0/18
 
 | Date | Action |
 |------|--------|
+| 2026-01-09 | **Sprint 5 PLANIFIÉ 📋** — Tests E2E, Lighthouse > 90, Guide utilisateur, Audit sécurité |
+| 2026-01-09 | **Sprint 4 COMPLÉTÉ ✅** — WebSocket (4), Notifications (9), Valets Dashboard (4), UX Avancée (raccourcis, focus, swipe) |
 | 2026-01-09 | **Sprint 3 COMPLÉTÉ ✅** — Vue détail email, Snooze/Undo, Teams read/unread, Calendar CRUD (62 items total) |
-| 2026-01-09 | **Sprint 4 EN COURS 🚧** — Temps Réel & UX (WebSocket, Notifications, Valets Dashboard) |
 | 2026-01-08 | **Cross-Source COMPLET ✅** — WhatsApp, Files, Web adapters (112 tests total) |
 | 2026-01-08 | **iCloud Calendar Adapter ✅** — CalDAV API support (29 tests) |
 | 2026-01-08 | **Cross-Source Phase 2 ✅** — Calendar + Teams Adapters (63 tests total) |

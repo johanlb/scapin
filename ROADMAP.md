@@ -801,29 +801,86 @@ cross_source:
 
 ## Sprint 5 : Qualité & Release
 
-**Statut** : 📋 Planifié
+**Statut** : 📋 Planifié — Prêt à démarrer
 **Objectif** : v1.0 Release Candidate
-**Items** : 6 MVP
-**Dépendance** : Sprint 4
+**Items** : 4 MVP + Audit Sécurité
+**Dépendance** : Sprint 4 ✅
+**Spécification** : [SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)
+
+### Décisions Validées (9 janvier 2026)
+
+| Aspect | Décision |
+|--------|----------|
+| **Tests E2E** | Toutes les pages, Desktop (1280px) + Mobile (375px) |
+| **Backend E2E** | Backend réel local (pas de mock) |
+| **Lighthouse** | Score > 90 partout (Performance, Accessibility, Best Practices, SEO) |
+| **Guide Format** | Markdown dans /docs + Page /help in-app |
+| **Guide Langue** | Français uniquement |
+| **Guide Contenu** | Complet + Architecture (valets, flux de données) |
+| **Quick Capture** | Reporté post-v1.0 |
+| **Audit Sécurité** | OWASP Top 10 complet, pip-audit, npm audit |
 
 ### Livrables
 
-| Catégorie | Item | Priorité |
-|-----------|------|----------|
-| **Tests** | Tests E2E Playwright | MVP |
-| **Performance** | Lighthouse > 80 | MVP |
-| **Documentation** | Guide utilisateur | MVP |
-| **Notes** | API: POST /api/capture (quick capture) | Nice-to-have |
-| | API: GET /api/capture/inbox | Nice-to-have |
-| **Cleanup** | Revue code, optimisations | — |
+| Catégorie | Item | Priorité | Statut |
+|-----------|------|----------|--------|
+| **Tests E2E** | Playwright setup + 15 pages + flows | MVP | ⬜ |
+| **Performance** | Lighthouse > 90 toutes métriques | MVP | ⬜ |
+| **Documentation** | Guide utilisateur complet (7 sections) | MVP | ⬜ |
+| **Documentation** | Page /help in-app | MVP | ⬜ |
+| **Sécurité** | Audit OWASP + dépendances | MVP | ⬜ |
+| **Cleanup** | Revue code finale | — | ⬜ |
 
-### Critères de Release v1.0
+### Ordre d'Exécution
 
-- [ ] 100% des 63 items MVP complétés
-- [ ] Tests E2E couvrant scénarios critiques
-- [ ] Lighthouse score > 80
-- [ ] Documentation utilisateur complète
-- [ ] Zéro bug bloquant
+```
+1. Tests E2E Playwright
+   ├── Setup (config, fixtures, auth)
+   ├── Pages (login, briefing, flux, notes, journal, discussions, stats, settings, valets)
+   ├── Features (search, keyboard, notifications, responsive)
+   └── Flows (email-workflow, note-enrichment, session-complete)
+
+2. Lighthouse > 90
+   ├── Audit initial (baseline)
+   ├── Optimisations
+   └── Audit final (validation)
+
+3. Guide Utilisateur
+   ├── docs/user-guide/ (7 sections)
+   └── Page /help in-app
+
+4. Audit Sécurité
+   ├── OWASP Top 10 checklist
+   └── pip-audit + npm audit + bandit
+```
+
+### Pages E2E à Couvrir
+
+| Page | Route | Priorité |
+|------|-------|----------|
+| Login | `/login` | Critique |
+| Briefing | `/` | Critique |
+| Flux | `/flux` | Critique |
+| Flux Focus | `/flux/focus` | Haute |
+| Flux Détail | `/flux/[id]` | Haute |
+| Notes | `/notes` | Haute |
+| Note Détail | `/notes/[...path]` | Haute |
+| Notes Review | `/notes/review` | Haute |
+| Brouillons | `/drafts` | Moyenne |
+| Journal | `/journal` | Moyenne |
+| Discussions | `/discussions` | Moyenne |
+| Stats | `/stats` | Moyenne |
+| Settings | `/settings` | Moyenne |
+| Valets | `/valets` | Moyenne |
+
+### Critères de Release v1.0 RC
+
+- [ ] Tests E2E passent (desktop + mobile, 3 navigateurs)
+- [ ] Lighthouse > 90 sur toutes les métriques
+- [ ] Guide utilisateur complet (Markdown + in-app)
+- [ ] Zéro bug critique connu
+- [ ] Audit sécurité validé (0 CRITICAL/HIGH non résolu)
+- [ ] 86 items MVP complétés (100%)
 
 ---
 

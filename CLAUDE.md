@@ -30,6 +30,7 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **[ROADMAP.md](ROADMAP.md)** | Le *quand* | Priorisation des tâches |
 | **[UI_VOCABULARY.md](docs/UI_VOCABULARY.md)** | 🎭 **Vocabulaire UI** — Mapping termes UI ↔ technique | Traitement requêtes utilisateur, génération réponses |
 | **[CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)** | ✅ **Spec CrossSource** — Complété | Référence Sprint Cross-Source |
+| **[SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)** | 🎯 **Spec Sprint 5** — Prêt | Tests E2E, Lighthouse, Guide, Audit |
 | **Ce fichier (CLAUDE.md)** | État actuel | Démarrage de session |
 
 ### Les 5 Principes Directeurs
@@ -2766,18 +2767,64 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Stats (LineChart avec tendances 7/30j)
 - ✅ CLI (Menu interactif complet, 684 lignes)
 
-### Sprint 5 : Qualité & Release — PROCHAINE ÉTAPE 🎯
+### Sprint 5 : Qualité & Release — PRÊT À DÉMARRER 🎯
 
 **Objectif** : v1.0 Release Candidate
-**Statut** : 0/6 items (6 items MVP restants)
+**Statut** : 0/6 items MVP
+**Spécification** : [SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)
 
-**Items à compléter** :
-- ⬜ Tests E2E Playwright
-- ⬜ Lighthouse > 80
-- ⬜ Guide utilisateur
-- ⬜ POST /api/capture (quick capture) — Nice-to-have
-- ⬜ GET /api/capture/inbox — Nice-to-have
-- ⬜ Revue code, optimisations
+#### Décisions Validées (9 janvier 2026)
+
+| Aspect | Décision |
+|--------|----------|
+| **Tests E2E** | Toutes les pages, Desktop + Mobile |
+| **Backend E2E** | Backend réel local (pas de mock) |
+| **Lighthouse** | Score > 90 partout |
+| **Guide** | Markdown + Page /help in-app, Français, Complet + Architecture |
+| **Quick Capture** | Reporté post-v1.0 |
+| **Audit Sécurité** | OWASP Top 10 complet |
+
+#### Items à Compléter
+
+| # | Item | Priorité |
+|---|------|----------|
+| 1 | Tests E2E Playwright (15 pages, desktop + mobile) | MVP |
+| 2 | Lighthouse > 90 (Performance, A11y, Best Practices, SEO) | MVP |
+| 3 | Guide utilisateur (7 sections Markdown) | MVP |
+| 4 | Page /help in-app | MVP |
+| 5 | Audit sécurité OWASP + dépendances | MVP |
+| 6 | Revue code finale | — |
+
+#### Ordre d'Exécution
+
+```
+1. Tests E2E Playwright
+   ├── Setup (config, fixtures, auth)
+   ├── Pages (login → briefing → flux → notes → journal → discussions → stats → settings → valets)
+   ├── Features (search, keyboard, notifications, responsive)
+   └── Flows (email-workflow, note-enrichment, session-complete)
+
+2. Lighthouse > 90
+   ├── Audit initial (baseline)
+   ├── Optimisations
+   └── Audit final (validation)
+
+3. Guide Utilisateur
+   ├── docs/user-guide/ (7 sections)
+   └── Page /help in-app
+
+4. Audit Sécurité
+   ├── OWASP Top 10 checklist
+   └── pip-audit + npm audit + bandit
+```
+
+#### Critères v1.0 RC
+
+- [ ] Tests E2E passent (desktop + mobile, 3 navigateurs)
+- [ ] Lighthouse > 90 sur toutes les métriques
+- [ ] Guide utilisateur complet (Markdown + in-app)
+- [ ] Zéro bug critique connu
+- [ ] Audit sécurité validé (0 CRITICAL/HIGH non résolu)
 
 ### Référence
 
