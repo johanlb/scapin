@@ -120,7 +120,7 @@ def _note_to_response(note: Note) -> NoteResponse:
 
 
 def _build_folder_tree(notes: list[Note]) -> list[FolderNode]:
-    """Build hierarchical folder tree from notes"""
+    """Build hierarchical folder tree from notes (sorted alphabetically like Apple Notes)"""
     # Count notes per path
     path_counts: dict[str, int] = defaultdict(int)
     for note in notes:
@@ -153,16 +153,22 @@ def _build_folder_tree(notes: list[Note]) -> list[FolderNode]:
                 current[part]["note_count"] = count
             current = current[part]["children"]
 
-    # Convert to FolderNode objects
+    # Convert to FolderNode objects (sorted alphabetically case-insensitive)
     def dict_to_folder(d: dict[str, Any]) -> FolderNode:
+        sorted_children = sorted(
+            d["children"].values(),
+            key=lambda x: x["name"].lower()
+        )
         return FolderNode(
             name=d["name"],
             path=d["path"],
             note_count=d["note_count"],
-            children=[dict_to_folder(c) for c in d["children"].values()],
+            children=[dict_to_folder(c) for c in sorted_children],
         )
 
-    return [dict_to_folder(f) for f in root_folders.values()]
+    # Sort root folders alphabetically (case-insensitive)
+    sorted_roots = sorted(root_folders.values(), key=lambda x: x["name"].lower())
+    return [dict_to_folder(f) for f in sorted_roots]
 
 
 def _extract_wikilinks(content: str) -> list[str]:

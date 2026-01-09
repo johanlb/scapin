@@ -546,6 +546,67 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-09 (Suite 6) — UI Notes Apple-like & Revue SM-2 ✅
+
+**Focus** : Refonte complète de l'UI Notes style Apple Notes + Métadonnées de revue SM-2
+
+**Accomplissements** :
+
+1. ✅ **UI Notes 3 colonnes style Apple Notes** (`web/src/routes/notes/+page.svelte` ~630 lignes)
+   - Colonne 1 (224px) : Arbre de dossiers avec expansion/collapse
+   - Colonne 2 (288px) : Liste des notes groupées par date
+   - Colonne 3 (flexible) : Contenu de la note avec métadonnées
+   - Sélection ambrée (Apple Notes style)
+   - Auto-sélection du premier dossier et de la première note
+
+2. ✅ **Dossiers virtuels**
+   - "Toutes les notes" (📋) en haut avec compteur total
+   - "Supprimées récemment" (🗑️) en bas
+   - Séparateur visuel entre dossiers réguliers et virtuels
+
+3. ✅ **Métadonnées de revue SM-2** (section dans le panneau note)
+   - Prochaine revue (formatée en français)
+   - Nombre de revues effectuées
+   - Facteur de facilité (easiness factor)
+   - Intervalle actuel (heures/jours)
+   - Type de note et importance
+   - Dernière évaluation (0-5)
+   - Badge "Revue due" si applicable
+
+4. ✅ **Actions sur les notes**
+   - Bouton 🔄 pour déclencher une revue immédiate
+   - Bouton ↗️ pour ouvrir dans une nouvelle fenêtre
+   - Indicateur de revue due (point orange) sur les notes dans la liste
+
+5. ✅ **Sync Apple Notes amélioré**
+   - Indicateur de progression pendant la sync
+   - Affichage de la date de dernière synchronisation
+   - Compteur de notes synchronisées
+
+6. ✅ **Performance : Singleton cache pour NotesService** (`src/jeeves/api/deps.py`)
+   - Problème : Chaque requête API créait un nouveau `NoteManager` avec `auto_index=True`
+   - Impact : 1+ minute de chargement pour ré-indexer 227 notes
+   - Solution : Cache singleton du `NotesService`
+   - Résultat : Chargement quasi-instantané
+
+7. ✅ **Tri alphabétique des dossiers** (`src/jeeves/api/services/notes_service.py`)
+   - Tri insensible à la casse (comme Apple Notes)
+
+8. ✅ **Bug fix : Page /valets** (`src/jeeves/api/routers/valets.py`)
+   - Problème : Type `_user: str` au lieu de `Optional[TokenData]`
+   - Erreur : `sqlite3.ProgrammingError: type 'TokenData' is not supported`
+   - Solution : Import et utilisation du bon type
+
+**Fichiers créés/modifiés** :
+```
+web/src/routes/notes/+page.svelte         # REWRITTEN (~630 lignes)
+src/jeeves/api/deps.py                    # MODIFIED (singleton cache)
+src/jeeves/api/services/notes_service.py  # MODIFIED (tri alphabétique)
+src/jeeves/api/routers/valets.py          # MODIFIED (type fix)
+```
+
+---
+
 ### Session 2026-01-09 (Suite 5) — Backend Unavailability Detection ✅
 
 **Focus** : Détection et feedback utilisateur quand le backend n'est pas disponible

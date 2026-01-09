@@ -8,9 +8,18 @@
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
+		console.log('[Login] Submitting PIN...');
 		const success = await authStore.login(pin);
+		console.log('[Login] Login result:', success, 'isAuthenticated:', authStore.isAuthenticated, 'needsLogin:', authStore.needsLogin);
 		if (success) {
-			goto('/');
+			console.log('[Login] Navigating to / - current auth state:', {
+				isAuthenticated: authStore.isAuthenticated,
+				authRequired: authStore.authRequired
+			});
+			// Small delay to ensure state is propagated before navigation
+			await new Promise(resolve => setTimeout(resolve, 50));
+			await goto('/');
+			console.log('[Login] Navigation complete');
 		}
 	}
 

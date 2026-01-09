@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from src.jeeves.api.auth import TokenData
 from src.jeeves.api.deps import get_current_user
 
 router = APIRouter()
@@ -185,7 +186,7 @@ def _get_valet_info(valet_type: ValetType) -> ValetInfo:
 
 @router.get("", response_model=ValetsDashboardResponse)
 async def get_valets_dashboard(
-    _user: str = Depends(get_current_user),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> ValetsDashboardResponse:
     """
     Get complete valets dashboard
@@ -219,7 +220,7 @@ async def get_valets_dashboard(
 @router.get("/metrics", response_model=ValetsMetricsResponse)
 async def get_valets_metrics(
     period: str = "today",
-    _user: str = Depends(get_current_user),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> ValetsMetricsResponse:
     """
     Get detailed metrics for all valets
@@ -255,7 +256,7 @@ async def get_valets_metrics(
 @router.get("/{valet_name}", response_model=ValetInfo)
 async def get_valet_status(
     valet_name: ValetType,
-    _user: str = Depends(get_current_user),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> ValetInfo:
     """
     Get detailed status for a specific valet
@@ -270,7 +271,7 @@ async def get_valet_status(
 async def get_valet_activities(
     valet_name: ValetType,
     limit: int = 50,
-    _user: str = Depends(get_current_user),
+    _user: Optional[TokenData] = Depends(get_current_user),
 ) -> list[ValetActivity]:
     """
     Get recent activities for a specific valet

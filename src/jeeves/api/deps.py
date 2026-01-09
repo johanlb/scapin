@@ -89,11 +89,17 @@ def get_briefing_service() -> Generator[BriefingService, None, None]:
     yield service
 
 
+# Cached NotesService singleton to avoid re-indexing notes on every request
+_notes_service_instance: NotesService | None = None
+
+
 def get_notes_service() -> Generator[NotesService, None, None]:
-    """Get notes service instance"""
-    config = get_cached_config()
-    service = NotesService(config=config)
-    yield service
+    """Get notes service instance (cached singleton to avoid re-indexing)"""
+    global _notes_service_instance
+    if _notes_service_instance is None:
+        config = get_cached_config()
+        _notes_service_instance = NotesService(config=config)
+    yield _notes_service_instance
 
 
 def get_notes_review_service() -> Generator[NotesReviewService, None, None]:

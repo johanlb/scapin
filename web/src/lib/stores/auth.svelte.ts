@@ -34,6 +34,7 @@ const needsLogin = $derived(state.authRequired && !state.isAuthenticated);
  * Call this once on app startup
  */
 async function initialize(): Promise<void> {
+	console.log('[Auth] initialize() called, already initialized:', state.initialized);
 	if (state.initialized) return;
 
 	state.loading = true;
@@ -41,20 +42,24 @@ async function initialize(): Promise<void> {
 	try {
 		// Check if we have a stored token
 		const token = getAuthToken();
+		console.log('[Auth] Token found:', token ? 'yes' : 'no');
 		if (!token) {
 			// No token, check if auth is required
 			const result = await checkAuth();
+			console.log('[Auth] No token, checkAuth result:', result);
 			state.authRequired = result.auth_required;
 			state.isAuthenticated = result.authenticated;
 			state.user = result.authenticated ? result.user : null;
 		} else {
 			// Have token, verify it's still valid
 			const result = await checkAuth();
+			console.log('[Auth] Have token, checkAuth result:', result);
 			state.isAuthenticated = result.authenticated;
 			state.user = result.authenticated ? result.user : null;
 			state.authRequired = result.auth_required;
 		}
 	} catch (err) {
+		console.error('[Auth] initialize() error:', err);
 		if (err instanceof ApiError && err.status === 401) {
 			// Token is invalid or missing - auth is required
 			apiLogout();
@@ -77,6 +82,12 @@ async function initialize(): Promise<void> {
 	} finally {
 		state.loading = false;
 		state.initialized = true;
+		console.log('[Auth] initialize() complete, final state:', {
+			isAuthenticated: state.isAuthenticated,
+			authRequired: state.authRequired,
+			backendAvailable: state.backendAvailable,
+			initialized: state.initialized
+		});
 	}
 }
 
@@ -88,11 +99,15 @@ async function login(pin: string): Promise<boolean> {
 	state.error = null;
 
 	try {
+		console.log('[Auth] Starting login...');
 		await apiLogin(pin);
+		console.log('[Auth] Token obtained, verifying...');
 		// Verify the login worked
 		const result = await checkAuth();
+		console.log('[Auth] checkAuth result:', result);
 		state.isAuthenticated = result.authenticated;
 		state.user = result.user;
+		console.log('[Auth] State updated:', { isAuthenticated: state.isAuthenticated, user: state.user, needsLogin });
 		return true;
 	} catch (err) {
 		if (err instanceof ApiError) {

@@ -9,6 +9,7 @@ const API_BASE = '/api';
 let authToken: string | null = null;
 
 export function setAuthToken(token: string | null): void {
+	console.log('[API] setAuthToken called:', token ? `${token.substring(0, 20)}...` : null);
 	authToken = token;
 	if (token) {
 		localStorage.setItem('scapin_token', token);
@@ -18,9 +19,13 @@ export function setAuthToken(token: string | null): void {
 }
 
 export function getAuthToken(): string | null {
-	if (authToken) return authToken;
+	if (authToken) {
+		console.log('[API] getAuthToken: returning cached token');
+		return authToken;
+	}
 	if (typeof localStorage !== 'undefined') {
 		authToken = localStorage.getItem('scapin_token');
+		console.log('[API] getAuthToken: loaded from localStorage:', authToken ? 'present' : 'missing');
 	}
 	return authToken;
 }
@@ -356,17 +361,22 @@ async function fetchPaginatedApi<T>(
 
 // Auth endpoints
 export async function login(pin: string): Promise<TokenResponse> {
+	console.log('[API] login() called');
 	const response = await fetchApi<TokenResponse>('/auth/login', {
 		method: 'POST',
 		body: JSON.stringify({ pin })
 	});
+	console.log('[API] login() response:', response);
 	// Store the token
 	setAuthToken(response.access_token);
 	return response;
 }
 
 export async function checkAuth(): Promise<AuthCheckResponse> {
-	return fetchApi<AuthCheckResponse>('/auth/check');
+	console.log('[API] checkAuth() called, token:', getAuthToken() ? 'present' : 'missing');
+	const result = await fetchApi<AuthCheckResponse>('/auth/check');
+	console.log('[API] checkAuth() result:', result);
+	return result;
 }
 
 export function logout(): void {

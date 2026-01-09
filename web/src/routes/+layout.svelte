@@ -82,15 +82,41 @@
 	});
 
 	// Auth guard: redirect to login if needed
+	// Access state directly for proper Svelte 5 reactive tracking
+	let lastRedirectTime = 0;
 	$effect(() => {
-		if (browser && authStore.initialized && authStore.needsLogin && !isLoginPage) {
+		// Access state object directly for reactive tracking
+		const authState = authStore.state;
+		const shouldRedirect = browser &&
+			authState.initialized &&
+			authState.authRequired &&
+			!authState.isAuthenticated &&
+			!isLoginPage;
+		console.log('[Layout] Auth effect:', {
+			browser,
+			initialized: authState.initialized,
+			authRequired: authState.authRequired,
+			isAuthenticated: authState.isAuthenticated,
+			isLoginPage,
+			shouldRedirect
+		});
+		if (shouldRedirect) {
+			// Prevent redirect loops by checking if we just redirected
+			const now = Date.now();
+			if (now - lastRedirectTime < 1000) {
+				console.warn('[Layout] Preventing redirect loop (too fast)');
+				return;
+			}
+			lastRedirectTime = now;
+			console.log('[Layout] Redirecting to /login');
 			goto('/login');
 		}
 	});
 
 	// Connect WebSocket when authenticated
 	$effect(() => {
-		if (browser && authStore.initialized && authStore.isAuthenticated && !isLoginPage) {
+		const authState = authStore.state;
+		if (browser && authState.initialized && authState.isAuthenticated && !isLoginPage) {
 			wsStore.connect();
 		}
 	});
@@ -139,7 +165,7 @@
 </svelte:head>
 
 <!-- Show loading state while auth is initializing -->
-{#if !authStore.initialized}
+{#if !authStore.state.initialized}
 	<div class="min-h-screen min-h-[100dvh] bg-[var(--color-bg-primary)] flex items-center justify-center">
 		<div class="text-center">
 			<div class="spinner mx-auto mb-4"></div>

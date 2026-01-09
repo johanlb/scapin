@@ -1066,6 +1066,18 @@ Global MVP:        ████████████████████�
 
 ## Historique des Versions
 
+- **v1.0.0-alpha.18** (2026-01-09) : UI Notes Apple-like & Revue SM-2
+  - **UI Notes 3 colonnes** : Style Apple Notes (dossiers | liste | contenu)
+  - **Dossiers virtuels** : "Toutes les notes" et "Supprimées récemment"
+  - **Métadonnées SM-2** : Prochaine revue, facteur facilité, intervalle, importance
+  - **Actions notes** : Déclencher revue (🔄), ouvrir nouvelle fenêtre (↗️)
+  - **Indicateur revue due** : Point orange sur les notes dans la liste
+  - **Sync Apple Notes** : Progression, date dernière sync
+  - **Performance** : Singleton cache NotesService (chargement instantané vs 1+ min)
+  - **Tri dossiers** : Alphabétique insensible à la casse
+  - **Bug fix** : Page /valets (type TokenData)
+  - **MVP Progress** : 94% (81/86 items)
+
 - **v1.0.0-alpha.17** (2026-01-09) : Test Suite Verification
   - Tests: 2148+ passed, 50 skipped, 0 failed
   - Verified: test_undo_api.py (8 tests), test_search_api.py (59 tests), test_passepartout_integration.py (7 tests)

@@ -877,6 +877,20 @@ class NoteManager:
             # Get title - use filename as fallback
             title = frontmatter.get("title") or file_path.stem
 
+            # Build metadata with path from filesystem
+            metadata = frontmatter.get("metadata", {})
+
+            # Calculate relative folder path from notes_dir
+            try:
+                relative_path = file_path.parent.relative_to(self.notes_dir)
+                folder_path = str(relative_path) if str(relative_path) != "." else ""
+            except ValueError:
+                folder_path = ""
+
+            # Store path in metadata for folder tree building
+            if folder_path:
+                metadata["path"] = folder_path
+
             # Create Note object
             note = Note(
                 note_id=note_id,
@@ -886,7 +900,7 @@ class NoteManager:
                 updated_at=updated_at,
                 tags=frontmatter.get("tags", []),
                 entities=entities,
-                metadata=frontmatter.get("metadata", {}),
+                metadata=metadata,
                 file_path=file_path
             )
 
