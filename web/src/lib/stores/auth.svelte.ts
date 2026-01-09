@@ -12,6 +12,7 @@ interface AuthState {
 	loading: boolean;
 	error: string | null;
 	initialized: boolean;
+	backendAvailable: boolean;
 }
 
 // Create reactive state
@@ -21,7 +22,8 @@ let state = $state<AuthState>({
 	authRequired: true,
 	loading: false,
 	error: null,
-	initialized: false
+	initialized: false,
+	backendAvailable: true
 });
 
 // Computed values
@@ -59,14 +61,18 @@ async function initialize(): Promise<void> {
 			state.isAuthenticated = false;
 			state.user = null;
 			state.authRequired = true;
+			state.backendAvailable = true;
 		} else if (err instanceof ApiError && err.status === 0) {
-			// Network error - server unreachable, assume auth required
+			// Network error - server unreachable
 			console.error('Server unreachable:', err);
+			state.backendAvailable = false;
 			state.authRequired = true;
+			state.error = 'Backend non disponible. Lancez: ./scripts/dev.sh';
 		} else {
 			// Other error - assume auth is required
 			console.error('Failed to check auth status:', err);
 			state.authRequired = true;
+			state.backendAvailable = true;
 		}
 	} finally {
 		state.loading = false;
@@ -90,7 +96,10 @@ async function login(pin: string): Promise<boolean> {
 		return true;
 	} catch (err) {
 		if (err instanceof ApiError) {
-			if (err.status === 401) {
+			if (err.status === 0) {
+				state.backendAvailable = false;
+				state.error = 'Backend non disponible. Lancez: ./scripts/dev.sh';
+			} else if (err.status === 401) {
 				state.error = 'PIN incorrect';
 			} else if (err.status === 422) {
 				state.error = 'PIN invalide (4-6 chiffres)';
@@ -99,6 +108,31 @@ async function login(pin: string): Promise<boolean> {
 			}
 		} else {
 			state.error = 'Erreur de connexion au serveur';
+		}
+		return false;
+	} finally {
+		state.loading = false;
+	}
+}
+
+/**
+ * Retry connection to backend
+ */
+async function retryConnection(): Promise<boolean> {
+	state.loading = true;
+	state.error = null;
+
+	try {
+		const result = await checkAuth();
+		state.backendAvailable = true;
+		state.authRequired = result.auth_required;
+		state.isAuthenticated = result.authenticated;
+		state.user = result.authenticated ? result.user : null;
+		return true;
+	} catch (err) {
+		if (err instanceof ApiError && err.status === 0) {
+			state.backendAvailable = false;
+			state.error = 'Backend toujours non disponible';
 		}
 		return false;
 	} finally {
@@ -133,8 +167,10 @@ export const authStore = {
 	get error() { return state.error; },
 	get initialized() { return state.initialized; },
 	get needsLogin() { return needsLogin; },
+	get backendAvailable() { return state.backendAvailable; },
 	initialize,
 	login,
 	logout,
-	clearError
+	clearError,
+	retryConnection
 };

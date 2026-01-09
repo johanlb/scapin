@@ -55,8 +55,30 @@
 			<p class="subtitle">Gardien cognitif personnel</p>
 		</div>
 
-		<!-- Error message -->
-		{#if authStore.error}
+		<!-- Backend unavailable -->
+		{#if !authStore.backendAvailable}
+			<div class="backend-unavailable" data-testid="backend-unavailable">
+				<div class="unavailable-icon">
+					<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<circle cx="12" cy="12" r="10"/>
+						<line x1="12" y1="8" x2="12" y2="12"/>
+						<line x1="12" y1="16" x2="12.01" y2="16"/>
+					</svg>
+				</div>
+				<h2>Backend non disponible</h2>
+				<p>Le serveur ne répond pas. Lancez-le avec :</p>
+				<code>./scripts/dev.sh</code>
+				<button type="button" class="retry-btn" onclick={() => authStore.retryConnection()} disabled={authStore.loading}>
+					{#if authStore.loading}
+						<span class="spinner"></span>
+						Connexion...
+					{:else}
+						Réessayer
+					{/if}
+				</button>
+			</div>
+		{:else if authStore.error}
+			<!-- Error message -->
 			<div class="error-message" data-testid="login-error">
 				{authStore.error}
 				<button type="button" class="error-dismiss" onclick={() => authStore.clearError()} aria-label="Fermer l'erreur">
@@ -231,6 +253,67 @@
 
 	.error-dismiss:hover {
 		opacity: 1;
+	}
+
+	.backend-unavailable {
+		text-align: center;
+		padding: 1.5rem;
+		margin-bottom: 1.5rem;
+		background: var(--color-warning-bg, #fef3c7);
+		border-radius: 0.75rem;
+	}
+
+	.unavailable-icon {
+		color: var(--color-warning, #d97706);
+		margin-bottom: 0.75rem;
+	}
+
+	.backend-unavailable h2 {
+		margin: 0 0 0.5rem;
+		font-size: 1.125rem;
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.backend-unavailable p {
+		margin: 0 0 0.75rem;
+		font-size: 0.875rem;
+		color: var(--color-text-secondary);
+	}
+
+	.backend-unavailable code {
+		display: block;
+		padding: 0.5rem 1rem;
+		margin-bottom: 1rem;
+		background: var(--color-bg);
+		border-radius: 0.5rem;
+		font-family: monospace;
+		font-size: 0.875rem;
+		color: var(--color-text);
+	}
+
+	.retry-btn {
+		padding: 0.75rem 1.5rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		border: none;
+		border-radius: 0.5rem;
+		background: var(--color-primary);
+		color: white;
+		cursor: pointer;
+		transition: all 0.2s;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.retry-btn:hover:not(:disabled) {
+		filter: brightness(1.1);
+	}
+
+	.retry-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.pin-input-wrapper {
