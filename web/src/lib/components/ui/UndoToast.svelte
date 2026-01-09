@@ -26,15 +26,15 @@
 
 	// Progress percentage (0-100)
 	const progress = $derived.by(() => {
-		// Assume 300 seconds (5 min) as max for visual progress
-		const maxSeconds = 300;
+		// Assume 15 seconds as max for visual progress
+		const maxSeconds = 15;
 		return Math.max(0, Math.min(100, (countdownSeconds / maxSeconds) * 100));
 	});
 
 	// Urgency level based on remaining time
 	const urgencyClass = $derived.by(() => {
-		if (countdownSeconds <= 30) return 'urgent';
-		if (countdownSeconds <= 60) return 'warning';
+		if (countdownSeconds <= 5) return 'urgent';
+		if (countdownSeconds <= 10) return 'warning';
 		return 'normal';
 	});
 

@@ -57,6 +57,34 @@ export const SELECTORS = {
   snoozeButton: '[data-testid="snooze-button"]',
   undoToast: '[data-testid^="undo-toast-"]',
 
+  // Flux Tabs
+  fluxTabPending: '[data-testid="flux-tab-pending"]',
+  fluxTabApproved: '[data-testid="flux-tab-approved"]',
+  fluxTabRejected: '[data-testid="flux-tab-rejected"]',
+  fluxTabError: '[data-testid="flux-tab-error"]',
+
+  // Flux Filters (SC-15)
+  fluxFilterAll: '[data-testid="flux-filter-all"]',
+  fluxFilterAuto: '[data-testid="flux-filter-auto"]',
+  fluxFilterUser: '[data-testid="flux-filter-user"]',
+
+  // Flux Error Actions (SC-16)
+  retryButton: '[data-testid="retry-button"]',
+  dismissButton: '[data-testid="dismiss-button"]',
+  moveToReviewButton: '[data-testid="move-to-review-button"]',
+  errorBadge: '[data-testid="error-badge"]',
+  errorMessage: '[data-testid="error-message"]',
+  attemptCount: '[data-testid="attempt-count"]',
+
+  // Flux Re-analyze (SC-18)
+  reanalyzeButton: '[data-testid="reanalyze-button"]',
+
+  // Auto-execution indicators (SC-14, SC-15)
+  autoExecutedBadge: '[data-testid="auto-executed-badge"]',
+  confidenceScore: '[data-testid="confidence-score"]',
+  processingIndicator: '[data-testid="processing-indicator"]',
+  queueFullMessage: '[data-testid="queue-full-message"]',
+
   // Notes
   notesTree: '[data-testid="notes-tree"]',
   noteEditor: '[data-testid="note-editor"]',

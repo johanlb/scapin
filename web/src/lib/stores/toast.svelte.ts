@@ -28,11 +28,11 @@ interface ToastOptions {
 interface UndoToastOptions {
 	title?: string;
 	itemId?: string;
-	countdownSeconds?: number; // Default 300 (5 minutes)
+	countdownSeconds?: number; // Default 15 (15 seconds)
 }
 
 const DEFAULT_DURATION = 4000;
-const DEFAULT_UNDO_COUNTDOWN = 300; // 5 minutes in seconds
+const DEFAULT_UNDO_COUNTDOWN = 15; // 15 seconds
 const MAX_TOASTS = 5;
 
 // Map to track countdown intervals

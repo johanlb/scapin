@@ -396,6 +396,32 @@ class ProcessingConfig(BaseModel):
         description="Minimum relevance score for context items (0-1)"
     )
 
+    # Background processing (SC-14)
+    auto_execute_threshold: float = Field(
+        0.85,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for auto-execution without user review"
+    )
+    batch_size: int = Field(
+        20,
+        ge=1,
+        le=100,
+        description="Number of emails to process per batch"
+    )
+    max_queue_size: int = Field(
+        30,
+        ge=1,
+        le=200,
+        description="Maximum items in review queue before pausing fetch"
+    )
+    polling_interval_seconds: int = Field(
+        300,
+        ge=60,
+        le=3600,
+        description="Interval between email polling (5 minutes default)"
+    )
+
 
 class MicrosoftAccountConfig(BaseModel):
     """

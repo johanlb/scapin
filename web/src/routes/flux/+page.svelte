@@ -247,7 +247,7 @@
 			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, option.destination);
 			queueStore.removeFromList(item.id);
 
-			// Show undo toast with 5-minute countdown
+			// Show undo toast with 15-second countdown
 			toastStore.undo(
 				`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
 				async () => {
@@ -282,7 +282,7 @@
 			await approveQueueItem(item.id, 'custom', item.analysis.category || undefined);
 			queueStore.removeFromList(item.id);
 
-			// Show undo toast with 5-minute countdown
+			// Show undo toast with 15-second countdown
 			toastStore.undo(
 				`Instruction personnalisée : ${itemSubject.slice(0, 30)}${itemSubject.length > 30 ? '...' : ''}`,
 				async () => {
@@ -334,7 +334,7 @@
 			await approveQueueItem(item.id, 'delete', item.analysis.category || undefined);
 			queueStore.removeFromList(item.id);
 
-			// Show undo toast with 5-minute countdown
+			// Show undo toast with 15-second countdown
 			toastStore.undo(
 				`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
 				async () => {
