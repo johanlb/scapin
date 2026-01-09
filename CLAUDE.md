@@ -546,6 +546,48 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-09 (Suite 7) — Bug Fixes Performance & Stabilité ✅
+
+**Focus** : Correction des bugs critiques de performance et de stabilité
+
+**Accomplissements** :
+
+1. ✅ **Performance `get_all_notes()` optimisée** (`src/passepartout/note_manager.py`)
+   - Problème : Relecture de tous les fichiers à chaque requête (~1 minute)
+   - Solution : Utilisation du cache mémoire quand disponible
+   - Résultat : 19ms au lieu de minutes
+
+2. ✅ **Apple Notes timeout augmenté** (`src/integrations/apple/notes_client.py`)
+   - Problème : Timeout 30s trop court pour le dossier "Notes" (583 notes)
+   - Solution : Timeout augmenté à 180s (3 minutes)
+
+3. ✅ **SQLite thread-safety corrigé** (`src/passepartout/note_metadata.py`)
+   - Problème : `sqlite3.ProgrammingError` threads
+   - Solution : `check_same_thread=False` avec connection pooling
+
+4. ✅ **Valets API wrappée dans APIResponse** (`src/jeeves/api/routers/valets.py`)
+   - Problème : Frontend attendait `{success, data}`, API retournait données brutes
+   - Solution : Tous les endpoints wrappés avec `APIResponse`
+
+5. ✅ **SSR désactivé pour SPA** (`web/src/routes/+layout.ts`)
+   - Problème : Navigation directe vers /login, /notes échouait
+   - Solution : `export const ssr = false`
+
+**Commits** :
+- `6befe16` — perf(passepartout): add vector index persistence to disk
+- `6f7fd86` — fix: multiple performance and stability improvements
+- `d80d2f1` — fix(web): disable SSR for SPA mode
+
+**Bugs restants identifiés** :
+- Édition de notes
+- Chat panel IA non connecté
+- Page révision en boucle
+- Bouton fetch emails
+- Suppression de notes depuis UI
+- Rendu fichiers attachés (PDF, JPG, WAV)
+
+---
+
 ### Session 2026-01-09 (Suite 6) — UI Notes Apple-like & Revue SM-2 ✅
 
 **Focus** : Refonte complète de l'UI Notes style Apple Notes + Métadonnées de revue SM-2
