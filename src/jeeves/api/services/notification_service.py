@@ -61,7 +61,7 @@ class NotificationService:
         """
         if db_path is None:
             config = get_config()
-            db_path = Path(config.storage.base_dir) / "notifications.db"
+            db_path = config.storage.database_path.parent / "notifications.db"
 
         self._db_path = db_path
         self._retention_days = retention_days
