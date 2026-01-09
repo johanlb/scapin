@@ -1,9 +1,9 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 8 janvier 2026
+**Dernière mise à jour** : 9 janvier 2026
 **Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 4 📋 — Temps Réel & UX (0/18 items — 0%)
-**Prochaine priorité** : WebSocket + Notifications + Valets Dashboard
+**Phase actuelle** : Sprint 4 ✅ — Temps Réel & UX (18/18 — 100%)
+**Prochaine priorité** : Sprint 5 — Qualité & Release
 
 ---
 
@@ -11,15 +11,15 @@
 
 ### Statut Global
 
-**État** : MVP en cours — 24 items MVP restants sur 86 (Sprints 1-3 + Cross-Source complétés)
+**État** : MVP presque complet — 6 items MVP restants sur 86 (Sprints 1-4 + Cross-Source 100% complétés)
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 2192 tests, 95% couverture, 100% pass rate |
+| **Tests** | 2148+ tests, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
-| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 + Cross-Source |
-| **Gaps MVP restants** | 24 items ([GAPS_TRACKING.md](docs/GAPS_TRACKING.md)) |
-| **Prochaine priorité** | 🔥 **Sprint 4** — Temps Réel & UX (18 items) |
+| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 + Cross-Source + Sprint 4 |
+| **Gaps MVP restants** | 6 items (Sprint 5 uniquement) |
+| **Prochaine priorité** | 🔥 **Sprint 5** — Qualité & Release (6 items) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -619,32 +619,60 @@ cross_source:
 
 ## Sprint 4 : Temps Réel & UX
 
-**Statut** : 📋 Planifié (0/18 — 0%)
+**Statut** : ✅ COMPLÉTÉ (18/18 — 100%)
 **Objectif** : Expérience fluide et réactive
-**Items** : 18 MVP
+**Items** : 18 MVP (18 complétés)
 **Dépendance** : Sprint 3 ✅
 
 ### Livrables
 
 | Catégorie | Item | Priorité | Statut |
 |-----------|------|----------|--------|
-| **WebSocket** | /ws/events - événements temps réel | MVP | ⬜ |
-| | /ws/discussions/{id} - chat temps réel | MVP | ⬜ |
-| | /ws/status - status Scapin | MVP | ⬜ |
-| | /ws/notifications - push | MVP | ⬜ |
-| **Notifications** | CRUD /api/notifications | MVP | ⬜ |
-| | Centre de Notifications (panneau latéral) | MVP | ⬜ |
-| **Valets Dashboard** | UI: Statut workers (running/idle/error) | MVP | ⬜ |
-| | UI: Activité NoteReviewer en cours | MVP | ⬜ |
-| | UI: Timeline dernières actions | MVP | ⬜ |
-| | API: GET /api/valets/status | MVP | ⬜ |
-| **UX Avancée** | Raccourcis clavier (J/K/A/R/S/E) | MVP | ⬜ |
-| | Quick Actions contextuelles Briefing | MVP | ⬜ |
-| | Mode Focus (filtre priorité) | MVP | ⬜ |
-| **UX Mobile** | Swipe gestures + long press | MVP | ⬜ |
-| **Settings** | Page Settings complète (tout configurable) | MVP | ⬜ |
-| **Stats** | Page Stats avec tendances 7/30j | MVP | ⬜ |
-| **Legacy** | Finir Menu Interactif CLI (20%) | MVP | ⬜ |
+| **WebSocket** | /ws/events - événements temps réel | MVP | ✅ |
+| | /ws/discussions/{id} - chat temps réel | MVP | ✅ |
+| | /ws/status - status Scapin | MVP | ✅ |
+| | /ws/notifications - push | MVP | ✅ |
+| **Notifications** | CRUD /api/notifications | MVP | ✅ |
+| | Centre de Notifications (panneau latéral) | MVP | ✅ |
+| **Valets Dashboard** | UI: Statut workers (running/idle/error) | MVP | ✅ |
+| | UI: Activité NoteReviewer en cours | MVP | ✅ |
+| | UI: Timeline dernières actions | MVP | ✅ |
+| | API: GET /api/valets/status | MVP | ✅ |
+| **UX Avancée** | Raccourcis clavier (J/K/A/R/S/E) | MVP | ✅ |
+| | Quick Actions contextuelles Briefing | MVP | ✅ |
+| | Mode Focus (filtre priorité) | MVP | ✅ |
+| **UX Mobile** | Swipe gestures + long press | MVP | ✅ |
+| **Settings** | Page Settings complète (tout configurable) | MVP | ✅ |
+| **Stats** | Page Stats avec tendances 7/30j | MVP | ✅ |
+| **Legacy** | Menu Interactif CLI complet | MVP | ✅ |
+
+### Complétés (9 janvier 2026)
+
+**Backend WebSocket** (`src/jeeves/api/websocket/`):
+- `router_v2.py` — 4 endpoints WebSocket avec rate limiting
+- `channels.py` — ChannelManager avec EventBus bridge (~14K lignes)
+- Auth via premier message JSON
+
+**Backend Notifications** (`src/jeeves/api/routers/notifications.py`):
+- 9 endpoints CRUD complets
+- `notification_service.py` — Service avec cleanup automatique (7 jours)
+- Index composite SQLite pour performance
+
+**Backend Valets** (`src/jeeves/api/routers/valets.py`):
+- 4 endpoints: dashboard, metrics, valet details, activities
+- Modèles complets: ValetStatus, ValetType, ValetActivity
+
+**Frontend** (`web/src/`):
+- `NotificationsPanel.svelte` — Centre de notifications (~14KB)
+- `valets/+page.svelte` — Dashboard valets (~9KB)
+- `flux/focus/+page.svelte` — Mode Focus (~21KB)
+- `settings/+page.svelte` — Settings complets (~23KB)
+- `stats/+page.svelte` — Stats avec LineChart tendances (~14KB)
+- `KeyboardShortcutsHelp.svelte` — Aide raccourcis
+- `QuickActionsMenu.svelte` — Actions contextuelles
+- `LongPressMenu.svelte` — Menu long press mobile
+- `SwipeableCard.svelte` — Gestures swipe
+- `keyboard-shortcuts.ts` — Gestionnaire raccourcis
 
 ### Décisions Techniques (9 janvier 2026)
 
@@ -665,40 +693,40 @@ cross_source:
 | **Settings** | Tout configurable | Connexions, IA, Processing, Valets, Développeur (logs, debug) |
 | **Menu CLI** | Finir maintenant | Compléter le menu interactif dans ce sprint |
 
-### Ordre d'Implémentation
+### Ordre d'Implémentation (COMPLÉTÉ ✅)
 
 ```
-1. WebSocket Infrastructure
+1. WebSocket Infrastructure ✅
    ├── Backend: 4 endpoints WS (/ws/events, discussions, status, notifications)
    ├── Frontend: Store WebSocket avec exponential backoff
    └── Intégration: EventBus → WebSocket broadcast
 
-2. Notifications
+2. Notifications ✅
    ├── Backend: CRUD API + Storage SQLite
    ├── Frontend: Panel latéral + Badge compteur
    └── Intégration: WebSocket → Notifications
 
-3. Valets Dashboard
+3. Valets Dashboard ✅
    ├── Backend: GET /api/valets/status
    ├── Frontend: Page/Widget dashboard valets
    └── Intégration: WebSocket status updates
 
-4. UX Avancée
+4. UX Avancée ✅
    ├── Raccourcis clavier globaux
    ├── Quick Actions contextuelles
    └── Mode Focus
 
-5. UX Mobile
+5. UX Mobile ✅
    └── Swipe gestures + long press menu
 
-6. Settings
+6. Settings ✅
    └── Page complète avec tous les onglets
 
-7. Stats
+7. Stats ✅
    └── Page avec graphiques tendances
 
-8. CLI
-   └── Finir menu interactif (20% restant)
+8. CLI ✅
+   └── Menu interactif complet (684 lignes)
 ```
 
 ### Valets Dashboard (Design)
@@ -903,14 +931,14 @@ Sprint 1 (Notes):  ████████████████████ 
 Sprint 2 (Analyse):████████████████████ 100% ✅ (13/13)
 Sprint 3 (Actions):████████████████████ 100% ✅ (18/18)
 Cross-Source 🔥:   ████████████████████ 100% ✅ (12/12)
-Sprint 4 (UX):     ░░░░░░░░░░░░░░░░░░░░   0% 📋
+Sprint 4 (UX):     ████████████████████ 100% ✅ (18/18)
 Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░   0% 📋
 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        ██████████████░░░░░░  72% (62 MVP complétés sur 86)
-                   → 24 items restants
+Global MVP:        ████████████████████  93% (80 MVP complétés sur 86)
+                   → 6 items restants (Sprint 5)
 ```
 
 ### Items par Sprint
@@ -921,9 +949,9 @@ Global MVP:        ██████████████░░░░░░ 
 | Sprint 2 | 13 | 13 | ✅ 100% |
 | Sprint 3 | 18 | 18 | ✅ 100% |
 | **Cross-Source** 🔥 | **12** | **12** | ✅ **100%** |
-| Sprint 4 | 18 | 0 | 📋 Planifié |
+| Sprint 4 | 18 | 18 | ✅ 100% |
 | Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **86** | **62** | 72% |
+| **Total MVP** | **86** | **80** | 93% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -980,6 +1008,25 @@ Global MVP:        ██████████████░░░░░░ 
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.17** (2026-01-09) : Test Suite Verification
+  - Tests: 2148+ passed, 50 skipped, 0 failed
+  - Verified: test_undo_api.py (8 tests), test_search_api.py (59 tests), test_passepartout_integration.py (7 tests)
+  - pytest-asyncio configuration confirmed working (asyncio_mode=strict)
+  - **MVP Progress** : 93% (80/86 items)
+
+- **v1.0.0-alpha.16** (2026-01-09) : Sprint 4 COMPLÉTÉ (18/18 — 100%)
+  - **WebSocket** : 4 endpoints (/ws/events, /ws/status, /ws/notifications, /ws/discussions/{id})
+  - **Notifications** : 9 endpoints CRUD + NotificationsPanel.svelte (Centre de Notifications)
+  - **Valets Dashboard** : 4 endpoints API + valets/+page.svelte (Surveillance agents)
+  - **UX Avancée** : Raccourcis clavier, Quick Actions, Mode Focus (flux/focus)
+  - **UX Mobile** : SwipeableCard, LongPressMenu
+  - **Settings** : Page complète (~23KB) avec Apparence, IA, Processing, Notifications
+  - **Stats** : LineChart avec tendances 7/30j, LTTB downsampling
+  - **CLI** : Menu interactif complet (684 lignes, 18 fonctions)
+  - **Infrastructure** : Rate limiting, EventBus bridge, Lock contention fix, Index composite
+  - Tests: 2148 passed, 50 skipped, 0 failed
+  - **MVP Progress** : 93% (80/86 items)
 
 - **v1.0.0-alpha.15** (2026-01-06) : Security Hardening
   - Deep analysis before Sprint 2 (4 parallel agents: security, architecture, quality, performance)
@@ -1074,7 +1121,7 @@ Global MVP:        ██████████████░░░░░░ 
 
 ---
 
-**Statut** : Sprints 1-3 + Cross-Source COMPLÉTÉS ✅ — Prêt pour Sprint 4
+**Statut** : Sprints 1-4 + Cross-Source COMPLÉTÉS ✅ — MVP à 93% (80/86 items)
 **Qualité** : 10/10 Production Ready Core (Security Hardened)
-**Tests** : 2192 tests, 95% couverture, 100% pass
-**Prochaine étape** : Sprint 4 — Temps Réel & UX (WebSocket, Notifications, Valets Dashboard)
+**Tests** : 2148+ tests, 95% couverture, 100% pass rate
+**Prochaine étape** : Sprint 5 — Tests E2E, Lighthouse, Documentation (6 items restants)
