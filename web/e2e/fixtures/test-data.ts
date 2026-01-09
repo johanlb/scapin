@@ -79,6 +79,13 @@ export const SELECTORS = {
   // Flux Re-analyze (SC-18)
   reanalyzeButton: '[data-testid="reanalyze-button"]',
 
+  // Folder Picker (SC-19)
+  folderPath: '[data-testid="folder-path"]',
+  folderAutocomplete: '[data-testid="folder-autocomplete"]',
+  folderSearchInput: '[data-testid="folder-search-input"]',
+  folderSuggestion: '[data-testid="folder-suggestion"]',
+  folderCreateOption: '[data-testid="folder-create-option"]',
+
   // Auto-execution indicators (SC-14, SC-15)
   autoExecutedBadge: '[data-testid="auto-executed-badge"]',
   confidenceScore: '[data-testid="confidence-score"]',

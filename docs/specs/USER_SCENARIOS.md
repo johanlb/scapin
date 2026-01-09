@@ -447,6 +447,56 @@ Chaque scénario suit ce format :
 
 ---
 
+### SC-19: Modifier le dossier de classement proposé
+
+**Persona**: Johan
+**Priorité**: HAUTE
+**Source**: Flux
+
+**Contexte**:
+> Johan consulte un email en attente de revue. Scapin propose l'action
+> "Archiver dans Archive/2025/Personnel" mais Johan préfère le classer
+> dans "Archive/2025/Travail/Projets/Alpha".
+
+**Actions**:
+1. L'utilisateur voit l'action proposée avec le dossier de destination
+2. L'utilisateur clique sur le chemin du dossier (zone cliquable)
+3. Un champ de recherche/autocomplete s'ouvre
+4. L'utilisateur tape le début du nom du dossier souhaité
+5. L'utilisateur sélectionne le dossier dans les suggestions
+6. L'utilisateur valide (ou le dossier est auto-sélectionné)
+
+**Résultat attendu**:
+- [ ] Chemin complet du dossier affiché (ex: `Archive/2025/Travail/Projets`)
+- [ ] Zone cliquable clairement identifiable (cursor pointer, hover state)
+- [ ] Champ autocomplete avec recherche fuzzy sur les noms de dossiers
+- [ ] Suggestions affichent le chemin complet
+- [ ] Possibilité de créer un nouveau dossier si inexistant
+- [ ] Modification enregistrée comme feedback pour apprentissage (Sganarelle)
+- [ ] Action mise à jour avec le nouveau dossier
+
+**Critères de succès**:
+- Recherche autocomplete < 200ms
+- Maximum 10 suggestions affichées
+- Création de dossier intuitive (bouton "Créer" ou entrée libre)
+
+**Variations**:
+| Cas | Condition | Résultat différent |
+|-----|-----------|-------------------|
+| A | Dossier inexistant tapé | Option "Créer [nom]" proposée |
+| B | Aucun résultat de recherche | Message "Aucun dossier trouvé" + option créer |
+| C | Clic hors du champ | Fermeture sans modification |
+| D | Touche Escape | Annulation, retour au dossier original |
+
+**Notes techniques**:
+- API: `GET /api/folders/search?q={query}` (autocomplete)
+- API: `POST /api/folders` (création)
+- API: `PATCH /api/queue/{id}` avec `{ destination: "nouveau/chemin" }`
+- Feedback Sganarelle: `folder_correction` avec `original` et `corrected`
+- Composant: `FolderPicker.svelte` (autocomplete + create)
+
+---
+
 ## 3. Gestion des Notes
 
 ### SC-30: Consulter l'arbre des notes
@@ -697,6 +747,7 @@ Chaque scénario suit ce format :
 | SC-16 | `flux-errors.spec.ts` | `test_queue_errors.py` | - |
 | SC-17 | `settings.spec.ts` | `test_settings_api.py` | - |
 | SC-18 | `flux-reanalyze.spec.ts` | `test_reanalyze_api.py` | - |
+| SC-19 | `flux-folder-picker.spec.ts` | `test_folder_picker_api.py` | - |
 | SC-30 | `notes.spec.ts` | `test_notes_api.py` | - |
 | SC-50 | `journal.spec.ts` | `test_journal_api.py` | - |
 | SC-80 | `search.spec.ts` | `test_search_api.py` | - |
