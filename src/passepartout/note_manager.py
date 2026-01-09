@@ -113,6 +113,9 @@ class NoteManager:
         self.notes_dir = Path(notes_dir).expanduser()
         self.notes_dir.mkdir(parents=True, exist_ok=True)
 
+        # Index persistence path
+        self._index_path = self.notes_dir / ".scapin_index"
+
         # Initialize embedder and vector store
         self.embedder = embedder if embedder is not None else EmbeddingGenerator()
         self.vector_store = vector_store if vector_store is not None else VectorStore(
@@ -153,9 +156,11 @@ class NoteManager:
             }
         )
 
-        # Index existing notes
+        # Index existing notes (try to load from disk first)
         if auto_index:
-            self._index_all_notes()
+            if not self._try_load_index():
+                self._index_all_notes()
+                self._save_index()
 
     def _cache_put(self, note_id: str, note: Note) -> None:
         """
@@ -174,6 +179,67 @@ class NoteManager:
             evicted_id, _ = self._note_cache.popitem(last=False)
             self._cache_evictions += 1
             logger.debug("LRU cache evicted", extra={"note_id": evicted_id})
+
+    def _try_load_index(self) -> bool:
+        """
+        Try to load vector index from disk
+
+        Returns:
+            True if index loaded successfully, False otherwise
+        """
+        if not self._index_path.exists():
+            logger.info("No index cache found, will rebuild")
+            return False
+
+        try:
+            self.vector_store.load(self._index_path)
+            doc_count = len(self.vector_store.id_to_doc)
+            logger.info(
+                "Loaded index from disk",
+                extra={"path": str(self._index_path), "documents": doc_count}
+            )
+
+            # Populate note cache from indexed files
+            self._populate_cache_from_files()
+            return True
+
+        except Exception as e:
+            logger.warning(
+                "Failed to load index cache, will rebuild",
+                extra={"path": str(self._index_path), "error": str(e)}
+            )
+            return False
+
+    def _save_index(self) -> None:
+        """Save vector index to disk for faster startup"""
+        try:
+            self.vector_store.save(self._index_path)
+            logger.info(
+                "Saved index to disk",
+                extra={"path": str(self._index_path)}
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to save index cache",
+                extra={"path": str(self._index_path), "error": str(e)}
+            )
+
+    def _populate_cache_from_files(self) -> None:
+        """Populate note cache from files (after loading index)"""
+        count = 0
+        for file_path in self.notes_dir.rglob("*.md"):
+            try:
+                note = self._read_note_file(file_path)
+                if note:
+                    with self._cache_lock:
+                        self._cache_put(note.note_id, note)
+                    count += 1
+            except Exception as e:
+                logger.warning(
+                    "Failed to cache note",
+                    extra={"file_path": str(file_path), "error": str(e)}
+                )
+        logger.debug("Populated note cache", extra={"count": count})
 
     def create_note(
         self,
