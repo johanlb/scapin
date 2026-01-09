@@ -538,6 +538,16 @@ class EmailProcessor:
             self._execute_action(metadata, analysis)
             self.state.increment("emails_auto_executed")  # Track actual auto-executions
 
+            # Flag the email to prevent reimport on next run
+            # CRITICAL: This was missing before - auto-executed emails were re-fetched!
+            try:
+                self.imap_client.add_flag(
+                    msg_id=metadata.id,
+                    folder=metadata.folder or self.config.email.inbox_folder
+                )
+            except Exception as e:
+                logger.warning(f"Failed to flag auto-executed email {metadata.id}: {e}")
+
             # Emit email completed event (executed)
             self.event_bus.emit(ProcessingEvent(
                 event_type=ProcessingEventType.EMAIL_COMPLETED,
