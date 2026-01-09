@@ -628,14 +628,30 @@ class NoteManager:
         """
         Get all notes with optional pagination
 
+        Uses cache when available for fast retrieval.
+        Falls back to disk read only if cache is empty.
+
         Args:
             limit: Maximum number of notes to return (None = all)
 
         Returns:
             List of Note objects
         """
+        # Try to return from cache if populated
+        with self._cache_lock:
+            if len(self._note_cache) > 0:
+                notes = list(self._note_cache.values())
+                if limit is not None:
+                    notes = notes[:limit]
+                return notes
+
+        # Cache empty - read from disk and populate cache
         notes = []
         for file_path in self.notes_dir.rglob("*.md"):
+            # Skip hidden files/dirs
+            if any(part.startswith(".") for part in file_path.parts):
+                continue
+
             note = self._read_note_file(file_path)
             if note:
                 notes.append(note)

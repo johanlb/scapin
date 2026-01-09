@@ -216,7 +216,12 @@ class NoteMetadataStore:
 
     def _create_connection(self) -> sqlite3.Connection:
         """Create a new SQLite connection"""
-        conn = sqlite3.connect(str(self.db_path), timeout=CONNECTION_TIMEOUT)
+        # check_same_thread=False is safe because we use connection pooling with locks
+        conn = sqlite3.connect(
+            str(self.db_path),
+            timeout=CONNECTION_TIMEOUT,
+            check_same_thread=False
+        )
         conn.row_factory = sqlite3.Row
         # Enable WAL mode for better concurrent read performance
         conn.execute("PRAGMA journal_mode=WAL")

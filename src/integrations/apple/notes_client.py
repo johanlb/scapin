@@ -317,14 +317,19 @@ class AppleNotesClient:
             logger.error(f"Failed to move note '{note_id}': {e}")
             return False
 
-    def _run_applescript(self, script: str) -> str:
-        """Execute an AppleScript and return the result"""
+    def _run_applescript(self, script: str, timeout: int = 180) -> str:
+        """Execute an AppleScript and return the result
+
+        Args:
+            script: AppleScript code to execute
+            timeout: Maximum execution time in seconds (default 180s for large folders)
+        """
         try:
             result = subprocess.run(
                 ["osascript", "-e", script],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=timeout,
             )
             if result.returncode != 0:
                 raise RuntimeError(f"AppleScript error: {result.stderr}")

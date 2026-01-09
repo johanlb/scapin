@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from src.jeeves.api.auth import TokenData
 from src.jeeves.api.deps import get_current_user
+from src.jeeves.api.models.responses import APIResponse
 
 router = APIRouter()
 
@@ -184,10 +185,10 @@ def _get_valet_info(valet_type: ValetType) -> ValetInfo:
     )
 
 
-@router.get("", response_model=ValetsDashboardResponse)
+@router.get("", response_model=APIResponse[ValetsDashboardResponse])
 async def get_valets_dashboard(
     _user: Optional[TokenData] = Depends(get_current_user),
-) -> ValetsDashboardResponse:
+) -> APIResponse[ValetsDashboardResponse]:
     """
     Get complete valets dashboard
 
@@ -208,20 +209,23 @@ async def get_valets_dashboard(
     else:
         system_status = "healthy"
 
-    return ValetsDashboardResponse(
-        valets=valets,
-        system_status=system_status,
-        active_workers=active_workers,
-        total_tasks_today=total_tasks,
-        avg_confidence=0.85,  # Would come from Sganarelle stats
+    return APIResponse(
+        success=True,
+        data=ValetsDashboardResponse(
+            valets=valets,
+            system_status=system_status,
+            active_workers=active_workers,
+            total_tasks_today=total_tasks,
+            avg_confidence=0.85,  # Would come from Sganarelle stats
+        )
     )
 
 
-@router.get("/metrics", response_model=ValetsMetricsResponse)
+@router.get("/metrics", response_model=APIResponse[ValetsMetricsResponse])
 async def get_valets_metrics(
     period: str = "today",
     _user: Optional[TokenData] = Depends(get_current_user),
-) -> ValetsMetricsResponse:
+) -> APIResponse[ValetsMetricsResponse]:
     """
     Get detailed metrics for all valets
 
@@ -244,35 +248,38 @@ async def get_valets_metrics(
         for vt in ValetType
     ]
 
-    return ValetsMetricsResponse(
-        period=period,
-        metrics=metrics,
-        total_tasks=sum(m.tasks_completed for m in metrics),
-        total_tokens=sum(m.tokens_used for m in metrics),
-        total_api_calls=sum(m.api_calls for m in metrics),
+    return APIResponse(
+        success=True,
+        data=ValetsMetricsResponse(
+            period=period,
+            metrics=metrics,
+            total_tasks=sum(m.tasks_completed for m in metrics),
+            total_tokens=sum(m.tokens_used for m in metrics),
+            total_api_calls=sum(m.api_calls for m in metrics),
+        )
     )
 
 
-@router.get("/{valet_name}", response_model=ValetInfo)
+@router.get("/{valet_name}", response_model=APIResponse[ValetInfo])
 async def get_valet_status(
     valet_name: ValetType,
     _user: Optional[TokenData] = Depends(get_current_user),
-) -> ValetInfo:
+) -> APIResponse[ValetInfo]:
     """
     Get detailed status for a specific valet
 
     Args:
         valet_name: Name of the valet worker
     """
-    return _get_valet_info(valet_name)
+    return APIResponse(success=True, data=_get_valet_info(valet_name))
 
 
-@router.get("/{valet_name}/activities", response_model=list[ValetActivity])
+@router.get("/{valet_name}/activities", response_model=APIResponse[list[ValetActivity]])
 async def get_valet_activities(
     valet_name: ValetType,
     limit: int = 50,
     _user: Optional[TokenData] = Depends(get_current_user),
-) -> list[ValetActivity]:
+) -> APIResponse[list[ValetActivity]]:
     """
     Get recent activities for a specific valet
 
@@ -282,7 +289,7 @@ async def get_valet_activities(
     """
     state = _valet_states[valet_name]
     activities = state["activities"][-limit:]
-    return [ValetActivity(**a) for a in activities]
+    return APIResponse(success=True, data=[ValetActivity(**a) for a in activities])
 
 
 # Functions to update valet state (called by workers)
