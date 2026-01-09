@@ -135,7 +135,7 @@
 	</header>
 
 	<!-- Tab Navigation -->
-	<div class="mb-6">
+	<div class="mb-6" data-testid="settings-tabs">
 		<Tabs
 			tabs={settingsTabs}
 			bind:activeTab={activeTab}
@@ -143,7 +143,7 @@
 		/>
 	</div>
 
-	<div class="space-y-6">
+	<div class="space-y-6" data-testid="settings-content">
 		<!-- GENERAL TAB -->
 		{#if activeTab === 'general'}
 			<!-- Appearance -->

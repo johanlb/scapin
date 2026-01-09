@@ -55,7 +55,7 @@ export const SELECTORS = {
   approveButton: '[data-testid="approve-button"]',
   rejectButton: '[data-testid="reject-button"]',
   snoozeButton: '[data-testid="snooze-button"]',
-  undoToast: '[data-testid="undo-toast"]',
+  undoToast: '[data-testid^="undo-toast-"]',
 
   // Notes
   notesTree: '[data-testid="notes-tree"]',

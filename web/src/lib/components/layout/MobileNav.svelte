@@ -32,6 +32,7 @@
 	class="fixed bottom-0 left-0 right-0 glass-prominent border-t border-[var(--glass-border-subtle)] md:hidden z-50"
 	style="padding-bottom: var(--safe-area-bottom);"
 	aria-label="Navigation mobile"
+	data-testid="mobile-nav"
 >
 	<div class="flex justify-around items-center h-16">
 		{#each navItems as item}

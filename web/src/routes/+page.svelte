@@ -177,7 +177,7 @@
 </script>
 
 <PullToRefresh onrefresh={handleRefresh}>
-	<div class="p-4 md:p-6 max-w-4xl mx-auto overflow-hidden">
+	<div class="p-4 md:p-6 max-w-4xl mx-auto overflow-hidden" data-testid="briefing-content">
 		<!-- Header -->
 		<header class="mb-6">
 			<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
@@ -249,7 +249,7 @@
 
 		<!-- Notes Review Widget -->
 		{#if notesReviewStore.stats && notesReviewStore.stats.total_due > 0}
-			<section class="mb-5">
+			<section class="mb-5" data-testid="notes-review-widget">
 				<h2
 					class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2"
 				>
@@ -266,17 +266,19 @@
 							</p>
 						</div>
 						<div class="flex items-center gap-3">
-							<ProgressRing
-								percent={notesReviewStore.stats.total_notes > 0
-									? Math.round(
-											((notesReviewStore.stats.total_notes - notesReviewStore.stats.total_due) /
-												notesReviewStore.stats.total_notes) *
-												100
-										)
-									: 100}
-								size={48}
-								color="primary"
-							/>
+							<div data-testid="review-progress">
+								<ProgressRing
+									percent={notesReviewStore.stats.total_notes > 0
+										? Math.round(
+												((notesReviewStore.stats.total_notes - notesReviewStore.stats.total_due) /
+													notesReviewStore.stats.total_notes) *
+													100
+											)
+										: 100}
+									size={48}
+									color="primary"
+								/>
+							</div>
 							<span class="text-[var(--color-text-tertiary)]">→</span>
 						</div>
 					</div>
@@ -355,7 +357,7 @@
 		{:else}
 			<!-- Urgent Items -->
 			{#if urgentEvents.length > 0}
-				<section class="mb-5">
+				<section class="mb-5" data-testid="urgent-items">
 					<h2
 						class="text-base font-semibold text-[var(--color-text-primary)] mb-2 flex items-center gap-2"
 					>

@@ -192,6 +192,7 @@
 <aside
 	class="fixed right-0 top-0 h-full w-72 glass-prominent hidden lg:flex flex-col z-40"
 	aria-label="Scapin"
+	data-testid="chat-panel"
 >
 	<!-- Header -->
 	<div class="px-3 py-2.5 border-b border-[var(--glass-border-subtle)] flex items-center gap-2">

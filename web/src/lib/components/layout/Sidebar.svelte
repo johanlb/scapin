@@ -41,6 +41,7 @@
 	onmouseenter={() => expanded = true}
 	onmouseleave={() => expanded = false}
 	role="navigation"
+	data-testid="sidebar"
 >
 	<!-- Logo -->
 	<div class="p-3 border-b border-[var(--glass-border-subtle)] flex items-center gap-3 h-14">

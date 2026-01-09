@@ -17,6 +17,8 @@
 		onclose?: () => void;
 		children?: Snippet;
 		footer?: Snippet;
+		'data-testid'?: string;
+		[key: string]: unknown;
 	}
 
 	let {
@@ -28,7 +30,8 @@
 		closeOnEscape = true,
 		onclose,
 		children,
-		footer
+		footer,
+		...restProps
 	}: Props = $props();
 
 	let modalRef = $state<HTMLDivElement | null>(null);
@@ -103,6 +106,7 @@
 			bind:this={modalRef}
 			class="relative w-full {sizeClasses[size]} glass-prominent rounded-2xl shadow-lg animate-modal-in overflow-hidden"
 			tabindex="-1"
+			{...restProps}
 		>
 			<!-- Header -->
 			{#if title || closable}

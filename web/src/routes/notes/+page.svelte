@@ -229,7 +229,7 @@
 				<h2 class="text-sm font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-3">
 					Dossiers
 				</h2>
-				<div class="space-y-0.5">
+				<div class="space-y-0.5" data-testid="notes-tree">
 					{#each Object.entries(folderTree) as [name, folder]}
 						{@render folderItem(folder, 0)}
 					{/each}

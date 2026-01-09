@@ -191,14 +191,16 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 
 			<!-- Content -->
 			{#if editing}
-				<MarkdownEditor
-					bind:content={note.content}
-					onSave={handleSave}
-					placeholder="Commencez à écrire votre note..."
-				/>
+				<div data-testid="note-editor">
+					<MarkdownEditor
+						bind:content={note.content}
+						onSave={handleSave}
+						placeholder="Commencez à écrire votre note..."
+					/>
+				</div>
 			{:else}
 				<Card variant="glass-subtle">
-					<div class="p-4 md:p-6">
+					<div class="p-4 md:p-6" data-testid="note-preview">
 						<MarkdownPreview content={note.content} />
 					</div>
 				</Card>

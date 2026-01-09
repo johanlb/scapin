@@ -271,6 +271,7 @@
 		tabindex="-1"
 		aria-modal="true"
 		aria-label="Recherche globale"
+		data-testid="command-palette"
 		onclick={(e) => e.stopPropagation()}
 		onkeydown={(e) => e.stopPropagation()}
 	>
@@ -283,6 +284,7 @@
 				type="text"
 				placeholder="Rechercher carnets, emails, événements..."
 				class="flex-1 bg-transparent text-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] outline-none"
+				data-testid="search-input"
 			/>
 			<kbd class="hidden md:inline-flex px-2 py-1 text-xs text-[var(--color-text-tertiary)] glass-subtle rounded-lg">
 				ESC
@@ -290,7 +292,7 @@
 		</div>
 
 		<!-- Results -->
-		<div class="max-h-[50vh] overflow-y-auto">
+		<div class="max-h-[50vh] overflow-y-auto" data-testid="search-results">
 			{#if loading}
 				<div class="flex justify-center py-8">
 					<div class="w-6 h-6 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"></div>

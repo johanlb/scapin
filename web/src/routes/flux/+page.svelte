@@ -1125,6 +1125,7 @@
 							size="sm"
 							onclick={handleApproveRecommended}
 							disabled={isProcessing}
+							data-testid="approve-button"
 						>
 							<span class="mr-1">✅</span> Approuver
 							<span class="ml-1 text-xs opacity-60 font-mono">A</span>
@@ -1134,6 +1135,7 @@
 							size="sm"
 							onclick={() => handleReject(currentItem)}
 							disabled={isProcessing}
+							data-testid="reject-button"
 						>
 							<span class="mr-1">🚫</span> Rejeter
 							<span class="ml-1 text-xs opacity-60 font-mono">R</span>
@@ -1144,6 +1146,7 @@
 								size="sm"
 								onclick={toggleSnoozeMenu}
 								disabled={isProcessing}
+								data-testid="snooze-button"
 							>
 								<span class="mr-1">💤</span> Reporter
 								<span class="ml-1 text-xs opacity-60 font-mono">S</span>
@@ -1232,7 +1235,7 @@
 
 	<!-- LIST VIEW for other filters (approved, rejected, auto) -->
 	{:else}
-		<section class="list-view-container">
+		<section class="list-view-container" data-testid="flux-list">
 			<!-- Undo error feedback -->
 			{#if undoError}
 				<div class="flex items-center gap-2 p-3 mb-4 rounded-lg bg-red-500/20 text-red-400 text-sm">
@@ -1250,7 +1253,7 @@
 				getKey={(item) => item.id}
 			>
 				{#snippet item(item, _index)}
-					<div class="pb-3">
+					<div class="pb-3" data-testid="flux-item-{item.id}">
 						<Card padding="md" class="hover:border-[var(--color-accent)] transition-colors">
 							<div class="flex items-start gap-3">
 							<a href="/flux/{item.id}" class="flex items-start gap-3 flex-1 min-w-0 no-underline text-inherit">

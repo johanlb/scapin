@@ -86,6 +86,7 @@
 		class="fixed right-0 top-0 h-full w-80 glass-prominent flex flex-col z-50 shadow-2xl
 			animate-in slide-in-from-right duration-300 ease-out"
 		onkeydown={handleKeydown}
+		data-testid="notifications-panel"
 	>
 		<!-- Header -->
 		<div class="px-4 py-3 border-b border-[var(--glass-border-subtle)] flex items-center gap-3">
@@ -283,7 +284,7 @@
 	<span class="text-lg">🔔</span>
 
 	{#if notificationCenterStore.hasUnread}
-		<span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--color-accent)] text-white text-[10px] font-bold flex items-center justify-center shadow-md">
+		<span class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--color-accent)] text-white text-[10px] font-bold flex items-center justify-center shadow-md" data-testid="notification-badge">
 			{notificationCenterStore.unreadCount > 9 ? '9+' : notificationCenterStore.unreadCount}
 		</span>
 	{/if}

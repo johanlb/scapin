@@ -57,7 +57,7 @@
 
 		<!-- Error message -->
 		{#if authStore.error}
-			<div class="error-message">
+			<div class="error-message" data-testid="login-error">
 				{authStore.error}
 				<button type="button" class="error-dismiss" onclick={() => authStore.clearError()} aria-label="Fermer l'erreur">
 					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -104,25 +104,30 @@
 			</div>
 
 			<!-- PIN dots indicator -->
-			<div class="pin-dots">
+			<div class="pin-dots" data-testid="pin-dots">
 				{#each Array(6) as _, i}
-					<div class="dot" class:filled={i < pin.length}></div>
+					<div
+						class="dot"
+						class:filled={i < pin.length}
+						data-testid={i < pin.length ? "pin-dot-filled" : "pin-dot-empty"}
+					></div>
 				{/each}
 			</div>
 
 			<!-- Keypad for mobile -->
-			<div class="keypad">
+			<div class="keypad" data-testid="pin-pad">
 				{#each ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as digit}
 					<button
 						type="button"
 						class="keypad-btn"
 						onclick={() => handleKeypadPress(digit)}
 						disabled={authStore.loading}
+						data-testid="pin-{digit}"
 					>
 						{digit}
 					</button>
 				{/each}
-				<button type="button" class="keypad-btn action" onclick={handleClear} disabled={authStore.loading}>
+				<button type="button" class="keypad-btn action" onclick={handleClear} disabled={authStore.loading} data-testid="pin-clear">
 					C
 				</button>
 				<button
@@ -130,10 +135,11 @@
 					class="keypad-btn"
 					onclick={() => handleKeypadPress('0')}
 					disabled={authStore.loading}
+					data-testid="pin-0"
 				>
 					0
 				</button>
-				<button type="button" class="keypad-btn action" onclick={handleBackspace} disabled={authStore.loading} aria-label="Effacer">
+				<button type="button" class="keypad-btn action" onclick={handleBackspace} disabled={authStore.loading} aria-label="Effacer" data-testid="pin-backspace">
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
 						<line x1="18" y1="9" x2="12" y2="15"/>

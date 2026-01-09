@@ -138,7 +138,7 @@
 	}
 </script>
 
-<Modal bind:open title="Historique des versions" size="lg">
+<Modal bind:open title="Historique des versions" size="lg" data-testid="note-history">
 	{#if loading}
 		<div class="flex justify-center py-8">
 			<div class="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"></div>

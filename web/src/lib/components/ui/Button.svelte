@@ -12,6 +12,8 @@
 		class?: string;
 		type?: 'button' | 'submit' | 'reset';
 		children?: Snippet;
+		'data-testid'?: string;
+		[key: string]: unknown;
 	}
 
 	let {
