@@ -546,6 +546,48 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-09 (Suite 5) — Backend Unavailability Detection ✅
+
+**Focus** : Détection et feedback utilisateur quand le backend n'est pas disponible
+
+**Contexte** :
+- L'utilisateur ne pouvait pas accéder à la page de login car le backend ne tournait pas
+- Demande : "Est-ce qu'on pourrait lancé le backend automatiquement lorsque l'il ne répond pas au front?"
+
+**Accomplissements** :
+
+1. ✅ **Script dev.sh** (`scripts/dev.sh` ~85 lignes)
+   - Lance backend et frontend ensemble
+   - Vérifie si le backend tourne déjà
+   - Attend que le backend soit prêt avant le frontend
+   - Cleanup propre avec Ctrl+C
+
+2. ✅ **NPM script dev:full** (`web/package.json`)
+   - `npm run dev:full` → lance `./scripts/dev.sh`
+   - Alternative pratique à la commande shell
+
+3. ✅ **Auth store amélioré** (`web/src/lib/stores/auth.svelte.ts`)
+   - Ajout état `backendAvailable`
+   - Fonction `retryConnection()` pour réessayer la connexion
+   - Détection erreur réseau (status 0)
+
+4. ✅ **UI Backend non disponible** (`web/src/routes/login/+page.svelte`)
+   - Message clair "Backend non disponible"
+   - Instruction: `./scripts/dev.sh`
+   - Bouton "Réessayer" avec état de chargement
+
+**Fichiers créés/modifiés** :
+```
+scripts/dev.sh                          # NEW (~85 lignes)
+web/package.json                        # MODIFIED (dev:full script)
+web/src/lib/stores/auth.svelte.ts       # MODIFIED (+40 lignes)
+web/src/routes/login/+page.svelte       # MODIFIED (+80 lignes)
+```
+
+**Commit** : `5bb730f` — feat(web): add backend unavailability detection and dev script
+
+---
+
 ### Session 2026-01-09 (Suite 3) — Guide Utilisateur ✅
 
 **Focus** : Rédaction du guide utilisateur complet
