@@ -1,55 +1,91 @@
 # Guide Utilisateur Scapin
 
-**Version** : 1.0
-**Langue** : Français
+**Version** : 1.0.0
+**Dernière mise à jour** : Janvier 2026
 
 ---
 
-## Structure du Guide
+## Bienvenue
 
-| Section | Fichier | Description |
-|---------|---------|-------------|
-| Introduction | `index.md` | Présentation de Scapin |
-| Installation | `01-installation.md` | Installation et configuration |
-| Premiers Pas | `02-premiers-pas.md` | Démarrage rapide |
-| Fonctionnalités | `03-fonctionnalites/` | Guides par fonctionnalité |
-| Raccourcis | `04-raccourcis-clavier.md` | Tous les raccourcis |
-| Troubleshooting | `05-troubleshooting.md` | Résolution de problèmes |
-| Architecture | `06-architecture/` | Pour les power users |
-| Glossaire | `glossaire.md` | Termes et concepts |
+Scapin est votre **gardien cognitif personnel** — un assistant intelligent qui transforme le flux constant d'emails, messages et informations en connaissances organisées et actions pertinentes.
+
+> *"Prendre soin de vous mieux que vous-même."*
+
+Inspiré du valet rusé de Molière, Scapin anticipe vos besoins, organise vos informations et vous libère de la charge mentale des tâches répétitives.
 
 ---
 
-## À Rédiger (Sprint 5)
+## Table des Matières
 
-- [ ] `index.md` — Introduction
-- [ ] `01-installation.md` — Installation
-- [ ] `02-premiers-pas.md` — Premiers pas
-- [ ] `03-fonctionnalites/briefing.md` — Briefing du matin
-- [ ] `03-fonctionnalites/flux-email.md` — Traitement des emails
-- [ ] `03-fonctionnalites/notes.md` — Gestion des notes
-- [ ] `03-fonctionnalites/journal.md` — Journaling quotidien
-- [ ] `03-fonctionnalites/discussions.md` — Chat avec Scapin
-- [ ] `03-fonctionnalites/teams.md` — Intégration Teams
-- [ ] `03-fonctionnalites/calendrier.md` — Intégration Calendrier
-- [ ] `04-raccourcis-clavier.md` — Raccourcis clavier
-- [ ] `05-troubleshooting.md` — Troubleshooting
-- [ ] `06-architecture/valets.md` — L'équipe des valets
-- [ ] `06-architecture/flux-donnees.md` — Flux de données
-- [ ] `glossaire.md` — Glossaire
+| Section | Description |
+|---------|-------------|
+| [1. Démarrage Rapide](01-demarrage.md) | Installation, connexion, premiers pas |
+| [2. Briefing](02-briefing.md) | Briefing matinal, pré-réunion |
+| [3. Flux](03-flux.md) | Traitement des emails et messages |
+| [4. Notes](04-notes.md) | Base de connaissances, révision espacée |
+| [5. Journal](05-journal.md) | Journaling quotidien, boucle de feedback |
+| [6. Architecture](06-architecture.md) | Les valets, pipeline cognitif |
+| [7. Configuration](07-configuration.md) | Réglages, intégrations |
 
 ---
 
-## Conventions
+## Concepts Clés
 
-- **Langue** : Français, vouvoiement
-- **Ton** : Professionnel mais accessible
-- **Format** : Markdown avec images si nécessaire
-- **Screenshots** : À ajouter après validation fonctionnelle
+### Information en 3 Niveaux
+
+Scapin présente l'information selon votre besoin immédiat :
+
+| Niveau | Temps | Usage |
+|--------|-------|-------|
+| **Niveau 1** | 30 secondes | Décision rapide, aperçu |
+| **Niveau 2** | 2 minutes | Contexte, options |
+| **Niveau 3** | Variable | Détails complets, analyse |
+
+### Les Valets
+
+Scapin utilise une équipe de "valets" spécialisés :
+
+- **Trivelin** — Perception et triage des événements
+- **Sancho** — Raisonnement et analyse IA
+- **Passepartout** — Base de connaissances
+- **Planchet** — Planification des actions
+- **Figaro** — Exécution des actions
+- **Sganarelle** — Apprentissage continu
+
+### Boucle Cognitive
+
+```
+Événement → Analyse IA → Contexte Notes → Action → Feedback → Amélioration
+```
+
+Chaque interaction enrichit le système et améliore les futures analyses.
 
 ---
 
-## Intégration In-App
+## Navigation Rapide
 
-Ce guide sera accessible via la page `/help` dans l'application web.
-Les fichiers Markdown seront servis via l'API et rendus côté client.
+### Raccourcis Clavier
+
+| Raccourci | Action |
+|-----------|--------|
+| `Cmd+K` / `Ctrl+K` | Recherche globale |
+| `?` | Aide raccourcis |
+| `Escape` | Fermer modal/panneau |
+| `1-6` | Noter révision (page Notes Review) |
+
+### Gestes Mobile
+
+| Geste | Action |
+|-------|--------|
+| Swipe droite | Approuver |
+| Swipe gauche | Rejeter |
+| Pull down | Rafraîchir |
+| Long press | Actions contextuelles |
+
+---
+
+## Support
+
+- **Documentation technique** : [ARCHITECTURE.md](../../ARCHITECTURE.md)
+- **Philosophie** : [DESIGN_PHILOSOPHY.md](../DESIGN_PHILOSOPHY.md)
+- **Issues** : [GitHub Issues](https://github.com/johanlb/scapin/issues)

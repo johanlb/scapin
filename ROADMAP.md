@@ -2,8 +2,8 @@
 
 **Dernière mise à jour** : 9 janvier 2026
 **Version** : 1.0.0-alpha.18 (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 5 🚧 — Qualité & Release (2/6 — 33%)
-**Prochaine priorité** : Guide utilisateur, Audit sécurité
+**Phase actuelle** : Sprint 5 🚧 — Qualité & Release (4/6 — 67%)
+**Prochaine priorité** : Audit sécurité, Revue code finale
 
 ---
 
@@ -11,15 +11,15 @@
 
 ### Statut Global
 
-**État** : Sprint 5 en cours — 4 items MVP restants sur 86 (E2E ✅, Lighthouse ✅)
+**État** : Sprint 5 en cours — 2 items MVP restants sur 86 (E2E ✅, Lighthouse ✅, Guide ✅, /help ✅)
 
 | Métrique | Valeur |
 |----------|--------|
 | **Tests** | 2148+ backend + 660 E2E, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprints 1-4 + Cross-Source |
-| **Gaps MVP restants** | 4 items (Documentation, Sécurité) |
-| **Prochaine priorité** | 🔥 **Guide utilisateur** + Audit sécurité |
+| **Gaps MVP restants** | 2 items (Sécurité, Revue code) |
+| **Prochaine priorité** | 🔥 **Audit sécurité OWASP** |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -801,7 +801,7 @@ cross_source:
 
 ## Sprint 5 : Qualité & Release
 
-**Statut** : 🚧 En cours — 2/6 items (33%)
+**Statut** : 🚧 En cours — 4/6 items (67%)
 **Objectif** : v1.0 Release Candidate
 **Items** : 4 MVP + Audit Sécurité
 **Dépendance** : Sprint 4 ✅
@@ -826,8 +826,8 @@ cross_source:
 |-----------|------|----------|--------|
 | **Tests E2E** | Playwright setup + 10 pages + flows | MVP | ✅ 660 tests |
 | **Performance** | Lighthouse audit (A11y 98%, BP 96%, SEO 100%, Perf 86-95%) | MVP | ✅ |
-| **Documentation** | Guide utilisateur complet (7 sections) | MVP | ⬜ |
-| **Documentation** | Page /help in-app | MVP | ⬜ |
+| **Documentation** | Guide utilisateur complet (7 sections, ~1500 lignes) | MVP | ✅ |
+| **Documentation** | Page /help in-app | MVP | ✅ |
 | **Sécurité** | Audit OWASP + dépendances | MVP | ⬜ |
 | **Cleanup** | Revue code finale | — | ⬜ |
 
@@ -877,10 +877,10 @@ cross_source:
 
 - [x] Tests E2E passent (desktop + mobile, 3 navigateurs) — 660 tests ✅
 - [x] Lighthouse audité (A11y 98%, BP 96%, SEO 100%, Perf 86-95%) ✅
-- [ ] Guide utilisateur complet (Markdown + in-app)
+- [x] Guide utilisateur complet (7 sections + /help in-app) ✅
 - [ ] Zéro bug critique connu
 - [ ] Audit sécurité validé (0 CRITICAL/HIGH non résolu)
-- [ ] 86 items MVP complétés (100%) — actuellement 82/86 (95%)
+- [ ] 86 items MVP complétés (100%) — actuellement 84/86 (98%)
 
 ---
 
@@ -989,7 +989,7 @@ Sprint 2 (Analyse):████████████████████ 
 Sprint 3 (Actions):████████████████████ 100% ✅ (18/18)
 Cross-Source 🔥:   ████████████████████ 100% ✅ (12/12)
 Sprint 4 (UX):     ████████████████████ 100% ✅ (18/18)
-Sprint 5 (Release):██████░░░░░░░░░░░░░░  33% 🚧 (2/6 — E2E ✅, Lighthouse ✅)
+Sprint 5 (Release):█████████████░░░░░░░  67% 🚧 (4/6 — E2E ✅, Lighthouse ✅, Guide ✅, /help ✅)
 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -1007,8 +1007,8 @@ Global MVP:        ████████████████████�
 | Sprint 3 | 18 | 18 | ✅ 100% |
 | **Cross-Source** 🔥 | **12** | **12** | ✅ **100%** |
 | Sprint 4 | 18 | 18 | ✅ 100% |
-| Sprint 5 | 6 | 2 | 🚧 33% (E2E ✅, Lighthouse ✅) |
-| **Total MVP** | **86** | **82** | 95% |
+| Sprint 5 | 6 | 4 | 🚧 67% (E2E ✅, Lighthouse ✅, Guide ✅, /help ✅) |
+| **Total MVP** | **86** | **84** | 98% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -1178,8 +1178,9 @@ Global MVP:        ████████████████████�
 
 ---
 
-**Statut** : Sprint 5 en cours 🚧 — MVP à 95% (82/86 items)
+**Statut** : Sprint 5 en cours 🚧 — MVP à 98% (84/86 items)
 **Qualité** : 10/10 Production Ready Core (Security Hardened)
 **Tests** : 2148+ backend + 660 E2E tests, 95% couverture, 100% pass rate
 **Lighthouse** : A11y 98%, Best Practices 96%, SEO 100%, Performance 86-95%
-**Prochaine étape** : Guide utilisateur, Audit sécurité (4 items restants)
+**Documentation** : Guide utilisateur 7 sections (~1500 lignes) + Page /help in-app
+**Prochaine étape** : Audit sécurité OWASP (2 items restants)

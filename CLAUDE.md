@@ -546,6 +546,52 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-09 (Suite 3) — Guide Utilisateur ✅
+
+**Focus** : Rédaction du guide utilisateur complet
+
+**Accomplissements** :
+
+1. ✅ **Guide utilisateur en 7 sections** (~1500 lignes)
+   - `01-demarrage.md` — Installation, configuration, premiers pas
+   - `02-briefing.md` — Briefing matinal, pré-réunion, conflits
+   - `03-flux.md` — Traitement emails, actions, entités
+   - `04-notes.md` — Base de connaissances, révision SM-2, Git
+   - `05-journal.md` — Journaling quotidien, feedback, calibration
+   - `06-architecture.md` — Les valets, pipeline cognitif, flux de données
+   - `07-configuration.md` — Variables .env, YAML, intégrations
+
+2. ✅ **Page /help in-app**
+   - Sections résumées avec icônes
+   - FAQ (4 questions fréquentes)
+   - Liens vers ressources externes
+   - Raccourcis clavier
+
+3. ✅ **Card.svelte amélioré**
+   - Ajout `[key: string]: unknown` pour supporter data-testid
+
+**Fichiers créés** :
+```
+docs/user-guide/
+├── README.md           (91 lignes)
+├── 01-demarrage.md     (145 lignes)
+├── 02-briefing.md      (144 lignes)
+├── 03-flux.md          (189 lignes)
+├── 04-notes.md         (216 lignes)
+├── 05-journal.md       (170 lignes)
+├── 06-architecture.md  (243 lignes)
+└── 07-configuration.md (308 lignes)
+
+web/src/routes/help/+page.svelte  (~220 lignes)
+```
+
+**État du projet** :
+- **Sprint 5** : 67% (4/6 items — E2E ✅, Lighthouse ✅, Guide ✅, /help ✅)
+- **MVP Progress** : 98% (84/86 items)
+- **Prochaine étape** : Audit sécurité OWASP
+
+---
+
 ### Session 2026-01-09 (Suite 2) — Audit Lighthouse ✅
 
 **Focus** : Audit Lighthouse initial pour Sprint 5
@@ -2880,7 +2926,7 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 ### Sprint 5 : Qualité & Release — EN COURS 🚧
 
 **Objectif** : v1.0 Release Candidate
-**Statut** : 2/6 items MVP (33%)
+**Statut** : 4/6 items MVP (67%)
 **Spécification** : [SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)
 
 **Items complétés** :
@@ -2890,10 +2936,12 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Audit Lighthouse (A11y 98%, BP 96%, SEO 100%, Perf 86-95%)
   - Rapport détaillé: `reports/lighthouse/AUDIT_REPORT.md`
   - Performance légèrement sous 90 sur Home/Flux (TBT élevé, acceptable pour MVP)
+- ✅ Guide utilisateur complet (7 sections, ~1500 lignes)
+  - `docs/user-guide/` avec README + 7 sections
+- ✅ Page /help in-app
+  - `web/src/routes/help/+page.svelte`
 
 **Items restants** :
-- ⬜ Guide utilisateur complet (7 sections Markdown)
-- ⬜ Page /help in-app
 - ⬜ Audit sécurité OWASP + dépendances
 - ⬜ Revue code finale
 
@@ -2946,13 +2994,13 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 - [x] Tests E2E passent (desktop + mobile, 3 navigateurs) — 660 tests ✅
 - [x] Lighthouse audité (A11y 98%, BP 96%, SEO 100%, Perf 86-95%) ✅
-- [ ] Guide utilisateur complet (Markdown + in-app)
+- [x] Guide utilisateur complet (7 sections + /help in-app) ✅
 - [ ] Zéro bug critique connu
 - [ ] Audit sécurité validé (0 CRITICAL/HIGH non résolu)
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (4 MVP restants sur 86).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (2 MVP restants sur 86).
 
 ---
 

@@ -9,6 +9,7 @@
 		class?: string;
 		onclick?: () => void;
 		children?: Snippet;
+		[key: string]: unknown;
 	}
 
 	let {
