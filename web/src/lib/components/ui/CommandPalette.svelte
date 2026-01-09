@@ -273,7 +273,12 @@
 		aria-label="Recherche globale"
 		data-testid="command-palette"
 		onclick={(e) => e.stopPropagation()}
-		onkeydown={(e) => e.stopPropagation()}
+		onkeydown={(e) => {
+			// Allow Escape to propagate to close the palette
+			if (e.key !== 'Escape') {
+				e.stopPropagation();
+			}
+		}}
 	>
 		<!-- Search Input -->
 		<div class="flex items-center gap-3 p-4 border-b border-[var(--glass-border-subtle)]">

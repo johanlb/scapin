@@ -41,13 +41,15 @@ export const SELECTORS = {
   chatPanel: '[data-testid="chat-panel"]',
 
   // Auth
+  pinInput: '[data-testid="pin-input"]',
+  loginSubmit: '[data-testid="login-submit"]',
   pinPad: '[data-testid="pin-pad"]',
   pinDigit: (digit: string) => `[data-testid="pin-${digit}"]`,
 
   // Briefing
   briefingContent: '[data-testid="briefing-content"]',
   urgentItems: '[data-testid="urgent-items"]',
-  quickActions: '[data-testid="quick-actions"]',
+  notesReviewWidget: '[data-testid="notes-review-widget"]',
 
   // Flux
   fluxList: '[data-testid="flux-list"]',

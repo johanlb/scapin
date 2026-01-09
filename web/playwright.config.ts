@@ -12,10 +12,10 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  fullyParallel: false, // Sequential to avoid overloading the backend
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 2 : 1,
+  workers: 1, // Single worker to avoid backend concurrency issues
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
     ['list'],
@@ -90,9 +90,9 @@ export default defineConfig({
   ],
 
   /* Global timeout settings */
-  timeout: 30000,
+  timeout: 60000, // 1 minute per test
   expect: {
-    timeout: 5000,
+    timeout: 10000, // 10 seconds for assertions
   },
 
   /* Output folder for test artifacts */

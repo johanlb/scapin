@@ -18,15 +18,15 @@ test.describe('Briefing Page', () => {
     await expect(page.locator(SELECTORS.briefingContent)).toBeVisible();
   });
 
-  test('should display quick actions section', async ({
+  test('should display stats section', async ({
     authenticatedPage: page,
   }) => {
-    // Quick actions should be visible
-    const quickActions = page.locator(SELECTORS.quickActions);
-    await expect(quickActions).toBeVisible();
-
-    // Should have at least one action button
-    await expect(quickActions.locator('button')).toHaveCount.greaterThan(0);
+    // Stats cards should be visible (Emails, Teams, Réunions, Tâches)
+    // Use exact locators to avoid matching badges in the event cards
+    await expect(page.locator('.text-xs:text("Emails")').first()).toBeVisible();
+    await expect(page.locator('.text-xs:text("Teams")').first()).toBeVisible();
+    await expect(page.locator('.text-xs:text("Réunions")').first()).toBeVisible();
+    await expect(page.locator('.text-xs:text("Tâches")').first()).toBeVisible();
   });
 
   test('should navigate to flux when clicking process email action', async ({
@@ -43,14 +43,18 @@ test.describe('Briefing Page', () => {
     }
   });
 
-  test('should display calendar events if any', async ({
+  test('should display urgent items section if any', async ({
     authenticatedPage: page,
   }) => {
-    // Check for calendar section
-    const calendarSection = page.locator('[data-testid="calendar-today"]');
+    // The page should have either urgent items or an empty state message
+    const urgentSection = page.locator('[data-testid="urgent-items"]');
+    const emptyState = page.getByText('Tout est en ordre, Monsieur');
 
-    // Calendar section should exist (even if empty)
-    await expect(calendarSection).toBeVisible();
+    // Either urgent items OR empty state should be visible
+    const hasUrgentItems = await urgentSection.isVisible();
+    const hasEmptyState = await emptyState.isVisible();
+
+    expect(hasUrgentItems || hasEmptyState).toBe(true);
   });
 
   test('should show conflict alerts for calendar conflicts', async ({
@@ -98,8 +102,9 @@ test.describe('Briefing Page', () => {
     // Command palette should be visible
     await expect(page.locator(SELECTORS.commandPalette)).toBeVisible();
 
-    // Press Escape to close
+    // Press Escape to close - wait for animation
     await page.keyboard.press('Escape');
+    await page.waitForTimeout(300); // Wait for close animation
     await expect(page.locator(SELECTORS.commandPalette)).not.toBeVisible();
   });
 

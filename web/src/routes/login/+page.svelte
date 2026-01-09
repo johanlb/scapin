@@ -113,6 +113,7 @@
 					placeholder="PIN (4-6 chiffres)"
 					class="pin-input"
 					disabled={authStore.loading}
+					data-testid="pin-input"
 				/>
 				<button
 					type="button"
@@ -180,7 +181,7 @@
 			</div>
 
 			<!-- Submit button -->
-			<button type="submit" class="submit-btn" disabled={pin.length < 4 || authStore.loading}>
+			<button type="submit" class="submit-btn" disabled={pin.length < 4 || authStore.loading} data-testid="login-submit">
 				{#if authStore.loading}
 					<span class="spinner"></span>
 					Connexion...
