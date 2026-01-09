@@ -546,6 +546,59 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-09 (Suite) — Sprint 5 : Tests E2E Playwright ✅
+
+**Focus** : Implémentation des tests E2E avec Playwright pour Sprint 5
+
+**Accomplissements** :
+
+1. ✅ **data-testid ajoutés à 15 composants Svelte**
+   - UI: `Button.svelte`, `Modal.svelte`, `CommandPalette.svelte`
+   - Layout: `ChatPanel.svelte`, `NotificationsPanel.svelte`, `Sidebar.svelte`, `MobileNav.svelte`
+   - Pages: flux, notes, settings, login, briefing
+   - Notes: `NoteHistory.svelte`
+
+2. ✅ **8 nouveaux fichiers de tests E2E créés**
+   - `flux.spec.ts` — 14 tests (approve, reject, snooze, keyboard)
+   - `notes.spec.ts` — 18 tests (tree, editor, preview, history, review)
+   - `discussions.spec.ts` — 13 tests (chat panel, messages)
+   - `journal.spec.ts` — 13 tests (multi-source tabs, questions)
+   - `stats.spec.ts` — 13 tests (metrics, charts)
+   - `settings.spec.ts` — 14 tests (tabs, integrations)
+   - `search.spec.ts` — 15 tests (command palette)
+   - `notifications.spec.ts` — 12 tests (badge, panel)
+
+3. ✅ **Couverture E2E complète**
+   - **132 test cases** dans 10 fichiers
+   - **660 tests total** (5 browsers: Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari)
+   - Tous compilent avec succès (`npx playwright test --list`)
+
+**Fichiers créés/modifiés** :
+```
+web/e2e/pages/flux.spec.ts           # NEW (14 tests)
+web/e2e/pages/notes.spec.ts          # NEW (18 tests)
+web/e2e/pages/discussions.spec.ts    # NEW (13 tests)
+web/e2e/pages/journal.spec.ts        # NEW (13 tests)
+web/e2e/pages/stats.spec.ts          # NEW (13 tests)
+web/e2e/pages/settings.spec.ts       # NEW (14 tests)
+web/e2e/pages/search.spec.ts         # NEW (15 tests)
+web/e2e/pages/notifications.spec.ts  # NEW (12 tests)
+web/e2e/fixtures/test-data.ts        # MODIFIED (selector update)
+web/src/lib/components/ui/Button.svelte      # MODIFIED (Props extended)
+web/src/lib/components/ui/Modal.svelte       # MODIFIED (Props + restProps)
++ 13 autres composants avec data-testid
+```
+
+**État du projet** :
+- **Sprint 5** : 17% (1/6 items — E2E ✅)
+- **MVP Progress** : 94% (81/86 items)
+- **Tests** : 2148+ backend + 660 E2E
+- **Prochaine étape** : Lighthouse > 90, Guide utilisateur
+
+**Commit** : `531157e` — feat(e2e): add comprehensive E2E tests with data-testid attributes
+
+---
+
 ### Session 2026-01-09 — Test Suite Verification & Documentation Update ✅
 
 **Focus** : Vérification des tests et mise à jour de la documentation
@@ -2767,11 +2820,23 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Stats (LineChart avec tendances 7/30j)
 - ✅ CLI (Menu interactif complet, 684 lignes)
 
-### Sprint 5 : Qualité & Release — PRÊT À DÉMARRER 🎯
+### Sprint 5 : Qualité & Release — EN COURS 🚧
 
 **Objectif** : v1.0 Release Candidate
-**Statut** : 0/6 items MVP
+**Statut** : 1/6 items MVP (17%)
 **Spécification** : [SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)
+
+**Items complétés** :
+- ✅ Tests E2E Playwright (132 tests × 5 browsers = 660 tests)
+  - 10 fichiers: login, briefing, flux, notes, discussions, journal, stats, settings, search, notifications
+  - data-testid ajoutés à 15 composants Svelte
+
+**Items restants** :
+- ⬜ Lighthouse > 90 (Performance, Accessibility, Best Practices, SEO)
+- ⬜ Guide utilisateur complet (7 sections Markdown)
+- ⬜ Page /help in-app
+- ⬜ Audit sécurité OWASP + dépendances
+- ⬜ Revue code finale
 
 #### Décisions Validées (9 janvier 2026)
 

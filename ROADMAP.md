@@ -1,9 +1,9 @@
 # Scapin — Feuille de Route Produit
 
 **Dernière mise à jour** : 9 janvier 2026
-**Version** : 1.0.0-alpha (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 4 ✅ — Temps Réel & UX (18/18 — 100%)
-**Prochaine priorité** : Sprint 5 — Qualité & Release
+**Version** : 1.0.0-alpha.18 (suite de PKM v3.1.0)
+**Phase actuelle** : Sprint 5 🚧 — Qualité & Release (1/6 — 17%)
+**Prochaine priorité** : Lighthouse > 90, Guide utilisateur
 
 ---
 
@@ -11,15 +11,15 @@
 
 ### Statut Global
 
-**État** : MVP presque complet — 6 items MVP restants sur 86 (Sprints 1-4 + Cross-Source 100% complétés)
+**État** : Sprint 5 en cours — 5 items MVP restants sur 86 (Tests E2E ✅)
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 2148+ tests, 95% couverture, 100% pass rate |
+| **Tests** | 2148+ backend + 660 E2E, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
-| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprint 1 + Sprint 2 + Sprint 3 + Cross-Source + Sprint 4 |
-| **Gaps MVP restants** | 6 items (Sprint 5 uniquement) |
-| **Prochaine priorité** | 🔥 **Sprint 5** — Qualité & Release (6 items) |
+| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprints 1-4 + Cross-Source |
+| **Gaps MVP restants** | 5 items (Lighthouse, Documentation, Sécurité) |
+| **Prochaine priorité** | 🔥 **Lighthouse > 90** + Guide utilisateur |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -801,7 +801,7 @@ cross_source:
 
 ## Sprint 5 : Qualité & Release
 
-**Statut** : 📋 Planifié — Prêt à démarrer
+**Statut** : 🚧 En cours — 1/6 items (17%)
 **Objectif** : v1.0 Release Candidate
 **Items** : 4 MVP + Audit Sécurité
 **Dépendance** : Sprint 4 ✅
@@ -811,7 +811,7 @@ cross_source:
 
 | Aspect | Décision |
 |--------|----------|
-| **Tests E2E** | Toutes les pages, Desktop (1280px) + Mobile (375px) |
+| **Tests E2E** | ✅ 132 tests × 5 browsers = 660 tests |
 | **Backend E2E** | Backend réel local (pas de mock) |
 | **Lighthouse** | Score > 90 partout (Performance, Accessibility, Best Practices, SEO) |
 | **Guide Format** | Markdown dans /docs + Page /help in-app |
@@ -824,7 +824,7 @@ cross_source:
 
 | Catégorie | Item | Priorité | Statut |
 |-----------|------|----------|--------|
-| **Tests E2E** | Playwright setup + 15 pages + flows | MVP | ⬜ |
+| **Tests E2E** | Playwright setup + 10 pages + flows | MVP | ✅ 660 tests |
 | **Performance** | Lighthouse > 90 toutes métriques | MVP | ⬜ |
 | **Documentation** | Guide utilisateur complet (7 sections) | MVP | ⬜ |
 | **Documentation** | Page /help in-app | MVP | ⬜ |
@@ -989,13 +989,13 @@ Sprint 2 (Analyse):████████████████████ 
 Sprint 3 (Actions):████████████████████ 100% ✅ (18/18)
 Cross-Source 🔥:   ████████████████████ 100% ✅ (12/12)
 Sprint 4 (UX):     ████████████████████ 100% ✅ (18/18)
-Sprint 5 (Release):░░░░░░░░░░░░░░░░░░░░   0% 📋
+Sprint 5 (Release):███░░░░░░░░░░░░░░░░░  17% 🚧 (1/6 — E2E ✅)
 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
 
-Global MVP:        ████████████████████  93% (80 MVP complétés sur 86)
-                   → 6 items restants (Sprint 5)
+Global MVP:        █████████████████████ 94% (81 MVP complétés sur 86)
+                   → 5 items restants (Lighthouse, Doc, Sécurité)
 ```
 
 ### Items par Sprint
@@ -1007,8 +1007,8 @@ Global MVP:        ████████████████████ 
 | Sprint 3 | 18 | 18 | ✅ 100% |
 | **Cross-Source** 🔥 | **12** | **12** | ✅ **100%** |
 | Sprint 4 | 18 | 18 | ✅ 100% |
-| Sprint 5 | 6 | 0 | 📋 Planifié |
-| **Total MVP** | **86** | **80** | 93% |
+| Sprint 5 | 6 | 1 | 🚧 17% (E2E ✅) |
+| **Total MVP** | **86** | **81** | 94% |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -1178,7 +1178,7 @@ Global MVP:        ████████████████████ 
 
 ---
 
-**Statut** : Sprints 1-4 + Cross-Source COMPLÉTÉS ✅ — MVP à 93% (80/86 items)
+**Statut** : Sprint 5 en cours 🚧 — MVP à 94% (81/86 items)
 **Qualité** : 10/10 Production Ready Core (Security Hardened)
-**Tests** : 2148+ tests, 95% couverture, 100% pass rate
-**Prochaine étape** : Sprint 5 — Tests E2E, Lighthouse, Documentation (6 items restants)
+**Tests** : 2148+ backend + 660 E2E tests, 95% couverture, 100% pass rate
+**Prochaine étape** : Lighthouse > 90, Guide utilisateur, Audit sécurité (5 items restants)
