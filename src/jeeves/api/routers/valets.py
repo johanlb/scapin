@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from src.jeeves.api.auth import TokenData
 from src.jeeves.api.deps import get_current_user
 from src.jeeves.api.models.responses import APIResponse
+from src.jeeves.api.services.valets_stats_service import get_valets_stats_service
 
 router = APIRouter()
 
@@ -166,21 +167,39 @@ VALET_DESCRIPTIONS = {
 
 
 def _get_valet_info(valet_type: ValetType) -> ValetInfo:
-    """Build ValetInfo from current state"""
-    state = _valet_states[valet_type]
+    """Build ValetInfo from current state using real stats"""
     display_name, description = VALET_DESCRIPTIONS[valet_type]
+
+    # Get real stats from the service
+    stats_service = get_valets_stats_service()
+    valet_name = valet_type.value
+
+    # Get stats for this specific valet
+    stats_method = getattr(stats_service, f"get_{valet_name}_stats", None)
+    real_stats = stats_method() if stats_method else stats_service._empty_stats()
+
+    # Also get any recorded activities from in-memory state
+    state = _valet_states[valet_type]
+    activities = state.get("activities", [])
+
+    # Map status string to enum
+    status_str = real_stats.get("status", "idle")
+    try:
+        status = ValetStatus(status_str)
+    except ValueError:
+        status = ValetStatus.IDLE
 
     return ValetInfo(
         name=valet_type,
         display_name=display_name,
         description=description,
-        status=state["status"],
-        current_task=state["current_task"],
-        last_activity=state["activities"][-1]["timestamp"] if state["activities"] else None,
-        tasks_completed_today=state["tasks_today"],
-        error_count_today=state["errors_today"],
+        status=status,
+        current_task=real_stats.get("current_task"),
+        last_activity=activities[-1]["timestamp"] if activities else None,
+        tasks_completed_today=real_stats.get("tasks_today", 0),
+        error_count_today=real_stats.get("errors_today", 0),
         recent_activities=[
-            ValetActivity(**a) for a in state["activities"][-10:]
+            ValetActivity(**a) for a in activities[-10:]
         ],
     )
 
@@ -197,8 +216,13 @@ async def get_valets_dashboard(
     """
     valets = [_get_valet_info(vt) for vt in ValetType]
 
-    active_workers = sum(1 for v in valets if v.status == ValetStatus.RUNNING)
-    total_tasks = sum(v.tasks_completed_today for v in valets)
+    # Get aggregated metrics from real stats
+    stats_service = get_valets_stats_service()
+    aggregate = stats_service.get_aggregate_metrics()
+
+    active_workers = aggregate.get("active_workers", 0)
+    total_tasks = aggregate.get("total_tasks_today", 0)
+    avg_confidence = aggregate.get("avg_confidence", 0.85)
 
     # Determine system status
     error_valets = [v for v in valets if v.status == ValetStatus.ERROR]
@@ -216,7 +240,7 @@ async def get_valets_dashboard(
             system_status=system_status,
             active_workers=active_workers,
             total_tasks_today=total_tasks,
-            avg_confidence=0.85,  # Would come from Sganarelle stats
+            avg_confidence=avg_confidence,
         )
     )
 
@@ -232,21 +256,45 @@ async def get_valets_metrics(
     Args:
         period: Time period - "today", "7d", or "30d"
     """
-    # This would query actual metrics from storage
-    # For now, return placeholder data
-    metrics = [
-        ValetMetrics(
+    # Get real stats from service
+    stats_service = get_valets_stats_service()
+    all_stats = stats_service.get_all_stats()
+
+    # Build metrics from real stats
+    metrics: list[ValetMetrics] = []
+    total_tokens = 0
+    total_api_calls = 0
+
+    for vt in ValetType:
+        valet_stats = all_stats.get(vt.value, {})
+        details = valet_stats.get("details", {})
+
+        tasks_completed = valet_stats.get("tasks_today", 0)
+        tasks_failed = valet_stats.get("errors_today", 0)
+
+        # Calculate success rate
+        total = tasks_completed + tasks_failed
+        success_rate = tasks_completed / total if total > 0 else 1.0
+
+        # Get specific metrics based on valet type
+        avg_duration_ms = details.get("avg_duration_ms", 0)
+        p95_duration_ms = details.get("p95_duration_ms", 0)
+        tokens_used = details.get("total_tokens", 0)
+        api_calls = details.get("total_requests", 0)
+
+        total_tokens += tokens_used
+        total_api_calls += api_calls
+
+        metrics.append(ValetMetrics(
             name=vt,
-            tasks_completed=_valet_states[vt]["tasks_today"],
-            tasks_failed=_valet_states[vt]["errors_today"],
-            avg_duration_ms=150,
-            p95_duration_ms=500,
-            success_rate=0.95,
-            tokens_used=0,
-            api_calls=0,
-        )
-        for vt in ValetType
-    ]
+            tasks_completed=tasks_completed,
+            tasks_failed=tasks_failed,
+            avg_duration_ms=int(avg_duration_ms),
+            p95_duration_ms=int(p95_duration_ms),
+            success_rate=round(success_rate, 3),
+            tokens_used=tokens_used,
+            api_calls=api_calls,
+        ))
 
     return APIResponse(
         success=True,
@@ -254,8 +302,8 @@ async def get_valets_metrics(
             period=period,
             metrics=metrics,
             total_tasks=sum(m.tasks_completed for m in metrics),
-            total_tokens=sum(m.tokens_used for m in metrics),
-            total_api_calls=sum(m.api_calls for m in metrics),
+            total_tokens=total_tokens,
+            total_api_calls=total_api_calls,
         )
     )
 
