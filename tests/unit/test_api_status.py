@@ -5,7 +5,7 @@ Tests GET /api/status endpoint and StatusService.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -318,11 +318,7 @@ class TestStatusService:
 
             # Find components and check states
             for component in status.components:
-                if component.name == "email":
-                    assert component.state == "disabled"
-                elif component.name == "teams":
-                    assert component.state == "disabled"
-                elif component.name == "calendar":
+                if component.name == "email" or component.name == "teams" or component.name == "calendar":
                     assert component.state == "disabled"
 
 

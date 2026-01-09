@@ -6,7 +6,6 @@ from src.passepartout.note_merger import (
     Change,
     Conflict,
     ConflictType,
-    MergeResult,
     MergeStrategy,
     NoteMerger,
 )

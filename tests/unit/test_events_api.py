@@ -11,13 +11,11 @@ from fastapi.testclient import TestClient
 
 from src.integrations.storage.action_history import (
     ActionHistoryStorage,
-    ActionRecord,
     ActionStatus,
     ActionType,
 )
 from src.integrations.storage.snooze_storage import (
     SnoozeReason,
-    SnoozeRecord,
     SnoozeStorage,
 )
 from src.jeeves.api.services.events_service import EventsService

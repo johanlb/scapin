@@ -4,7 +4,7 @@ Tests for Calendar API Router
 Tests calendar event listing, today's events, responding, and polling endpoints.
 """
 
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

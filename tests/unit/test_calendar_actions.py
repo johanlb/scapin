@@ -6,8 +6,6 @@ Tests the Figaro actions for Calendar operations.
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from src.figaro.actions.calendar import (
     CalendarBlockTimeAction,
     CalendarCreateEventAction,

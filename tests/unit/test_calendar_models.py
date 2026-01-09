@@ -12,8 +12,6 @@ from src.integrations.microsoft.calendar_models import (
     CalendarAttendee,
     CalendarEvent,
     CalendarEventImportance,
-    CalendarEventSensitivity,
-    CalendarEventShowAs,
     CalendarLocation,
     CalendarResponseStatus,
     _extract_plain_text,

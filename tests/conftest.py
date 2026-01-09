@@ -6,7 +6,7 @@ Global fixtures for all tests.
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
@@ -237,7 +237,7 @@ IMAP_PASSWORD=testpass123
 
 
 @pytest.fixture
-def mock_email_response() -> Dict[str, Any]:
+def mock_email_response() -> dict[str, Any]:
     """Mock IMAP email response"""
     return {
         12345: {
@@ -248,7 +248,7 @@ def mock_email_response() -> Dict[str, Any]:
 
 
 @pytest.fixture
-def mock_ai_response() -> Dict[str, Any]:
+def mock_ai_response() -> dict[str, Any]:
     """Mock AI analysis response"""
     return {
         "action": "archive",

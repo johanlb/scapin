@@ -2923,10 +2923,10 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Stats (LineChart avec tendances 7/30j)
 - ✅ CLI (Menu interactif complet, 684 lignes)
 
-### Sprint 5 : Qualité & Release — EN COURS 🚧
+### Sprint 5 : Qualité & Release — COMPLÉTÉ ✅
 
 **Objectif** : v1.0 Release Candidate
-**Statut** : 5/6 items MVP (83%)
+**Statut** : 6/6 items MVP (100%) 🎉
 **Spécification** : [SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)
 
 **Items complétés** :
@@ -2945,9 +2945,10 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
   - pip-audit: urllib3 corrigé 2.6.2 → 2.6.3
   - bandit: Tous faux positifs ou risques acceptables documentés
   - OWASP Top 10: Conforme
-
-**Items restants** :
-- ⬜ Revue code finale
+- ✅ Revue code finale
+  - Ruff 0 warnings sur src/
+  - Types modernes (PEP 604: `X | None`)
+  - `from __future__ import annotations` pour forward refs
 
 #### Décisions Validées (9 janvier 2026)
 
@@ -2969,7 +2970,7 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 | 3 | Guide utilisateur (7 sections Markdown) | MVP | ✅ |
 | 4 | Page /help in-app | MVP | ✅ |
 | 5 | Audit sécurité OWASP + dépendances | MVP | ✅ |
-| 6 | Revue code finale | — | ⬜ |
+| 6 | Revue code finale | MVP | ✅ |
 
 #### Ordre d'Exécution
 
@@ -3004,7 +3005,9 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ### Référence
 
-Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète (1 MVP restant sur 86).
+Voir [GAPS_TRACKING.md](docs/GAPS_TRACKING.md) pour la liste complète.
+
+**MVP COMPLET** : 86/86 items (100%) 🎉
 
 ---
 

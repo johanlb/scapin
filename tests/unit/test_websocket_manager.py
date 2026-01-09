@@ -4,9 +4,8 @@ Tests for WebSocket Connection Manager
 Tests connection tracking, event broadcasting, and EventBus integration.
 """
 
-import asyncio
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 

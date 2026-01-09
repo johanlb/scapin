@@ -11,13 +11,14 @@ Features:
     - User-specific notification streams
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import sqlite3
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Optional
 
 from src.core.config_manager import get_config
 from src.jeeves.api.models.notifications import (
@@ -48,7 +49,7 @@ class NotificationService:
 
     def __init__(
         self,
-        db_path: Optional[Path] = None,
+        db_path: Path | None = None,
         retention_days: int = DEFAULT_RETENTION_DAYS,
     ) -> None:
         """
@@ -223,7 +224,7 @@ class NotificationService:
         except Exception as e:
             logger.warning(f"Failed to push notification: {e}")
 
-    async def get(self, notification_id: str, user_id: str) -> Optional[NotificationResponse]:
+    async def get(self, notification_id: str, user_id: str) -> NotificationResponse | None:
         """
         Get a single notification
 
@@ -253,7 +254,7 @@ class NotificationService:
         user_id: str,
         page: int = 1,
         page_size: int = 50,
-        filters: Optional[NotificationFilter] = None,
+        filters: NotificationFilter | None = None,
     ) -> NotificationListResponse:
         """
         List notifications for a user
@@ -338,7 +339,7 @@ class NotificationService:
     async def mark_read(
         self,
         user_id: str,
-        notification_ids: Optional[List[str]] = None,  # noqa: UP006
+        notification_ids: list[str] | None = None,
         mark_all: bool = False,
     ) -> MarkReadResponse:
         """
@@ -496,7 +497,7 @@ class NotificationService:
 
 
 # Global singleton
-_notification_service: Optional[NotificationService] = None
+_notification_service: NotificationService | None = None
 
 
 def get_notification_service() -> NotificationService:

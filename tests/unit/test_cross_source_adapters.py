@@ -16,7 +16,6 @@ from src.passepartout.cross_source.config import (
     TeamsAdapterConfig,
 )
 
-
 # =============================================================================
 # Calendar Adapter Tests
 # =============================================================================

@@ -12,7 +12,6 @@ from src.core.events.universal_event import EventSource, EventType, UrgencyLevel
 from src.integrations.microsoft.calendar_models import (
     CalendarAttendee,
     CalendarEvent,
-    CalendarEventImportance,
     CalendarLocation,
     CalendarResponseStatus,
 )

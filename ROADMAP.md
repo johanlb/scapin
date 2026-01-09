@@ -2,8 +2,8 @@
 
 **Dernière mise à jour** : 9 janvier 2026
 **Version** : 1.0.0-alpha.18 (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 5 🚧 — Qualité & Release (5/6 — 83%)
-**Prochaine priorité** : Revue code finale
+**Phase actuelle** : Sprint 5 ✅ — Qualité & Release (6/6 — 100%)
+**Prochaine priorité** : v1.0 Release Candidate
 
 ---
 
@@ -11,15 +11,15 @@
 
 ### Statut Global
 
-**État** : Sprint 5 en cours — 1 item MVP restant sur 86 (E2E ✅, Lighthouse ✅, Guide ✅, /help ✅, Audit ✅)
+**État** : Sprint 5 COMPLÉTÉ — MVP 100% (86/86 items) 🎉
 
 | Métrique | Valeur |
 |----------|--------|
 | **Tests** | 2148+ backend + 660 E2E, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
 | **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprints 1-4 + Cross-Source |
-| **Gaps MVP restants** | 1 item (Revue code) |
-| **Prochaine priorité** | 🔥 **Revue code finale** |
+| **Gaps MVP restants** | 0 — MVP COMPLET 🎉 |
+| **Prochaine priorité** | v1.0 Release Candidate |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -801,9 +801,9 @@ cross_source:
 
 ## Sprint 5 : Qualité & Release
 
-**Statut** : 🚧 En cours — 5/6 items (83%)
+**Statut** : ✅ COMPLÉTÉ — 6/6 items (100%)
 **Objectif** : v1.0 Release Candidate
-**Items** : 5 MVP + Revue code finale
+**Items** : 6 MVP complétés
 **Dépendance** : Sprint 4 ✅
 **Spécification** : [SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)
 
@@ -829,7 +829,7 @@ cross_source:
 | **Documentation** | Guide utilisateur complet (7 sections, ~1500 lignes) | MVP | ✅ |
 | **Documentation** | Page /help in-app | MVP | ✅ |
 | **Sécurité** | Audit OWASP + dépendances | MVP | ✅ |
-| **Cleanup** | Revue code finale | — | ⬜ |
+| **Cleanup** | Revue code finale | MVP | ✅ |
 
 ### Ordre d'Exécution
 
@@ -880,7 +880,7 @@ cross_source:
 - [x] Guide utilisateur complet (7 sections + /help in-app) ✅
 - [x] Zéro bug critique connu ✅
 - [x] Audit sécurité validé (0 CRITICAL/HIGH non résolu) ✅
-- [ ] 86 items MVP complétés (100%) — actuellement 85/86 (99%)
+- [x] 86 items MVP complétés (100%) ✅
 
 ---
 
@@ -989,7 +989,7 @@ Sprint 2 (Analyse):████████████████████ 
 Sprint 3 (Actions):████████████████████ 100% ✅ (18/18)
 Cross-Source 🔥:   ████████████████████ 100% ✅ (12/12)
 Sprint 4 (UX):     ████████████████████ 100% ✅ (18/18)
-Sprint 5 (Release):████████████████░░░░  83% 🚧 (5/6 — E2E ✅, Lighthouse ✅, Guide ✅, /help ✅, Audit ✅)
+Sprint 5 (Release):████████████████████ 100% ✅ (6/6 — COMPLET)
 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -1007,8 +1007,8 @@ Global MVP:        ████████████████████�
 | Sprint 3 | 18 | 18 | ✅ 100% |
 | **Cross-Source** 🔥 | **12** | **12** | ✅ **100%** |
 | Sprint 4 | 18 | 18 | ✅ 100% |
-| Sprint 5 | 6 | 5 | 🚧 83% (E2E ✅, Lighthouse ✅, Guide ✅, /help ✅, Audit ✅) |
-| **Total MVP** | **86** | **85** | 99% |
+| Sprint 5 | 6 | 6 | ✅ 100% |
+| **Total MVP** | **86** | **86** | ✅ **100%** |
 | Phase 3.0 | 53 | 3 | 📋 Après MVP |
 
 ---
@@ -1178,7 +1178,7 @@ Global MVP:        ████████████████████�
 
 ---
 
-**Statut** : Sprint 5 en cours 🚧 — MVP à 99% (85/86 items)
+**Statut** : MVP COMPLET ✅ — 86/86 items (100%)
 **Qualité** : 10/10 Production Ready Core (Security Hardened)
 **Tests** : 2148+ backend + 660 E2E tests, 95% couverture, 100% pass rate
 **Lighthouse** : A11y 98%, Best Practices 96%, SEO 100%, Performance 86-95%

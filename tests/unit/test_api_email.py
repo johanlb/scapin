@@ -4,7 +4,7 @@ Tests for Email API Router
 Tests email account listing, processing, and action execution endpoints.
 """
 
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

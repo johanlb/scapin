@@ -4,8 +4,7 @@ Tests for Queue API Router
 Tests queue listing, approval, rejection, and modification endpoints.
 """
 
-from datetime import datetime, timezone
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
