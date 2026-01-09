@@ -306,3 +306,6 @@ backups/
 reports/lighthouse/*.html
 reports/lighthouse/*.json
 web/playwright-report/
+
+# Test artifacts
+MagicMock/
