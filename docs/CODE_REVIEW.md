@@ -10,7 +10,7 @@
 | Catégorie | Total | Corrigé | Restant |
 |-----------|-------|---------|---------|
 | CRITICAL | 5 | 5 ✅ | 0 |
-| HIGH | 11 | 5 ✅ | 6 |
+| HIGH | 11 | 11 ✅ | 0 |
 | MEDIUM | 19 | 2 | 17 |
 | LOW | 16 | 0 | 16 |
 
@@ -26,28 +26,21 @@
 
 ---
 
-## HIGH — 5/11 Corrigés
+## HIGH — ✅ TOUS CORRIGÉS (11/11)
 
-### ✅ Corrigés
-
-| # | Issue | Status |
-|---|-------|--------|
-| H1 | IMAP batch fetch (N+1 problem) | ✅ `_fetch_emails_batch()` implemented |
-| H2 | Rate limiting on login | ✅ `rate_limiter.py` added |
-| H3 | Index SQLite composite | ✅ `idx_review_priority` added |
-| H4 | Auth bypass warning | ✅ Warning logged if auth disabled |
-| H5 | Credentials rotation reminder | ✅ Documented, .env in .gitignore |
-
-### ⬜ À Traiter (Sprint suivant)
-
-| # | Issue | File | Impact | Recommandation |
-|---|-------|------|--------|----------------|
-| H6 | CORS trop permissif | `app.py:66-72` | CSRF facilité | Restreindre `allow_methods` et `allow_headers` |
-| H7 | Origins CORS hardcodées | `app.py:68` | Déploiement | Déplacer vers `config.api.cors_origins` |
-| H8 | Exception details leakées | `app.py:75-89` | Info leak | Retourner message générique |
-| H9 | WebSocket token en query param | `websocket/router.py:23` | Token dans logs | Passer token dans premier message WS |
-| H10 | Sync IMAP bloque event loop | `email_service.py` | Perf API | Utiliser `asyncio.to_thread()` |
-| H11 | time.sleep() dans async | `router.py:188,390...` | Bloque 30s | `threading.Event.wait()` ou `asyncio.sleep()` |
+| # | Issue | Status | Correction |
+|---|-------|--------|------------|
+| H1 | IMAP batch fetch (N+1 problem) | ✅ | `_fetch_emails_batch()` implemented |
+| H2 | Rate limiting on login | ✅ | `rate_limiter.py` added |
+| H3 | Index SQLite composite | ✅ | `idx_review_priority` added |
+| H4 | Auth bypass warning | ✅ | Warning logged if auth disabled |
+| H5 | Credentials rotation reminder | ✅ | Documented, .env in .gitignore |
+| H6 | CORS trop permissif | ✅ | `config.api.cors_methods/headers` restreints |
+| H7 | Origins CORS hardcodées | ✅ | Déplacé vers `config.api.cors_origins` |
+| H8 | Exception details leakées | ✅ | Message générique retourné, full log séparé |
+| H9 | WebSocket token en query param | ✅ | First message auth (query param deprecated) |
+| H10 | Sync IMAP bloque event loop | ✅ | `asyncio.to_thread()` sur toutes ops IMAP |
+| H11 | time.sleep() dans async | ✅ | Code sync exécuté via thread pool (to_thread) |
 
 ---
 
@@ -121,11 +114,11 @@
 
 ## Plan d'Action
 
-### Court terme (prochain sprint)
-- [ ] H6-H9: CORS + exceptions + WebSocket auth
-- [ ] H10-H11: Async IMAP + sleep fixes
+### ✅ Court terme — COMPLÉTÉ
+- [x] H6-H9: CORS + exceptions + WebSocket auth
+- [x] H10-H11: Async IMAP + sleep fixes
 
-### Moyen terme (2-3 sprints)
+### Moyen terme (prochain sprint)
 - [ ] M13: Error handling utilities
 - [ ] M15: Constants extraction
 - [ ] M4: Centralized DI
@@ -138,4 +131,5 @@
 ---
 
 *Document consolidé le 9 janvier 2026*
+*Mis à jour le 9 janvier 2026 — Toutes issues CRITICAL et HIGH corrigées*
 *Remplace : BACKLOG_CODE_REVIEW.md, CODE_REVIEW_2026-01-08.md*
