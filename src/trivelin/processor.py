@@ -15,6 +15,7 @@ from src.core.events import ProcessingEvent, ProcessingEventType, get_event_bus
 from src.core.schemas import (
     EmailAction,
     EmailAnalysis,
+    EmailAttachment,
     EmailContent,
     EmailMetadata,
     EmailValidationResult,
@@ -554,6 +555,17 @@ class EmailProcessor:
                 metadata={"executed": True}
             ))
         else:
+            # Populate attachment details from content metadata
+            attachments_details = content.metadata.get("attachments_details", []) if content.metadata else []
+            metadata.attachments = [
+                EmailAttachment(
+                    filename=att.get("filename", ""),
+                    size_bytes=att.get("size_bytes", 0),
+                    content_type=att.get("content_type", "application/octet-stream"),
+                )
+                for att in attachments_details
+            ]
+
             # Save to queue storage for manual review
             content_preview = content.plain_text[:200] if content.plain_text else ""
             queue_item_id = self.queue_storage.save_item(

@@ -681,6 +681,12 @@ export async function exportJournal(
 // QUEUE TYPES
 // ============================================================================
 
+interface Attachment {
+	filename: string;
+	size_bytes: number;
+	content_type: string;
+}
+
 interface QueueItemMetadata {
 	id: string;
 	subject: string;
@@ -688,6 +694,7 @@ interface QueueItemMetadata {
 	from_name: string;
 	date: string | null;
 	has_attachments: boolean;
+	attachments: Attachment[];
 	folder: string | null;
 }
 
@@ -2289,6 +2296,7 @@ export type {
 	Calibration,
 	PaginatedResponse,
 	// Queue types
+	Attachment,
 	ActionOption,
 	QueueItem,
 	QueueItemMetadata,

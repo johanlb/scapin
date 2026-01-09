@@ -41,7 +41,11 @@
 					from_name: `Expéditeur ${i + 1}`,
 					date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
 					folder: 'INBOX',
-					has_attachments: Math.random() > 0.7
+					has_attachments: Math.random() > 0.7,
+					attachments: Math.random() > 0.7 ? [
+						{ filename: 'document.pdf', size_bytes: 102400, content_type: 'application/pdf' },
+						{ filename: 'photo.jpg', size_bytes: 256000, content_type: 'image/jpeg' }
+					] : []
 				},
 				analysis: {
 					action,

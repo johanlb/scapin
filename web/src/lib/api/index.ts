@@ -44,6 +44,8 @@ export {
 	quickChat,
 	// Notes
 	syncAppleNotes,
+	// Email
+	processInbox,
 	// Teams
 	listTeamsChats,
 	listTeamsMessages,
@@ -71,6 +73,7 @@ export type {
 	TokenResponse,
 	AuthCheckResponse,
 	// Queue types
+	Attachment,
 	ActionOption,
 	QueueItem,
 	QueueItemMetadata,

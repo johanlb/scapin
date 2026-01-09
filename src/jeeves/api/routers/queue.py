@@ -13,6 +13,7 @@ from src.jeeves.api.deps import get_queue_service
 from src.jeeves.api.models.queue import (
     ActionOptionResponse,
     ApproveRequest,
+    AttachmentResponse,
     EntityResponse,
     ModifyRequest,
     ProposedNoteResponse,
@@ -105,6 +106,14 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             from_name=metadata.get("from_name", ""),
             date=_parse_datetime(metadata.get("date")),
             has_attachments=metadata.get("has_attachments", False),
+            attachments=[
+                AttachmentResponse(
+                    filename=att.get("filename", ""),
+                    size_bytes=att.get("size_bytes", 0),
+                    content_type=att.get("content_type", "application/octet-stream"),
+                )
+                for att in metadata.get("attachments", [])
+            ],
             folder=metadata.get("folder"),
         ),
         analysis=QueueItemAnalysis(

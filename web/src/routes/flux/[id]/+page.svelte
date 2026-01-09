@@ -5,6 +5,7 @@
 	import DOMPurify from 'isomorphic-dompurify';
 	import { Card, Badge, Button, Skeleton } from '$lib/components/ui';
 	import { ConfidenceBar } from '$lib/components/ui';
+	import { FileAttachment } from '$lib/components/files';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { getQueueItem, approveQueueItem, rejectQueueItem, snoozeQueueItem, undoQueueItem, canUndoQueueItem } from '$lib/api';
 	import type { QueueItem, SnoozeOption } from '$lib/api';
@@ -399,6 +400,22 @@
 					{/if}
 				</div>
 			</Card>
+
+			<!-- Attachments Section -->
+			{#if item.metadata.attachments && item.metadata.attachments.length > 0}
+				<Card variant="glass-subtle">
+					<div class="p-4">
+						<h3 class="text-sm font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-3">
+							Pièces jointes ({item.metadata.attachments.length})
+						</h3>
+						<div class="grid gap-2">
+							{#each item.metadata.attachments as attachment (attachment.filename)}
+								<FileAttachment {attachment} emailId={item.metadata.id} />
+							{/each}
+						</div>
+					</div>
+				</Card>
+			{/if}
 
 			<!-- AI Analysis -->
 			<Card variant="glass-subtle">

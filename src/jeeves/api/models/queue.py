@@ -10,6 +10,14 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class AttachmentResponse(BaseModel):
+    """Email attachment information"""
+
+    filename: str = Field(..., description="Attachment filename")
+    size_bytes: int = Field(0, description="Attachment size in bytes")
+    content_type: str = Field("application/octet-stream", description="MIME content type")
+
+
 class EntityResponse(BaseModel):
     """Extracted entity in response"""
 
@@ -54,6 +62,9 @@ class QueueItemMetadata(BaseModel):
     from_name: str = Field("", description="Sender name")
     date: datetime | None = Field(None, description="Email date")
     has_attachments: bool = Field(False, description="Has attachments")
+    attachments: list[AttachmentResponse] = Field(
+        default_factory=list, description="List of attachments with filename, size, and type"
+    )
     folder: str | None = Field(None, description="Source folder")
 
 

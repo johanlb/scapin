@@ -3,9 +3,22 @@
 	import { Button, Input } from '$lib/components/ui';
 	import { haptic } from '$lib/utils/haptics';
 	import { noteChatStore, type ChatMessage } from '$lib/stores/note-chat.svelte';
+	import { quickChat, type QuickChatResponse } from '$lib/api/client';
 
 	let message = $state('');
 	let isOpen = $state(false);
+
+	// General chat state (when not in note mode)
+	interface GeneralMessage {
+		id: string;
+		role: 'user' | 'assistant';
+		content: string;
+		timestamp: string;
+	}
+	let generalMessages = $state<GeneralMessage[]>([]);
+	let generalSuggestions = $state<string[]>([]);
+	let isSendingGeneral = $state(false);
+	let generalError = $state<string | null>(null);
 	let panelRef: HTMLDivElement | null = $state(null);
 	let mobileInputRef: HTMLInputElement | null = $state(null);
 	let messagesEndRef: HTMLDivElement | null = $state(null);
@@ -123,9 +136,51 @@
 		if (isNoteChatMode) {
 			await noteChatStore.sendMessage(messageToSend);
 		} else {
-			// TODO: Send message to general API
-			console.log('Sending:', messageToSend);
+			// Send to general chat API
+			await sendGeneralMessage(messageToSend);
 		}
+	}
+
+	async function sendGeneralMessage(content: string) {
+		// Add user message to the list
+		const userMessage: GeneralMessage = {
+			id: crypto.randomUUID(),
+			role: 'user',
+			content,
+			timestamp: new Date().toISOString()
+		};
+		generalMessages = [...generalMessages, userMessage];
+		generalError = null;
+		isSendingGeneral = true;
+
+		try {
+			const response = await quickChat({
+				message: content,
+				include_suggestions: true
+			});
+
+			// Add assistant response
+			const assistantMessage: GeneralMessage = {
+				id: crypto.randomUUID(),
+				role: 'assistant',
+				content: response.response,
+				timestamp: new Date().toISOString()
+			};
+			generalMessages = [...generalMessages, assistantMessage];
+			generalSuggestions = response.suggestions.map(s => s.content);
+			scrollToBottom();
+		} catch (error) {
+			console.error('Failed to send message:', error);
+			generalError = error instanceof Error ? error.message : 'Erreur de connexion';
+		} finally {
+			isSendingGeneral = false;
+		}
+	}
+
+	function clearGeneralChat() {
+		generalMessages = [];
+		generalSuggestions = [];
+		generalError = null;
 	}
 
 	function handleSuggestionClick(query: string) {
@@ -235,6 +290,16 @@
 				<span class="text-sm">✕</span>
 			</button>
 		{:else}
+			<!-- General mode buttons -->
+			{#if generalMessages.length > 0}
+				<button
+					onclick={clearGeneralChat}
+					class="p-1.5 rounded-lg hover:bg-[var(--glass-tint)] transition-colors"
+					title="Nouvelle conversation"
+				>
+					<span class="text-sm">🗑️</span>
+				</button>
+			{/if}
 			<span class="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" title="À l'écoute"></span>
 		{/if}
 	</div>
@@ -242,7 +307,7 @@
 	<!-- Messages area -->
 	<div class="flex-1 p-3 overflow-y-auto" role="log" aria-live="polite">
 		{#if isNoteChatMode && noteChatStore.hasMessages}
-			<!-- Chat messages -->
+			<!-- Note chat messages -->
 			<div class="space-y-3">
 				{#each noteChatStore.messages as msg (msg.id)}
 					<div class={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -290,6 +355,65 @@
 							</button>
 						{/each}
 					</div>
+				</div>
+			{/if}
+		{:else if !isNoteChatMode && generalMessages.length > 0}
+			<!-- General chat messages -->
+			<div class="space-y-3">
+				{#each generalMessages as msg (msg.id)}
+					<div class={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+						<div
+							class={`max-w-[85%] rounded-2xl px-3 py-2 ${
+								msg.role === 'user'
+									? 'bg-[var(--color-accent)] text-white'
+									: 'glass-subtle text-[var(--color-text-primary)]'
+							}`}
+						>
+							<p class="text-sm whitespace-pre-wrap">{msg.content}</p>
+							<p class={`text-xs mt-1 ${msg.role === 'user' ? 'text-white/70' : 'text-[var(--color-text-tertiary)]'}`}>
+								{formatTime(msg.timestamp)}
+							</p>
+						</div>
+					</div>
+				{/each}
+
+				{#if isSendingGeneral}
+					<div class="flex justify-start">
+						<div class="glass-subtle rounded-2xl px-3 py-2">
+							<div class="flex items-center gap-2 text-sm text-[var(--color-text-tertiary)]">
+								<span class="animate-pulse">●</span>
+								<span class="animate-pulse delay-75">●</span>
+								<span class="animate-pulse delay-150">●</span>
+							</div>
+						</div>
+					</div>
+				{/if}
+
+				<div bind:this={messagesEndRef}></div>
+			</div>
+
+			<!-- General chat suggestions -->
+			{#if generalSuggestions.length > 0}
+				<div class="mt-4 pt-3 border-t border-[var(--glass-border-subtle)]">
+					<p class="text-xs text-[var(--color-text-tertiary)] mb-2">Suggestions :</p>
+					<div class="flex flex-wrap gap-1">
+						{#each generalSuggestions as sug, i (sug)}
+							<button
+								onclick={() => handleSuggestionClick(sug)}
+								class="px-2 py-1 text-xs rounded-full glass-subtle hover:glass transition-colors"
+							>
+								{sug}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- General error display -->
+			{#if generalError}
+				<div class="mt-3 p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+					{generalError}
+					<button onclick={() => generalError = null} class="ml-2 underline">Fermer</button>
 				</div>
 			{/if}
 		{:else}
@@ -349,15 +473,15 @@
 				class="flex-1 text-sm"
 				name="chat-message"
 				autocomplete="off"
-				disabled={noteChatStore.sending}
+				disabled={noteChatStore.sending || isSendingGeneral}
 			/>
 			<Button
 				variant="primary"
 				size="sm"
 				onclick={handleSubmit}
-				disabled={!message.trim() || noteChatStore.sending}
+				disabled={!message.trim() || noteChatStore.sending || isSendingGeneral}
 			>
-				<span aria-hidden="true">{noteChatStore.sending ? '...' : '↑'}</span>
+				<span aria-hidden="true">{noteChatStore.sending || isSendingGeneral ? '...' : '↑'}</span>
 				<span class="sr-only">Envoyer</span>
 			</Button>
 		</div>
@@ -568,14 +692,14 @@
 						class="flex-1"
 						name="chat-message-mobile"
 						autocomplete="off"
-						disabled={noteChatStore.sending}
+						disabled={noteChatStore.sending || isSendingGeneral}
 					/>
 					<Button
 						variant="primary"
 						onclick={handleSubmit}
-						disabled={!message.trim() || noteChatStore.sending}
+						disabled={!message.trim() || noteChatStore.sending || isSendingGeneral}
 					>
-						<span aria-hidden="true">{noteChatStore.sending ? '...' : '↑'}</span>
+						<span aria-hidden="true">{noteChatStore.sending || isSendingGeneral ? '...' : '↑'}</span>
 						<span class="sr-only">Envoyer</span>
 					</Button>
 				</div>

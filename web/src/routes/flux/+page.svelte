@@ -7,7 +7,7 @@
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
-	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem } from '$lib/api';
+	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox } from '$lib/api';
 	import type { QueueItem, ActionOption, SnoozeOption } from '$lib/api';
 	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
 
@@ -23,6 +23,10 @@
 	let isSnoozing = $state(false);
 	let snoozeSuccess = $state<string | null>(null);
 	let snoozeError = $state<string | null>(null);
+
+	// Fetch emails state
+	let isFetchingEmails = $state(false);
+	let fetchError = $state<string | null>(null);
 
 	// Timeout IDs for cleanup
 	let undoErrorTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -122,6 +126,33 @@
 			})
 		);
 		undoableItems = newUndoable;
+	}
+
+	async function handleFetchEmails() {
+		if (isFetchingEmails) return;
+
+		isFetchingEmails = true;
+		fetchError = null;
+
+		try {
+			const result = await processInbox(20, false, undefined, true);
+			toastStore.success(
+				`${result.total_processed} email${result.total_processed > 1 ? 's' : ''} analysé${result.total_processed > 1 ? 's' : ''}`,
+				{ title: 'Courrier récupéré' }
+			);
+
+			// Refresh the queue
+			await queueStore.fetchQueue('pending');
+			await queueStore.fetchStats();
+		} catch (err) {
+			fetchError = err instanceof Error ? err.message : 'Erreur de connexion';
+			toastStore.error(
+				'Impossible de récupérer le courrier. Vérifiez la connexion au serveur.',
+				{ title: 'Erreur' }
+			);
+		} finally {
+			isFetchingEmails = false;
+		}
 	}
 
 	// Undo error state
@@ -589,18 +620,36 @@
 				</p>
 			</div>
 
-			<!-- Focus mode button -->
-			{#if activeFilter === 'pending' && queueStore.items.length > 0}
+			<!-- Action buttons -->
+			<div class="flex items-center gap-2 shrink-0">
+				<!-- Fetch emails button -->
 				<Button
-					variant="primary"
+					variant="secondary"
 					size="sm"
-					onclick={enterFocusMode}
-					class="shrink-0"
+					onclick={handleFetchEmails}
+					disabled={isFetchingEmails}
 				>
-					<span class="mr-1.5">🎯</span>
-					Mode Focus
+					{#if isFetchingEmails}
+						<span class="mr-1.5 animate-spin">⏳</span>
+						Récupération...
+					{:else}
+						<span class="mr-1.5">📥</span>
+						Récupérer
+					{/if}
 				</Button>
-			{/if}
+
+				<!-- Focus mode button -->
+				{#if activeFilter === 'pending' && queueStore.items.length > 0}
+					<Button
+						variant="primary"
+						size="sm"
+						onclick={enterFocusMode}
+					>
+						<span class="mr-1.5">🎯</span>
+						Mode Focus
+					</Button>
+				{/if}
+			</div>
 		</div>
 	</header>
 

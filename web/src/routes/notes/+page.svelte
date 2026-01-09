@@ -8,6 +8,8 @@
 		getNoteSyncStatus,
 		listNotes,
 		getNote,
+		updateNote,
+		deleteNote,
 		getNoteReviewMetadata,
 		triggerReview,
 		getNotesDue,
@@ -17,6 +19,9 @@
 		type NoteSyncStatus,
 		type NoteReviewMetadata
 	} from '$lib/api/client';
+	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
+	import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
+	import { Modal } from '$lib/components/ui';
 
 	// Loading states
 	let isLoading = $state(true);
@@ -45,6 +50,13 @@
 
 	// Notes due for review (for indicators)
 	let notesDueForReview = $state<Set<string>>(new Set());
+
+	// Editing state
+	let isEditing = $state(false);
+	let editContent = $state('');
+	let isSaving = $state(false);
+	let showDeleteModal = $state(false);
+	let isDeleting = $state(false);
 
 	// Expanded folders tracking
 	let expandedFolders = $state<Set<string>>(new Set());
@@ -121,6 +133,12 @@
 	async function selectNote(note: Note) {
 		if (selectedNote?.note_id === note.note_id) return;
 
+		// Cancel any ongoing edit
+		if (isEditing) {
+			isEditing = false;
+			editContent = '';
+		}
+
 		isLoadingNote = true;
 		noteReviewMetadata = null;
 
@@ -145,6 +163,57 @@
 			noteReviewMetadata = null;
 		} finally {
 			isLoadingReviewMetadata = false;
+		}
+	}
+
+	function startEditing() {
+		if (!selectedNote) return;
+		editContent = selectedNote.content;
+		isEditing = true;
+	}
+
+	function cancelEditing() {
+		isEditing = false;
+		editContent = '';
+	}
+
+	async function saveNote(content: string) {
+		if (!selectedNote) return;
+
+		isSaving = true;
+		try {
+			const updated = await updateNote(selectedNote.note_id, {
+				content
+			});
+			selectedNote = updated;
+			isEditing = false;
+			editContent = '';
+		} catch (error) {
+			console.error('Failed to save note:', error);
+			throw error;
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	async function confirmDelete() {
+		if (!selectedNote) return;
+
+		isDeleting = true;
+		try {
+			await deleteNote(selectedNote.note_id);
+			// Remove from list
+			folderNotes = folderNotes.filter(n => n.note_id !== selectedNote!.note_id);
+			selectedNote = null;
+			showDeleteModal = false;
+			// Select next note if available
+			if (folderNotes.length > 0) {
+				await selectNote(folderNotes[0]);
+			}
+		} catch (error) {
+			console.error('Failed to delete note:', error);
+		} finally {
+			isDeleting = false;
 		}
 	}
 
@@ -435,6 +504,35 @@
 						{selectedNote.title}
 					</h1>
 					<div class="flex items-center gap-2 ml-4">
+						<!-- Edit Button -->
+						{#if !isEditing}
+							<button
+								type="button"
+								onclick={startEditing}
+								class="p-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+								title="Modifier la note"
+							>
+								✏️
+							</button>
+						{:else}
+							<button
+								type="button"
+								onclick={cancelEditing}
+								class="p-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+								title="Annuler les modifications"
+							>
+								✕
+							</button>
+						{/if}
+						<!-- Delete Button -->
+						<button
+							type="button"
+							onclick={() => showDeleteModal = true}
+							class="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-[var(--color-text-secondary)] hover:text-red-600"
+							title="Supprimer la note"
+						>
+							🗑️
+						</button>
 						<!-- Trigger Review Button -->
 						<button
 							type="button"
@@ -462,9 +560,19 @@
 				</div>
 
 				<!-- Note Content -->
-				<div class="prose prose-sm dark:prose-invert max-w-none text-[var(--color-text-secondary)] whitespace-pre-wrap">
-					{selectedNote.content}
-				</div>
+				{#if isEditing}
+					<div class="mt-4">
+						<MarkdownEditor
+							bind:content={editContent}
+							onSave={saveNote}
+							placeholder="Contenu de la note..."
+						/>
+					</div>
+				{:else}
+					<div class="prose prose-sm dark:prose-invert max-w-none mt-4">
+						<MarkdownPreview content={selectedNote.content} />
+					</div>
+				{/if}
 
 				<!-- Tags -->
 				{#if selectedNote.tags.length > 0}
@@ -627,3 +735,31 @@
 		</div>
 	</button>
 {/snippet}
+
+<!-- Delete Confirmation Modal -->
+<Modal bind:open={showDeleteModal} title="Supprimer la note" size="sm">
+	<p class="text-[var(--color-text-secondary)] mb-6">
+		Êtes-vous sûr de vouloir supprimer la note <strong>"{selectedNote?.title}"</strong> ? Cette action est irréversible.
+	</p>
+	<div class="flex justify-end gap-3">
+		<button
+			type="button"
+			onclick={() => showDeleteModal = false}
+			class="px-4 py-2 rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-[var(--color-text-primary)]"
+		>
+			Annuler
+		</button>
+		<button
+			type="button"
+			onclick={confirmDelete}
+			disabled={isDeleting}
+			class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50"
+		>
+			{#if isDeleting}
+				Suppression...
+			{:else}
+				Supprimer
+			{/if}
+		</button>
+	</div>
+</Modal>

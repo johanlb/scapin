@@ -102,6 +102,14 @@ class QueueStorage:
                 "from_name": metadata.from_name or "",
                 "date": metadata.date.isoformat() if metadata.date else None,
                 "has_attachments": metadata.has_attachments,
+                "attachments": [
+                    {
+                        "filename": att.filename,
+                        "size_bytes": att.size_bytes,
+                        "content_type": att.content_type,
+                    }
+                    for att in metadata.attachments
+                ] if metadata.attachments else [],
                 "folder": metadata.folder,
                 "message_id": metadata.message_id,
             },

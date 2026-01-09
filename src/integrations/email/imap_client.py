@@ -799,11 +799,21 @@ class IMAPClient:
                 content_type = part.get_content_type()
                 content_disposition = str(part.get("Content-Disposition", ""))
 
-                # Skip attachments for now (just track count)
+                # Extract attachment info with size and content type
                 if "attachment" in content_disposition:
                     filename = part.get_filename()
                     if filename:
-                        attachments.append(filename)
+                        # Decode filename if necessary
+                        if isinstance(filename, bytes):
+                            filename = filename.decode('utf-8', errors='replace')
+                        # Get attachment size
+                        payload = part.get_payload(decode=True)
+                        size = len(payload) if payload else 0
+                        attachments.append({
+                            "filename": filename,
+                            "size_bytes": size,
+                            "content_type": content_type,
+                        })
                     continue
 
                 # Extract text content
@@ -845,10 +855,14 @@ class IMAPClient:
         if decoding_errors:
             content_metadata["decoding_errors"] = decoding_errors
 
+        # Store full attachment details in metadata, keep filenames in attachments
+        content_metadata["attachments_details"] = attachments
+        attachment_filenames = [att["filename"] for att in attachments]
+
         return EmailContent(
             plain_text=plain_text.strip(),
             html=html.strip(),
-            attachments=attachments,
+            attachments=attachment_filenames,
             metadata=content_metadata
         )
 
