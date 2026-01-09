@@ -109,13 +109,13 @@
 		try {
 			let response;
 			if (path === ALL_NOTES_PATH) {
-				// Load all notes (no folder filter)
-				response = await listNotes(1, 100);
+				// Load all notes (no folder filter) - increased to 1000 to display all notes
+				response = await listNotes(1, 1000);
 			} else if (path === DELETED_NOTES_PATH) {
 				// For now, deleted notes folder is empty (feature not implemented)
-				response = { data: [], total: 0, page: 1, per_page: 100, pages: 0 };
+				response = { data: [], total: 0, page: 1, per_page: 1000, pages: 0 };
 			} else {
-				response = await listNotes(1, 100, path);
+				response = await listNotes(1, 1000, path);
 			}
 			folderNotes = response.data ?? [];
 			// Auto-select first note

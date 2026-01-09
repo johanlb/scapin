@@ -122,11 +122,17 @@ class AppleNotesSync:
         notes: dict[str, AppleNote] = {}
 
         for folder in self.client.get_folders():
+            # Check if folder name or any part of path is in excluded folders
             if folder.name in self.EXCLUDED_FOLDERS:
                 continue
+            if any(excl in folder.path.split("/") for excl in self.EXCLUDED_FOLDERS):
+                continue
 
-            folder_notes = self.client.get_notes_in_folder(folder.name)
+            # Use folder.path for nested folder access
+            folder_notes = self.client.get_notes_in_folder(folder.path)
             for note in folder_notes:
+                # Store the full path in the note's folder field
+                note.folder = folder.path
                 notes[note.id] = note
 
         return notes
@@ -536,17 +542,18 @@ class AppleNotesSync:
         Format a string value for YAML safely.
 
         Quotes strings that contain special YAML characters:
-        - Colon followed by space (:)
+        - Colon (anywhere in the string, as it could be interpreted as key-value separator)
         - Leading dash (-)
-        - Brackets ([ ])
+        - Brackets ([ ] { })
         - Hash (#)
         - Other special chars that could break parsing
         """
-        # Characters that require quoting
+        # Characters that require quoting - be more aggressive to avoid YAML parsing issues
         needs_quoting = (
-            ": " in value
+            ":" in value  # Any colon can break YAML parsing
             or value.startswith("-")
             or value.startswith("[")
+            or value.startswith("{")
             or "#" in value
             or value.startswith("@")
             or value.startswith("!")
@@ -556,6 +563,13 @@ class AppleNotesSync:
             or value.startswith("|")
             or "'" in value
             or '"' in value
+            or "\n" in value  # Multiline strings (newline)
+            or "\u2028" in value  # Line separator (Unicode)
+            or "\u2029" in value  # Paragraph separator (Unicode)
+            or "\r" in value  # Carriage return
+            or "\xa0" in value  # Non-breaking space
+            or value.startswith(" ")  # Leading spaces
+            or value.endswith(" ")  # Trailing spaces
         )
 
         if needs_quoting:
@@ -631,7 +645,12 @@ synced: {datetime.now(timezone.utc).isoformat()}
         return sanitized.strip()
 
     def _sanitize_folder_name(self, name: str) -> str:
-        """Sanitize a folder name"""
+        """Sanitize a folder name or path (preserving path separators)"""
+        # Handle folder paths with "/" - sanitize each component separately
+        if "/" in name:
+            parts = name.split("/")
+            sanitized_parts = [self._sanitize_filename(part) for part in parts]
+            return "/".join(sanitized_parts)
         return self._sanitize_filename(name)
 
     def _load_mappings(self) -> None:

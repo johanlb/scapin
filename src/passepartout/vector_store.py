@@ -5,6 +5,7 @@ FAISS-based vector store for efficient similarity search over embeddings.
 Supports adding documents, searching, persistence, and filtering.
 """
 
+import datetime
 import hashlib
 import hmac
 import json
@@ -455,13 +456,25 @@ class VectorStore:
             faiss.write_index(self.index, str(index_path))
 
             # Prepare metadata for JSON serialization
-            # Convert numpy arrays to lists for JSON compatibility
+            # Convert numpy arrays to lists and dates to ISO strings for JSON compatibility
+            def make_serializable(obj):
+                """Recursively convert non-JSON-serializable types"""
+                if isinstance(obj, dict):
+                    return {k: make_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [make_serializable(item) for item in obj]
+                elif isinstance(obj, (datetime.date, datetime.datetime)):
+                    return obj.isoformat()
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return obj
+
             serializable_id_to_doc = {}
             for idx, doc_info in self.id_to_doc.items():
                 serializable_doc = {
                     "doc_id": doc_info["doc_id"],
                     "text": doc_info["text"],
-                    "metadata": doc_info["metadata"],
+                    "metadata": make_serializable(doc_info["metadata"]),
                     "_deleted": doc_info.get("_deleted", False),
                     # Store embedding as list for JSON
                     "embedding": doc_info["embedding"].tolist()

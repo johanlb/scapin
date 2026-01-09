@@ -129,7 +129,13 @@ class AppleFolder:
     """Represents a folder from Apple Notes"""
 
     name: str
+    path: str = ""  # Full path like "Notes/Entités" for nested folders
     note_count: int = 0
+
+    def __post_init__(self) -> None:
+        """Set path to name if not provided"""
+        if not self.path:
+            self.path = self.name
 
 
 @dataclass

@@ -28,7 +28,7 @@ from src.passepartout.vector_store import VectorStore
 logger = get_logger("passepartout.note_manager")
 
 # LRU Cache configuration
-DEFAULT_CACHE_MAX_SIZE = 500  # Maximum notes to keep in memory
+DEFAULT_CACHE_MAX_SIZE = 2000  # Maximum notes to keep in memory
 
 # Pre-compiled regex for frontmatter parsing (performance optimization)
 FRONTMATTER_PATTERN = re.compile(r'^---\s*\n(.*?)\n---\s*\n(.*)$', re.DOTALL)

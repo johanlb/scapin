@@ -39,29 +39,86 @@ class AppleNotesClient:
         return self._available
 
     def get_folders(self) -> list[AppleFolder]:
-        """Get all folders from Apple Notes"""
+        """Get all folders from Apple Notes (including nested folders with full paths)
+
+        Only includes truly top-level folders and their children.
+        Uses folder container class to distinguish top-level from nested folders.
+        """
+        # AppleScript to get all folders with full paths
+        # Returns: "name|||path" for each folder
         script = '''
         tell application "Notes"
-            set folderList to {}
+            set allFolders to {}
+
+            -- First, identify true top-level folders (container is an account)
             repeat with f in folders
-                set end of folderList to name of f
+                set isTopLevel to false
+                try
+                    set containerClass to class of container of f as string
+                    if containerClass is "account" then
+                        set isTopLevel to true
+                    end if
+                end try
+
+                if isTopLevel then
+                    set fName to name of f
+                    set end of allFolders to fName & "|||" & fName
+                    my getFolderChildren(f, fName, allFolders)
+                end if
             end repeat
-            return folderList
+
+            return allFolders
         end tell
+
+        on getFolderChildren(parentFolder, parentPath, folderList)
+            tell application "Notes"
+                try
+                    repeat with subf in folders of parentFolder
+                        set subName to name of subf
+                        set subPath to parentPath & "/" & subName
+                        set end of folderList to subName & "|||" & subPath
+                        my getFolderChildren(subf, subPath, folderList)
+                    end repeat
+                end try
+            end tell
+        end getFolderChildren
         '''
         result = self._run_applescript(script)
-        folder_names = self._parse_list(result)
-        return [AppleFolder(name=name) for name in folder_names]
+        folder_entries = self._parse_list(result)
+        folders = []
 
-    def get_notes_in_folder(self, folder_name: str) -> list[AppleNote]:
-        """Get all notes in a specific folder"""
-        # Escape the folder name for AppleScript
-        escaped_folder = folder_name.replace('"', '\\"')
+        for entry in folder_entries:
+            if "|||" in entry:
+                name, path = entry.split("|||", 1)
+                folders.append(AppleFolder(name=name.strip(), path=path.strip()))
+            else:
+                folders.append(AppleFolder(name=entry.strip(), path=entry.strip()))
+        return folders
+
+    def get_notes_in_folder(self, folder_path: str) -> list[AppleNote]:
+        """Get all notes in a specific folder
+
+        Args:
+            folder_path: Folder path like "Notes" or "Notes/Entités" for nested folders
+        """
+        # Build AppleScript to navigate to nested folder
+        path_parts = folder_path.split("/")
+        escaped_parts = [part.replace('"', '\\"') for part in path_parts]
+
+        # Build nested tell blocks for folder path
+        if len(escaped_parts) == 1:
+            # Simple case: top-level folder
+            folder_access = f'folder "{escaped_parts[0]}"'
+        else:
+            # Nested folder: tell folder "A" to tell folder "B"...
+            folder_access = " of ".join(
+                [f'folder "{p}"' for p in reversed(escaped_parts)]
+            )
 
         script = f'''
         tell application "Notes"
             set notesList to {{}}
-            tell folder "{escaped_folder}"
+            tell {folder_access}
                 repeat with n in notes
                     set noteData to {{id of n, name of n, body of n, creation date of n, modification date of n}}
                     set end of notesList to noteData
@@ -73,21 +130,25 @@ class AppleNotesClient:
 
         try:
             result = self._run_applescript(script)
-            return self._parse_notes(result, folder_name)
+            return self._parse_notes(result, folder_path)
         except Exception as e:
-            logger.error(f"Failed to get notes from folder '{folder_name}': {e}")
+            logger.error(f"Failed to get notes from folder '{folder_path}': {e}")
             return []
 
     def get_all_notes(self) -> list[AppleNote]:
-        """Get all notes from all folders"""
+        """Get all notes from all folders (including nested folders)"""
         folders = self.get_folders()
         all_notes: list[AppleNote] = []
 
         for folder in folders:
-            # Skip Recently Deleted
-            if folder.name == "Recently Deleted":
+            # Skip Recently Deleted and Quick Notes
+            if folder.name in ("Recently Deleted", "Quick Notes"):
                 continue
-            notes = self.get_notes_in_folder(folder.name)
+            # Use folder.path to access nested folders
+            notes = self.get_notes_in_folder(folder.path)
+            for note in notes:
+                # Update folder field to use full path
+                note.folder = folder.path
             all_notes.extend(notes)
 
         return all_notes
