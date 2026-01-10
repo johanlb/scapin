@@ -852,6 +852,50 @@ class NotesService:
                 errors=[f"Sync failed: {str(e)}"],
             )
 
+    async def get_deleted_notes(self) -> list[NoteResponse]:
+        """
+        Get notes from Apple Notes 'Recently Deleted' folder
+
+        Returns:
+            List of NoteResponse for deleted notes
+        """
+        from src.integrations.apple.notes_client import AppleNotesClient
+
+        logger.info("Fetching deleted notes from Apple Notes...")
+
+        try:
+            client = AppleNotesClient()
+            if not client.is_available():
+                logger.warning("Apple Notes not available")
+                return []
+
+            deleted_notes = client.get_deleted_notes()
+            logger.info(f"Found {len(deleted_notes)} deleted notes")
+
+            # Convert AppleNote to NoteResponse
+            responses = []
+            for apple_note in deleted_notes:
+                # Create a lightweight NoteResponse for display
+                responses.append(
+                    NoteResponse(
+                        note_id=apple_note.id,
+                        title=apple_note.name,
+                        content=apple_note.text,
+                        excerpt=apple_note.text[:200] if apple_note.text else "",
+                        folder="Recently Deleted",
+                        tags=[],
+                        created_at=apple_note.created_at or datetime.now(timezone.utc),
+                        updated_at=apple_note.modified_at or datetime.now(timezone.utc),
+                        wikilinks=[],
+                    )
+                )
+
+            return responses
+
+        except Exception as e:
+            logger.error(f"Failed to get deleted notes: {e}", exc_info=True)
+            return []
+
     # =========================================================================
     # Folder Management Methods
     # =========================================================================

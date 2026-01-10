@@ -182,6 +182,28 @@ async def sync_apple_notes(
         raise HTTPException(status_code=500, detail="Failed to sync Apple Notes") from e
 
 
+@router.get("/deleted", response_model=APIResponse[list[NoteResponse]])
+async def get_deleted_notes(
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[list[NoteResponse]]:
+    """
+    Get notes from Apple Notes 'Recently Deleted' folder
+
+    Returns notes that have been deleted but not yet permanently removed from Apple Notes.
+    """
+    try:
+        notes = await service.get_deleted_notes()
+        return APIResponse(
+            success=True,
+            data=notes,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(f"Failed to get deleted notes: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get deleted notes") from e
+
+
 # =============================================================================
 # Folder Management Endpoints (MUST be before /{note_id} routes)
 # =============================================================================

@@ -1446,6 +1446,10 @@ export async function syncAppleNotes(): Promise<NoteSyncStatus> {
 	return fetchApi<NoteSyncStatus>('/notes/sync', { method: 'POST' });
 }
 
+export async function getDeletedNotes(): Promise<Note[]> {
+	return fetchApi<Note[]>('/notes/deleted');
+}
+
 // ============================================================================
 // NOTES VERSION TYPES (Git Versioning)
 // ============================================================================

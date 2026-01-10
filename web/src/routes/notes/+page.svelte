@@ -14,6 +14,7 @@
 		getNoteReviewMetadata,
 		triggerReview,
 		getNotesDue,
+		getDeletedNotes,
 		type Note,
 		type FolderNode,
 		type NotesTree,
@@ -36,6 +37,7 @@
 	// Data
 	let notesData = $state<NotesTree | null>(null);
 	let folders = $state<FolderNode[]>([]);
+	let deletedNotesCount = $state(0);
 
 	// Selection state
 	let selectedFolderPath = $state<string | null>(null);
@@ -88,6 +90,14 @@
 				// Ignore errors
 			}
 
+			// Load deleted notes count (in background)
+			try {
+				const deleted = await getDeletedNotes();
+				deletedNotesCount = deleted.length;
+			} catch {
+				deletedNotesCount = 0;
+			}
+
 			// Auto-select "All Notes" by default
 			if (!selectedFolderPath) {
 				await selectFolder(ALL_NOTES_PATH);
@@ -108,17 +118,18 @@
 		isLoadingNotes = true;
 
 		try {
-			let response;
 			if (path === ALL_NOTES_PATH) {
 				// Load all notes (no folder filter) - increased to 1000 to display all notes
-				response = await listNotes(1, 1000);
+				const response = await listNotes(1, 1000);
+				folderNotes = response.data ?? [];
 			} else if (path === DELETED_NOTES_PATH) {
-				// For now, deleted notes folder is empty (feature not implemented)
-				response = { data: [], total: 0, page: 1, per_page: 1000, pages: 0 };
+				// Load deleted notes from Apple Notes "Recently Deleted" folder
+				folderNotes = await getDeletedNotes();
+				deletedNotesCount = folderNotes.length;
 			} else {
-				response = await listNotes(1, 1000, path);
+				const response = await listNotes(1, 1000, path);
+				folderNotes = response.data ?? [];
 			}
-			folderNotes = response.data ?? [];
 			// Auto-select first note
 			if (folderNotes.length > 0) {
 				await selectNote(folderNotes[0]);
@@ -438,7 +449,7 @@
 						<span class="w-4"></span>
 						<span class="text-sm">🗑️</span>
 						<span class="flex-1 truncate">Supprimées récemment</span>
-						<span class="text-xs text-[var(--color-text-tertiary)] tabular-nums">0</span>
+						<span class="text-xs text-[var(--color-text-tertiary)] tabular-nums">{deletedNotesCount}</span>
 					</div>
 				</div>
 			{/if}

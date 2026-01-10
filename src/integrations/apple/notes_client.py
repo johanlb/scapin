@@ -153,6 +153,36 @@ class AppleNotesClient:
 
         return all_notes
 
+    def get_deleted_notes(self) -> list[AppleNote]:
+        """Get notes from the 'Recently Deleted' folder in Apple Notes
+
+        Returns a list of notes that have been deleted but not yet permanently removed.
+        """
+        script = '''
+        tell application "Notes"
+            set notesList to {}
+            try
+                tell folder "Recently Deleted"
+                    repeat with n in notes
+                        set noteData to {id of n, name of n, body of n, creation date of n, modification date of n}
+                        set end of notesList to noteData
+                    end repeat
+                end tell
+            on error errMsg
+                -- Folder may not exist or be empty
+                return {}
+            end try
+            return notesList
+        end tell
+        '''
+
+        try:
+            result = self._run_applescript(script, timeout=180)
+            return self._parse_notes(result, "Recently Deleted")
+        except Exception as e:
+            logger.error(f"Failed to get deleted notes: {e}")
+            return []
+
     def get_note_by_id(self, note_id: str) -> AppleNote | None:
         """Get a specific note by its ID"""
         escaped_id = note_id.replace('"', '\\"')
