@@ -207,6 +207,18 @@ function clearError(): void {
 	state.error = null;
 }
 
+/**
+ * Remove a note from the due list (e.g., after deletion)
+ */
+function removeNote(noteId: string): void {
+	state.dueNotes = state.dueNotes.filter((n) => n.note_id !== noteId);
+
+	// Adjust index if needed
+	if (state.currentIndex >= state.dueNotes.length && state.dueNotes.length > 0) {
+		state.currentIndex = state.dueNotes.length - 1;
+	}
+}
+
 function handleError(err: unknown, defaultMessage: string): void {
 	if (err instanceof ApiError) {
 		if (err.status === 0) {
@@ -283,7 +295,8 @@ export const notesReviewStore = {
 	skipNote,
 	goToNote,
 	resetSession,
-	clearError
+	clearError,
+	removeNote
 };
 
 export type { NoteReviewMetadata, ReviewStatsResponse, ReviewWorkloadResponse };

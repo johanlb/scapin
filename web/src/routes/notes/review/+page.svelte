@@ -2,12 +2,25 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { notesReviewStore } from '$lib/stores/notes-review.svelte';
+	import { getNote, updateNote, deleteNote, type Note } from '$lib/api/client';
 	import ReviewCard from '$lib/components/notes/ReviewCard.svelte';
 	import QualityRating from '$lib/components/notes/QualityRating.svelte';
 	import ProgressRing from '$lib/components/ui/ProgressRing.svelte';
+	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
+	import { Modal } from '$lib/components/ui';
 
 	let reviewComplete = $state(false);
 	let lastReviewResult = $state<{ quality: number; assessment: string } | null>(null);
+
+	// Edit state
+	let isEditing = $state(false);
+	let editContent = $state('');
+	let isSaving = $state(false);
+	let fullNote = $state<Note | null>(null);
+
+	// Delete state
+	let showDeleteModal = $state(false);
+	let isDeleting = $state(false);
 
 	onMount(async () => {
 		await notesReviewStore.fetchAll();
@@ -29,21 +42,43 @@
 			switch (e.key) {
 				case 'Escape':
 					e.preventDefault();
-					goto('/');
+					if (isEditing) {
+						handleCancelEdit();
+					} else {
+						goto('/');
+					}
 					break;
 				case 'ArrowRight':
 				case 'n':
-					e.preventDefault();
-					if (notesReviewStore.hasNext) notesReviewStore.skipNote();
+					if (!isEditing) {
+						e.preventDefault();
+						if (notesReviewStore.hasNext) notesReviewStore.skipNote();
+					}
 					break;
 				case 'ArrowLeft':
 				case 'p':
-					e.preventDefault();
-					if (notesReviewStore.hasPrevious) notesReviewStore.previousNote();
+					if (!isEditing) {
+						e.preventDefault();
+						if (notesReviewStore.hasPrevious) notesReviewStore.previousNote();
+					}
 					break;
 				case 's':
-					e.preventDefault();
-					handlePostpone();
+					if (!isEditing) {
+						e.preventDefault();
+						handlePostpone();
+					}
+					break;
+				case 'e':
+					if (!isEditing) {
+						e.preventDefault();
+						handleEdit();
+					}
+					break;
+				case 'd':
+					if (!isEditing) {
+						e.preventDefault();
+						handleDeleteClick();
+					}
 					break;
 			}
 		};
@@ -90,6 +125,67 @@
 		notesReviewStore.resetSession();
 		notesReviewStore.fetchAll();
 		reviewComplete = false;
+	}
+
+	async function handleEdit() {
+		const note = notesReviewStore.currentNote;
+		if (!note) return;
+
+		try {
+			// Load full note content
+			fullNote = await getNote(note.note_id);
+			editContent = fullNote.content;
+			isEditing = true;
+		} catch (error) {
+			console.error('Failed to load note for editing:', error);
+		}
+	}
+
+	async function handleSaveEdit() {
+		if (!fullNote) return;
+
+		isSaving = true;
+		try {
+			await updateNote(fullNote.note_id, { content: editContent });
+			isEditing = false;
+			editContent = '';
+			fullNote = null;
+		} catch (error) {
+			console.error('Failed to save note:', error);
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	function handleCancelEdit() {
+		isEditing = false;
+		editContent = '';
+		fullNote = null;
+	}
+
+	function handleDeleteClick() {
+		showDeleteModal = true;
+	}
+
+	async function handleConfirmDelete() {
+		const note = notesReviewStore.currentNote;
+		if (!note) return;
+
+		isDeleting = true;
+		try {
+			await deleteNote(note.note_id);
+			notesReviewStore.removeNote(note.note_id);
+			showDeleteModal = false;
+
+			// Check if all done
+			if (notesReviewStore.isEmpty) {
+				reviewComplete = true;
+			}
+		} catch (error) {
+			console.error('Failed to delete note:', error);
+		} finally {
+			isDeleting = false;
+		}
 	}
 </script>
 
@@ -194,8 +290,46 @@
 			<!-- Review Mode -->
 		{:else if notesReviewStore.currentNote}
 			<div class="space-y-6">
-				<!-- Review Card -->
-				<ReviewCard note={notesReviewStore.currentNote} onViewNote={handleViewNote} />
+				<!-- Edit Mode -->
+				{#if isEditing && fullNote}
+					<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+						<div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+							<h2 class="font-medium text-gray-900 dark:text-white">
+								Modifier la note
+							</h2>
+							<div class="flex gap-2">
+								<button
+									type="button"
+									onclick={handleCancelEdit}
+									class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+								>
+									Annuler
+								</button>
+								<button
+									type="button"
+									onclick={handleSaveEdit}
+									disabled={isSaving}
+									class="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+								>
+									{#if isSaving}
+										Enregistrement...
+									{:else}
+										Enregistrer
+									{/if}
+								</button>
+							</div>
+						</div>
+						<div class="p-4">
+							<MarkdownEditor
+								bind:content={editContent}
+								onSave={handleSaveEdit}
+							/>
+						</div>
+					</div>
+				{:else}
+					<!-- Review Card -->
+					<ReviewCard note={notesReviewStore.currentNote} onViewNote={handleViewNote} />
+				{/if}
 
 				<!-- Success feedback -->
 				{#if lastReviewResult}
@@ -214,42 +348,64 @@
 				</div>
 
 				<!-- Action Buttons -->
-				<div class="flex items-center justify-between">
-					<button
-						type="button"
-						onclick={handlePostpone}
-						disabled={notesReviewStore.loading}
-						class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-50"
-					>
-						Reporter +24h (s)
-					</button>
+				{#if !isEditing}
+					<div class="flex items-center justify-between">
+						<div class="flex gap-2">
+							<button
+								type="button"
+								onclick={handlePostpone}
+								disabled={notesReviewStore.loading}
+								class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-50"
+							>
+								Reporter +24h (s)
+							</button>
+							<button
+								type="button"
+								onclick={handleEdit}
+								disabled={notesReviewStore.loading}
+								class="px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors disabled:opacity-50"
+								title="Modifier (e)"
+							>
+								✏️ Modifier
+							</button>
+							<button
+								type="button"
+								onclick={handleDeleteClick}
+								disabled={notesReviewStore.loading}
+								class="px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors disabled:opacity-50"
+								title="Supprimer (d)"
+							>
+								🗑️ Supprimer
+							</button>
+						</div>
 
-					<div class="flex gap-2">
-						{#if notesReviewStore.hasPrevious}
-							<button
-								type="button"
-								onclick={() => notesReviewStore.previousNote()}
-								class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-							>
-								← Précédent
-							</button>
-						{/if}
-						{#if notesReviewStore.hasNext}
-							<button
-								type="button"
-								onclick={() => notesReviewStore.skipNote()}
-								class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-							>
-								Passer →
-							</button>
-						{/if}
+						<div class="flex gap-2">
+							{#if notesReviewStore.hasPrevious}
+								<button
+									type="button"
+									onclick={() => notesReviewStore.previousNote()}
+									class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+								>
+									← Précédent
+								</button>
+							{/if}
+							{#if notesReviewStore.hasNext}
+								<button
+									type="button"
+									onclick={() => notesReviewStore.skipNote()}
+									class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+								>
+									Passer →
+								</button>
+							{/if}
+						</div>
 					</div>
-				</div>
 
-				<!-- Keyboard shortcuts hint -->
-				<p class="text-xs text-gray-500 dark:text-gray-500 text-center">
-					Raccourcis : 1-6 noter | ← → naviguer | s reporter | Esc quitter
-				</p>
+					<!-- Keyboard shortcuts hint -->
+					<p class="text-xs text-gray-500 dark:text-gray-500 text-center">
+						Raccourcis : 1-6 noter | ← → naviguer | s reporter | e modifier | d supprimer | Esc quitter
+					</p>
+				{/if}
 			</div>
 		{/if}
 
@@ -267,4 +423,48 @@
 			</div>
 		{/if}
 	</main>
+
+	<!-- Delete Confirmation Modal -->
+	<Modal
+		open={showDeleteModal}
+		title="Supprimer la note"
+		onClose={() => showDeleteModal = false}
+	>
+		<div class="space-y-4">
+			<p class="text-gray-600 dark:text-gray-400">
+				Êtes-vous sûr de vouloir supprimer cette note ? Cette action est irréversible.
+			</p>
+			{#if notesReviewStore.currentNote}
+				<div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+					<p class="font-medium text-gray-900 dark:text-white text-sm truncate">
+						{notesReviewStore.currentNote.note_id}
+					</p>
+					<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+						Type: {notesReviewStore.currentNote.note_type}
+					</p>
+				</div>
+			{/if}
+			<div class="flex gap-3 justify-end">
+				<button
+					type="button"
+					onclick={() => showDeleteModal = false}
+					class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+				>
+					Annuler
+				</button>
+				<button
+					type="button"
+					onclick={handleConfirmDelete}
+					disabled={isDeleting}
+					class="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+				>
+					{#if isDeleting}
+						Suppression...
+					{:else}
+						Supprimer
+					{/if}
+				</button>
+			</div>
+		</div>
+	</Modal>
 </div>
