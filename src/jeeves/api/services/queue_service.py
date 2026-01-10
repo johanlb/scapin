@@ -839,8 +839,7 @@ class QueueService:
     ) -> dict[str, Any] | None:
         """Synchronous reanalysis (runs in thread pool)"""
         from src.core.config_manager import get_config
-        from src.integrations.email.models import EmailMetadata
-        from src.integrations.email.parser import EmailContent
+        from src.core.schemas import EmailContent, EmailMetadata
         from src.sancho.router import AIModel, get_ai_router
 
         try:
