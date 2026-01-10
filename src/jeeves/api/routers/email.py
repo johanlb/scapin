@@ -7,6 +7,7 @@ API endpoints for email processing.
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 
 from src.jeeves.api.deps import get_email_service
 from src.jeeves.api.models.email import (
@@ -238,6 +239,47 @@ async def execute_action(
             },
             timestamp=datetime.now(timezone.utc),
         )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/attachment/{email_id}/{filename}")
+async def get_attachment(
+    email_id: str,
+    filename: str,
+    folder: str = "INBOX",
+    service: EmailService = Depends(get_email_service),
+) -> Response:
+    """
+    Download an email attachment
+
+    Args:
+        email_id: Email message ID
+        filename: Attachment filename
+        folder: IMAP folder (default: INBOX)
+
+    Returns:
+        Attachment content as binary response
+    """
+    try:
+        result = await service.get_attachment(int(email_id), filename, folder)
+
+        if result is None:
+            raise HTTPException(status_code=404, detail="Attachment not found")
+
+        content, content_type = result
+        return Response(
+            content=content,
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "Cache-Control": "private, max-age=3600",
+            },
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid email ID: {e}") from e
     except HTTPException:
         raise
     except Exception as e:

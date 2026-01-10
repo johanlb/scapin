@@ -882,6 +882,62 @@ class IMAPClient:
                     return True
         return False
 
+    def get_attachment(
+        self, msg_id: int, filename: str, folder: str = "INBOX"
+    ) -> tuple[bytes, str] | None:
+        """
+        Get attachment content from an email
+
+        Args:
+            msg_id: Email message ID
+            filename: Attachment filename to retrieve
+            folder: Folder name
+
+        Returns:
+            Tuple of (content bytes, content_type) or None if not found
+        """
+        if self._connection is None:
+            raise RuntimeError("Not connected to IMAP server")
+
+        try:
+            status, _ = self._connection.select(folder, readonly=True)
+            if status != "OK":
+                logger.warning(f"Failed to select folder {folder}")
+                return None
+
+            # Fetch the email
+            status, data = self._connection.fetch(str(msg_id), "(RFC822)")
+            if status != "OK" or not data or not data[0]:
+                logger.warning(f"Failed to fetch email {msg_id}")
+                return None
+
+            # Parse the email
+            raw_email = data[0][1] if isinstance(data[0], tuple) else data[0]
+            if isinstance(raw_email, bytes):
+                msg = email.message_from_bytes(raw_email)
+            else:
+                return None
+
+            # Find the attachment
+            for part in msg.walk():
+                if part.get_content_disposition() == "attachment":
+                    part_filename = part.get_filename()
+                    if part_filename:
+                        if isinstance(part_filename, bytes):
+                            part_filename = part_filename.decode("utf-8", errors="replace")
+                        if part_filename == filename:
+                            payload = part.get_payload(decode=True)
+                            content_type = part.get_content_type()
+                            if payload:
+                                return (payload, content_type)
+
+            logger.warning(f"Attachment {filename} not found in email {msg_id}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to get attachment: {e}", exc_info=True)
+            return None
+
     def mark_as_read(self, msg_id: int, folder: str = "INBOX") -> bool:
         """
         Mark email as read

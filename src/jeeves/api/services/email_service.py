@@ -269,3 +269,42 @@ class EmailService:
         except Exception as e:
             logger.error(f"Failed to execute action {action} on email {email_id}: {e}")
             return False
+
+    async def get_attachment(
+        self,
+        email_id: int,
+        filename: str,
+        folder: str = "INBOX",
+    ) -> tuple[bytes, str] | None:
+        """
+        Get an attachment from an email
+
+        Args:
+            email_id: Email message ID
+            filename: Attachment filename
+            folder: IMAP folder
+
+        Returns:
+            Tuple of (content bytes, content_type) or None if not found
+        """
+        return await asyncio.to_thread(
+            self._get_attachment_sync, email_id, filename, folder
+        )
+
+    def _get_attachment_sync(
+        self,
+        email_id: int,
+        filename: str,
+        folder: str,
+    ) -> tuple[bytes, str] | None:
+        """Synchronous attachment fetch (runs in thread pool)"""
+        from src.integrations.email.imap_client import IMAPClient
+
+        imap_client = IMAPClient(self._config.email)
+
+        try:
+            with imap_client.connect():
+                return imap_client.get_attachment(email_id, filename, folder)
+        except Exception as e:
+            logger.error(f"Failed to get attachment {filename} from email {email_id}: {e}")
+            return None

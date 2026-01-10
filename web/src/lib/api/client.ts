@@ -973,6 +973,15 @@ export async function executeEmailAction(
 	});
 }
 
+/**
+ * Get the URL for downloading an email attachment
+ * This returns a URL that can be used directly in img src, audio src, or as download link
+ */
+export function getAttachmentUrl(emailId: string, filename: string, folder = 'INBOX'): string {
+	const params = new URLSearchParams({ folder });
+	return `${API_BASE}/email/attachment/${encodeURIComponent(emailId)}/${encodeURIComponent(filename)}?${params}`;
+}
+
 // ============================================================================
 // CALENDAR TYPES
 // ============================================================================
