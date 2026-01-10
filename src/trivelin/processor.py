@@ -453,8 +453,11 @@ class EmailProcessor:
             ProcessedEmail or None if processing fails
         """
         # Check if already processed
-        if self.state.is_processed(str(metadata.id)):
-            logger.debug(f"Email {metadata.id} already processed, skipping")
+        # Use message_id (RFC 822 Message-ID header) for tracking, not IMAP sequence number
+        # IMAP sequence numbers can change as emails are deleted/moved!
+        tracking_id = metadata.message_id or str(metadata.id)
+        if self.state.is_processed(tracking_id):
+            logger.debug(f"Email {metadata.id} already processed (tracking_id={tracking_id}), skipping")
             return None
 
         logger.info(
@@ -498,7 +501,7 @@ class EmailProcessor:
 
         # Auto-apply high-confidence proposals (notes, tasks)
         # This happens BEFORE execution decision to capture all proposals
-        auto_apply_result = self._auto_apply_proposals(analysis, str(metadata.id))
+        auto_apply_result = self._auto_apply_proposals(analysis, tracking_id)
         if any(v > 0 for v in auto_apply_result.values()):
             logger.info(
                 "Auto-apply results",
@@ -519,7 +522,7 @@ class EmailProcessor:
         # Update state
         self.state.increment("emails_processed")
         self.state.add_confidence_score(analysis.confidence)
-        self.state.mark_processed(str(metadata.id))
+        self.state.mark_processed(tracking_id)
 
         # Cache email data
         self.state.cache_entity(

@@ -25,8 +25,10 @@ def clean_json_string(json_str: str) -> str:
 
     Handles:
     - Trailing commas before ] or }
+    - Missing commas between properties/elements
     - Single-line comments (// ...)
     - Multi-line comments (/* ... */)
+    - Unescaped newlines in strings
 
     Args:
         json_str: Raw JSON string that might be malformed
@@ -43,6 +45,26 @@ def clean_json_string(json_str: str) -> str:
     # Remove trailing commas before ] or }
     # Pattern: comma followed by optional whitespace, then ] or }
     json_str = re.sub(r',\s*([}\]])', r'\1', json_str)
+
+    # Fix missing commas between properties (any whitespace including spaces):
+    # Pattern: "value" followed by any whitespace then "key"
+    # e.g., '"value"   "key"' or '"value"\n    "key"' → '"value", "key"'
+    json_str = re.sub(r'"\s+(")', r'", \1', json_str)
+
+    # Fix missing commas after numbers/booleans/null before "
+    # e.g., '95   "reasoning"' or '95\n    "reasoning"' → '95, "reasoning"'
+    json_str = re.sub(r'(\d+)\s+(")', r'\1, \2', json_str)
+    json_str = re.sub(r'(true|false|null)\s+(")', r'\1, \2', json_str)
+
+    # Fix missing commas after ] or } before " or [ or {
+    # e.g., ']   "key"' or '}\n    "key"' → '], "key"'
+    json_str = re.sub(r'(\])\s+("|\[|\{)', r'\1, \2', json_str)
+    json_str = re.sub(r'(\})\s+("|\[|\{)', r'\1, \2', json_str)
+
+    # Fix missing commas between array elements:
+    # e.g., ']\n    [' or '}\n    {' → '], [' or '}, {'
+    json_str = re.sub(r'(\])\s*\n\s*(\[)', r'\1, \2', json_str)
+    json_str = re.sub(r'(\})\s*\n\s*(\{)', r'\1, \2', json_str)
 
     return json_str
 
@@ -813,11 +835,33 @@ class AIRouter:
             return analysis
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON response: {e}", exc_info=True)
-            logger.debug(f"Response text: {response[:500]}")
+            # Log the error and the problematic JSON for debugging
+            logger.error(
+                f"Failed to parse JSON response: {e}",
+                extra={
+                    "email_id": metadata.id,
+                    "error_line": e.lineno,
+                    "error_col": e.colno,
+                    "error_pos": e.pos,
+                }
+            )
+            # Log a snippet around the error position for debugging
+            if json_str and e.pos:
+                start = max(0, e.pos - 50)
+                end = min(len(json_str), e.pos + 50)
+                snippet = json_str[start:end]
+                logger.debug(
+                    f"JSON snippet around error (pos {e.pos}): ...{snippet}...",
+                    extra={"email_id": metadata.id}
+                )
+            logger.debug(f"Full response text (first 1000 chars): {response[:1000]}")
             return None
         except Exception as e:
-            logger.error(f"Failed to create EmailAnalysis: {e}", exc_info=True)
+            logger.error(
+                f"Failed to create EmailAnalysis: {e}",
+                exc_info=True,
+                extra={"email_id": metadata.id}
+            )
             return None
 
     def _calculate_cost(
