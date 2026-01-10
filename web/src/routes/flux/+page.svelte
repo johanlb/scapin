@@ -28,6 +28,10 @@
 	let isFetchingEmails = $state(false);
 	let fetchError = $state<string | null>(null);
 
+	// Bug #49: Auto-fetch threshold
+	const AUTO_FETCH_THRESHOLD = 5;
+	let autoFetchEnabled = $state(true); // Can be disabled by user
+
 	// Timeout IDs for cleanup
 	let undoErrorTimeout: ReturnType<typeof setTimeout> | null = null;
 	let snoozeSuccessTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -52,6 +56,9 @@
 		await queueStore.fetchQueue('pending');
 		await queueStore.fetchStats();
 		document.addEventListener('keydown', handleKeyboard);
+
+		// Bug #49: Check if we need to auto-fetch after initial load
+		checkAutoFetch();
 
 		// Register context-specific keyboard shortcuts
 		const navigationShortcuts = createNavigationShortcuts(
@@ -158,6 +165,23 @@
 			);
 		} finally {
 			isFetchingEmails = false;
+		}
+	}
+
+	// Bug #49: Auto-fetch when queue is low
+	async function checkAutoFetch() {
+		// Only auto-fetch in pending view when enabled and not already fetching
+		if (!autoFetchEnabled || isFetchingEmails || activeFilter !== 'pending') return;
+
+		// Check if queue is below threshold
+		const pendingCount = queueStore.stats?.by_status?.pending ?? queueStore.items.length;
+		if (pendingCount < AUTO_FETCH_THRESHOLD) {
+			// Show subtle notification
+			toastStore.info(
+				`Moins de ${AUTO_FETCH_THRESHOLD} emails en attente. Récupération automatique...`,
+				{ title: 'Auto-fetch' }
+			);
+			await handleFetchEmails();
 		}
 	}
 
@@ -279,6 +303,8 @@
 			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, option.destination);
 			// Update stats in background (no await needed)
 			queueStore.fetchStats();
+			// Bug #49: Check if we need to auto-fetch
+			checkAutoFetch();
 		} catch (e) {
 			// Bug #52 fix: Restore item if action failed
 			console.error('Action failed:', e);
@@ -331,6 +357,8 @@
 		try {
 			await approveQueueItem(item.id, 'custom', item.analysis.category || undefined);
 			queueStore.fetchStats();
+			// Bug #49: Check if we need to auto-fetch
+			checkAutoFetch();
 		} catch (e) {
 			console.error('Custom instruction failed:', e);
 			const undoToast = toastStore.findUndoByItemId(itemId);
@@ -367,6 +395,8 @@
 		try {
 			await rejectQueueItem(item.id);
 			queueStore.fetchStats();
+			// Bug #49: Check if we need to auto-fetch
+			checkAutoFetch();
 		} catch (e) {
 			console.error('Reject failed:', e);
 			queueStore.restoreItem(savedItem);
@@ -413,6 +443,8 @@
 		try {
 			await approveQueueItem(item.id, 'delete', item.analysis.category || undefined);
 			queueStore.fetchStats();
+			// Bug #49: Check if we need to auto-fetch
+			checkAutoFetch();
 		} catch (e) {
 			console.error('Delete failed:', e);
 			const undoToast = toastStore.findUndoByItemId(itemId);
@@ -500,6 +532,9 @@
 			await queueStore.fetchQueue('pending');
 			await queueStore.fetchStats();
 
+			// Bug #49: Check if we need to auto-fetch
+			checkAutoFetch();
+
 			// Clear success message after delay
 			if (snoozeSuccessTimeout) clearTimeout(snoozeSuccessTimeout);
 			snoozeSuccessTimeout = setTimeout(() => {
@@ -543,6 +578,9 @@
 			// Refresh queue and stats
 			await queueStore.fetchQueue('pending');
 			await queueStore.fetchStats();
+
+			// Bug #49: Check if we need to auto-fetch
+			checkAutoFetch();
 
 			// Clear success message after delay
 			if (snoozeSuccessTimeout) clearTimeout(snoozeSuccessTimeout);
