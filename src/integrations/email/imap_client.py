@@ -433,6 +433,41 @@ class IMAPClient:
             logger.error(f"Error fetching emails: {e}", exc_info=True)
             return []
 
+    def _flag_failed_email(self, msg_id: bytes, folder: str, error: str) -> None:
+        """
+        Flag an email that failed to parse to prevent infinite re-fetch loops.
+
+        When an email cannot be parsed (corrupted, encoding issues, etc.),
+        we still flag it as processed so it won't be re-fetched on every call.
+
+        Args:
+            msg_id: IMAP message ID (bytes)
+            folder: Folder name
+            error: Error message for logging
+        """
+        if self._connection is None:
+            return
+
+        try:
+            msg_id_int = int(msg_id.decode())
+            logger.info(
+                f"Flagging failed email {msg_id_int} to prevent re-fetch loop",
+                extra={"folder": folder, "error": error[:100]}
+            )
+            # Select folder in write mode and add flag
+            self._connection.select(folder, readonly=False)
+            result = self._connection.store(
+                str(msg_id_int).encode(),
+                '+FLAGS',
+                f"({SCAPIN_PROCESSED_FLAG})"
+            )
+            if result[0] == 'OK':
+                logger.info(f"Successfully flagged failed email {msg_id_int}")
+            else:
+                logger.warning(f"Failed to flag email {msg_id_int}: {result}")
+        except Exception as flag_error:
+            logger.error(f"Error flagging failed email {msg_id}: {flag_error}")
+
     def _fetch_emails_batch(
         self,
         msg_ids: list[bytes],
@@ -480,6 +515,8 @@ class IMAPClient:
                                 emails.append(email_data)
                         except Exception as e:
                             logger.warning(f"Failed to fetch email {msg_id.decode()}: {e}")
+                            # Flag the email to prevent infinite re-fetch loop
+                            self._flag_failed_email(msg_id, folder, str(e))
                     continue
 
                 # Parse batch response - response contains multiple email tuples
@@ -499,6 +536,8 @@ class IMAPClient:
                             emails.append(email_data)
                     except Exception as e2:
                         logger.warning(f"Failed to fetch email {msg_id.decode()}: {e2}")
+                        # Flag the email to prevent infinite re-fetch loop
+                        self._flag_failed_email(msg_id, folder, str(e2))
 
         return emails
 
@@ -539,6 +578,7 @@ class IMAPClient:
 
                 # Validate this is email data (header should contain BODY[])
                 if isinstance(header, bytes) and b"BODY[]" in header and isinstance(raw_email, bytes):
+                    msg_id = None
                     try:
                         # Extract message ID from header (format: b'123 (BODY[] {size}')
                         msg_id_str = header.split()[0]
@@ -551,7 +591,13 @@ class IMAPClient:
                         emails.append((metadata, content))
 
                     except Exception as e:
-                        logger.warning(f"Failed to parse email in batch: {e}")
+                        logger.warning(
+                            f"Failed to parse email in batch: {e}",
+                            extra={"msg_id": msg_id.decode() if msg_id else "unknown"}
+                        )
+                        # Flag the unparseable email to prevent infinite re-fetch loop
+                        if msg_id:
+                            self._flag_failed_email(msg_id, folder, str(e))
 
             i += 1
 
