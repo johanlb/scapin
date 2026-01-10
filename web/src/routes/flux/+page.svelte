@@ -467,6 +467,50 @@
 		}
 	}
 
+	// Bug #55: Defer custom instruction (snooze with instruction saved)
+	async function handleDeferCustomInstruction(item: QueueItem) {
+		if (!item || isSnoozing) return;
+		isSnoozing = true;
+		showCustomInput = false;
+		snoozeError = null;
+
+		try {
+			// Snooze with the custom instruction as reason
+			const reason = customInstruction.trim() || undefined;
+			const result = await snoozeQueueItem(item.id, 'in_2_hours', { reason });
+			const snoozeUntil = new Date(result.snooze_until);
+			snoozeSuccess = `Reporté à ${snoozeUntil.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
+			if (reason) {
+				snoozeSuccess += ` (${reason.slice(0, 30)}${reason.length > 30 ? '...' : ''})`;
+			}
+
+			// Refresh queue and stats
+			await queueStore.fetchQueue('pending');
+			await queueStore.fetchStats();
+
+			// Clear success message after delay
+			if (snoozeSuccessTimeout) clearTimeout(snoozeSuccessTimeout);
+			snoozeSuccessTimeout = setTimeout(() => {
+				snoozeSuccess = null;
+			}, 3000);
+
+			// Reset state
+			customInstruction = '';
+			if (currentIndex >= queueStore.items.length) {
+				currentIndex = Math.max(0, queueStore.items.length - 1);
+			}
+		} catch (e) {
+			console.error('Defer custom instruction failed:', e);
+			snoozeError = e instanceof Error ? e.message : 'Erreur lors du report';
+			if (snoozeErrorTimeout) clearTimeout(snoozeErrorTimeout);
+			snoozeErrorTimeout = setTimeout(() => {
+				snoozeError = null;
+			}, 5000);
+		} finally {
+			isSnoozing = false;
+		}
+	}
+
 	function handleSkipToNext() {
 		// Skip to next item without API call (local only)
 		if (queueStore.items.length > 1) {
@@ -1146,7 +1190,7 @@
 					</div>
 				{/if}
 
-				<!-- Custom instruction toggle -->
+				<!-- Custom instruction toggle (Bug #55: two buttons) -->
 				{#if showCustomInput}
 					<div class="space-y-2 p-3 rounded-lg border border-[var(--color-border)]">
 						<label for="custom-instruction" class="text-xs font-medium text-[var(--color-text-secondary)]">
@@ -1157,14 +1201,22 @@
 							placeholder="Ex: Classer dans Travail/Projets/2026"
 							bind:value={customInstruction}
 						/>
-						<div class="flex gap-2">
+						<div class="flex gap-2 flex-wrap">
 							<Button
 								variant="primary"
 								size="sm"
 								onclick={() => handleCustomInstruction(currentItem)}
 								disabled={isProcessing || !customInstruction.trim()}
 							>
-								Exécuter
+								<span class="mr-1">⚡</span> Exécuter maintenant
+							</Button>
+							<Button
+								variant="secondary"
+								size="sm"
+								onclick={() => handleDeferCustomInstruction(currentItem)}
+								disabled={isProcessing || isSnoozing}
+							>
+								<span class="mr-1">⏰</span> Plus tard
 							</Button>
 							<Button
 								variant="secondary"
