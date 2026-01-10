@@ -368,6 +368,9 @@ class VectorStore:
             if index_id in self.id_to_doc:
                 self.id_to_doc[index_id]["_deleted"] = True
 
+            # Remove from doc_id mapping so add() can re-add it
+            del self.doc_id_to_index_id[doc_id]
+
             logger.debug(f"Marked document as deleted: {doc_id}")
             return True
 

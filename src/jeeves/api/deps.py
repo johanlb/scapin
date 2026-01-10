@@ -102,11 +102,17 @@ def get_notes_service() -> Generator[NotesService, None, None]:
     yield _notes_service_instance
 
 
+# Cached NotesReviewService singleton to avoid creating new SQLite connections on every request
+_notes_review_service_instance: NotesReviewService | None = None
+
+
 def get_notes_review_service() -> Generator[NotesReviewService, None, None]:
-    """Get notes review service instance"""
-    config = get_cached_config()
-    service = NotesReviewService(config=config)
-    yield service
+    """Get notes review service instance (cached singleton to avoid connection pool exhaustion)"""
+    global _notes_review_service_instance
+    if _notes_review_service_instance is None:
+        config = get_cached_config()
+        _notes_review_service_instance = NotesReviewService(config=config)
+    yield _notes_review_service_instance
 
 
 def get_queue_service() -> Generator[QueueService, None, None]:

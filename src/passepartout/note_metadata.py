@@ -200,8 +200,9 @@ class NoteMetadataStore:
         self._total_operations = 0
         self._pool_wait_count = 0
         self._pool_exhausted_count = 0
-        self._init_db()
+        # Initialize pool BEFORE _init_db() which needs a connection
         self._init_pool()
+        self._init_db()
 
     def _init_pool(self) -> None:
         """Initialize the connection pool with connections"""

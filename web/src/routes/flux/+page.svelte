@@ -134,6 +134,12 @@
 		isFetchingEmails = true;
 		fetchError = null;
 
+		// Inform user that processing has started (can take 1-2 minutes)
+		toastStore.info(
+			'Analyse des emails en cours... Cela peut prendre quelques minutes.',
+			{ title: 'Traitement démarré' }
+		);
+
 		try {
 			const result = await processInbox(20, false, undefined, true);
 			toastStore.success(

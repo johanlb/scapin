@@ -418,18 +418,31 @@ class DiscussionService:
 
             # Try to use Sancho for AI generation
             try:
-                from src.sancho.router import AIRouter
+                from src.sancho.router import AIRouter, AIModel
 
                 ai_config = self.config.ai
                 router = AIRouter(ai_config)
 
-                # Build prompt with context
+                # Build prompt with context and history
                 system_prompt = self._build_system_prompt(context)
-                prompt = f"{system_prompt}\n\nUser: {user_message}"
 
-                response = await router.generate_response(
+                # Format conversation history into prompt
+                history_text = ""
+                for msg in history:
+                    role = "User" if msg["role"] == "user" else "Assistant"
+                    history_text += f"{role}: {msg['content']}\n"
+
+                if history_text:
+                    prompt = f"{history_text}User: {user_message}"
+                else:
+                    prompt = f"User: {user_message}"
+
+                # Use analyze_with_prompt for chat generation
+                response, _usage = router.analyze_with_prompt(
                     prompt=prompt,
-                    history=history,
+                    model=AIModel.CLAUDE_HAIKU,  # Use fast model for chat
+                    system_prompt=system_prompt,
+                    max_tokens=1024,
                 )
                 return response
 
