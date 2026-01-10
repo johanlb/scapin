@@ -69,6 +69,17 @@ class QueueService:
         all_items = self._storage.load_queue(account_id=account_id, status=status)
         total = len(all_items)
 
+        # Bug #56 fix: Sort by appropriate field based on status
+        # - pending: oldest first (by queued_at) - process oldest emails first
+        # - approved/rejected: newest first (by reviewed_at) - show most recent actions
+        if status in ("approved", "rejected"):
+            # Sort by reviewed_at, newest first (reverse chronological)
+            all_items.sort(
+                key=lambda x: x.get("reviewed_at") or x.get("queued_at", ""),
+                reverse=True,
+            )
+        # else: pending items keep the default sort (oldest first by queued_at)
+
         # Apply pagination
         start = (page - 1) * page_size
         end = start + page_size
