@@ -16,26 +16,47 @@ export interface AuthFixtures {
  */
 export const test = base.extend<AuthFixtures>({
   authenticatedPage: async ({ page, context }, use) => {
-    // Clear local storage to ensure clean state
+    // Clear cookies for clean state
     await context.clearCookies();
-    await page.addInitScript(() => {
+
+    // Navigate to login page first
+    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+
+    // Clear localStorage now (after navigation, not with addInitScript)
+    // This ensures we only clear once, not on every page load
+    await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
     });
 
-    // Navigate to login page
-    await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    // Reload to pick up the cleared state
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // Wait a bit for auth state to initialize
+    await page.waitForTimeout(1500);
 
     // Wait for either the PIN input OR backend unavailable message
     // This handles both normal and error states
     const pinInput = page.locator('[data-testid="pin-input"]');
     const backendUnavailable = page.locator('[data-testid="backend-unavailable"]');
 
-    // Wait for one of these to appear (increased timeout for slow initialization)
-    await Promise.race([
-      pinInput.waitFor({ state: 'visible', timeout: 30000 }),
-      backendUnavailable.waitFor({ state: 'visible', timeout: 30000 }),
-    ]);
+    // Try waiting for one of these to appear with a try-catch
+    try {
+      await Promise.race([
+        pinInput.waitFor({ state: 'visible', timeout: 30000 }),
+        backendUnavailable.waitFor({ state: 'visible', timeout: 30000 }),
+      ]);
+    } catch {
+      // If neither appeared, try refreshing once more
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(2000);
+
+      // Try again
+      await Promise.race([
+        pinInput.waitFor({ state: 'visible', timeout: 30000 }),
+        backendUnavailable.waitFor({ state: 'visible', timeout: 30000 }),
+      ]);
+    }
 
     // If backend is unavailable, skip the test
     if (await backendUnavailable.isVisible()) {
