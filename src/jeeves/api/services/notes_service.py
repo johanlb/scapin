@@ -101,9 +101,12 @@ def _note_to_response(note: Note) -> NoteResponse:
     path = note.metadata.get("path", "")
     pinned = note.metadata.get("pinned", False)
 
+    # Ensure title is a string (YAML can parse numeric-only titles as int)
+    title = str(note.title) if note.title is not None else ""
+
     return NoteResponse(
         note_id=note.note_id,
-        title=note.title,
+        title=title,
         content=note.content,
         excerpt=excerpt,
         path=path,

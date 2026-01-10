@@ -957,7 +957,9 @@ class NoteManager:
                 updated_at = file_mtime
 
             # Get title - use filename as fallback
-            title = frontmatter.get("title") or file_path.stem
+            # Note: YAML can parse numeric-only titles as int, so convert to str
+            raw_title = frontmatter.get("title")
+            title = str(raw_title) if raw_title is not None else file_path.stem
 
             # Build metadata with path from filesystem
             metadata = frontmatter.get("metadata", {})
