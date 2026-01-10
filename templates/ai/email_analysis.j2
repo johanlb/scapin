@@ -127,16 +127,38 @@ Analyse cet email et propose PLUSIEURS options d'action. Réponds en JSON avec c
 - **QUEUE** : Confiance faible, nécessite révision humaine
 
 {% if existing_folders and existing_folders|length > 0 %}
-**DOSSIERS EXISTANTS (UTILISER EN PRIORITÉ) :**
+**DOSSIERS EXISTANTS (RÉUTILISER EN PRIORITÉ) :**
 {% for folder in existing_folders %}
 - {{ folder }}
 {% endfor %}
-
-⚠️ **IMPORTANT pour les destinations :**
-- TOUJOURS vérifier si un dossier existant correspond AVANT d'en suggérer un nouveau
-- Utiliser les dossiers existants quand ils sont pertinents (même partiellement)
-- Ne créer un nouveau chemin que si aucun dossier existant ne convient
 {% endif %}
+
+**DOSSIERS CANONIQUES (UTILISER CES CATÉGORIES) :**
+- Travail/Projets — Emails liés aux projets professionnels
+- Travail/Administration — RH, contrats, fiches de paie
+- Travail/Clients — Communications avec les clients
+- Travail/Équipe — Communications internes
+- Personnel/Famille — Échanges avec la famille
+- Personnel/Amis — Échanges avec les amis
+- Finance/Banque — Relevés, notifications bancaires
+- Finance/Factures — Factures, reçus d'achat
+- Finance/Impôts — Documents fiscaux
+- Finance/Assurances — Contrats et sinistres
+- Services/Abonnements — SaaS, streaming, services numériques
+- Services/Médical — Santé, médecin, mutuelle
+- Services/Administratif — Administrations, CAF, préfecture
+- Achats/Commandes — Confirmations de commandes
+- Achats/Voyages — Billets, réservations, hôtels
+- Newsletters — Newsletters gardées pour référence
+- Notifications — Alertes importantes gardées
+- Divers — Si aucune autre catégorie ne convient
+
+⚠️ **RÈGLES DE NOMMAGE DES DOSSIERS :**
+1. **Réutiliser** : TOUJOURS utiliser un dossier existant si pertinent
+2. **Français** : Noms en FRANÇAIS uniquement (pas d'anglais)
+3. **2 niveaux max** : "Catégorie/Sous-catégorie" (jamais plus profond)
+4. **Catégories larges** : Préférer "Finance/Factures" à "Finance/Facture-Amazon-2025"
+5. **Cohérence** : Si "Travail/Projets" existe, ne pas créer "Work/Projects"
 
 **CATÉGORIES (OBLIGATOIRE - choisir UNE valeur exacte) :**
 - **work** : Professionnel, collègues, projets
