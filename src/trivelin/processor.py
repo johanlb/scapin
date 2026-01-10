@@ -16,6 +16,7 @@ from src.core.schemas import (
     EmailAction,
     EmailAnalysis,
     EmailAttachment,
+    EmailCategory,
     EmailContent,
     EmailMetadata,
     EmailValidationResult,
@@ -496,8 +497,18 @@ class EmailProcessor:
         analysis = self._analyze_email(metadata, content, auto_execute, existing_folders)
 
         if not analysis:
-            logger.warning(f"Failed to analyze email {metadata.id}")
-            return None
+            logger.warning(
+                f"AI analysis failed for email {metadata.id}, using fallback",
+                extra={"email_id": metadata.id, "subject": metadata.subject}
+            )
+            # Create fallback analysis - queue for manual review instead of losing email
+            analysis = EmailAnalysis(
+                action=EmailAction.QUEUE,  # QUEUE = manual review required
+                confidence=0,  # Zero confidence = needs manual review
+                category=EmailCategory.OTHER,
+                reasoning="AI analysis failed - queued for manual review",
+                summary=f"Email from {metadata.from_address}: {metadata.subject}"
+            )
 
         # Auto-apply high-confidence proposals (notes, tasks)
         # This happens BEFORE execution decision to capture all proposals
@@ -594,41 +605,60 @@ class EmailProcessor:
 
             # Flag the email to prevent reimport on next run
             # Uses gray flag ($MailFlagBit6) which is filtered out by unprocessed_only=True
+            # IMPORTANT: Always flag, even if save_item returned None (duplicate)
+            # This ensures duplicates don't get re-fetched
             try:
-                self.imap_client.add_flag(
+                flag_success = self.imap_client.add_flag(
                     msg_id=metadata.id,
                     folder=metadata.folder or self.config.email.inbox_folder
                 )
+                if not flag_success:
+                    logger.warning(
+                        f"Failed to flag email {metadata.id} - may be re-fetched",
+                        extra={"email_id": metadata.id, "folder": metadata.folder}
+                    )
             except Exception as e:
                 logger.warning(f"Failed to flag email {metadata.id}: {e}")
 
-            logger.info(
-                "Queuing email for manual review",
-                extra={
-                    "email_id": metadata.id,
-                    "queue_item_id": queue_item_id,
-                    "confidence": analysis.confidence,
-                    "threshold": confidence_threshold
-                }
-            )
-            self.state.increment("emails_queued")
+            # Handle duplicate detection (queue_item_id is None)
+            if queue_item_id is None:
+                logger.info(
+                    "Email is duplicate, already in queue",
+                    extra={
+                        "email_id": metadata.id,
+                        "message_id": metadata.message_id,
+                    }
+                )
+                self.state.increment("emails_duplicates")
+            else:
+                logger.info(
+                    "Queuing email for manual review",
+                    extra={
+                        "email_id": metadata.id,
+                        "queue_item_id": queue_item_id,
+                        "confidence": analysis.confidence,
+                        "threshold": confidence_threshold
+                    }
+                )
+                self.state.increment("emails_queued")
 
-            # Emit email queued event
-            self.event_bus.emit(ProcessingEvent(
-                event_type=ProcessingEventType.EMAIL_QUEUED,
-                email_id=metadata.id,
-                subject=metadata.subject,
-                from_address=metadata.from_address,
-                email_date=metadata.date,
-                preview=content.plain_text[:80] if content.plain_text else None,
-                action=analysis.action.value,
-                confidence=analysis.confidence,
-                category=analysis.category.value if analysis.category else None,
-                reasoning=analysis.reasoning,
-                current=current,
-                total=total,
-                metadata={"executed": False}
-            ))
+            # Emit email queued event (only if actually queued, not duplicate)
+            if queue_item_id is not None:
+                self.event_bus.emit(ProcessingEvent(
+                    event_type=ProcessingEventType.EMAIL_QUEUED,
+                    email_id=metadata.id,
+                    subject=metadata.subject,
+                    from_address=metadata.from_address,
+                    email_date=metadata.date,
+                    preview=content.plain_text[:80] if content.plain_text else None,
+                    action=analysis.action.value,
+                    confidence=analysis.confidence,
+                    category=analysis.category.value if analysis.category else None,
+                    reasoning=analysis.reasoning,
+                    current=current,
+                    total=total,
+                    metadata={"executed": False}
+                ))
 
         return processed
 

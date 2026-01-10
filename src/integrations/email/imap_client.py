@@ -1095,14 +1095,47 @@ class IMAPClient:
             raise RuntimeError("Not connected to IMAP server")
 
         try:
-            # Select the folder
-            self._connection.select(folder)
-
-            # Add the flag
-            result = self._connection.store(str(msg_id).encode(), '+FLAGS', flag)
-            if result[0] != 'OK':
-                logger.error(f"Failed to add flag {flag} to email {msg_id}")
+            # Select the folder in WRITE mode (not readonly)
+            status, data = self._connection.select(folder, readonly=False)
+            if status != 'OK':
+                logger.error(f"Failed to select folder {folder} for flagging: {data}")
                 return False
+
+            # Log PERMANENTFLAGS capability for debugging
+            # PERMANENTFLAGS shows which flags can be permanently stored
+            logger.debug(f"Selected folder {folder} for flagging, status: {status}")
+
+            # Add the flag - wrap in parentheses for IMAP protocol
+            # STORE command expects: STORE <msg_id> +FLAGS (<flag>)
+            flag_with_parens = f"({flag})"
+            result = self._connection.store(str(msg_id).encode(), '+FLAGS', flag_with_parens)
+
+            if result[0] != 'OK':
+                logger.error(
+                    f"Failed to add flag {flag} to email {msg_id}",
+                    extra={"result": result, "folder": folder}
+                )
+                return False
+
+            # Verify the flag was actually added by checking the response
+            # Response format: [(b'<msg_id> (FLAGS (<flags>))', ...)]
+            if result[1] and len(result[1]) > 0:
+                response_data = result[1][0]
+                if isinstance(response_data, bytes):
+                    response_str = response_data.decode('utf-8', errors='replace')
+                    if flag in response_str:
+                        logger.info(
+                            f"Successfully added flag {flag} to email {msg_id} in {folder}",
+                            extra={"response": response_str}
+                        )
+                        return True
+                    else:
+                        logger.warning(
+                            f"Flag {flag} not found in STORE response for email {msg_id}",
+                            extra={"response": response_str}
+                        )
+                        # Still return True as the STORE command succeeded
+                        return True
 
             logger.info(f"Added flag {flag} to email {msg_id} in {folder}")
             return True
@@ -1127,11 +1160,16 @@ class IMAPClient:
             raise RuntimeError("Not connected to IMAP server")
 
         try:
-            # Select the folder
-            self._connection.select(folder)
+            # Select the folder in WRITE mode (not readonly)
+            status, data = self._connection.select(folder, readonly=False)
+            if status != 'OK':
+                logger.error(f"Failed to select folder {folder} for unflagging: {data}")
+                return False
 
-            # Remove the flag
-            result = self._connection.store(str(msg_id).encode(), '-FLAGS', flag)
+            # Remove the flag - wrap in parentheses for IMAP protocol
+            flag_with_parens = f"({flag})"
+            result = self._connection.store(str(msg_id).encode(), '-FLAGS', flag_with_parens)
+
             if result[0] != 'OK':
                 logger.error(f"Failed to remove flag {flag} from email {msg_id}")
                 return False

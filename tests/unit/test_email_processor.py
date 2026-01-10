@@ -137,7 +137,8 @@ class TestProcessInbox:
 
         # Verify state updates
         mock_state.increment.assert_called()
-        mock_state.mark_processed.assert_called_with('123')
+        # Note: tracking now uses message_id instead of IMAP sequence number
+        mock_state.mark_processed.assert_called_with('<test@example.com>')
 
     @patch('src.trivelin.processor.get_config')
     @patch('src.trivelin.processor.get_state_manager')
@@ -290,7 +291,7 @@ class TestProcessSingleEmail:
         sample_content,
         mock_config
     ):
-        """Test processing when analysis fails"""
+        """Test processing when analysis fails - should create fallback analysis"""
         mock_get_config.return_value = mock_config
 
         mock_state = MagicMock()
@@ -304,7 +305,11 @@ class TestProcessSingleEmail:
         processor = EmailProcessor()
         result = processor._process_single_email(sample_metadata, sample_content)
 
-        assert result is None
+        # With fallback, we now get a result with QUEUE action and 0 confidence
+        assert result is not None
+        assert result.analysis.action == EmailAction.QUEUE
+        assert result.analysis.confidence == 0
+        assert "AI analysis failed" in result.analysis.reasoning
 
 
 class TestExecuteAction:
