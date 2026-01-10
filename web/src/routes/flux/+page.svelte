@@ -272,6 +272,13 @@
 			}
 			customInstruction = '';
 			showCustomInput = false;
+		} catch (e) {
+			// Bug #52 fix: Show error if action failed (IMAP error, etc.)
+			console.error('Action failed:', e);
+			toastStore.error(
+				`Échec de l'action "${actionLabel}". L'email reste dans la file.`,
+				{ title: 'Erreur IMAP' }
+			);
 		} finally {
 			isProcessing = false;
 		}
@@ -308,6 +315,13 @@
 			}
 			customInstruction = '';
 			showCustomInput = false;
+		} catch (e) {
+			// Bug #52 fix: Show error if action failed
+			console.error('Custom instruction failed:', e);
+			toastStore.error(
+				`Échec de l'instruction. L'email reste dans la file.`,
+				{ title: 'Erreur' }
+			);
 		} finally {
 			isProcessing = false;
 		}
@@ -364,6 +378,13 @@
 			}
 			customInstruction = '';
 			showCustomInput = false;
+		} catch (e) {
+			// Bug #52 fix: Show error if delete failed
+			console.error('Delete failed:', e);
+			toastStore.error(
+				`Échec de la suppression. L'email reste dans la file.`,
+				{ title: 'Erreur IMAP' }
+			);
 		} finally {
 			isProcessing = false;
 		}

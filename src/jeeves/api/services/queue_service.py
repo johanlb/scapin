@@ -132,9 +132,19 @@ class QueueService:
         email_id = metadata.get("id")
 
         # Execute the IMAP action
-        success = await self._execute_email_action(item, action, dest)
+        imap_success = await self._execute_email_action(item, action, dest)
 
-        if success and email_id:
+        # Bug #52 fix: Only mark as approved if IMAP action succeeded
+        # If IMAP fails, keep item in pending so user can retry
+        if not imap_success:
+            logger.error(
+                f"IMAP action failed for item {item_id}, keeping in pending",
+                extra={"item_id": item_id, "action": action, "email_id": email_id},
+            )
+            # Return None to signal failure - frontend will show error
+            return None
+
+        if email_id:
             # Record action in history for undo capability
             self._action_history.create_action(
                 action_type=ActionType.QUEUE_APPROVE,
