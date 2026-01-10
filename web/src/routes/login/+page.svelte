@@ -23,6 +23,12 @@
 		}
 	}
 
+	async function handleForceRetry() {
+		console.log('[Login] Force retry - resetting state...');
+		authStore.resetState();
+		await authStore.initialize();
+	}
+
 	function handleKeypadPress(digit: string) {
 		if (pin.length < 6) {
 			pin += digit;
@@ -75,16 +81,25 @@
 					</svg>
 				</div>
 				<h2>Backend non disponible</h2>
-				<p>Le serveur ne répond pas. Lancez-le avec :</p>
+				<p>Le serveur ne répond pas après plusieurs tentatives.</p>
 				<code>./scripts/dev.sh</code>
-				<button type="button" class="retry-btn" onclick={() => authStore.retryConnection()} disabled={authStore.loading}>
-					{#if authStore.loading}
-						<span class="spinner"></span>
-						Connexion...
-					{:else}
-						Réessayer
-					{/if}
-				</button>
+				<div class="retry-buttons">
+					<button type="button" class="retry-btn" onclick={() => authStore.retryConnection()} disabled={authStore.loading}>
+						{#if authStore.loading}
+							<span class="spinner"></span>
+							{#if authStore.retryCount > 0}
+								Tentative {authStore.retryCount + 1}/3...
+							{:else}
+								Connexion...
+							{/if}
+						{:else}
+							Réessayer
+						{/if}
+					</button>
+					<button type="button" class="retry-btn secondary" onclick={handleForceRetry} disabled={authStore.loading}>
+						Réinitialiser
+					</button>
+				</div>
 			</div>
 		{:else if authStore.error}
 			<!-- Error message -->
@@ -184,7 +199,11 @@
 			<button type="submit" class="submit-btn" disabled={pin.length < 4 || authStore.loading} data-testid="login-submit">
 				{#if authStore.loading}
 					<span class="spinner"></span>
-					Connexion...
+					{#if authStore.retryCount > 0}
+						Tentative {authStore.retryCount + 1}/3...
+					{:else}
+						Connexion...
+					{/if}
 				{:else}
 					Entrer
 				{/if}
@@ -302,6 +321,12 @@
 		color: var(--color-text);
 	}
 
+	.retry-buttons {
+		display: flex;
+		gap: 0.75rem;
+		justify-content: center;
+	}
+
 	.retry-btn {
 		padding: 0.75rem 1.5rem;
 		font-size: 0.875rem;
@@ -317,8 +342,19 @@
 		gap: 0.5rem;
 	}
 
+	.retry-btn.secondary {
+		background: var(--color-bg);
+		color: var(--color-text);
+		border: 1px solid var(--color-border);
+	}
+
 	.retry-btn:hover:not(:disabled) {
 		filter: brightness(1.1);
+	}
+
+	.retry-btn.secondary:hover:not(:disabled) {
+		background: var(--color-surface);
+		filter: none;
 	}
 
 	.retry-btn:disabled {
