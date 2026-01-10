@@ -7,7 +7,7 @@
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
-	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox } from '$lib/api';
+	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox, reanalyzeQueueItem } from '$lib/api';
 	import type { QueueItem, ActionOption, SnoozeOption } from '$lib/api';
 	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
 
@@ -27,6 +27,9 @@
 	// Fetch emails state
 	let isFetchingEmails = $state(false);
 	let fetchError = $state<string | null>(null);
+
+	// Reanalyze state
+	let isReanalyzing = $state(false);
 
 	// Bug #49: Auto-fetch threshold
 	const AUTO_FETCH_THRESHOLD = 5;
@@ -349,54 +352,44 @@
 	}
 
 	async function handleCustomInstruction(item: QueueItem) {
-		if (isProcessing || !customInstruction.trim()) return;
-		isProcessing = true;
+		if (isProcessing || isReanalyzing || !customInstruction.trim()) return;
+		isReanalyzing = true;
 
-		// Save item info for undo and potential restore
 		const itemId = item.id;
-		const itemSubject = item.metadata.subject;
-		const savedItem = { ...item };
 		const savedInstruction = customInstruction.trim();
 
-		// Bug #53 fix: Optimistic update - immediately update UI
-		queueStore.removeFromList(item.id);
-
-		if (currentIndex >= queueStore.items.length) {
-			currentIndex = Math.max(0, queueStore.items.length - 1);
-		}
+		// Clear the input but don't close the panel yet - show "Analysing..."
 		customInstruction = '';
-		showCustomInput = false;
 
-		// Show undo toast immediately
-		toastStore.undo(
-			`Instruction personnalisée : ${itemSubject.slice(0, 30)}${itemSubject.length > 30 ? '...' : ''}`,
-			async () => {
-				await undoQueueItem(itemId);
-				await queueStore.fetchQueue('pending');
-				await queueStore.fetchStats();
-			},
-			{ itemId, title: 'Action effectuée' }
-		);
-
-		// Allow next action immediately
-		isProcessing = false;
-
-		// Execute API call in background
 		try {
-			await approveQueueItem(item.id, 'custom', item.analysis.category || undefined);
-			queueStore.fetchStats();
-			// Bug #49: Check if we need to auto-fetch
-			checkAutoFetch();
+			// Bug #55 fix: Call reanalyzeQueueItem to get a new analysis
+			const result = await reanalyzeQueueItem(itemId, savedInstruction, 'immediate');
+
+			if (result.status === 'complete' && result.new_analysis) {
+				// Update the item in the store with the new analysis
+				queueStore.updateItemAnalysis(itemId, result.new_analysis);
+
+				showCustomInput = false;
+				toastStore.success(
+					`Nouvelle analyse effectuée pour : ${item.metadata.subject.slice(0, 30)}${item.metadata.subject.length > 30 ? '...' : ''}`,
+					{ title: 'Analyse terminée' }
+				);
+			} else if (result.status === 'failed') {
+				customInstruction = savedInstruction; // Restore instruction on failure
+				toastStore.error(
+					`La ré-analyse a échoué. Veuillez réessayer.`,
+					{ title: 'Erreur' }
+				);
+			}
 		} catch (e) {
-			console.error('Custom instruction failed:', e);
-			const undoToast = toastStore.findUndoByItemId(itemId);
-			if (undoToast) toastStore.dismiss(undoToast.id);
-			queueStore.restoreItem(savedItem);
-			customInstruction = savedInstruction; // Restore the instruction
+			console.error('Reanalysis failed:', e);
+			customInstruction = savedInstruction; // Restore instruction on error
 			toastStore.error(
-				`Échec de l'instruction. L'email a été restauré.`,
+				`Échec de la ré-analyse. Veuillez réessayer.`,
 				{ title: 'Erreur' }
 			);
+		} finally {
+			isReanalyzing = false;
 		}
 	}
 
@@ -1328,15 +1321,19 @@
 								variant="primary"
 								size="sm"
 								onclick={() => handleCustomInstruction(currentItem)}
-								disabled={isProcessing || !customInstruction.trim()}
+								disabled={isProcessing || isReanalyzing || !customInstruction.trim()}
 							>
-								<span class="mr-1">⚡</span> Exécuter maintenant
+								{#if isReanalyzing}
+									<span class="mr-1 animate-spin">⏳</span> Analyse en cours...
+								{:else}
+									<span class="mr-1">🔄</span> Analyser maintenant
+								{/if}
 							</Button>
 							<Button
 								variant="secondary"
 								size="sm"
 								onclick={() => handleDeferCustomInstruction(currentItem)}
-								disabled={isProcessing || isSnoozing}
+								disabled={isProcessing || isSnoozing || isReanalyzing}
 							>
 								<span class="mr-1">⏰</span> Plus tard
 							</Button>
@@ -1344,6 +1341,7 @@
 								variant="secondary"
 								size="sm"
 								onclick={() => { showCustomInput = false; customInstruction = ''; }}
+								disabled={isReanalyzing}
 							>
 								Annuler
 							</Button>

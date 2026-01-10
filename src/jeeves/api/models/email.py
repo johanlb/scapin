@@ -75,6 +75,7 @@ class ProcessInboxRequest(BaseModel):
         description="Minimum confidence for auto-execution",
     )
     unread_only: bool = Field(False, description="Only process unread emails")
+    unprocessed_only: bool = Field(True, description="Only fetch emails not yet processed by Scapin")
 
 
 class ProcessInboxResponse(BaseModel):

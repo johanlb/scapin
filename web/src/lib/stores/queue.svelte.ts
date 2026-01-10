@@ -145,6 +145,15 @@ function restoreItem(item: QueueItem): void {
 	}
 }
 
+// Bug #55 fix: Update an item's analysis after reanalysis
+function updateItemAnalysis(itemId: string, newAnalysis: QueueItem['analysis']): void {
+	state.items = state.items.map((item) =>
+		item.id === itemId
+			? { ...item, analysis: newAnalysis }
+			: item
+	);
+}
+
 async function fetchStats(): Promise<void> {
 	try {
 		state.stats = await getQueueStats();
@@ -206,6 +215,7 @@ export const queueStore = {
 	reject,
 	removeFromList,
 	restoreItem,
+	updateItemAnalysis,
 	moveToEnd,
 	refresh,
 	clearError

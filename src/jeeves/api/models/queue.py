@@ -217,3 +217,29 @@ class SnoozeResponse(BaseModel):
     snoozed_at: str = Field(..., description="When the item was snoozed (ISO format)")
     snooze_until: str = Field(..., description="When the snooze expires (ISO format)")
     snooze_option: str = Field(..., description="Snooze option used")
+
+
+class ReanalyzeRequest(BaseModel):
+    """Request to reanalyze a queue item with user instruction"""
+
+    user_instruction: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="User instruction for reanalysis (e.g., 'Classer dans Archive/2025/Relevés')",
+    )
+    mode: str = Field(
+        "immediate",
+        description="Reanalysis mode: 'immediate' (wait for result) or 'background' (queue for later)",
+    )
+
+
+class ReanalyzeResponse(BaseModel):
+    """Response for reanalysis operation"""
+
+    item_id: str = Field(..., description="Queue item ID")
+    status: str = Field(..., description="Status: 'analyzing', 'complete', 'queued'")
+    analysis_id: str | None = Field(None, description="Analysis tracking ID (for background mode)")
+    new_analysis: "QueueItemAnalysis | None" = Field(
+        None, description="New analysis result (for immediate mode)"
+    )

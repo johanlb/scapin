@@ -898,6 +898,28 @@ export async function canUndoQueueItem(itemId: string): Promise<CanUndoResponse>
 	return fetchApi<CanUndoResponse>(`/queue/${itemId}/can-undo`);
 }
 
+// Reanalyze types and functions
+export interface ReanalyzeResponse {
+	item_id: string;
+	status: 'analyzing' | 'complete' | 'queued' | 'failed';
+	analysis_id: string | null;
+	new_analysis: QueueItemAnalysis | null;
+}
+
+export async function reanalyzeQueueItem(
+	itemId: string,
+	userInstruction: string,
+	mode: 'immediate' | 'background' = 'immediate'
+): Promise<ReanalyzeResponse> {
+	return fetchApi<ReanalyzeResponse>(`/queue/${itemId}/reanalyze`, {
+		method: 'POST',
+		body: JSON.stringify({
+			user_instruction: userInstruction,
+			mode
+		})
+	});
+}
+
 // ============================================================================
 // EMAIL TYPES
 // ============================================================================

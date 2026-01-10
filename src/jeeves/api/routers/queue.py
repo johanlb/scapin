@@ -23,6 +23,8 @@ from src.jeeves.api.models.queue import (
     QueueItemMetadata,
     QueueItemResponse,
     QueueStatsResponse,
+    ReanalyzeRequest,
+    ReanalyzeResponse,
     RejectRequest,
     SnoozeRequest,
     SnoozeResponse,
@@ -479,3 +481,125 @@ async def can_undo_queue_item(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/{item_id}/reanalyze", response_model=APIResponse[ReanalyzeResponse])
+async def reanalyze_queue_item(
+    item_id: str,
+    request: ReanalyzeRequest,
+    service: QueueService = Depends(get_queue_service),
+) -> APIResponse[ReanalyzeResponse]:
+    """
+    Reanalyze a queue item with user instruction
+
+    Takes the user's custom instruction into account and generates a new analysis.
+    The new analysis will replace the original one.
+
+    Modes:
+    - immediate: Wait for the new analysis (synchronous)
+    - background: Queue for later and return immediately
+    """
+    try:
+        result = await service.reanalyze_item(
+            item_id=item_id,
+            user_instruction=request.user_instruction,
+            mode=request.mode,
+        )
+        if not result:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Queue item not found: {item_id}",
+            )
+
+        return APIResponse(
+            success=True,
+            data=ReanalyzeResponse(
+                item_id=item_id,
+                status=result.get("status", "complete"),
+                analysis_id=result.get("analysis_id"),
+                new_analysis=_convert_analysis_to_response(result.get("analysis"))
+                if result.get("analysis")
+                else None,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+def _convert_analysis_to_response(analysis: dict | None) -> QueueItemAnalysis | None:
+    """Convert raw analysis dict to response model"""
+    if not analysis:
+        return None
+
+    # Convert entities to response format
+    raw_entities = analysis.get("entities", {})
+    entities_by_type: dict[str, list[EntityResponse]] = {}
+    for entity_type, entity_list in raw_entities.items():
+        entities_by_type[entity_type] = [
+            EntityResponse(
+                type=e.get("type", entity_type),
+                value=e.get("value", ""),
+                confidence=e.get("confidence", 0.0),
+                source=e.get("source", "extraction"),
+                metadata=e.get("metadata", {}),
+            )
+            for e in entity_list
+        ]
+
+    # Convert proposed_notes to response format
+    raw_proposed_notes = analysis.get("proposed_notes", [])
+    proposed_notes = [
+        ProposedNoteResponse(
+            action=pn.get("action", "create"),
+            note_type=pn.get("note_type", "general"),
+            title=pn.get("title", ""),
+            content_summary=pn.get("content_summary", ""),
+            confidence=pn.get("confidence", 0.0),
+            reasoning=pn.get("reasoning", ""),
+            target_note_id=pn.get("target_note_id"),
+            auto_applied=pn.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+        )
+        for pn in raw_proposed_notes
+    ]
+
+    # Convert proposed_tasks to response format
+    raw_proposed_tasks = analysis.get("proposed_tasks", [])
+    proposed_tasks = [
+        ProposedTaskResponse(
+            title=pt.get("title", ""),
+            note=pt.get("note", ""),
+            project=pt.get("project"),
+            due_date=pt.get("due_date"),
+            confidence=pt.get("confidence", 0.0),
+            reasoning=pt.get("reasoning", ""),
+            auto_applied=pt.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+        )
+        for pt in raw_proposed_tasks
+    ]
+
+    return QueueItemAnalysis(
+        action=analysis.get("action", ""),
+        confidence=analysis.get("confidence", 0),
+        category=analysis.get("category"),
+        reasoning=analysis.get("reasoning", ""),
+        summary=analysis.get("summary"),
+        options=[
+            ActionOptionResponse(
+                action=opt.get("action", ""),
+                destination=opt.get("destination"),
+                confidence=opt.get("confidence", 0),
+                reasoning=opt.get("reasoning", ""),
+                reasoning_detailed=opt.get("reasoning_detailed"),
+                is_recommended=opt.get("is_recommended", False),
+            )
+            for opt in analysis.get("options", [])
+        ],
+        entities=entities_by_type,
+        proposed_notes=proposed_notes,
+        proposed_tasks=proposed_tasks,
+        context_used=analysis.get("context_used", []),
+        draft_reply=analysis.get("draft_reply"),
+    )

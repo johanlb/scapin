@@ -114,6 +114,7 @@ async def process_inbox(
             auto_execute=request.auto_execute,
             confidence_threshold=request.confidence_threshold,
             unread_only=request.unread_only,
+            unprocessed_only=request.unprocessed_only,
         )
 
         emails = [

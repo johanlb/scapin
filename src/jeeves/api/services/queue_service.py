@@ -727,6 +727,182 @@ class QueueService:
             return False
         return self._action_history.can_undo(action_record.action_id)
 
+    async def reanalyze_item(
+        self,
+        item_id: str,
+        user_instruction: str,
+        mode: str = "immediate",
+    ) -> dict[str, Any] | None:
+        """
+        Reanalyze a queue item with user instruction
+
+        Takes the user's custom instruction into account for the analysis.
+
+        Args:
+            item_id: Queue item ID
+            user_instruction: User's instruction for reanalysis
+            mode: 'immediate' (wait for result) or 'background' (queue for later)
+
+        Returns:
+            Dict with status and new analysis, or None if not found
+        """
+        item = self._storage.get_item(item_id)
+        if not item:
+            return None
+
+        metadata = item.get("metadata", {})
+        content = item.get("content", {})
+        email_id = str(metadata.get("id", ""))
+
+        # For immediate mode, run the reanalysis now
+        if mode == "immediate":
+            new_analysis = await self._reanalyze_sync(
+                metadata=metadata,
+                content=content,
+                user_instruction=user_instruction,
+            )
+
+            if new_analysis:
+                # Save original analysis if first reanalysis
+                if "original_analysis" not in item:
+                    item["original_analysis"] = item.get("analysis", {})
+
+                # Update item with new analysis
+                item["analysis"] = new_analysis
+                item["user_instruction"] = user_instruction
+                item["reanalysis_count"] = item.get("reanalysis_count", 0) + 1
+
+                self._storage.update_item(item_id, item)
+
+                logger.info(
+                    f"Reanalyzed queue item {item_id} with instruction",
+                    extra={
+                        "user_instruction": user_instruction[:50],
+                        "new_action": new_analysis.get("action"),
+                        "new_confidence": new_analysis.get("confidence"),
+                    },
+                )
+
+                return {
+                    "status": "complete",
+                    "analysis": new_analysis,
+                }
+
+            return {
+                "status": "failed",
+                "analysis": None,
+            }
+
+        # Background mode: just save the instruction and mark for reanalysis
+        self._storage.update_item(
+            item_id,
+            {
+                "pending_reanalysis": True,
+                "user_instruction": user_instruction,
+            },
+        )
+
+        return {
+            "status": "queued",
+            "analysis_id": f"reanalysis-{item_id}",
+        }
+
+    async def _reanalyze_sync(
+        self,
+        metadata: dict[str, Any],
+        content: dict[str, Any],
+        user_instruction: str,
+    ) -> dict[str, Any] | None:
+        """
+        Run reanalysis with user instruction
+
+        Args:
+            metadata: Email metadata
+            content: Email content
+            user_instruction: User's instruction
+
+        Returns:
+            New analysis dict or None on failure
+        """
+        return await asyncio.to_thread(
+            self._reanalyze_email_sync,
+            metadata,
+            content,
+            user_instruction,
+        )
+
+    def _reanalyze_email_sync(
+        self,
+        metadata: dict[str, Any],
+        content: dict[str, Any],
+        user_instruction: str,
+    ) -> dict[str, Any] | None:
+        """Synchronous reanalysis (runs in thread pool)"""
+        from src.core.config_manager import get_config
+        from src.integrations.email.models import EmailMetadata
+        from src.integrations.email.parser import EmailContent
+        from src.sancho.router import AIModel, get_ai_router
+
+        try:
+            config = get_config()
+            ai_router = get_ai_router(config.ai)
+
+            # Reconstruct EmailMetadata
+            email_metadata = EmailMetadata(
+                id=str(metadata.get("id", "")),
+                subject=metadata.get("subject", ""),
+                from_address=metadata.get("from_address", ""),
+                from_name=metadata.get("from_name", ""),
+                date=_parse_datetime(metadata.get("date")),
+                has_attachments=metadata.get("has_attachments", False),
+                folder=metadata.get("folder", "INBOX"),
+            )
+
+            # Reconstruct EmailContent
+            email_content = EmailContent(
+                text_body=content.get("full_text", content.get("preview", "")),
+                html_body=content.get("html_body"),
+                attachments=[],
+            )
+
+            # Call AI with user instruction as context
+            analysis = ai_router.analyze_email(
+                email_metadata,
+                email_content,
+                model=AIModel.CLAUDE_HAIKU,
+                user_instruction=user_instruction,
+            )
+
+            if analysis:
+                return {
+                    "action": analysis.action.value,
+                    "confidence": analysis.confidence,
+                    "category": analysis.category.value if analysis.category else None,
+                    "reasoning": analysis.reasoning,
+                    "destination": analysis.destination,
+                    "summary": getattr(analysis, "summary", None),
+                    "entities": getattr(analysis, "entities", {}),
+                    "proposed_notes": getattr(analysis, "proposed_notes", []),
+                    "proposed_tasks": getattr(analysis, "proposed_tasks", []),
+                    "options": [
+                        {
+                            "action": opt.action.value if hasattr(opt.action, "value") else opt.action,
+                            "destination": opt.destination,
+                            "confidence": opt.confidence,
+                            "reasoning": opt.reasoning,
+                            "reasoning_detailed": getattr(opt, "reasoning_detailed", None),
+                            "is_recommended": getattr(opt, "is_recommended", False),
+                        }
+                        for opt in getattr(analysis, "options", [])
+                    ],
+                }
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to reanalyze email: {e}")
+            return None
+
 
 def _parse_datetime(value: str | None) -> datetime | None:
     """Parse ISO datetime string"""

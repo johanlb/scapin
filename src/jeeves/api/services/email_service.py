@@ -73,6 +73,7 @@ class EmailService:
         auto_execute: bool = False,
         confidence_threshold: int | None = None,
         unread_only: bool = False,
+        unprocessed_only: bool = True,
     ) -> dict[str, Any]:
         """
         Process inbox emails
@@ -84,6 +85,7 @@ class EmailService:
             auto_execute: Whether to auto-execute high confidence actions
             confidence_threshold: Minimum confidence for auto-execution
             unread_only: Only process unread emails
+            unprocessed_only: Only fetch emails not yet processed by Scapin
 
         Returns:
             Processing result dictionary
@@ -97,6 +99,7 @@ class EmailService:
         kwargs: dict[str, Any] = {
             "auto_execute": auto_execute,
             "unread_only": unread_only,
+            "unprocessed_only": unprocessed_only,
         }
         if limit is not None:
             kwargs["limit"] = limit

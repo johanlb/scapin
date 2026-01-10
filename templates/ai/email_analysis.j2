@@ -16,6 +16,14 @@ Tu es Scapin, un assistant personnel expert en gestion d'emails. Analyse l'email
 {{ body }}
 {% endif %}
 
+{% if user_instruction %}
+**INSTRUCTION DE L'UTILISATEUR (PRIORITÉ ABSOLUE) :**
+L'utilisateur a explicitement demandé : "{{ user_instruction }}"
+
+⚠️ IMPORTANT : Cette instruction DOIT être respectée en priorité. Adapte ta recommandation principale
+pour correspondre à cette demande. L'option recommandée doit refléter l'intention de l'utilisateur.
+{% endif %}
+
 {% if conversation_context %}
 **CONTEXTE DE LA CONVERSATION :**
 {{ conversation_context }}

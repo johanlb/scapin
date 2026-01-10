@@ -26,6 +26,7 @@ export {
 	unsnoozeQueueItem,
 	undoQueueItem,
 	canUndoQueueItem,
+	reanalyzeQueueItem,
 	// Notes Review
 	getNotesDue,
 	getReviewStats,
@@ -85,6 +86,8 @@ export type {
 	SnoozeResponse,
 	// Undo types
 	CanUndoResponse,
+	// Reanalyze types
+	ReanalyzeResponse,
 	// Notes Review types
 	NoteReviewMetadata,
 	NotesDueResponse,
