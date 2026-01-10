@@ -497,6 +497,83 @@ Chaque scénario suit ce format :
 
 ---
 
+### SC-20: Auto-fetch intelligent des sources
+
+**Persona**: Johan
+**Priorité**: HAUTE
+**Source**: Flux (Background)
+
+**Contexte**:
+> Johan utilise Scapin régulièrement. Il ne veut pas avoir à cliquer sur
+> "Récupérer les emails" manuellement. Le système doit maintenir une queue
+> de travail suffisante automatiquement.
+
+**Comportement système** (automatique):
+
+1. **Au démarrage du backend** :
+   - Si `queue.count < 20` → Fetch automatique de toutes les sources actives
+   - Si `queue.count >= 20` → Pas de fetch (assez de travail en attente)
+
+2. **Pendant l'exécution** :
+   - Quand `queue.count < 5` → Déclencher fetch des sources éligibles
+   - Respecter le cooldown par source (éviter de re-fetch trop vite)
+
+3. **Par source** (configurable) :
+   - Email: cooldown 2 minutes (défaut)
+   - Teams: cooldown 2 minutes (défaut)
+   - Calendar: cooldown 5 minutes (défaut)
+
+**Résultat attendu**:
+- [ ] Fetch automatique au démarrage si queue < 20 items
+- [ ] Fetch automatique quand queue descend sous 5 items
+- [ ] Cooldown respecté par source (pas de fetch si dernier fetch < cooldown)
+- [ ] Indicateur de sync animé dans le header pendant le fetch
+- [ ] Toast discret "3 nouveaux emails ajoutés à la file"
+- [ ] Compteurs mis à jour en temps réel via WebSocket
+
+**Critères de succès**:
+- Délai entre queue vide et nouveau fetch < cooldown + 10s
+- Pas de fetch redondant (respecte les cooldowns)
+- UI réactive (indicateur visible immédiatement)
+- Configuration persistée
+
+**Variations**:
+| Cas | Condition | Résultat différent |
+|-----|-----------|-------------------|
+| A | Source désactivée | Pas de fetch pour cette source |
+| B | Erreur de fetch | Toast erreur, retry après cooldown |
+| C | Aucun nouvel email | Toast "Boîte à jour", cooldown reset |
+| D | Queue atteint max (20) | Auto-fetch suspendu |
+
+**Notes techniques**:
+- Config (Settings avancés):
+  ```yaml
+  auto_fetch:
+    enabled: true
+    low_threshold: 5        # Seuil pour déclencher un fetch
+    max_threshold: 20       # Seuil pour bloquer le fetch au démarrage
+    sources:
+      email:
+        enabled: true
+        cooldown_minutes: 2
+      teams:
+        enabled: true
+        cooldown_minutes: 2
+      calendar:
+        enabled: true
+        cooldown_minutes: 5
+  ```
+- API: `GET /api/queue/stats` (vérifier compteurs)
+- API: `POST /api/email/process`, `POST /api/teams/poll`, `POST /api/calendar/poll`
+- WebSocket événements:
+  - `fetch_started` `{ source: "email" }`
+  - `fetch_completed` `{ source: "email", count: 3 }`
+  - `queue_updated` `{ pending: 12, processed: 45 }`
+- Backend: `AutoFetchManager` singleton avec `last_fetch: Dict[source, datetime]`
+- Trigger: Event-driven (après approve/reject) + polling de sécurité (toutes les 30s)
+
+---
+
 ## 3. Gestion des Notes
 
 ### SC-30: Consulter l'arbre des notes
@@ -748,6 +825,7 @@ Chaque scénario suit ce format :
 | SC-17 | `settings.spec.ts` | `test_settings_api.py` | - |
 | SC-18 | `flux-reanalyze.spec.ts` | `test_reanalyze_api.py` | - |
 | SC-19 | `flux-folder-picker.spec.ts` | `test_folder_picker_api.py` | - |
+| SC-20 | `flux-autofetch.spec.ts` | `test_autofetch_api.py` | `test_autofetch_manager.py` |
 | SC-30 | `notes.spec.ts` | `test_notes_api.py` | - |
 | SC-50 | `journal.spec.ts` | `test_journal_api.py` | - |
 | SC-80 | `search.spec.ts` | `test_search_api.py` | - |
