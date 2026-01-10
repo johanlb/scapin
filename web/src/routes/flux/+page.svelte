@@ -252,6 +252,8 @@
 		try {
 			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, option.destination);
 			queueStore.removeFromList(item.id);
+			// Bug #48 fix: Update stats immediately after action
+			await queueStore.fetchStats();
 
 			// Show undo toast with 15-second countdown
 			toastStore.undo(
@@ -287,6 +289,8 @@
 			// For custom instruction, we approve with the instruction as reasoning
 			await approveQueueItem(item.id, 'custom', item.analysis.category || undefined);
 			queueStore.removeFromList(item.id);
+			// Bug #48 fix: Update stats immediately after action
+			await queueStore.fetchStats();
 
 			// Show undo toast with 15-second countdown
 			toastStore.undo(
@@ -316,6 +320,8 @@
 		try {
 			await rejectQueueItem(item.id);
 			queueStore.removeFromList(item.id);
+			// Bug #48 fix: Update stats immediately after action
+			await queueStore.fetchStats();
 
 			if (currentIndex >= queueStore.items.length) {
 				currentIndex = Math.max(0, queueStore.items.length - 1);
@@ -339,6 +345,8 @@
 			// Approve with delete action
 			await approveQueueItem(item.id, 'delete', item.analysis.category || undefined);
 			queueStore.removeFromList(item.id);
+			// Bug #48 fix: Update stats immediately after action
+			await queueStore.fetchStats();
 
 			// Show undo toast with 15-second countdown
 			toastStore.undo(
