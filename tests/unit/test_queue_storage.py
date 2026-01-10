@@ -50,6 +50,24 @@ def sample_metadata():
     )
 
 
+def create_metadata_with_unique_id(index: int = 0) -> EmailMetadata:
+    """Create EmailMetadata with a unique message_id (Bug #60 deduplication)"""
+    import uuid
+    return EmailMetadata(
+        id=12345 + index,
+        subject="Test Email Subject",
+        from_address="sender@example.com",
+        from_name="Test Sender",
+        to_addresses=["recipient@example.com"],
+        date=datetime(2025, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
+        has_attachments=False,
+        folder="INBOX",
+        message_id=f"<{uuid.uuid4()}@example.com>",
+        in_reply_to=None,
+        references=[],
+    )
+
+
 @pytest.fixture
 def sample_analysis():
     """Create sample EmailAnalysis"""
@@ -70,7 +88,7 @@ class TestQueueStorageInit:
         queue_dir = temp_queue_dir / "queue"
         assert not queue_dir.exists()
 
-        storage = QueueStorage(queue_dir=queue_dir)
+        QueueStorage(queue_dir=queue_dir)
 
         assert queue_dir.exists()
         assert queue_dir.is_dir()
@@ -80,7 +98,7 @@ class TestQueueStorageInit:
         queue_dir = temp_queue_dir / "existing"
         queue_dir.mkdir(parents=True, exist_ok=True)
 
-        storage = QueueStorage(queue_dir=queue_dir)
+        QueueStorage(queue_dir=queue_dir)
 
         assert queue_dir.exists()
         assert queue_dir.is_dir()
@@ -182,13 +200,15 @@ class TestQueueStorageSaveItem:
         assert item["account_id"] is None
 
     def test_save_item_returns_unique_ids(
-        self, queue_storage, sample_metadata, sample_analysis
+        self, queue_storage, sample_analysis
     ):
         """Test that each save returns unique ID"""
         ids = set()
-        for _ in range(10):
+        for i in range(10):
+            # Bug #60: Use unique message_ids to avoid deduplication
+            metadata = create_metadata_with_unique_id(i)
             item_id = queue_storage.save_item(
-                metadata=sample_metadata,
+                metadata=metadata,
                 analysis=sample_analysis,
                 content_preview="Test",
             )
@@ -206,12 +226,13 @@ class TestQueueStorageLoadQueue:
 
         assert items == []
 
-    def test_load_queue_all_items(self, queue_storage, sample_metadata, sample_analysis):
+    def test_load_queue_all_items(self, queue_storage, sample_analysis):
         """Test loading all items"""
-        # Save 3 items
+        # Save 3 items with unique message_ids (Bug #60 deduplication)
         for i in range(3):
+            metadata = create_metadata_with_unique_id(i)
             queue_storage.save_item(
-                metadata=sample_metadata,
+                metadata=metadata,
                 analysis=sample_analysis,
                 content_preview=f"Preview {i}",
             )
@@ -221,24 +242,24 @@ class TestQueueStorageLoadQueue:
         assert len(items) == 3
 
     def test_load_queue_filter_by_account(
-        self, queue_storage, sample_metadata, sample_analysis
+        self, queue_storage, sample_analysis
     ):
         """Test filtering by account_id"""
-        # Save items for different accounts
+        # Save items for different accounts with unique message_ids (Bug #60 deduplication)
         queue_storage.save_item(
-            metadata=sample_metadata,
+            metadata=create_metadata_with_unique_id(0),
             analysis=sample_analysis,
             content_preview="Personal 1",
             account_id="personal",
         )
         queue_storage.save_item(
-            metadata=sample_metadata,
+            metadata=create_metadata_with_unique_id(1),
             analysis=sample_analysis,
             content_preview="Work 1",
             account_id="work",
         )
         queue_storage.save_item(
-            metadata=sample_metadata,
+            metadata=create_metadata_with_unique_id(2),
             analysis=sample_analysis,
             content_preview="Personal 2",
             account_id="personal",
@@ -251,17 +272,17 @@ class TestQueueStorageLoadQueue:
         assert all(item["account_id"] == "personal" for item in items)
 
     def test_load_queue_filter_by_status(
-        self, queue_storage, sample_metadata, sample_analysis
+        self, queue_storage, sample_analysis
     ):
         """Test filtering by status"""
-        # Save items
+        # Save items with unique message_ids (Bug #60 deduplication)
         id1 = queue_storage.save_item(
-            metadata=sample_metadata,
+            metadata=create_metadata_with_unique_id(0),
             analysis=sample_analysis,
             content_preview="Pending",
         )
         id2 = queue_storage.save_item(
-            metadata=sample_metadata,
+            metadata=create_metadata_with_unique_id(1),
             analysis=sample_analysis,
             content_preview="Approved",
         )
@@ -280,15 +301,17 @@ class TestQueueStorageLoadQueue:
         assert approved[0]["id"] == id2
 
     def test_load_queue_sorted_by_date(
-        self, queue_storage, sample_metadata, sample_analysis
+        self, queue_storage, sample_analysis
     ):
         """Test that items are sorted by queued_at (oldest first)"""
         import time
 
         ids = []
         for i in range(3):
+            # Bug #60: Use unique message_ids to avoid deduplication
+            metadata = create_metadata_with_unique_id(i)
             item_id = queue_storage.save_item(
-                metadata=sample_metadata,
+                metadata=metadata,
                 analysis=sample_analysis,
                 content_preview=f"Item {i}",
             )
@@ -418,12 +441,14 @@ class TestQueueStorageGetQueueSize:
         assert size == 0
 
     def test_get_queue_size_with_items(
-        self, queue_storage, sample_metadata, sample_analysis
+        self, queue_storage, sample_analysis
     ):
         """Test size with items"""
         for i in range(5):
+            # Bug #60: Use unique message_ids to avoid deduplication
+            metadata = create_metadata_with_unique_id(i)
             queue_storage.save_item(
-                metadata=sample_metadata,
+                metadata=metadata,
                 analysis=sample_analysis,
                 content_preview=f"Item {i}",
             )
@@ -433,17 +458,18 @@ class TestQueueStorageGetQueueSize:
         assert size == 5
 
     def test_get_queue_size_filter_by_account(
-        self, queue_storage, sample_metadata, sample_analysis
+        self, queue_storage, sample_analysis
     ):
         """Test size filtered by account"""
+        # Bug #60: Use unique message_ids to avoid deduplication
         queue_storage.save_item(
-            metadata=sample_metadata,
+            metadata=create_metadata_with_unique_id(0),
             analysis=sample_analysis,
             content_preview="Personal",
             account_id="personal",
         )
         queue_storage.save_item(
-            metadata=sample_metadata,
+            metadata=create_metadata_with_unique_id(1),
             analysis=sample_analysis,
             content_preview="Work",
             account_id="work",
@@ -465,11 +491,13 @@ class TestQueueStorageClearQueue:
 
         assert deleted == 0
 
-    def test_clear_all_items(self, queue_storage, sample_metadata, sample_analysis):
+    def test_clear_all_items(self, queue_storage, sample_analysis):
         """Test clearing all items"""
         for i in range(5):
+            # Bug #60: Use unique message_ids to avoid deduplication
+            metadata = create_metadata_with_unique_id(i)
             queue_storage.save_item(
-                metadata=sample_metadata,
+                metadata=metadata,
                 analysis=sample_analysis,
                 content_preview=f"Item {i}",
             )
@@ -480,19 +508,22 @@ class TestQueueStorageClearQueue:
         assert queue_storage.get_queue_size() == 0
 
     def test_clear_queue_by_account(
-        self, queue_storage, sample_metadata, sample_analysis
+        self, queue_storage, sample_analysis
     ):
         """Test clearing items for specific account"""
+        # Bug #60: Use unique message_ids to avoid deduplication
         for i in range(3):
+            metadata = create_metadata_with_unique_id(i)
             queue_storage.save_item(
-                metadata=sample_metadata,
+                metadata=metadata,
                 analysis=sample_analysis,
                 content_preview="Personal",
                 account_id="personal",
             )
         for i in range(2):
+            metadata = create_metadata_with_unique_id(10 + i)  # Offset to avoid collision
             queue_storage.save_item(
-                metadata=sample_metadata,
+                metadata=metadata,
                 analysis=sample_analysis,
                 content_preview="Work",
                 account_id="work",
@@ -519,22 +550,23 @@ class TestQueueStorageGetStats:
         assert stats["newest_item"] is None
 
     def test_get_stats_with_items(
-        self, queue_storage, sample_metadata, sample_analysis
+        self, queue_storage, sample_analysis
     ):
         """Test stats with items"""
         import time
 
         # Save items with different statuses and accounts
-        id1 = queue_storage.save_item(
-            metadata=sample_metadata,
+        # Bug #60: Use unique message_ids to avoid deduplication
+        queue_storage.save_item(
+            metadata=create_metadata_with_unique_id(0),
             analysis=sample_analysis,
             content_preview="Pending 1",
             account_id="personal",
         )
         time.sleep(0.01)
 
-        id2 = queue_storage.save_item(
-            metadata=sample_metadata,
+        queue_storage.save_item(
+            metadata=create_metadata_with_unique_id(1),
             analysis=sample_analysis,
             content_preview="Pending 2",
             account_id="work",
@@ -542,7 +574,7 @@ class TestQueueStorageGetStats:
         time.sleep(0.01)
 
         id3 = queue_storage.save_item(
-            metadata=sample_metadata,
+            metadata=create_metadata_with_unique_id(2),
             analysis=sample_analysis,
             content_preview="Approved",
             account_id="personal",
@@ -565,14 +597,20 @@ class TestQueueStorageGetStats:
 class TestQueueStorageThreadSafety:
     """Test thread safety of QueueStorage"""
 
-    def test_concurrent_saves(self, queue_storage, sample_metadata, sample_analysis):
+    def test_concurrent_saves(self, queue_storage, sample_analysis):
         """Test concurrent save operations"""
+        import itertools
         import threading
+
+        # Bug #60: Use thread-safe counter for unique message_ids
+        counter = itertools.count()
 
         def save_items():
             for _ in range(10):
+                idx = next(counter)
+                metadata = create_metadata_with_unique_id(idx)
                 queue_storage.save_item(
-                    metadata=sample_metadata,
+                    metadata=metadata,
                     analysis=sample_analysis,
                     content_preview="Concurrent test",
                 )

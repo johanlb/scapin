@@ -57,10 +57,78 @@ class QueueStorage:
         self.queue_dir = Path(queue_dir) if queue_dir else Path("data/queue")
         self.queue_dir.mkdir(parents=True, exist_ok=True)
 
+        # File to track processed message_ids (Bug #60 fix)
+        self._processed_ids_file = self.queue_dir / ".processed_message_ids.json"
+        self._processed_message_ids: set[str] = self._load_processed_ids()
+
         # Thread lock for file operations
         self._lock = threading.Lock()
 
         logger.info("QueueStorage initialized", extra={"queue_dir": str(self.queue_dir)})
+
+    def _load_processed_ids(self) -> set[str]:
+        """Load processed message IDs from persistent storage"""
+        if self._processed_ids_file.exists():
+            try:
+                with open(self._processed_ids_file) as f:
+                    data = json.load(f)
+                    return set(data.get("message_ids", []))
+            except Exception as e:
+                logger.warning(f"Failed to load processed IDs: {e}")
+        return set()
+
+    def _save_processed_ids(self) -> None:
+        """Save processed message IDs to persistent storage"""
+        try:
+            with open(self._processed_ids_file, "w") as f:
+                json.dump({"message_ids": list(self._processed_message_ids)}, f)
+        except Exception as e:
+            logger.warning(f"Failed to save processed IDs: {e}")
+
+    def mark_message_processed(self, message_id: str) -> None:
+        """Mark a message_id as processed (Bug #60 fix)"""
+        if message_id:
+            with self._lock:
+                self._processed_message_ids.add(message_id)
+                self._save_processed_ids()
+            logger.debug(f"Marked message as processed: {message_id}")
+
+    def is_email_known(self, message_id: str) -> bool:
+        """
+        Check if email with this message_id is already in queue or was processed.
+
+        Bug #60 fix: Prevents re-adding emails that were already processed.
+
+        Args:
+            message_id: Email message ID
+
+        Returns:
+            True if email is known (in queue or processed), False otherwise
+        """
+        if not message_id:
+            return False
+
+        # Check if already processed
+        if message_id in self._processed_message_ids:
+            logger.debug(f"Email already processed: {message_id}")
+            return True
+
+        # Check if in current queue (any status)
+        with self._lock:
+            for file_path in self.queue_dir.glob("*.json"):
+                if file_path.name.startswith("."):
+                    continue
+                try:
+                    with open(file_path) as f:
+                        item = json.load(f)
+                        item_message_id = item.get("metadata", {}).get("message_id")
+                        if item_message_id == message_id:
+                            logger.debug(f"Email already in queue: {message_id}")
+                            return True
+                except Exception:
+                    continue
+
+        return False
 
     def save_item(
         self,
@@ -70,7 +138,7 @@ class QueueStorage:
         account_id: Optional[str] = None,
         html_body: Optional[str] = None,
         full_text: Optional[str] = None,
-    ) -> str:
+    ) -> str | None:
         """
         Save email to review queue
 
@@ -83,11 +151,19 @@ class QueueStorage:
             full_text: Full plain text body of the email (optional)
 
         Returns:
-            item_id: Unique identifier for queued item
+            item_id: Unique identifier for queued item, or None if duplicate
 
         Example:
             item_id = storage.save_item(metadata, analysis, preview, "personal")
         """
+        # Bug #60 fix: Check for duplicates before saving
+        if metadata.message_id and self.is_email_known(metadata.message_id):
+            logger.info(
+                f"Skipping duplicate email: {metadata.subject[:50]}",
+                extra={"message_id": metadata.message_id}
+            )
+            return None
+
         item_id = str(uuid.uuid4())
 
         # Build queue item

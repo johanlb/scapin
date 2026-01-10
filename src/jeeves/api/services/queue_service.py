@@ -186,6 +186,11 @@ class QueueService:
             }
         )
 
+        # Bug #60 fix: Mark message_id as processed to prevent re-queueing
+        message_id = metadata.get("message_id")
+        if message_id:
+            self._storage.mark_message_processed(message_id)
+
         return self._storage.get_item(item_id)
 
     async def _execute_email_action(
@@ -233,6 +238,10 @@ class QueueService:
 
         try:
             with imap_client.connect():
+                # Bug #60 fix: Add gray flag FIRST to mark as processed
+                # This prevents re-fetching even if the subsequent action fails
+                imap_client.add_flag(int(email_id), folder)
+
                 if action in ("archive", "ARCHIVE"):
                     dest = destination or config.email.archive_folder or "Archive"
                     success = imap_client.move_email(
@@ -269,9 +278,8 @@ class QueueService:
                     return success
 
                 elif action in ("keep", "KEEP", "defer", "DEFER"):
-                    # Keep in inbox but unflag so it won't be reprocessed
-                    # Actually for keep/defer, we should leave it flagged
-                    logger.info(f"Keep/defer action for email {email_id} - no IMAP change")
+                    # Bug #60 fix: Keep in inbox with gray flag so it won't be re-fetched
+                    logger.info(f"Keep/defer action for email {email_id} - marked as processed")
                     return True
 
                 else:
@@ -343,6 +351,11 @@ class QueueService:
                 "subject": metadata.get("subject", "")[:50],
             }
         )
+
+        # Bug #60 fix: Mark message_id as processed to prevent re-queueing
+        message_id = metadata.get("message_id")
+        if message_id:
+            self._storage.mark_message_processed(message_id)
 
         return self._storage.get_item(item_id)
 
