@@ -150,7 +150,8 @@
 		);
 
 		try {
-			const result = await processInbox(20, false, undefined, true);
+			// Note: unreadOnly=false to process all emails, not just unread ones
+			const result = await processInbox(20, false, undefined, false);
 
 			// Dismiss the processing toast
 			toastStore.dismiss(processingToastId);
