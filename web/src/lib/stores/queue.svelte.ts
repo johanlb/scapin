@@ -135,6 +135,16 @@ function moveToEnd(itemId: string): void {
 	}
 }
 
+// Bug #53 fix: Restore an item to the list (for optimistic update rollback)
+function restoreItem(item: QueueItem): void {
+	// Only restore if not already in list
+	if (!state.items.some((i) => i.id === item.id)) {
+		// Add at the beginning of the list
+		state.items = [item, ...state.items];
+		state.total = state.total + 1;
+	}
+}
+
 async function fetchStats(): Promise<void> {
 	try {
 		state.stats = await getQueueStats();
@@ -195,6 +205,7 @@ export const queueStore = {
 	approve,
 	reject,
 	removeFromList,
+	restoreItem,
 	moveToEnd,
 	refresh,
 	clearError

@@ -244,43 +244,53 @@
 		if (isProcessing) return;
 		isProcessing = true;
 
-		// Save item info for undo
+		// Save item info for undo and potential restore
 		const itemId = item.id;
 		const itemSubject = item.metadata.subject;
 		const actionLabel = getActionLabel(option.action);
+		const savedItem = { ...item }; // Deep copy for restore on error
 
+		// Bug #53 fix: Optimistic update - immediately update UI
+		queueStore.removeFromList(item.id);
+
+		// Move to next or reset
+		if (currentIndex >= queueStore.items.length) {
+			currentIndex = Math.max(0, queueStore.items.length - 1);
+		}
+		customInstruction = '';
+		showCustomInput = false;
+
+		// Show undo toast immediately
+		toastStore.undo(
+			`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
+			async () => {
+				await undoQueueItem(itemId);
+				await queueStore.fetchQueue('pending');
+				await queueStore.fetchStats();
+			},
+			{ itemId, title: 'Action effectuée' }
+		);
+
+		// Allow next action immediately (unlock UI)
+		isProcessing = false;
+
+		// Bug #53 fix: Execute API call in background (non-blocking)
 		try {
 			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, option.destination);
-			queueStore.removeFromList(item.id);
-			// Bug #48 fix: Update stats immediately after action
-			await queueStore.fetchStats();
-
-			// Show undo toast with 15-second countdown
-			toastStore.undo(
-				`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
-				async () => {
-					await undoQueueItem(itemId);
-					await queueStore.fetchQueue('pending');
-					await queueStore.fetchStats();
-				},
-				{ itemId, title: 'Action effectuée' }
-			);
-
-			// Move to next or reset
-			if (currentIndex >= queueStore.items.length) {
-				currentIndex = Math.max(0, queueStore.items.length - 1);
-			}
-			customInstruction = '';
-			showCustomInput = false;
+			// Update stats in background (no await needed)
+			queueStore.fetchStats();
 		} catch (e) {
-			// Bug #52 fix: Show error if action failed (IMAP error, etc.)
+			// Bug #52 fix: Restore item if action failed
 			console.error('Action failed:', e);
+			// Dismiss the undo toast since action failed
+			const undoToast = toastStore.findUndoByItemId(itemId);
+			if (undoToast) toastStore.dismiss(undoToast.id);
+			// Restore item to queue
+			queueStore.restoreItem(savedItem);
 			toastStore.error(
-				`Échec de l'action "${actionLabel}". L'email reste dans la file.`,
+				`Échec de l'action "${actionLabel}". L'email a été restauré.`,
 				{ title: 'Erreur IMAP' }
 			);
-		} finally {
-			isProcessing = false;
 		}
 	}
 
@@ -288,42 +298,49 @@
 		if (isProcessing || !customInstruction.trim()) return;
 		isProcessing = true;
 
-		// Save item info for undo
+		// Save item info for undo and potential restore
 		const itemId = item.id;
 		const itemSubject = item.metadata.subject;
+		const savedItem = { ...item };
+		const savedInstruction = customInstruction.trim();
 
+		// Bug #53 fix: Optimistic update - immediately update UI
+		queueStore.removeFromList(item.id);
+
+		if (currentIndex >= queueStore.items.length) {
+			currentIndex = Math.max(0, queueStore.items.length - 1);
+		}
+		customInstruction = '';
+		showCustomInput = false;
+
+		// Show undo toast immediately
+		toastStore.undo(
+			`Instruction personnalisée : ${itemSubject.slice(0, 30)}${itemSubject.length > 30 ? '...' : ''}`,
+			async () => {
+				await undoQueueItem(itemId);
+				await queueStore.fetchQueue('pending');
+				await queueStore.fetchStats();
+			},
+			{ itemId, title: 'Action effectuée' }
+		);
+
+		// Allow next action immediately
+		isProcessing = false;
+
+		// Execute API call in background
 		try {
-			// For custom instruction, we approve with the instruction as reasoning
 			await approveQueueItem(item.id, 'custom', item.analysis.category || undefined);
-			queueStore.removeFromList(item.id);
-			// Bug #48 fix: Update stats immediately after action
-			await queueStore.fetchStats();
-
-			// Show undo toast with 15-second countdown
-			toastStore.undo(
-				`Instruction personnalisée : ${itemSubject.slice(0, 30)}${itemSubject.length > 30 ? '...' : ''}`,
-				async () => {
-					await undoQueueItem(itemId);
-					await queueStore.fetchQueue('pending');
-					await queueStore.fetchStats();
-				},
-				{ itemId, title: 'Action effectuée' }
-			);
-
-			if (currentIndex >= queueStore.items.length) {
-				currentIndex = Math.max(0, queueStore.items.length - 1);
-			}
-			customInstruction = '';
-			showCustomInput = false;
+			queueStore.fetchStats();
 		} catch (e) {
-			// Bug #52 fix: Show error if action failed
 			console.error('Custom instruction failed:', e);
+			const undoToast = toastStore.findUndoByItemId(itemId);
+			if (undoToast) toastStore.dismiss(undoToast.id);
+			queueStore.restoreItem(savedItem);
+			customInstruction = savedInstruction; // Restore the instruction
 			toastStore.error(
-				`Échec de l'instruction. L'email reste dans la file.`,
+				`Échec de l'instruction. L'email a été restauré.`,
 				{ title: 'Erreur' }
 			);
-		} finally {
-			isProcessing = false;
 		}
 	}
 
@@ -331,19 +348,32 @@
 		if (isProcessing) return;
 		isProcessing = true;
 
+		// Save for potential restore
+		const savedItem = { ...item };
+
+		// Bug #53 fix: Optimistic update
+		queueStore.removeFromList(item.id);
+
+		if (currentIndex >= queueStore.items.length) {
+			currentIndex = Math.max(0, queueStore.items.length - 1);
+		}
+		customInstruction = '';
+		showCustomInput = false;
+
+		// Allow next action immediately
+		isProcessing = false;
+
+		// Execute in background
 		try {
 			await rejectQueueItem(item.id);
-			queueStore.removeFromList(item.id);
-			// Bug #48 fix: Update stats immediately after action
-			await queueStore.fetchStats();
-
-			if (currentIndex >= queueStore.items.length) {
-				currentIndex = Math.max(0, queueStore.items.length - 1);
-			}
-			customInstruction = '';
-			showCustomInput = false;
-		} finally {
-			isProcessing = false;
+			queueStore.fetchStats();
+		} catch (e) {
+			console.error('Reject failed:', e);
+			queueStore.restoreItem(savedItem);
+			toastStore.error(
+				`Échec du rejet. L'email a été restauré.`,
+				{ title: 'Erreur' }
+			);
 		}
 	}
 
@@ -351,42 +381,47 @@
 		if (isProcessing) return;
 		isProcessing = true;
 
-		// Save item info for undo
+		// Save item info for undo and potential restore
 		const itemId = item.id;
 		const itemSubject = item.metadata.subject;
+		const savedItem = { ...item };
 
+		// Bug #53 fix: Optimistic update
+		queueStore.removeFromList(item.id);
+
+		if (currentIndex >= queueStore.items.length) {
+			currentIndex = Math.max(0, queueStore.items.length - 1);
+		}
+		customInstruction = '';
+		showCustomInput = false;
+
+		// Show undo toast immediately
+		toastStore.undo(
+			`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
+			async () => {
+				await undoQueueItem(itemId);
+				await queueStore.fetchQueue('pending');
+				await queueStore.fetchStats();
+			},
+			{ itemId, title: 'Email déplacé vers la corbeille' }
+		);
+
+		// Allow next action immediately
+		isProcessing = false;
+
+		// Execute in background
 		try {
-			// Approve with delete action
 			await approveQueueItem(item.id, 'delete', item.analysis.category || undefined);
-			queueStore.removeFromList(item.id);
-			// Bug #48 fix: Update stats immediately after action
-			await queueStore.fetchStats();
-
-			// Show undo toast with 15-second countdown
-			toastStore.undo(
-				`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
-				async () => {
-					await undoQueueItem(itemId);
-					await queueStore.fetchQueue('pending');
-					await queueStore.fetchStats();
-				},
-				{ itemId, title: 'Email déplacé vers la corbeille' }
-			);
-
-			if (currentIndex >= queueStore.items.length) {
-				currentIndex = Math.max(0, queueStore.items.length - 1);
-			}
-			customInstruction = '';
-			showCustomInput = false;
+			queueStore.fetchStats();
 		} catch (e) {
-			// Bug #52 fix: Show error if delete failed
 			console.error('Delete failed:', e);
+			const undoToast = toastStore.findUndoByItemId(itemId);
+			if (undoToast) toastStore.dismiss(undoToast.id);
+			queueStore.restoreItem(savedItem);
 			toastStore.error(
-				`Échec de la suppression. L'email reste dans la file.`,
+				`Échec de la suppression. L'email a été restauré.`,
 				{ title: 'Erreur IMAP' }
 			);
-		} finally {
-			isProcessing = false;
 		}
 	}
 
