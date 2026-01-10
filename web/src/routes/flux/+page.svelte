@@ -141,23 +141,40 @@
 		isFetchingEmails = true;
 		fetchError = null;
 
-		// Inform user that processing has started (can take 1-2 minutes)
-		toastStore.info(
-			'Analyse des emails en cours... Cela peut prendre quelques minutes.',
-			{ title: 'Traitement démarré' }
+		// Bug #50 fix: Use a longer-duration toast that stays visible during processing
+		const processingToastId = toastStore.info(
+			'Récupération et analyse des emails en cours...',
+			{ title: 'Traitement', duration: 120000 } // 2 minutes max
 		);
 
 		try {
 			const result = await processInbox(20, false, undefined, true);
-			toastStore.success(
-				`${result.total_processed} email${result.total_processed > 1 ? 's' : ''} analysé${result.total_processed > 1 ? 's' : ''}`,
-				{ title: 'Courrier récupéré' }
-			);
 
-			// Refresh the queue
+			// Dismiss the processing toast
+			toastStore.dismiss(processingToastId);
+
+			// Bug #50 fix: Refresh queue FIRST before showing success toast
+			// This ensures UI updates immediately
 			await queueStore.fetchQueue('pending');
 			await queueStore.fetchStats();
+
+			// Show success toast with results
+			if (result.total_processed > 0) {
+				const queuedCount = result.queued || 0;
+				toastStore.success(
+					`${result.total_processed} email${result.total_processed > 1 ? 's' : ''} analysé${result.total_processed > 1 ? 's' : ''} et ${queuedCount} ajouté${queuedCount > 1 ? 's' : ''} à la file`,
+					{ title: 'Courrier récupéré' }
+				);
+			} else {
+				toastStore.info(
+					'Aucun nouvel email à traiter',
+					{ title: 'Boîte de réception à jour' }
+				);
+			}
 		} catch (err) {
+			// Dismiss the processing toast
+			toastStore.dismiss(processingToastId);
+
 			fetchError = err instanceof Error ? err.message : 'Erreur de connexion';
 			toastStore.error(
 				'Impossible de récupérer le courrier. Vérifiez la connexion au serveur.',
