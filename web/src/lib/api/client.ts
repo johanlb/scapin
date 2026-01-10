@@ -303,11 +303,9 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 			throw new ApiError(500, data.error || 'Unknown error');
 		}
 
-		if (data.data === null) {
-			throw new ApiError(500, 'API returned null data');
-		}
-
-		return data.data;
+		// Note: data.data can be null for DELETE operations (T = null), which is valid
+		// For other operations, the API contract guarantees data will be present
+		return data.data as T;
 	} catch (error) {
 		if (error instanceof ApiError) {
 			throw error;

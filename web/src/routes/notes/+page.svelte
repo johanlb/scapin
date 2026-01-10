@@ -2,6 +2,7 @@
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { toastStore } from '$lib/stores/toast.svelte';
 	import {
 		getNotesTree,
 		syncAppleNotes,
@@ -199,6 +200,7 @@
 	async function confirmDelete() {
 		if (!selectedNote) return;
 
+		const noteTitle = selectedNote.title;
 		isDeleting = true;
 		try {
 			await deleteNote(selectedNote.note_id);
@@ -206,12 +208,15 @@
 			folderNotes = folderNotes.filter(n => n.note_id !== selectedNote!.note_id);
 			selectedNote = null;
 			showDeleteModal = false;
+			// Show success toast
+			toastStore.success(`Note "${noteTitle}" supprimée`);
 			// Select next note if available
 			if (folderNotes.length > 0) {
 				await selectNote(folderNotes[0]);
 			}
 		} catch (error) {
 			console.error('Failed to delete note:', error);
+			toastStore.error(`Échec de la suppression de la note`);
 		} finally {
 			isDeleting = false;
 		}
