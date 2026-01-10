@@ -30,7 +30,9 @@
 
 	// Bug #49: Auto-fetch threshold
 	const AUTO_FETCH_THRESHOLD = 5;
+	const AUTO_FETCH_COOLDOWN_MS = 60000; // 1 minute cooldown between auto-fetches
 	let autoFetchEnabled = $state(true); // Can be disabled by user
+	let lastAutoFetchTime = $state(0); // Timestamp of last auto-fetch
 
 	// Timeout IDs for cleanup
 	let undoErrorTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -190,9 +192,17 @@
 		// Only auto-fetch in pending view when enabled and not already fetching
 		if (!autoFetchEnabled || isFetchingEmails || activeFilter !== 'pending') return;
 
+		// Check cooldown to prevent spamming
+		const now = Date.now();
+		if (now - lastAutoFetchTime < AUTO_FETCH_COOLDOWN_MS) {
+			return; // Still in cooldown period
+		}
+
 		// Check if queue is below threshold
 		const pendingCount = queueStore.stats?.by_status?.pending ?? queueStore.items.length;
 		if (pendingCount < AUTO_FETCH_THRESHOLD) {
+			// Update cooldown timestamp
+			lastAutoFetchTime = now;
 			// Show subtle notification
 			toastStore.info(
 				`Moins de ${AUTO_FETCH_THRESHOLD} emails en attente. Récupération automatique...`,
