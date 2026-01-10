@@ -10,6 +10,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from src.jeeves.api.auth.jwt_handler import TokenData
 from src.jeeves.api.deps import get_current_user
 from src.jeeves.api.models.notifications import (
     MarkReadRequest,
@@ -48,7 +49,7 @@ async def list_notifications(
     ),
     is_read: Optional[bool] = Query(None, description="Filter by read status"),
     since: Optional[datetime] = Query(None, description="Filter by created_at >= since"),
-    user: str = Depends(get_current_user),
+    user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> NotificationListResponse:
     """
@@ -57,6 +58,7 @@ async def list_notifications(
     Supports filtering by type, priority, read status, and date.
     Results are paginated and sorted by creation date (newest first).
     """
+    user_id = user.sub if user else "anonymous"
     filters = NotificationFilter(
         types=types,
         priorities=priorities,
@@ -65,7 +67,7 @@ async def list_notifications(
     )
 
     return await service.list(
-        user_id=user,
+        user_id=user_id,
         page=page,
         page_size=page_size,
         filters=filters if any([types, priorities, is_read is not None, since]) else None,
@@ -76,7 +78,7 @@ async def list_notifications(
 async def list_unread_notifications(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
-    user: str = Depends(get_current_user),
+    user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> NotificationListResponse:
     """
@@ -84,13 +86,14 @@ async def list_unread_notifications(
 
     Convenience endpoint for fetching only unread notifications.
     """
+    user_id = user.sub if user else "anonymous"
     filters = NotificationFilter(is_read=False)
-    return await service.list(user_id=user, page=page, page_size=page_size, filters=filters)
+    return await service.list(user_id=user_id, page=page, page_size=page_size, filters=filters)
 
 
 @router.get("/stats", response_model=NotificationStats)
 async def get_notification_stats(
-    user: str = Depends(get_current_user),
+    user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> NotificationStats:
     """
@@ -98,13 +101,14 @@ async def get_notification_stats(
 
     Returns counts by type, priority, and read status.
     """
-    return await service.get_stats(user_id=user)
+    user_id = user.sub if user else "anonymous"
+    return await service.get_stats(user_id=user_id)
 
 
 @router.get("/{notification_id}", response_model=NotificationResponse)
 async def get_notification(
     notification_id: str,
-    user: str = Depends(get_current_user),
+    user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> NotificationResponse:
     """
@@ -112,7 +116,8 @@ async def get_notification(
 
     Returns 404 if notification not found or not owned by user.
     """
-    notification = await service.get(notification_id, user_id=user)
+    user_id = user.sub if user else "anonymous"
+    notification = await service.get(notification_id, user_id=user_id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     return notification
@@ -121,7 +126,7 @@ async def get_notification(
 @router.post("", response_model=NotificationResponse, status_code=201)
 async def create_notification(
     notification: NotificationCreate,
-    user: str = Depends(get_current_user),
+    user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> NotificationResponse:
     """
@@ -130,13 +135,14 @@ async def create_notification(
     Notifications are automatically pushed via WebSocket if client is connected.
     Notifications expire after 7 days by default.
     """
-    return await service.create(user_id=user, notification=notification)
+    user_id = user.sub if user else "anonymous"
+    return await service.create(user_id=user_id, notification=notification)
 
 
 @router.post("/read", response_model=MarkReadResponse)
 async def mark_notifications_read(
     request: MarkReadRequest,
-    user: str = Depends(get_current_user),
+    user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> MarkReadResponse:
     """
@@ -144,8 +150,9 @@ async def mark_notifications_read(
 
     Can mark specific notifications by ID or all notifications at once.
     """
+    user_id = user.sub if user else "anonymous"
     return await service.mark_read(
-        user_id=user,
+        user_id=user_id,
         notification_ids=request.notification_ids,
         mark_all=request.mark_all,
     )
@@ -154,7 +161,7 @@ async def mark_notifications_read(
 @router.post("/{notification_id}/read", response_model=MarkReadResponse)
 async def mark_single_notification_read(
     notification_id: str,
-    user: str = Depends(get_current_user),
+    user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> MarkReadResponse:
     """
@@ -162,13 +169,14 @@ async def mark_single_notification_read(
 
     Convenience endpoint for marking one notification as read.
     """
-    return await service.mark_read(user_id=user, notification_ids=[notification_id])
+    user_id = user.sub if user else "anonymous"
+    return await service.mark_read(user_id=user_id, notification_ids=[notification_id])
 
 
 @router.delete("/{notification_id}", response_model=APIResponse)
 async def delete_notification(
     notification_id: str,
-    user: str = Depends(get_current_user),
+    user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> APIResponse:
     """
@@ -176,7 +184,8 @@ async def delete_notification(
 
     Permanently removes the notification.
     """
-    deleted = await service.delete(notification_id, user_id=user)
+    user_id = user.sub if user else "anonymous"
+    deleted = await service.delete(notification_id, user_id=user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Notification not found")
 
@@ -189,7 +198,7 @@ async def delete_notification(
 
 @router.post("/cleanup", response_model=APIResponse)
 async def cleanup_expired_notifications(
-    _user: str = Depends(get_current_user),
+    _user: Optional[TokenData] = Depends(get_current_user),
     service: NotificationService = Depends(get_service),
 ) -> APIResponse:
     """
