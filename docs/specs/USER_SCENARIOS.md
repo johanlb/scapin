@@ -574,6 +574,91 @@ Chaque scénario suit ce format :
 
 ---
 
+### SC-21: Performance du fetch et mise à jour temps réel
+
+**Persona**: Johan
+**Priorité**: CRITIQUE
+**Source**: Flux
+
+**Contexte**:
+> Johan clique sur "Récupérer les emails". Le traitement semble très long
+> (plusieurs minutes). De plus, une fois terminé, la page reste vide et
+> Johan doit rafraîchir manuellement pour voir les nouveaux éléments.
+
+**Problèmes identifiés**:
+
+1. **Performance lente** : Le fetch + analyse prend trop de temps
+   - Récupération IMAP ?
+   - Analyse IA par email ?
+   - Traitement séquentiel vs parallèle ?
+
+2. **UI non réactive** : Pas de mise à jour automatique après fetch
+   - Pas de notification WebSocket
+   - Compteurs statiques
+   - Utilisateur doit rafraîchir manuellement
+
+**Résultat attendu**:
+
+1. **Performance** :
+   - [ ] Fetch IMAP < 5s pour 20 emails
+   - [ ] Analyse IA en parallèle (batch de 5 emails simultanés)
+   - [ ] Affichage progressif des résultats (streaming)
+   - [ ] Indicateur de progression visible (X/20 analysés)
+
+2. **Mise à jour temps réel** :
+   - [ ] WebSocket événement `item_added` pour chaque nouvel élément
+   - [ ] Compteurs mis à jour automatiquement sans refresh
+   - [ ] Liste se met à jour dynamiquement
+   - [ ] Toast "5 nouveaux éléments ajoutés"
+
+**Critères de succès**:
+- Temps total fetch + analyse < 30s pour 20 emails
+- UI mise à jour en temps réel (< 1s après traitement)
+- Aucun refresh manuel nécessaire
+
+**Pistes d'amélioration**:
+
+| Composant | Problème potentiel | Solution proposée |
+|-----------|-------------------|-------------------|
+| **IMAP** | Connexion lente, fetch séquentiel | Connection pooling, fetch batch |
+| **AI Analysis** | Séquentiel, 3-5s par email | Parallélisation (asyncio.gather) |
+| **Database** | Insertions une par une | Batch insert |
+| **WebSocket** | Non utilisé pour updates | Émettre events en temps réel |
+| **UI** | Polling absent | Écouter WebSocket + auto-refresh |
+
+**Architecture cible**:
+```
+┌─────────────────────────────────────────────────────────────┐
+│  POST /api/email/process                                    │
+│    ↓                                                        │
+│  1. Fetch IMAP (batch de 20)           → WS: fetch_started  │
+│    ↓                                                        │
+│  2. Pour chaque email (parallèle x5):                       │
+│     - Analyse IA                                            │
+│     - Insert DB                        → WS: item_added     │
+│     - Update compteurs                 → WS: queue_updated  │
+│    ↓                                                        │
+│  3. Fin                                → WS: fetch_completed│
+└─────────────────────────────────────────────────────────────┘
+
+Frontend:
+┌─────────────────────────────────────────────────────────────┐
+│  WebSocket listener                                         │
+│    - item_added → Ajouter à la liste (optimistic)           │
+│    - queue_updated → Mettre à jour compteurs                │
+│    - fetch_completed → Toast "X nouveaux éléments"          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Notes techniques**:
+- Mesurer temps par étape avec logging détaillé
+- Profiler avec `cProfile` ou `py-spy`
+- Implémenter `asyncio.gather()` pour parallélisation AI
+- Ajouter WebSocket events dans `src/jeeves/api/websocket/`
+- Frontend: écouter events dans `flux/+page.svelte`
+
+---
+
 ## 3. Gestion des Notes
 
 ### SC-30: Consulter l'arbre des notes
@@ -826,6 +911,7 @@ Chaque scénario suit ce format :
 | SC-18 | `flux-reanalyze.spec.ts` | `test_reanalyze_api.py` | - |
 | SC-19 | `flux-folder-picker.spec.ts` | `test_folder_picker_api.py` | - |
 | SC-20 | `flux-autofetch.spec.ts` | `test_autofetch_api.py` | `test_autofetch_manager.py` |
+| SC-21 | `flux-performance.spec.ts` | `test_flux_performance.py` | `test_email_processor_perf.py` |
 | SC-30 | `notes.spec.ts` | `test_notes_api.py` | - |
 | SC-50 | `journal.spec.ts` | `test_journal_api.py` | - |
 | SC-80 | `search.spec.ts` | `test_search_api.py` | - |
