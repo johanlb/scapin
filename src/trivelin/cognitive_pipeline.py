@@ -180,12 +180,18 @@ class CognitivePipeline:
         self.context_engine = context_engine
         self.cross_source_engine = cross_source_engine
 
+        # Bug #51: Get pattern_store from learning_engine if available
+        pattern_store = None
+        if learning_engine and hasattr(learning_engine, 'pattern_store'):
+            pattern_store = learning_engine.pattern_store
+
         # Initialize reasoning engine (Sancho) with context and cross-source engines
         self.reasoning_engine = ReasoningEngine(
             ai_router=ai_router,
             template_manager=template_manager,
             context_engine=context_engine,
             cross_source_engine=cross_source_engine,
+            pattern_store=pattern_store,  # Bug #51: Inject learned patterns
             max_iterations=self.config.cognitive_max_passes,
             confidence_threshold=self.config.cognitive_confidence_threshold,
             enable_context=context_engine is not None or cross_source_engine is not None,
@@ -212,6 +218,7 @@ class CognitivePipeline:
                 "learning_enabled": learning_engine is not None,
                 "context_enabled": context_engine is not None,
                 "cross_source_enabled": cross_source_engine is not None,
+                "pattern_store_enabled": pattern_store is not None,  # Bug #51
             }
         )
 

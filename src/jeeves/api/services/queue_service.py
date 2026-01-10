@@ -169,6 +169,23 @@ class QueueService:
         if not success:
             return None
 
+        # Bug #51: Log feedback for debugging and learning
+        original_action = item.get("analysis", {}).get("action")
+        original_confidence = item.get("analysis", {}).get("confidence")
+        logger.info(
+            "Feedback received: APPROVE",
+            extra={
+                "item_id": item_id,
+                "feedback_type": "approve",
+                "original_action": original_action,
+                "executed_action": action,
+                "action_modified": modified_action is not None,
+                "original_confidence": original_confidence,
+                "destination": dest,
+                "subject": metadata.get("subject", "")[:50],
+            }
+        )
+
         return self._storage.get_item(item_id)
 
     async def _execute_email_action(
@@ -309,6 +326,24 @@ class QueueService:
         if not success:
             return None
 
+        # Bug #51: Log feedback for debugging and learning
+        original_action = item.get("analysis", {}).get("action")
+        original_confidence = item.get("analysis", {}).get("confidence")
+        metadata = item.get("metadata", {})
+        logger.info(
+            "Feedback received: MODIFY",
+            extra={
+                "item_id": item_id,
+                "feedback_type": "modify",
+                "original_action": original_action,
+                "modified_action": action,
+                "original_confidence": original_confidence,
+                "modification_reason": reasoning,
+                "destination": destination,
+                "subject": metadata.get("subject", "")[:50],
+            }
+        )
+
         return self._storage.get_item(item_id)
 
     async def reject_item(
@@ -346,6 +381,22 @@ class QueueService:
         success = self._storage.update_item(item_id, updates)
         if not success:
             return None
+
+        # Bug #51: Log feedback for debugging and learning
+        original_action = item.get("analysis", {}).get("action")
+        original_confidence = item.get("analysis", {}).get("confidence")
+        metadata = item.get("metadata", {})
+        logger.info(
+            "Feedback received: REJECT",
+            extra={
+                "item_id": item_id,
+                "feedback_type": "reject",
+                "original_action": original_action,
+                "original_confidence": original_confidence,
+                "rejection_reason": reason,
+                "subject": metadata.get("subject", "")[:50],
+            }
+        )
 
         return self._storage.get_item(item_id)
 

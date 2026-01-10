@@ -37,6 +37,7 @@ from src.sancho.templates import TemplateManager, get_template_manager
 if TYPE_CHECKING:
     from src.passepartout.context_engine import ContextEngine
     from src.passepartout.cross_source import CrossSourceEngine
+    from src.sganarelle.pattern_store import PatternStore
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +104,7 @@ class ReasoningEngine:
         template_manager: Optional[TemplateManager] = None,
         context_engine: Optional["ContextEngine"] = None,
         cross_source_engine: Optional["CrossSourceEngine"] = None,
+        pattern_store: Optional["PatternStore"] = None,  # Bug #51: Learning patterns
         max_iterations: int = 5,
         confidence_threshold: float = 0.95,
         enable_context: bool = False,  # Phase 0.5 Week 3 feature
@@ -118,6 +120,7 @@ class ReasoningEngine:
             template_manager: Template manager (optional, uses singleton if None)
             context_engine: ContextEngine for knowledge base retrieval (Sprint 2)
             cross_source_engine: CrossSourceEngine for multi-source retrieval
+            pattern_store: PatternStore for learned patterns (Bug #51)
             max_iterations: Maximum reasoning passes (default 5)
             confidence_threshold: Target confidence 0.0-1.0 (default 0.95 = 95%)
             enable_context: Enable Pass 2 context retrieval (requires Passepartout)
@@ -129,6 +132,7 @@ class ReasoningEngine:
         self.template_manager = template_manager or get_template_manager()
         self.context_engine = context_engine
         self.cross_source_engine = cross_source_engine
+        self.pattern_store = pattern_store  # Bug #51: Learning patterns
         self.max_iterations = max_iterations
         self.confidence_threshold = confidence_threshold
         self.enable_context = enable_context
@@ -145,6 +149,7 @@ class ReasoningEngine:
                 "enable_validation": enable_validation,
                 "has_context_engine": context_engine is not None,
                 "has_cross_source_engine": cross_source_engine is not None,
+                "has_pattern_store": pattern_store is not None,
                 "context_top_k": context_top_k,
                 "context_min_relevance": context_min_relevance,
             }
@@ -268,10 +273,14 @@ class ReasoningEngine:
         wm.start_reasoning_pass(1, "initial_analysis")
 
         try:
-            # Render template
+            # Bug #51: Get matching patterns from learning history
+            matching_patterns = self._get_matching_patterns(wm.event)
+
+            # Render template with patterns
             prompt = self.template_manager.render(
                 "ai/pass1_initial",
-                event=wm.event
+                event=wm.event,
+                learned_patterns=matching_patterns
             )
 
             # Call AI (Haiku for speed)
@@ -464,11 +473,8 @@ class ReasoningEngine:
                     extra={"context_count": len(context_items)}
                 )
             else:
-                logger.warning("Pass 2: Failed to parse AI response")
-                # Slight confidence boost even if parsing fails
-                current_confidence = wm.overall_confidence
-                boosted = min(current_confidence + 0.05, 0.80)
-                wm.update_confidence(boosted)
+                # Bug #51: Don't boost confidence when parsing fails - that's artificial
+                logger.warning("Pass 2: Failed to parse AI response - no confidence boost")
 
         except Exception as e:
             logger.error(f"Pass 2 error: {e}", exc_info=True)
@@ -702,16 +708,15 @@ class ReasoningEngine:
         wm.start_reasoning_pass(4, "validation")
 
         try:
-            # STUB: Mock validation (Phase 2.5 will implement real multi-provider)
-            current_confidence = wm.overall_confidence
-            boosted = min(current_confidence + 0.03, 0.96)  # +3%, cap at 96%
-            wm.update_confidence(boosted)
+            # Bug #51: STUB - Don't artificially boost confidence without real validation
+            # Real multi-provider validation will be implemented in Phase 2.5
+            # Until then, don't pretend we're more confident than we are
 
             if wm.current_pass:
-                wm.current_pass.insights.append("Validation (stub - Phase 2.5 feature)")
+                wm.current_pass.insights.append("Validation skipped (stub - Phase 2.5 feature)")
 
             logger.debug(
-                f"Pass 4 (stub) complete: {wm.overall_confidence:.1%} confidence"
+                f"Pass 4 (stub) skipped: {wm.overall_confidence:.1%} confidence unchanged"
             )
 
         except Exception as e:
@@ -797,6 +802,61 @@ class ReasoningEngine:
 
         finally:
             wm.complete_reasoning_pass()
+
+    # ========================================================================
+    # PATTERN RETRIEVAL (Bug #51)
+    # ========================================================================
+
+    def _get_matching_patterns(self, event: PerceivedEvent) -> list[dict[str, Any]]:
+        """
+        Get matching patterns from PatternStore for use in prompts
+
+        Bug #51: Inject learned patterns into prompts to improve decision quality.
+
+        Args:
+            event: PerceivedEvent to find patterns for
+
+        Returns:
+            List of formatted pattern dicts for the template
+        """
+        if not self.pattern_store:
+            return []
+
+        try:
+            # Find patterns that match this event
+            patterns = self.pattern_store.find_matching_patterns(
+                event=event,
+                context={},  # No additional context for now
+                min_confidence=0.5  # Only use patterns with decent confidence
+            )
+
+            # Format for template consumption
+            formatted_patterns = []
+            for pattern in patterns[:5]:  # Limit to 5 patterns
+                formatted_patterns.append({
+                    "pattern_type": pattern.pattern_type.value,
+                    "conditions": pattern.conditions,
+                    "suggested_actions": pattern.suggested_actions,
+                    "confidence": pattern.confidence,
+                    "success_rate": pattern.success_rate,
+                    "occurrences": pattern.occurrences,
+                })
+
+            if formatted_patterns:
+                logger.debug(
+                    f"Found {len(formatted_patterns)} matching patterns for event",
+                    extra={
+                        "event_id": event.event_id,
+                        "pattern_count": len(formatted_patterns),
+                        "top_action": formatted_patterns[0]["suggested_actions"][0] if formatted_patterns else None,
+                    }
+                )
+
+            return formatted_patterns
+
+        except Exception as e:
+            logger.warning(f"Failed to retrieve patterns: {e}")
+            return []
 
     # ========================================================================
     # RESPONSE PARSING

@@ -6,6 +6,20 @@ Goal: Understand the event quickly without external context.
 Target Confidence: 60-70%
 Time Budget: 2-3 seconds
 
+{% if learned_patterns %}
+## LEARNED PATTERNS (from user's past decisions)
+
+The user has previously approved similar decisions:
+{% for pattern in learned_patterns %}
+- **Pattern {{ loop.index }}**: {{ pattern.suggested_actions | join(", ") }}
+  - Conditions: {{ pattern.conditions | tojson }}
+  - Success rate: {{ (pattern.success_rate * 100) | int }}% ({{ pattern.occurrences }} occurrences)
+  - Confidence: {{ (pattern.confidence * 100) | int }}%
+{% endfor %}
+
+**Important**: Consider these patterns when making your recommendation. If a pattern matches well, lean towards that action.
+{% endif %}
+
 ## EVENT TO ANALYZE
 
 **Type**: {{ event.source_type }}
