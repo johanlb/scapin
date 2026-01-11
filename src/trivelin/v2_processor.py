@@ -1,12 +1,15 @@
 """
-V2 Email Processor — Workflow v2.1 Knowledge Extraction
+V2 Email Processor — Workflow v2.2 Knowledge Extraction
 
-Processeur d'emails utilisant le pipeline d'extraction de connaissances v2.1.
+Processeur d'emails utilisant le pipeline d'extraction de connaissances v2.2.
 
 Ce processeur intègre :
 1. EventAnalyzer pour l'analyse et l'extraction
 2. PKMEnricher pour l'application au PKM
 3. OmniFocusClient pour les tâches (optionnel)
+4. CrossSourceEngine pour le contexte multi-source (v2.2)
+5. PatternStore pour la validation par patterns appris (v2.2)
+6. V2WorkingMemory pour le suivi de l'état cognitif (v2.2)
 
 Usage:
     processor = V2EmailProcessor()
@@ -15,23 +18,32 @@ Usage:
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 from src.core.config_manager import WorkflowV2Config, get_config
 from src.core.events.universal_event import PerceivedEvent
 from src.core.models.v2_models import (
     AnalysisResult,
+    ClarificationQuestion,
     ContextNote,
+    CrossSourceContext,
     EmailAction,
     EnrichmentResult,
+    PatternMatch,
+    V2MemoryState,
+    V2WorkingMemory,
 )
 from src.integrations.apple.omnifocus import OmniFocusClient, create_omnifocus_client
 from src.monitoring.logger import get_logger
 from src.passepartout.context_engine import ContextEngine
+from src.passepartout.cross_source.config import CrossSourceConfig
+from src.passepartout.cross_source.engine import CrossSourceEngine
 from src.passepartout.enricher import PKMEnricher
 from src.passepartout.note_manager import NoteManager
 from src.sancho.analyzer import EventAnalyzer
 from src.sancho.router import AIRouter, get_ai_router
+from src.sganarelle.pattern_store import PatternStore
 
 logger = get_logger("v2_processor")
 
@@ -39,7 +51,7 @@ logger = get_logger("v2_processor")
 @dataclass
 class V2ProcessingResult:
     """
-    Résultat du traitement v2.1 d'un événement.
+    Résultat du traitement v2.2 d'un événement.
 
     Attributes:
         success: True si le traitement a réussi
@@ -50,6 +62,11 @@ class V2ProcessingResult:
         error: Message d'erreur (si échec)
         duration_ms: Durée totale en millisecondes
         auto_applied: True si les extractions ont été auto-appliquées
+        working_memory: Mémoire de travail V2 avec trace complète (v2.2)
+        cross_source_context: Contexte récupéré des sources croisées (v2.2)
+        pattern_matches: Patterns Sganarelle correspondants (v2.2)
+        clarification_questions: Questions pour l'utilisateur si confiance basse (v2.2)
+        needs_clarification: True si une clarification humaine est nécessaire (v2.2)
     """
 
     success: bool
@@ -61,6 +78,12 @@ class V2ProcessingResult:
     duration_ms: float = 0.0
     auto_applied: bool = False
     timestamp: datetime = field(default_factory=datetime.now)
+    # V2.2 additions
+    working_memory: Optional[V2WorkingMemory] = None
+    cross_source_context: list[CrossSourceContext] = field(default_factory=list)
+    pattern_matches: list[PatternMatch] = field(default_factory=list)
+    clarification_questions: list[ClarificationQuestion] = field(default_factory=list)
+    needs_clarification: bool = False
 
     @property
     def extraction_count(self) -> int:
@@ -77,28 +100,49 @@ class V2ProcessingResult:
         """Nombre de tâches OmniFocus créées"""
         return len(self.enrichment.tasks_created) if self.enrichment else 0
 
+    @property
+    def effective_confidence(self) -> float:
+        """Confiance effective incluant le boost des patterns (v2.2)"""
+        if self.analysis:
+            return self.analysis.effective_confidence
+        return 0.0
+
+    @property
+    def pattern_validated(self) -> bool:
+        """True si l'analyse a été validée par au moins un pattern (v2.2)"""
+        return len(self.pattern_matches) > 0
+
 
 class V2EmailProcessor:
     """
-    Processeur d'emails utilisant le Workflow v2.1.
+    Processeur d'emails utilisant le Workflow v2.2.
 
-    Pipeline:
-    1. Récupération du contexte (notes pertinentes)
-    2. Analyse avec EventAnalyzer (Haiku → Sonnet si besoin)
-    3. Si confiance >= auto_apply_threshold : application automatique
-    4. Sinon : mise en queue pour revue humaine
+    Pipeline complet:
+    1. Initialisation V2WorkingMemory pour traçabilité
+    2. Récupération du contexte (notes pertinentes via ContextEngine)
+    3. Récupération du contexte multi-source (CrossSourceEngine) [v2.2]
+    4. Analyse avec EventAnalyzer (Haiku → Sonnet si besoin)
+    5. Validation par patterns appris (PatternStore/Sganarelle) [v2.2]
+    6. Si confiance effective >= auto_apply_threshold : application automatique
+    7. Si confiance basse : génération de questions de clarification [v2.2]
+    8. Sinon : mise en queue pour revue humaine
 
     Attributes:
         config: Configuration WorkflowV2Config
         analyzer: EventAnalyzer pour l'extraction
         enricher: PKMEnricher pour l'application
         context_engine: ContextEngine pour la récupération de contexte
+        cross_source_engine: CrossSourceEngine pour le contexte multi-source (v2.2)
+        pattern_store: PatternStore pour la validation par patterns (v2.2)
 
     Example:
         >>> processor = V2EmailProcessor()
         >>> result = await processor.process_event(event)
         >>> if result.success and result.auto_applied:
         ...     print(f"Applied {result.extraction_count} extractions")
+        >>> if result.needs_clarification:
+        ...     for q in result.clarification_questions:
+        ...         print(f"Question: {q.question}")
     """
 
     def __init__(
@@ -107,6 +151,8 @@ class V2EmailProcessor:
         ai_router: Optional[AIRouter] = None,
         note_manager: Optional[NoteManager] = None,
         omnifocus_client: Optional[OmniFocusClient] = None,
+        cross_source_engine: Optional[CrossSourceEngine] = None,
+        pattern_store: Optional[PatternStore] = None,
     ):
         """
         Initialize the V2 processor.
@@ -116,23 +162,37 @@ class V2EmailProcessor:
             ai_router: AIRouter instance (creates default if None)
             note_manager: NoteManager instance (creates default if None)
             omnifocus_client: OmniFocusClient (creates default if enabled)
+            cross_source_engine: CrossSourceEngine (creates default if None) [v2.2]
+            pattern_store: PatternStore (creates default if None) [v2.2]
         """
         self.config = config or WorkflowV2Config()
+        app_config = get_config()
 
         # Initialize AI router
         if ai_router is None:
-            app_config = get_config()
             ai_router = get_ai_router(app_config.ai)
         self.ai_router = ai_router
 
         # Initialize note manager
         if note_manager is None:
-            app_config = get_config()
             note_manager = NoteManager(notes_dir=app_config.storage.notes_path)
         self.note_manager = note_manager
 
         # Initialize context engine
         self.context_engine = ContextEngine(note_manager=self.note_manager)
+
+        # Initialize CrossSourceEngine (v2.2)
+        if cross_source_engine is None:
+            cross_source_config = CrossSourceConfig(enabled=True)
+            cross_source_engine = CrossSourceEngine(config=cross_source_config)
+        self.cross_source_engine = cross_source_engine
+
+        # Initialize PatternStore (v2.2)
+        if pattern_store is None:
+            # Use the same directory as the database for patterns
+            patterns_path = Path(app_config.storage.database_path).parent / "patterns.json"
+            pattern_store = PatternStore(storage_path=patterns_path, auto_save=True)
+        self.pattern_store = pattern_store
 
         # Initialize analyzer
         self.analyzer = EventAnalyzer(
@@ -155,13 +215,15 @@ class V2EmailProcessor:
         )
 
         logger.info(
-            "V2EmailProcessor initialized",
+            "V2EmailProcessor initialized (v2.2)",
             extra={
                 "default_model": self.config.default_model,
                 "escalation_model": self.config.escalation_model,
                 "escalation_threshold": self.config.escalation_threshold,
                 "auto_apply_threshold": self.config.auto_apply_threshold,
                 "omnifocus_enabled": self.config.omnifocus_enabled,
+                "cross_source_enabled": self.cross_source_engine is not None,
+                "pattern_store_enabled": self.pattern_store is not None,
             },
         )
 
@@ -172,7 +234,16 @@ class V2EmailProcessor:
         auto_apply: bool = True,
     ) -> V2ProcessingResult:
         """
-        Process a single event through the v2.1 pipeline.
+        Process a single event through the v2.2 pipeline.
+
+        Pipeline:
+        1. Initialize V2WorkingMemory
+        2. Get context notes from ContextEngine
+        3. Get cross-source context from CrossSourceEngine [v2.2]
+        4. Analyze with EventAnalyzer (Haiku → Sonnet)
+        5. Validate with PatternStore [v2.2]
+        6. Generate clarification questions if needed [v2.2]
+        7. Auto-apply if high confidence, else queue for review
 
         Args:
             event: PerceivedEvent to process
@@ -180,46 +251,125 @@ class V2EmailProcessor:
             auto_apply: Whether to auto-apply high-confidence extractions
 
         Returns:
-            V2ProcessingResult with analysis and enrichment results
+            V2ProcessingResult with analysis, enrichment, and v2.2 metadata
         """
         import time
 
         start_time = time.time()
 
+        # Step 1: Initialize V2WorkingMemory for this event
+        memory = V2WorkingMemory(event_id=event.event_id)
+        memory.add_trace("Processing started", {"auto_apply": auto_apply})
+
         try:
-            # Step 1: Get context notes if not provided
+            # Step 2: Get context notes if not provided
             if context_notes is None:
                 context_notes = await self._get_context_notes(event)
+            memory.context_notes = context_notes
+            memory.add_trace("Context notes retrieved", {"count": len(context_notes)})
+            memory.transition_to(V2MemoryState.CONTEXT_RETRIEVED)
 
-            logger.debug(
-                f"Processing event {event.event_id} with {len(context_notes)} context notes"
+            # Step 3: Get cross-source context (v2.2)
+            cross_source_context = await self._get_cross_source_context(event)
+            memory.cross_source_context = cross_source_context
+            memory.add_trace(
+                "Cross-source context retrieved",
+                {"count": len(cross_source_context)}
             )
 
-            # Step 2: Analyze event
+            logger.debug(
+                f"Processing event {event.event_id} with "
+                f"{len(context_notes)} notes + {len(cross_source_context)} cross-source items"
+            )
+
+            # Step 4: Analyze event
+            memory.transition_to(V2MemoryState.ANALYZING)
             analysis = await self.analyzer.analyze(event, context_notes)
+            memory.analysis = analysis
+            memory.add_trace(
+                "Analysis complete",
+                {
+                    "confidence": analysis.confidence,
+                    "extractions": analysis.extraction_count,
+                    "escalated": analysis.escalated,
+                    "model": analysis.model_used,
+                }
+            )
+
+            # Step 5: Validate with patterns (v2.2)
+            memory.transition_to(V2MemoryState.PATTERN_VALIDATING)
+            pattern_matches = self._validate_with_patterns(event, analysis)
+            memory.pattern_matches = pattern_matches
+
+            # Apply pattern confidence boost to analysis
+            if pattern_matches:
+                analysis.pattern_matches = pattern_matches
+                analysis.pattern_validated = True
+                # Boost: 5% per matching pattern, max 15%
+                boost = min(0.15, len(pattern_matches) * 0.05)
+                analysis.pattern_confidence_boost = boost
+                memory.add_trace(
+                    "Pattern validation complete",
+                    {
+                        "patterns_matched": len(pattern_matches),
+                        "confidence_boost": boost,
+                        "effective_confidence": analysis.effective_confidence,
+                    }
+                )
 
             logger.info(
                 f"Analysis complete for {event.event_id}",
                 extra={
                     "confidence": analysis.confidence,
+                    "effective_confidence": analysis.effective_confidence,
                     "extractions": analysis.extraction_count,
                     "escalated": analysis.escalated,
                     "model": analysis.model_used,
+                    "patterns_matched": len(pattern_matches),
                 },
             )
 
-            # Step 3: Determine if we should auto-apply
+            # Step 6: Check if clarification needed (v2.2)
+            clarification_questions: list[ClarificationQuestion] = []
+            needs_clarification = False
+
+            if analysis.effective_confidence < self.config.notify_threshold:
+                memory.transition_to(V2MemoryState.NEEDS_CLARIFICATION)
+                clarification_questions = self._generate_clarification_questions(
+                    event, analysis
+                )
+                needs_clarification = len(clarification_questions) > 0
+                analysis.clarification_questions = clarification_questions
+                analysis.needs_clarification = needs_clarification
+                memory.clarification_questions = clarification_questions
+                memory.add_trace(
+                    "Clarification questions generated",
+                    {"count": len(clarification_questions)}
+                )
+
+            # Step 7: Determine if we should auto-apply
+            # Use effective_confidence (includes pattern boost)
             should_apply = (
                 auto_apply
-                and analysis.high_confidence
-                and analysis.confidence >= self.config.auto_apply_threshold
+                and analysis.effective_confidence >= self.config.auto_apply_threshold
                 and analysis.has_extractions
+                and not needs_clarification
             )
 
             enrichment = None
             if should_apply:
-                # Step 4: Apply extractions to PKM
+                memory.transition_to(V2MemoryState.APPLYING)
+                # Apply extractions to PKM
                 enrichment = await self.enricher.apply(analysis, event.event_id)
+                memory.add_trace(
+                    "Extractions applied",
+                    {
+                        "notes_updated": len(enrichment.notes_updated),
+                        "notes_created": len(enrichment.notes_created),
+                        "tasks_created": len(enrichment.tasks_created),
+                        "errors": len(enrichment.errors),
+                    }
+                )
 
                 logger.info(
                     f"Auto-applied extractions for {event.event_id}",
@@ -231,6 +381,8 @@ class V2EmailProcessor:
                     },
                 )
 
+            # Finalize
+            memory.transition_to(V2MemoryState.COMPLETE)
             duration_ms = (time.time() - start_time) * 1000
 
             return V2ProcessingResult(
@@ -241,10 +393,18 @@ class V2EmailProcessor:
                 email_action=analysis.action,
                 auto_applied=should_apply and enrichment is not None,
                 duration_ms=duration_ms,
+                # V2.2 additions
+                working_memory=memory,
+                cross_source_context=cross_source_context,
+                pattern_matches=pattern_matches,
+                clarification_questions=clarification_questions,
+                needs_clarification=needs_clarification,
             )
 
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
+            memory.add_error(str(e))
+            memory.transition_to(V2MemoryState.FAILED)
             logger.error(f"V2 processing failed for {event.event_id}: {e}")
 
             return V2ProcessingResult(
@@ -252,6 +412,7 @@ class V2EmailProcessor:
                 event_id=event.event_id,
                 error=str(e),
                 duration_ms=duration_ms,
+                working_memory=memory,
             )
 
     async def _get_context_notes(
@@ -300,6 +461,232 @@ class V2EmailProcessor:
         except Exception as e:
             logger.warning(f"Failed to get context notes: {e}")
             return []
+
+    async def _get_cross_source_context(
+        self,
+        event: PerceivedEvent,
+    ) -> list[CrossSourceContext]:
+        """
+        Retrieve context from cross-source search (v2.2).
+
+        Searches across emails, calendar, Teams, WhatsApp, files, and web
+        to find relevant context for the event.
+
+        Args:
+            event: Event to find context for
+
+        Returns:
+            List of CrossSourceContext objects
+        """
+        try:
+            # Build search query from event
+            query = self._build_cross_source_query(event)
+            if not query:
+                return []
+
+            # Search across sources (exclude web by default for privacy)
+            result = await self.cross_source_engine.search(
+                query=query,
+                include_web=False,
+                max_results=5,
+            )
+
+            # Convert SourceItems to CrossSourceContext
+            cross_source_items = []
+            for item in result.items:
+                cross_source_items.append(
+                    CrossSourceContext(
+                        source=item.source,
+                        title=item.title,
+                        content_summary=item.content[:300] + "..."
+                        if len(item.content) > 300
+                        else item.content,
+                        relevance=item.final_score,
+                        timestamp=item.timestamp,
+                        metadata=item.metadata,
+                    )
+                )
+
+            logger.debug(
+                f"Cross-source search returned {len(cross_source_items)} items",
+                extra={
+                    "query": query[:50],
+                    "sources_searched": result.sources_searched,
+                },
+            )
+
+            return cross_source_items
+
+        except Exception as e:
+            logger.warning(f"Failed to get cross-source context: {e}")
+            return []
+
+    def _build_cross_source_query(self, event: PerceivedEvent) -> str:
+        """
+        Build a search query from event content.
+
+        Extracts key terms from subject, sender, and content.
+
+        Args:
+            event: Event to build query from
+
+        Returns:
+            Search query string
+        """
+        parts = []
+
+        # Add subject/title
+        if event.title:
+            parts.append(event.title)
+
+        # Add sender info
+        if event.from_person:
+            parts.append(event.from_person)
+        elif event.metadata.get("from_name"):
+            parts.append(event.metadata["from_name"])
+
+        # Add first 100 chars of content
+        if event.content:
+            content_preview = event.content[:100].strip()
+            if content_preview:
+                parts.append(content_preview)
+
+        # Join and limit query length
+        query = " ".join(parts)
+        return query[:200] if query else ""
+
+    def _validate_with_patterns(
+        self,
+        event: PerceivedEvent,
+        analysis: AnalysisResult,
+    ) -> list[PatternMatch]:
+        """
+        Validate analysis against learned patterns (v2.2).
+
+        Uses PatternStore to find matching behavioral patterns that
+        can boost confidence in the analysis.
+
+        Args:
+            event: Event being processed
+            analysis: Analysis result to validate
+
+        Returns:
+            List of PatternMatch objects for matching patterns
+        """
+        try:
+            # Build context for pattern matching
+            context = {
+                "action": analysis.action.value,
+                "extraction_types": [e.type.value for e in analysis.extractions],
+                "has_extractions": analysis.has_extractions,
+                "confidence": analysis.confidence,
+            }
+
+            # Find matching patterns
+            matching_patterns = self.pattern_store.find_matching_patterns(
+                event=event,
+                context=context,
+                min_confidence=0.5,
+            )
+
+            # Convert to PatternMatch format
+            pattern_matches = []
+            for pattern in matching_patterns:
+                pattern_matches.append(
+                    PatternMatch(
+                        pattern_id=pattern.pattern_id,
+                        description=f"{pattern.pattern_type.value}: {pattern.conditions}",
+                        confidence=pattern.confidence,
+                        suggested_action=pattern.suggested_actions[0]
+                        if pattern.suggested_actions
+                        else "",
+                        occurrences=pattern.occurrences,
+                    )
+                )
+
+            if pattern_matches:
+                logger.debug(
+                    f"Found {len(pattern_matches)} matching patterns for {event.event_id}"
+                )
+
+            return pattern_matches
+
+        except Exception as e:
+            logger.warning(f"Failed to validate with patterns: {e}")
+            return []
+
+    def _generate_clarification_questions(
+        self,
+        event: PerceivedEvent,
+        analysis: AnalysisResult,
+    ) -> list[ClarificationQuestion]:
+        """
+        Generate clarification questions for low-confidence analysis (v2.2).
+
+        When confidence is below the notification threshold, generate
+        specific questions to help the user clarify the analysis.
+
+        Args:
+            event: Event being processed
+            analysis: Low-confidence analysis result
+
+        Returns:
+            List of ClarificationQuestion objects
+        """
+        questions = []
+
+        # Question about action if uncertain
+        if analysis.confidence < 0.6:
+            sender_name = event.metadata.get("from_name") or event.from_person or "l'expéditeur"
+            questions.append(
+                ClarificationQuestion(
+                    question=f"Quelle action dois-je effectuer sur cet email de {sender_name} ?",
+                    reason="La confiance dans l'action recommandée est basse",
+                    options=[
+                        "Archiver",
+                        "Marquer pour suivi",
+                        "Mettre en attente",
+                        "Supprimer",
+                        "Aucune action",
+                    ],
+                    priority="haute",
+                )
+            )
+
+        # Question about extractions if any seem uncertain
+        if analysis.has_extractions and analysis.confidence < 0.75:
+            extraction_types = {e.type.value for e in analysis.extractions}
+            questions.append(
+                ClarificationQuestion(
+                    question="Ces informations extraites sont-elles correctes ?",
+                    reason=f"Extractions identifiées : {', '.join(extraction_types)}",
+                    options=[
+                        "Oui, toutes correctes",
+                        "Partiellement correctes",
+                        "Non, ignorer ces extractions",
+                    ],
+                    priority="moyenne",
+                )
+            )
+
+        # Question about note target if creating new notes
+        for extraction in analysis.extractions:
+            if extraction.note_action.value == "creer":
+                questions.append(
+                    ClarificationQuestion(
+                        question=f"Dois-je créer une nouvelle note '{extraction.note_cible}' ?",
+                        reason=f"Information à stocker : {extraction.info[:50]}...",
+                        options=[
+                            "Oui, créer la note",
+                            "Non, ajouter à une note existante",
+                            "Ignorer cette extraction",
+                        ],
+                        priority="moyenne",
+                    )
+                )
+                break  # Only ask once for note creation
+
+        return questions
 
     async def process_batch(
         self,

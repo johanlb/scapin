@@ -405,8 +405,14 @@ class EventAnalyzer:
 
     def _parse_importance(self, importance_str: str) -> ImportanceLevel:
         """Parse importance level with fallback"""
+        importance_lower = importance_str.lower().strip()
+
+        # Handle 'basse' as 'moyenne' (AI sometimes returns this)
+        if importance_lower == "basse":
+            return ImportanceLevel.MOYENNE
+
         try:
-            return ImportanceLevel(importance_str.lower())
+            return ImportanceLevel(importance_lower)
         except ValueError:
             logger.warning(
                 f"Unknown importance '{importance_str}', defaulting to 'moyenne'"
