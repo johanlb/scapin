@@ -629,6 +629,252 @@ Base: 460 emails/jour × 30 jours = 13,800 emails/mois
 | Tests intégration | ~200 | 0.5 |
 | **TOTAL** | ~2050 | **5 jours** |
 
+### 6.3 Décisions Architecturales (ADR)
+
+> **Date** : 12 janvier 2026
+> **Statut** : Approuvé
+> **Participants** : Johan, Claude
+
+#### ADR-001 : ReasoningEngine → Refactoriser en MultiPassAnalyzer
+
+**Contexte** : Le `ReasoningEngine` existant (`src/sancho/reasoning_engine.py`) fait déjà du multi-pass avec une structure de passes.
+
+**Décision** : **Refactoriser** plutôt que remplacer.
+
+**Justification** :
+- Préserve la couverture de tests existante
+- Réutilise les fondations solides (structure passes, tracking confiance)
+- Réduit le risque de régression
+- Migration progressive possible
+
+**Conséquences** :
+- Renommer la classe `ReasoningEngine` → `MultiPassAnalyzer`
+- Mettre à jour la logique interne pour v2.2
+- Adapter les méthodes `_pass1_*`, `_pass2_*` vers `_execute_pass(n, config)`
+- Garder la signature publique `analyze()` compatible
+
+```python
+# Avant
+class ReasoningEngine:
+    def _pass1_initial_extraction(self, event): ...
+    def _pass2_context_enrichment(self, event, context): ...
+
+# Après
+class MultiPassAnalyzer:
+    def _execute_pass(self, pass_number: int, context: PassContext) -> PassResult: ...
+```
+
+---
+
+#### ADR-002 : CrossSourceEngine → Wrapper ContextSearcher
+
+**Contexte** : Le `CrossSourceEngine` (`src/passepartout/cross_source/`) recherche dans plusieurs sources (Calendar, Teams, Files, Web). Le multi-pass a besoin de recherche contextuelle par entités.
+
+**Décision** : **Créer un wrapper** `ContextSearcher` plutôt qu'utiliser directement.
+
+**Justification** :
+- Séparation des responsabilités claire
+- Interface adaptée aux besoins du multi-pass (recherche par entité)
+- Retourne un format structuré (`StructuredContext`)
+- Facilite les tests (mock du wrapper, pas de toute l'infra)
+- Permet d'ajouter le `NoteManager` pour les notes PKM
+
+**Conséquences** :
+- Créer `src/sancho/context_searcher.py`
+- Injecter `CrossSourceEngine` et `NoteManager` comme dépendances
+- Interface: `search_for_entities(entities: list[str]) -> StructuredContext`
+
+```python
+# src/sancho/context_searcher.py
+class ContextSearcher:
+    """Recherche contextuelle pour le multi-pass analyzer"""
+
+    def __init__(
+        self,
+        cross_source_engine: CrossSourceEngine,
+        note_manager: NoteManager
+    ):
+        self.cross_source = cross_source_engine
+        self.notes = note_manager
+
+    async def search_for_entities(
+        self,
+        entities: list[str],
+        config: ContextSearchConfig
+    ) -> StructuredContext:
+        """Recherche contexte pour les entités mentionnées"""
+        # 1. Notes PKM par titre/type
+        notes = await self.notes.search_by_entities(entities)
+
+        # 2. Cross-source (calendar, email, tasks)
+        cross_results = await self.cross_source.search(
+            query=" OR ".join(entities),
+            sources=["calendar", "email", "omnifocus"]
+        )
+
+        # 3. Construire profils d'entités
+        profiles = self._build_entity_profiles(entities, notes, cross_results)
+
+        return StructuredContext(
+            notes=notes,
+            calendar=cross_results.calendar,
+            tasks=cross_results.tasks,
+            emails=cross_results.emails,
+            entity_profiles=profiles
+        )
+```
+
+---
+
+#### ADR-003 : CognitivePipeline reste orchestrateur
+
+**Contexte** : Le `CognitivePipeline` (`src/trivelin/cognitive_pipeline.py`) orchestre actuellement le flux email → analyse → actions.
+
+**Décision** : **Garder CognitivePipeline** comme orchestrateur haut niveau, il appelle `MultiPassAnalyzer`.
+
+**Justification** :
+- Responsabilités claires et séparées
+- `CognitivePipeline` : flux de traitement (normalisation, dispatch, actions)
+- `MultiPassAnalyzer` : raisonnement IA (passes, convergence, escalade)
+- Plus facile à tester indépendamment
+- Permet de réutiliser `MultiPassAnalyzer` pour d'autres sources (Teams, Calendar)
+
+**Conséquences** :
+- `CognitivePipeline.process()` appelle `MultiPassAnalyzer.analyze()`
+- Le pipeline reste responsable de `ActionFactory`
+- Hiérarchie d'appels :
+
+```
+Processor (trivelin)
+    └── CognitivePipeline
+            ├── MultiPassAnalyzer (sancho)
+            │       └── ContextSearcher
+            │       └── PassExecutor
+            │       └── Convergence
+            └── ActionFactory (trivelin)
+```
+
+---
+
+#### ADR-004 : Migration directe sans feature flag
+
+**Contexte** : La spec prévoyait un feature flag `multi_pass.enabled` pour rollout progressif.
+
+**Décision** : **Migration directe** vers v2.2, pas de coexistence v2.1/v2.2.
+
+**Justification** :
+- Simplifie le code (pas de branches conditionnelles)
+- Projet en phase de développement, pas en production
+- Tests complets avant mise en service
+- Rollback possible via git si problème
+
+**Conséquences** :
+- Supprimer la config `multi_pass.enabled` / `rollout_percentage`
+- Le nouveau système est actif par défaut
+- L'ancien `ReasoningEngine` est remplacé, pas conservé
+
+---
+
+#### ADR-005 : Migration des templates vers Jinja2
+
+**Contexte** : Les prompts actuels sont dans `src/sancho/templates.py` (chaînes Python). La spec prévoit des templates Jinja2.
+
+**Décision** : **Migrer vers Jinja2** dans `templates/ai/v2/`.
+
+**Justification** :
+- Séparation code / contenu
+- Syntaxe Jinja2 plus lisible pour les prompts complexes
+- Support natif des boucles, conditions, filtres
+- Facilite l'édition sans toucher au code Python
+- Standard de l'industrie pour les templates
+
+**Conséquences** :
+- Créer `templates/ai/v2/` avec les fichiers `.j2`
+- Utiliser `jinja2` (déjà dans les dépendances)
+- Créer un `TemplateRenderer` pour charger et rendre les templates
+- Supprimer les prompts inline de `templates.py` après migration
+
+```
+templates/ai/v2/
+├── pass1_blind_extraction.j2
+├── pass2_contextual_refinement.j2
+├── pass4_deep_reasoning.j2
+└── common/
+    ├── extraction_format.j2
+    └── confidence_format.j2
+```
+
+---
+
+### 6.4 Diagramme d'Architecture Final
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           ARCHITECTURE v2.2                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  TRIVELIN (Perception)                                            │   │
+│  │  ┌─────────────┐                                                  │   │
+│  │  │  Processor  │ → PerceivedEvent                                │   │
+│  │  └──────┬──────┘                                                  │   │
+│  └─────────┼────────────────────────────────────────────────────────┘   │
+│            ↓                                                             │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  TRIVELIN (Pipeline)                                              │   │
+│  │  ┌───────────────────┐                                            │   │
+│  │  │ CognitivePipeline │ ← Orchestrateur haut niveau               │   │
+│  │  └─────────┬─────────┘                                            │   │
+│  │            │                                                       │   │
+│  │            ├──────────────────────┐                               │   │
+│  │            ↓                      ↓                               │   │
+│  │  ┌─────────────────┐    ┌─────────────────┐                      │   │
+│  │  │ MultiPassAnalyzer│    │  ActionFactory  │                      │   │
+│  │  │    (SANCHO)      │    │   (TRIVELIN)    │                      │   │
+│  │  └────────┬─────────┘    └─────────────────┘                      │   │
+│  └───────────┼──────────────────────────────────────────────────────┘   │
+│              │                                                           │
+│  ┌───────────┼──────────────────────────────────────────────────────┐   │
+│  │  SANCHO (Raisonnement)                                            │   │
+│  │           │                                                        │   │
+│  │           ├─────────────────┬─────────────────┐                   │   │
+│  │           ↓                 ↓                 ↓                   │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │   │
+│  │  │ PassExecutor │  │ContextSearcher│  │ Convergence  │            │   │
+│  │  │              │  │              │  │              │            │   │
+│  │  │ - Pass 1-5   │  │ - Notes PKM  │  │ - Seuils     │            │   │
+│  │  │ - Templates  │  │ - Calendar   │  │ - Arrêt      │            │   │
+│  │  │ - AI Router  │  │ - Email hist │  │ - Escalade   │            │   │
+│  │  └──────────────┘  │ - Tasks      │  └──────────────┘            │   │
+│  │                    └───────┬──────┘                               │   │
+│  └────────────────────────────┼─────────────────────────────────────┘   │
+│                               │                                          │
+│  ┌────────────────────────────┼─────────────────────────────────────┐   │
+│  │  PASSEPARTOUT (Contexte)   │                                      │   │
+│  │                            ↓                                      │   │
+│  │  ┌───────────────────┐  ┌───────────────────┐                    │   │
+│  │  │    NoteManager    │  │ CrossSourceEngine │                    │   │
+│  │  │                   │  │                   │                    │   │
+│  │  │ - Notes PKM       │  │ - Calendar        │                    │   │
+│  │  │ - Embeddings      │  │ - Teams           │                    │   │
+│  │  │ - Vector search   │  │ - Email           │                    │   │
+│  │  └───────────────────┘  │ - OmniFocus       │                    │   │
+│  │                         └───────────────────┘                    │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  TEMPLATES (Jinja2)                                               │   │
+│  │                                                                    │   │
+│  │  templates/ai/v2/                                                 │   │
+│  │  ├── pass1_blind_extraction.j2                                   │   │
+│  │  ├── pass2_contextual_refinement.j2                              │   │
+│  │  ├── pass4_deep_reasoning.j2                                     │   │
+│  │  └── common/                                                      │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## 7. Métriques et Monitoring
