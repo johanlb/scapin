@@ -229,8 +229,9 @@
 							<button
 								class="folder-chip"
 								onclick={() => handleSelectFolder(folder)}
+								title={folder}
 							>
-								{folder.split('/').pop() || folder}
+								{folder}
 							</button>
 						{/each}
 					</div>
@@ -308,27 +309,30 @@
 
 {#snippet FolderNode(node: FolderTreeNode, depth: number)}
 	<div class="tree-node" style="--depth: {depth}">
-		<button
-			class="node-row"
-			onclick={() => {
-				if (node.children?.length) {
-					toggleFolder(node.path);
-				} else {
-					handleSelectFolder(node.path);
-				}
-			}}
-			ondblclick={() => handleSelectFolder(node.path)}
-		>
-			{#if node.children?.length}
-				<span class="expand-icon" class:expanded={expandedFolders.has(node.path)}>
-					▶
-				</span>
-			{:else}
-				<span class="expand-spacer"></span>
-			{/if}
-			<span class="folder-icon">📁</span>
-			<span class="node-name">{node.name}</span>
-		</button>
+		<div class="node-row">
+			<button
+				class="node-toggle"
+				onclick={() => toggleFolder(node.path)}
+				aria-label={node.children?.length ? (expandedFolders.has(node.path) ? 'Réduire' : 'Développer') : 'Dossier vide'}
+			>
+				{#if node.children?.length}
+					<span class="expand-icon" class:expanded={expandedFolders.has(node.path)}>
+						▶
+					</span>
+				{:else}
+					<span class="expand-spacer"></span>
+				{/if}
+				<span class="folder-icon">📁</span>
+				<span class="node-name" title={node.path}>{node.name}</span>
+			</button>
+			<button
+				class="node-select-btn"
+				onclick={() => handleSelectFolder(node.path)}
+				aria-label="Sélectionner ce dossier"
+			>
+				Sélectionner
+			</button>
+		</div>
 
 		{#if node.children?.length && expandedFolders.has(node.path)}
 			<div class="node-children">
@@ -343,24 +347,29 @@
 <style>
 	.folder-selector-overlay {
 		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.6);
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: rgba(0, 0, 0, 0.85);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		z-index: 1000;
+		z-index: 9999;
 		padding: 1rem;
 	}
 
 	.folder-selector {
-		background: var(--color-bg);
-		border-radius: 12px;
+		background-color: #1c1c1e;
+		border: 1px solid #3a3a3c;
+		border-radius: 16px;
 		width: 100%;
-		max-width: 500px;
-		max-height: 80vh;
+		max-width: 480px;
+		max-height: 85vh;
 		display: flex;
 		flex-direction: column;
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+		box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
+		overflow: hidden;
 	}
 
 	.selector-header {
@@ -368,27 +377,29 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 1rem 1.25rem;
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid #3a3a3c;
+		background-color: #2c2c2e;
 	}
 
 	.selector-header h2 {
 		font-size: 1.1rem;
 		font-weight: 600;
 		margin: 0;
+		color: #ffffff;
 	}
 
 	.close-btn {
 		background: none;
 		border: none;
 		font-size: 1.5rem;
-		color: var(--color-text-secondary);
+		color: #8e8e93;
 		cursor: pointer;
 		padding: 0.25rem;
 		line-height: 1;
 	}
 
 	.close-btn:hover {
-		color: var(--color-text);
+		color: #ffffff;
 	}
 
 	.loading-state,
@@ -399,14 +410,14 @@
 		justify-content: center;
 		gap: 0.75rem;
 		padding: 3rem 1rem;
-		color: var(--color-text-secondary);
+		color: #8e8e93;
 	}
 
 	.spinner {
 		width: 24px;
 		height: 24px;
-		border: 2px solid var(--color-border);
-		border-top-color: var(--color-accent);
+		border: 2px solid #3a3a3c;
+		border-top-color: #0a84ff;
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 	}
@@ -426,7 +437,7 @@
 	section h3 {
 		font-size: 0.8rem;
 		font-weight: 600;
-		color: var(--color-text-secondary);
+		color: #8e8e93;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
 		margin: 0 0 0.5rem;
@@ -440,7 +451,7 @@
 	}
 
 	.suggestions-section {
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid #3a3a3c;
 	}
 
 	.suggestions-list {
@@ -454,18 +465,19 @@
 		flex-direction: column;
 		gap: 0.25rem;
 		padding: 0.75rem;
-		background: var(--color-bg-secondary);
-		border: 1px solid var(--color-border);
+		background-color: #2c2c2e;
+		border: 1px solid #3a3a3c;
 		border-radius: 8px;
 		cursor: pointer;
 		text-align: left;
 		width: 100%;
 		transition: all 0.15s ease;
+		color: #ffffff;
 	}
 
 	.suggestion-item:hover {
-		border-color: var(--color-accent);
-		background: var(--color-bg-hover);
+		border-color: #0a84ff;
+		background-color: #3a3a3c;
 	}
 
 	.suggestion-main {
@@ -485,7 +497,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		font-size: 0.8rem;
-		color: var(--color-text-secondary);
+		color: #8e8e93;
 		padding-left: 1.5rem;
 	}
 
@@ -499,7 +511,7 @@
 	}
 
 	.recent-section {
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid #3a3a3c;
 	}
 
 	.folder-chips {
@@ -509,23 +521,24 @@
 	}
 
 	.folder-chip {
-		background: var(--color-bg-secondary);
-		border: 1px solid var(--color-border);
+		background-color: #2c2c2e;
+		border: 1px solid #3a3a3c;
 		border-radius: 16px;
 		padding: 0.375rem 0.75rem;
 		font-size: 0.85rem;
 		cursor: pointer;
 		transition: all 0.15s ease;
+		color: #ffffff;
 	}
 
 	.folder-chip:hover {
-		border-color: var(--color-accent);
-		background: var(--color-bg-hover);
+		border-color: #0a84ff;
+		background-color: #3a3a3c;
 	}
 
 	.search-section {
 		padding: 0.75rem 1.25rem;
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid #3a3a3c;
 	}
 
 	.tree-section {
@@ -546,7 +559,7 @@
 	.empty-state {
 		text-align: center;
 		padding: 2rem 1rem;
-		color: var(--color-text-secondary);
+		color: #8e8e93;
 	}
 
 	.tree-node {
@@ -558,23 +571,61 @@
 		align-items: center;
 		gap: 0.25rem;
 		width: 100%;
-		padding: 0.375rem 1rem;
-		padding-left: calc(1rem + var(--depth) * 1.25rem);
+		padding: 0.25rem 0.5rem;
+		padding-left: calc(0.5rem + var(--depth) * 1.25rem);
+		padding-right: 0.5rem;
+		transition: background 0.1s ease;
+	}
+
+	.node-row:hover {
+		background-color: #3a3a3c;
+	}
+
+	.node-row:hover .node-select-btn {
+		opacity: 1;
+	}
+
+	.node-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		flex: 1;
 		background: none;
 		border: none;
 		text-align: left;
 		cursor: pointer;
 		font-size: 0.9rem;
-		transition: background 0.1s ease;
+		padding: 0.25rem 0;
+		color: inherit;
 	}
 
-	.node-row:hover {
-		background: var(--color-bg-hover);
+	.node-select-btn {
+		opacity: 0;
+		background-color: #0a84ff;
+		color: white;
+		border: none;
+		border-radius: 4px;
+		padding: 0.25rem 0.5rem;
+		font-size: 0.75rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: opacity 0.15s ease, background-color 0.1s ease;
+		white-space: nowrap;
+	}
+
+	.node-select-btn:hover {
+		background-color: #0077ed;
+	}
+
+	.node-select-btn:focus {
+		opacity: 1;
+		outline: 2px solid #0a84ff;
+		outline-offset: 2px;
 	}
 
 	.expand-icon {
 		font-size: 0.6rem;
-		color: var(--color-text-secondary);
+		color: #8e8e93;
 		transition: transform 0.15s ease;
 		width: 1rem;
 		text-align: center;
@@ -594,6 +645,7 @@
 
 	.node-name {
 		flex: 1;
+		color: #ffffff;
 	}
 
 	.node-children {
@@ -601,7 +653,7 @@
 	}
 
 	.create-section {
-		border-top: 1px solid var(--color-border);
+		border-top: 1px solid #3a3a3c;
 		padding: 1rem 1.25rem;
 	}
 
