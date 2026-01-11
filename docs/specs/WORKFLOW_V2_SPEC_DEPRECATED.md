@@ -1,9 +1,25 @@
-# Spécification Workflow v2 : "Extraction de Connaissance"
+# ⚠️ DEPRECATED — Spécification Workflow v2 : "Extraction de Connaissance"
 
-**Version** : 2.0.0-draft
+> **⚠️ CE DOCUMENT EST OBSOLÈTE**
+>
+> Cette spécification a été remplacée par une version simplifiée :
+> - **Nouvelle spec** : [WORKFLOW_V2_SIMPLIFIED.md](WORKFLOW_V2_SIMPLIFIED.md)
+> - **Plan d'implémentation** : [WORKFLOW_V2_IMPLEMENTATION.md](WORKFLOW_V2_IMPLEMENTATION.md)
+>
+> **Raisons du remplacement** :
+> - Trop complexe (6 phases → 4 phases)
+> - ML local inutile (GLiNER, SetFit → API Haiku)
+> - Fast Path contradictoire avec l'objectif d'enrichissement
+> - Coût élevé (~$100/mois → ~$36/mois)
+>
+> Ce document est conservé pour référence historique uniquement.
+
+---
+
+**Version** : 2.0.0-draft (DEPRECATED)
 **Date** : 11 janvier 2026
 **Auteur** : Johan + Claude
-**Statut** : En cours de rédaction
+**Statut** : ❌ REMPLACÉ par v2.1
 
 ---
 

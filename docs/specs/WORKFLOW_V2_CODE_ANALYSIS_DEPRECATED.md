@@ -1,8 +1,17 @@
-# Analyse des Modifications de Code - Workflow v2
+# ⚠️ DEPRECATED — Analyse des Modifications de Code - Workflow v2
 
-**Version** : 1.0
+> **⚠️ CE DOCUMENT EST OBSOLÈTE**
+>
+> Ce document faisait référence à la spécification v2.0 complexe (WORKFLOW_V2_SPEC.md).
+> Cette spécification a été remplacée par une version simplifiée :
+> - **Nouvelle spec** : [WORKFLOW_V2_SIMPLIFIED.md](WORKFLOW_V2_SIMPLIFIED.md)
+> - **Nouveau plan** : [WORKFLOW_V2_IMPLEMENTATION.md](WORKFLOW_V2_IMPLEMENTATION.md)
+>
+> Ce document est conservé pour référence historique uniquement.
+
+**Version** : 1.0 (DEPRECATED)
 **Date** : 11 janvier 2026
-**Référence** : [WORKFLOW_V2_SPEC.md](WORKFLOW_V2_SPEC.md)
+**Référence** : [WORKFLOW_V2_SPEC_DEPRECATED.md](WORKFLOW_V2_SPEC_DEPRECATED.md)
 
 ---
 

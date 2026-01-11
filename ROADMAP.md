@@ -1,9 +1,9 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 9 janvier 2026
-**Version** : 1.0.0-alpha.18 (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 5 ✅ — Qualité & Release (6/6 — 100%)
-**Prochaine priorité** : v1.0 Release Candidate
+**Dernière mise à jour** : 11 janvier 2026
+**Version** : 1.0.0-alpha.19 (suite de PKM v3.1.0)
+**Phase actuelle** : Sprint 6 🚧 — Workflow v2.1 Knowledge Extraction
+**Prochaine priorité** : Implémentation Workflow v2.1 (~4 jours)
 
 ---
 
@@ -11,15 +11,15 @@
 
 ### Statut Global
 
-**État** : Sprint 5 COMPLÉTÉ — MVP 100% (86/86 items) 🎉
+**État** : Sprint 6 EN COURS — Workflow v2.1 Knowledge Extraction 🚧
 
 | Métrique | Valeur |
 |----------|--------|
 | **Tests** | 2148+ backend + 660 E2E, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
-| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprints 1-4 + Cross-Source |
-| **Gaps MVP restants** | 0 — MVP COMPLET 🎉 |
-| **Prochaine priorité** | v1.0 Release Candidate |
+| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprints 1-5 + Cross-Source |
+| **MVP v1.0** | ✅ COMPLET (86/86 items) |
+| **Prochaine priorité** | 🌟 Workflow v2.1 — Knowledge Extraction |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -884,6 +884,123 @@ cross_source:
 
 ---
 
+## Sprint 6 : Workflow v2.1 — Knowledge Extraction 🌟
+
+**Statut** : 🚧 EN COURS — 0/6 items
+**Objectif** : Enrichir le PKM automatiquement à partir de chaque événement
+**Spécification** : [WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)
+**Plan d'implémentation** : [WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)
+
+### Vision
+
+> **Paradigm Shift** : De "Quelle action prendre ?" à "Quelle information extraire ?"
+
+Le workflow v1 ("Triage") se concentrait sur la classification et les actions.
+Le workflow v2.1 ("Knowledge Extraction") inverse la priorité : l'objectif principal
+est d'**enrichir en permanence le PKM**, avec les actions comme effet secondaire.
+
+### Architecture 4 Phases
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    WORKFLOW V2.1 SIMPLIFIÉ                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Phase 1: PERCEPTION (local, ~100ms)                                    │
+│    → Normalisation PerceivedEvent + Embedding                           │
+│                                                                          │
+│  Phase 2: CONTEXTE (local, ~200ms)                                      │
+│    → Recherche sémantique FAISS, top 3-5 notes pertinentes              │
+│                                                                          │
+│  Phase 3: ANALYSE (API, ~1-2s)                                          │
+│    → Haiku par défaut ($0.03/événement)                                 │
+│    → Escalade Sonnet si confidence < 0.7                                │
+│    → Extraction entités + classification + action                       │
+│                                                                          │
+│  Phase 4: APPLICATION (local, ~200ms)                                   │
+│    → Enrichir notes PKM                                                 │
+│    → Créer tâches OmniFocus (si deadlines)                              │
+│    → Exécuter action (archive/flag/queue)                               │
+│                                                                          │
+│  TOTAL: ~2s/événement | COÛT: ~$36/mois (460 events/jour)               │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Livrables
+
+| Catégorie | Item | Fichier | Statut |
+|-----------|------|---------|--------|
+| **Configuration** | WorkflowV2Config | `src/core/config_manager.py` | ⬜ |
+| **Modèles** | Extraction, AnalysisResult | `src/core/models/v2_models.py` | ⬜ |
+| **Analyse** | Analyzer Haiku/Sonnet | `src/sancho/analyzer.py` | ⬜ |
+| **Template** | Prompt extraction | `src/sancho/templates/v2/extraction.j2` | ⬜ |
+| **Application** | Note Enricher | `src/passepartout/enricher.py` | ⬜ |
+| **Intégration** | Client OmniFocus | `src/integrations/apple/omnifocus.py` | ⬜ |
+| **Tests** | Tests unitaires | `tests/unit/test_v2_workflow.py` | ⬜ |
+
+### Décisions de Conception
+
+| Question | Décision |
+|----------|----------|
+| Structure notes | Hybride (résumé + historique récent + archivé) |
+| Création notes | Toujours demander confirmation |
+| Notes longues | Auto-archivage entrées > 3 mois |
+| OmniFocus projet | Matcher existant, sinon Inbox |
+| Bootstrap | Création agressive si PKM < 50 notes |
+| Correction erreurs | Manuelle (v2.1) |
+| Limite extractions | Pas de limite |
+| Granularité | Beaucoup de petites notes (1 note = 1 entité) |
+
+### Types d'Information Extraits
+
+| Type | Exemple | Destination |
+|------|---------|-------------|
+| **Fait** | "Marie est promue directrice" | Note personne |
+| **Décision** | "Budget approuvé: 50K€" | Note projet + OmniFocus |
+| **Engagement** | "Marc livrera lundi" | Note personne + OmniFocus |
+| **Deadline** | "Rapport pour vendredi" | OmniFocus |
+| **Relation** | "Marc rejoint Projet Alpha" | Note personne + projet |
+
+### Plan d'Implémentation
+
+| Jour | Focus | Fichiers | Lignes |
+|------|-------|----------|--------|
+| 1 | Fondations | WorkflowV2Config, v2_models.py | ~150 |
+| 2 | Analyse | analyzer.py, extraction.j2 | ~230 |
+| 3 | Application | enricher.py, omnifocus.py | ~350 |
+| 4 | Intégration | Tests, processor.py integration | ~200 |
+
+**Total** : ~880 lignes en ~4 jours
+
+### Coûts Estimés
+
+```
+460 événements/jour × 30 jours = 13,800 événements/mois
+
+90% Haiku (12,420 événements):
+  Input  : 12,420 × 2,500 tokens × $0.25/M = $7.76
+  Output : 12,420 × 500 tokens × $1.25/M = $7.76
+  Sous-total Haiku : $15.52
+
+10% Sonnet (1,380 événements):
+  Input  : 1,380 × 2,500 tokens × $3/M = $10.35
+  Output : 1,380 × 500 tokens × $15/M = $10.35
+  Sous-total Sonnet : $20.70
+
+TOTAL : ~$36/mois
+```
+
+### Métriques de Succès
+
+| Métrique | Objectif |
+|----------|----------|
+| Temps/événement | < 3s |
+| Coût/mois | < $50 |
+| Extractions pertinentes | > 85% |
+| Notes enrichies/jour | > 20 |
+| Erreurs/jour | < 5 |
+
+---
+
 ## Phase 3.0 : Nice-to-Have (53 items)
 
 Après MVP stable, par ordre de valeur :
@@ -983,13 +1100,16 @@ Infrastructure:    ████████████████████ 
 Valeur Fonct.:     ████████████████████ 100% ✅
 Interfaces:        ████████████████████ 100% ✅
 
-=== MVP EN COURS ===
+=== MVP v1.0 COMPLÉTÉ ===
 Sprint 1 (Notes):  ████████████████████ 100% ✅ (19/19)
 Sprint 2 (Analyse):████████████████████ 100% ✅ (13/13)
 Sprint 3 (Actions):████████████████████ 100% ✅ (18/18)
 Cross-Source 🔥:   ████████████████████ 100% ✅ (12/12)
 Sprint 4 (UX):     ████████████████████ 100% ✅ (18/18)
-Sprint 5 (Release):████████████████████ 100% ✅ (6/6 — COMPLET)
+Sprint 5 (Release):████████████████████ 100% ✅ (6/6)
+
+=== POST-MVP ===
+Sprint 6 (v2.1):   ░░░░░░░░░░░░░░░░░░░░   0% 🚧 (0/6 — EN COURS)
 
 === NICE-TO-HAVE ===
 Phase 3.0:         ░░░░░░░░░░░░░░░░░░░░   0% 📋
@@ -1009,7 +1129,8 @@ Global MVP:        ████████████████████�
 | Sprint 4 | 18 | 18 | ✅ 100% |
 | Sprint 5 | 6 | 6 | ✅ 100% |
 | **Total MVP** | **86** | **86** | ✅ **100%** |
-| Phase 3.0 | 53 | 3 | 📋 Après MVP |
+| **Sprint 6 (v2.1)** 🌟 | **6** | **0** | 🚧 **0%** |
+| Phase 3.0 | 53 | 3 | 📋 Après v2.1 |
 
 ---
 
@@ -1065,6 +1186,16 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.19** (2026-01-11) : Workflow v2.1 Knowledge Extraction Design
+  - **Simplification radicale** : 6 phases → 4 phases, ML local → API only
+  - **Architecture API-First** : Haiku par défaut, escalade Sonnet si incertain
+  - **Coût optimisé** : ~$36/mois au lieu de ~$100/mois
+  - **Documentation complète** : WORKFLOW_V2_SIMPLIFIED.md, WORKFLOW_V2_IMPLEMENTATION.md
+  - **8 décisions de conception** validées (structure notes, création, OmniFocus, etc.)
+  - **Plan d'implémentation** : 6 fichiers, ~880 lignes, ~4 jours
+  - **Commits** : `1dc58d3`, `931de4d`
+  - **Prochaine étape** : Implémentation Sprint 6
 
 - **v1.0.0-alpha.18** (2026-01-09) : UI Notes Apple-like & Revue SM-2
   - **UI Notes 3 colonnes** : Style Apple Notes (dossiers | liste | contenu)
@@ -1190,9 +1321,9 @@ Global MVP:        ████████████████████�
 
 ---
 
-**Statut** : MVP COMPLET ✅ — 86/86 items (100%)
+**Statut** : MVP COMPLET ✅ — Sprint 6 (Workflow v2.1) EN COURS 🚧
 **Qualité** : 10/10 Production Ready Core (Security Hardened)
 **Tests** : 2148+ backend + 660 E2E tests, 95% couverture, 100% pass rate
 **Lighthouse** : A11y 98%, Best Practices 96%, SEO 100%, Performance 86-95%
-**Documentation** : Guide utilisateur 7 sections (~1500 lignes) + Page /help in-app
-**Prochaine étape** : Audit sécurité OWASP (2 items restants)
+**Documentation** : Guide utilisateur 7 sections + Specs Workflow v2.1
+**Prochaine étape** : Implémentation Workflow v2.1 (~4 jours)

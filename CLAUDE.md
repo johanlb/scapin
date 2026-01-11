@@ -1,9 +1,10 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
 **Dernière mise à jour** : 11 janvier 2026
-**Projet** : Scapin (anciennement PKM System)  
-**Dépôt** : https://github.com/johanlb/scapin  
+**Projet** : Scapin (anciennement PKM System)
+**Dépôt** : https://github.com/johanlb/scapin
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
+**Prochaine priorité** : 🌟 Workflow v2.1 — Knowledge Extraction (API-First)
 
 ---
 
@@ -30,7 +31,9 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **[ROADMAP.md](ROADMAP.md)** | Le *quand* | Priorisation des tâches |
 | **[UI_VOCABULARY.md](docs/UI_VOCABULARY.md)** | 🎭 **Vocabulaire UI** — Mapping termes UI ↔ technique | Traitement requêtes utilisateur, génération réponses |
 | **[CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)** | ✅ **Spec CrossSource** — Complété | Référence Sprint Cross-Source |
-| **[SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)** | 🎯 **Spec Sprint 5** — Prêt | Tests E2E, Lighthouse, Guide, Audit |
+| **[SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)** | ✅ **Spec Sprint 5** — Complété | Tests E2E, Lighthouse, Guide, Audit |
+| **[WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)** | 🌟 **Workflow v2.1** — Approuvé | Architecture Knowledge Extraction |
+| **[WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)** | 📋 **Plan Implémentation** — Prêt | 6 fichiers, ~880 lignes |
 | **Ce fichier (CLAUDE.md)** | État actuel | Démarrage de session |
 
 ### Les 5 Principes Directeurs
@@ -539,6 +542,73 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-11 (Suite) — Workflow v2.1 Knowledge Extraction Design ✅
+
+**Focus** : Conception et simplification radicale de l'architecture d'extraction de connaissances
+
+**Accomplissements** :
+
+1. ✅ **Analyse critique de la spec v2.0 complexe**
+   - 6 phases → Trop complexe
+   - ML local (GLiNER, SetFit) → Overhead inutile
+   - Fast Path → Contradiction avec l'objectif d'enrichissement PKM
+   - ~27 fichiers, ~$100/mois → Pas rentable
+
+2. ✅ **Décision : Architecture API-First simplifiée (v2.1)**
+   - **4 phases** au lieu de 6
+   - **0 ML local** — Tout via API Haiku
+   - **Pas de Fast Path** — Analyser TOUT (Haiku coûte ~$0.03/événement)
+   - **Escalade Sonnet** si confidence < 0.7
+   - **~6 fichiers, ~$36/mois** — Simple et efficace
+
+3. ✅ **8 décisions de conception validées**
+   | Question | Décision |
+   |----------|----------|
+   | Structure notes | Hybride (résumé + historique récent + archivé) |
+   | Création notes | Toujours demander confirmation |
+   | Notes longues | Auto-archivage entrées > 3 mois |
+   | OmniFocus projet | Matcher existant, sinon Inbox |
+   | Bootstrap | Création agressive si PKM < 50 notes |
+   | Correction erreurs | Manuelle (v2.1) |
+   | Limite extractions | Pas de limite |
+   | Granularité | Beaucoup de petites notes (1 note = 1 entité) |
+
+4. ✅ **Documentation créée**
+   - `docs/specs/WORKFLOW_V2_SIMPLIFIED.md` (~525 lignes) — Spec complète v2.1
+   - `docs/specs/WORKFLOW_V2_IMPLEMENTATION.md` (~400 lignes) — Plan d'implémentation
+   - `ARCHITECTURE.md` mis à jour avec architecture 4 phases
+
+**Architecture 4 Phases v2.1** :
+```
+Phase 1: PERCEPTION (local, ~100ms)
+  → Normalisation + Embedding
+Phase 2: CONTEXTE (local, ~200ms)
+  → Recherche sémantique FAISS, top 3-5 notes
+Phase 3: ANALYSE (API, ~1-2s)
+  → Haiku défaut, escalade Sonnet si incertain
+  → Extraction entités + classification + action
+Phase 4: APPLICATION (local, ~200ms)
+  → Enrichir notes PKM
+  → Créer tâches OmniFocus (si deadlines)
+  → Exécuter action (archive/flag/queue)
+
+TOTAL: ~2s/événement | COÛT: ~$36/mois
+```
+
+**Fichiers créés** :
+```
+docs/specs/WORKFLOW_V2_SIMPLIFIED.md       # NEW (~525 lignes)
+docs/specs/WORKFLOW_V2_IMPLEMENTATION.md   # NEW (~400 lignes)
+```
+
+**Commits** :
+- `1dc58d3` — docs(workflow-v2): simplify architecture - API-first with Haiku
+- `931de4d` — docs(workflow-v2): add design decisions from discussion
+
+**Prochaine étape** : Implémentation selon le plan (6 fichiers, ~880 lignes)
+
+---
 
 ### Session 2026-01-11 — Email Processing Fixes (iCloud IMAP + JSON Parsing) ✅
 
@@ -1380,17 +1450,39 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 | Suppression de notes depuis UI | LOW | #45 |
 | Rendu fichiers attachés (PDF, JPG, WAV) | LOW | #46 |
 
-### Prochaines étapes v1.0
+### Prochaine priorité : Workflow v2.1 — Knowledge Extraction
 
-1. **Corriger les 2 bugs HIGH** (#41, #43)
-2. **Tests manuels complets** de tous les flux utilisateur
-3. **Tag v1.0.0-rc.1** une fois les bugs HIGH corrigés
-4. **Documentation de déploiement** (optionnel)
+**Objectif** : Enrichir le PKM automatiquement à partir de chaque événement (email, Teams, Calendar).
+
+**Plan d'implémentation** (~4 jours) :
+
+| Jour | Focus | Fichiers |
+|------|-------|----------|
+| 1 | Fondations | `WorkflowV2Config`, `v2_models.py` |
+| 2 | Analyse | `analyzer.py`, `extraction.j2` |
+| 3 | Application | `enricher.py`, `omnifocus.py` |
+| 4 | Intégration | Tests, intégration processor.py |
+
+**Fichiers à créer** (~880 lignes) :
+- `src/core/models/v2_models.py` (~100 lignes)
+- `src/sancho/analyzer.py` (~150 lignes)
+- `src/sancho/templates/v2/extraction.j2` (~80 lignes)
+- `src/passepartout/enricher.py` (~200 lignes)
+- `src/integrations/apple/omnifocus.py` (~150 lignes)
+- `tests/unit/test_v2_workflow.py` (~200 lignes)
+
+**Spec complète** : [WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)
+
+### Bugs en attente (v1.0 RC)
+
+| Bug | Priorité | Issue |
+|-----|----------|-------|
+| Édition de notes ne fonctionne pas | HIGH | #41 |
+| Page révision en boucle infinie | HIGH | #43 |
 
 ### Post-v1.0 (Phase 2.5)
 
 - IA Multi-Provider avec consensus
-- Intégration OmniFocus
 - Quick Capture mobile
 
 ---
@@ -1408,5 +1500,5 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 
 ---
 
-**Dernière mise à jour** : 9 janvier 2026 par Claude
-**Prochaine révision** : Début prochaine session
+**Dernière mise à jour** : 11 janvier 2026 par Claude
+**Prochaine révision** : Implémentation Workflow v2.1
