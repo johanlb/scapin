@@ -140,7 +140,7 @@ Analyse les événements via architecture multi-pass avec escalade intelligente 
 src/sancho/
 ├── convergence.py            # Logique convergence + escalade (~420 lignes) ✅ Sprint 7
 ├── context_searcher.py       # Wrapper recherche contexte (~640 lignes) ✅ Sprint 7
-├── multi_pass_analyzer.py    # MultiPassAnalyzer v2.2 (TODO Sprint 7)
+├── multi_pass_analyzer.py    # MultiPassAnalyzer v2.2 (~650 lignes) ✅ Sprint 7
 ├── router.py                 # AIRouter + JSON repair (~500 lignes)
 ├── analyzer.py               # EventAnalyzer v2.1 (~476 lignes)
 ├── model_selector.py         # Sélection modèle (~200 lignes)
@@ -312,6 +312,60 @@ def get_template_renderer() -> TemplateRenderer:
 - `truncate_smart` — Tronque au mot (pas au milieu)
 - `format_date` — Formatage date ISO → "12 janvier 2026"
 - `format_confidence` — 0.85 → "85%"
+
+### MultiPassAnalyzer (multi_pass_analyzer.py) — Sprint 7
+
+Orchestrateur de l'analyse multi-passes v2.2 avec escalade intelligente.
+
+```python
+@dataclass
+class MultiPassResult:
+    """Résultat final de l'analyse multi-passes"""
+    extractions: list[Extraction]
+    action: str
+    confidence: DecomposedConfidence
+    entities_discovered: set[str]
+
+    # Métadonnées
+    passes_count: int
+    total_duration_ms: float
+    total_tokens: int
+    final_model: str
+    escalated: bool
+    stop_reason: str
+    high_stakes: bool
+    pass_history: list[PassResult]
+
+    @property
+    def high_confidence(self) -> bool:
+        return self.confidence.overall >= 0.90
+
+class MultiPassAnalyzer:
+    """Analyseur multi-passes avec escalade Haiku → Sonnet → Opus"""
+
+    async def analyze(
+        self,
+        event: PerceivedEvent,
+        sender_importance: str = "normal",
+    ) -> MultiPassResult:
+        # 1. Pass 1: Extraction aveugle (Haiku)
+        # 2. Si pas convergé: recherche contexte, Pass 2
+        # 3. Continue jusqu'à convergence ou max passes
+        # 4. Escalade vers Sonnet/Opus si nécessaire
+
+def create_multi_pass_analyzer(
+    ai_router: AIRouter | None = None,
+    context_searcher: ContextSearcher | None = None,
+    config: MultiPassConfig | None = None,
+) -> MultiPassAnalyzer:
+    """Factory function"""
+```
+
+**Méthodes internes** :
+- `_run_pass1()` — Pass 1 avec template blind extraction
+- `_run_pass2()` — Pass 2-3 avec template contextual refinement
+- `_run_pass4()` — Pass 4-5 avec template deep reasoning
+- `_identify_unresolved_issues()` — Détecte les problèmes non résolus
 
 ### Architecture Multi-Pass v2.2
 

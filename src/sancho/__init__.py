@@ -47,6 +47,12 @@ from src.sancho.convergence import (
     targeted_escalation,
 )
 from src.sancho.model_selector import ModelSelector, ModelTier
+from src.sancho.multi_pass_analyzer import (
+    MultiPassAnalyzer,
+    MultiPassAnalyzerError,
+    MultiPassResult,
+    create_multi_pass_analyzer,
+)
 from src.sancho.router import AIModel, AIRouter, RateLimiter, get_ai_router
 from src.sancho.template_renderer import TemplateRenderer, get_template_renderer
 from src.sancho.templates import TemplateManager, get_template_manager
@@ -90,4 +96,9 @@ __all__ = [
     "select_model",
     "should_stop",
     "targeted_escalation",
+    # Multi-Pass Analyzer (v2.2)
+    "MultiPassAnalyzer",
+    "MultiPassAnalyzerError",
+    "MultiPassResult",
+    "create_multi_pass_analyzer",
 ]
