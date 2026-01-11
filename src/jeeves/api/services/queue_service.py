@@ -868,8 +868,8 @@ class QueueService:
 
             # Reconstruct EmailContent
             email_content = EmailContent(
-                text_body=content.get("full_text", content.get("preview", "")),
-                html_body=content.get("html_body"),
+                plain_text=content.get("full_text", content.get("preview", "")),
+                html=content.get("html_body"),
                 attachments=[],
             )
 
