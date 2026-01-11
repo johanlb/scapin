@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 12 janvier 2026
 **Version** : 1.0.0-rc.1
-**Phase actuelle** : ✅ Release Candidate 1 | 🚧 Sprint 7 (Multi-Pass v2.2) en cours (8/11)
+**Phase actuelle** : ✅ Release Candidate 1 | 🚧 Sprint 7 (Multi-Pass v2.2) en cours (9/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
 ---
@@ -886,7 +886,7 @@ cross_source:
 
 ## Sprint 7 : Workflow v2.2 — Multi-Pass Extraction 🌟
 
-**Statut** : 🚧 EN COURS — 8/11 items (73%)
+**Statut** : 🚧 EN COURS — 9/11 items (82%)
 **Objectif** : Améliorer la qualité d'extraction via analyse multi-passes et escalade intelligente
 **Spécification** : [MULTI_PASS_SPEC.md](docs/specs/MULTI_PASS_SPEC.md) ⭐ NEW
 **Workflow** : [WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md) (v2.2)
@@ -952,7 +952,7 @@ par **entités extraites** (précis), puis raffinement itératif jusqu'à confia
 | **Templates** | Pass 2 contextual refinement | `templates/ai/v2/pass2_contextual_refinement.j2` | ✅ |
 | **Templates** | Pass 4 deep reasoning | `templates/ai/v2/pass4_deep_reasoning.j2` | ✅ |
 | **Analyse** | MultiPassAnalyzer | `src/sancho/multi_pass_analyzer.py` | ✅ |
-| **Intégration** | CognitivePipeline update | `src/trivelin/cognitive_pipeline.py` | ⬜ |
+| **Intégration** | V2EmailProcessor + MultiPassAnalyzer | `src/trivelin/v2_processor.py` | ✅ |
 | **Tests** | Tests unitaires Sprint 7 | `tests/unit/test_convergence.py` | ⬜ |
 | **Tests** | Tests intégration Sprint 7 | `tests/integration/test_multi_pass.py` | ⬜ |
 

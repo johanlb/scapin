@@ -42,6 +42,8 @@ from src.passepartout.cross_source.engine import CrossSourceEngine
 from src.passepartout.enricher import PKMEnricher
 from src.passepartout.note_manager import NoteManager
 from src.sancho.analyzer import EventAnalyzer
+from src.sancho.context_searcher import ContextSearcher
+from src.sancho.multi_pass_analyzer import MultiPassAnalyzer, MultiPassResult
 from src.sancho.router import AIRouter, get_ai_router
 from src.sganarelle.pattern_store import PatternStore
 
@@ -153,6 +155,7 @@ class V2EmailProcessor:
         omnifocus_client: Optional[OmniFocusClient] = None,
         cross_source_engine: Optional[CrossSourceEngine] = None,
         pattern_store: Optional[PatternStore] = None,
+        use_multi_pass: bool = False,
     ):
         """
         Initialize the V2 processor.
@@ -164,7 +167,9 @@ class V2EmailProcessor:
             omnifocus_client: OmniFocusClient (creates default if enabled)
             cross_source_engine: CrossSourceEngine (creates default if None) [v2.2]
             pattern_store: PatternStore (creates default if None) [v2.2]
+            use_multi_pass: Use MultiPassAnalyzer instead of EventAnalyzer [v2.2]
         """
+        self.use_multi_pass = use_multi_pass
         self.config = config or WorkflowV2Config()
         app_config = get_config()
 
@@ -194,11 +199,32 @@ class V2EmailProcessor:
             pattern_store = PatternStore(storage_path=patterns_path, auto_save=True)
         self.pattern_store = pattern_store
 
-        # Initialize analyzer
-        self.analyzer = EventAnalyzer(
-            ai_router=self.ai_router,
-            config=self.config,
-        )
+        # Initialize analyzer (v2.1 EventAnalyzer or v2.2 MultiPassAnalyzer)
+        self.multi_pass_analyzer: MultiPassAnalyzer | None = None
+        self.context_searcher: ContextSearcher | None = None
+
+        if self.use_multi_pass:
+            # Initialize ContextSearcher for multi-pass (v2.2)
+            self.context_searcher = ContextSearcher(
+                note_manager=self.note_manager,
+                cross_source_engine=self.cross_source_engine,
+            )
+            # Initialize MultiPassAnalyzer (v2.2)
+            self.multi_pass_analyzer = MultiPassAnalyzer(
+                ai_router=self.ai_router,
+                context_searcher=self.context_searcher,
+            )
+            # Keep EventAnalyzer as fallback
+            self.analyzer = EventAnalyzer(
+                ai_router=self.ai_router,
+                config=self.config,
+            )
+        else:
+            # v2.1 mode: use EventAnalyzer only
+            self.analyzer = EventAnalyzer(
+                ai_router=self.ai_router,
+                config=self.config,
+            )
 
         # Initialize OmniFocus client if enabled
         if omnifocus_client is None and self.config.omnifocus_enabled:
@@ -215,7 +241,7 @@ class V2EmailProcessor:
         )
 
         logger.info(
-            "V2EmailProcessor initialized (v2.2)",
+            f"V2EmailProcessor initialized ({'v2.2 multi-pass' if self.use_multi_pass else 'v2.1'})",
             extra={
                 "default_model": self.config.default_model,
                 "escalation_model": self.config.escalation_model,
@@ -224,6 +250,7 @@ class V2EmailProcessor:
                 "omnifocus_enabled": self.config.omnifocus_enabled,
                 "cross_source_enabled": self.cross_source_engine is not None,
                 "pattern_store_enabled": self.pattern_store is not None,
+                "multi_pass_enabled": self.use_multi_pass,
             },
         )
 
@@ -284,17 +311,37 @@ class V2EmailProcessor:
 
             # Step 4: Analyze event
             memory.transition_to(V2MemoryState.ANALYZING)
-            analysis = await self.analyzer.analyze(event, context_notes)
+
+            multi_pass_result: MultiPassResult | None = None
+            if self.use_multi_pass and self.multi_pass_analyzer:
+                # v2.2: Use MultiPassAnalyzer
+                analysis, multi_pass_result = await self._analyze_with_multi_pass(event)
+                memory.add_trace(
+                    "Multi-pass analysis complete",
+                    {
+                        "confidence": analysis.confidence,
+                        "extractions": analysis.extraction_count,
+                        "escalated": analysis.escalated,
+                        "model": analysis.model_used,
+                        "passes_count": multi_pass_result.passes_count if multi_pass_result else 0,
+                        "stop_reason": multi_pass_result.stop_reason if multi_pass_result else "",
+                        "high_stakes": multi_pass_result.high_stakes if multi_pass_result else False,
+                    }
+                )
+            else:
+                # v2.1: Use EventAnalyzer
+                analysis = await self.analyzer.analyze(event, context_notes)
+                memory.add_trace(
+                    "Analysis complete",
+                    {
+                        "confidence": analysis.confidence,
+                        "extractions": analysis.extraction_count,
+                        "escalated": analysis.escalated,
+                        "model": analysis.model_used,
+                    }
+                )
+
             memory.analysis = analysis
-            memory.add_trace(
-                "Analysis complete",
-                {
-                    "confidence": analysis.confidence,
-                    "extractions": analysis.extraction_count,
-                    "escalated": analysis.escalated,
-                    "model": analysis.model_used,
-                }
-            )
 
             # Step 5: Validate with patterns (v2.2)
             memory.transition_to(V2MemoryState.PATTERN_VALIDATING)
@@ -688,6 +735,115 @@ class V2EmailProcessor:
 
         return questions
 
+    def _convert_multi_pass_result(
+        self,
+        multi_pass_result: MultiPassResult,
+    ) -> AnalysisResult:
+        """
+        Convert MultiPassResult to AnalysisResult for backward compatibility.
+
+        Args:
+            multi_pass_result: Result from MultiPassAnalyzer
+
+        Returns:
+            AnalysisResult in v2.1 format
+        """
+        from src.core.models.v2_models import (
+            Extraction as V2Extraction,
+        )
+        from src.core.models.v2_models import (
+            ExtractionType,
+            ImportanceLevel,
+            NoteAction,
+        )
+
+        # Convert extractions
+        extractions = []
+        for ext in multi_pass_result.extractions:
+            try:
+                ext_type = ExtractionType(ext.type)
+            except ValueError:
+                ext_type = ExtractionType.FAIT
+
+            try:
+                importance = ImportanceLevel(ext.importance)
+            except ValueError:
+                importance = ImportanceLevel.MOYENNE
+
+            try:
+                note_action = NoteAction(ext.note_action)
+            except ValueError:
+                note_action = NoteAction.ENRICHIR
+
+            extractions.append(
+                V2Extraction(
+                    info=ext.info,
+                    type=ext_type,
+                    importance=importance,
+                    note_cible=ext.note_cible or "",
+                    note_action=note_action,
+                    omnifocus=ext.omnifocus,
+                    calendar=ext.calendar,
+                    date=ext.date,
+                    time=ext.time,
+                    timezone=ext.timezone,
+                    duration=ext.duration,
+                )
+            )
+
+        # Convert action
+        try:
+            action = EmailAction(multi_pass_result.action)
+        except ValueError:
+            action = EmailAction.RIEN
+
+        # Build AnalysisResult
+        return AnalysisResult(
+            extractions=extractions,
+            action=action,
+            confidence=multi_pass_result.confidence.overall,
+            raisonnement=multi_pass_result.pass_history[-1].reasoning if multi_pass_result.pass_history else "",
+            model_used=multi_pass_result.final_model,
+            tokens_used=multi_pass_result.total_tokens,
+            duration_ms=multi_pass_result.total_duration_ms,
+            escalated=multi_pass_result.escalated,
+            # V2.2 additional info stored in raisonnement
+            draft_reply=multi_pass_result.draft_reply,
+        )
+
+    async def _analyze_with_multi_pass(
+        self,
+        event: PerceivedEvent,
+    ) -> tuple[AnalysisResult, MultiPassResult]:
+        """
+        Analyze event using MultiPassAnalyzer (v2.2).
+
+        Args:
+            event: Event to analyze
+
+        Returns:
+            Tuple of (AnalysisResult for compatibility, original MultiPassResult)
+        """
+        if not self.multi_pass_analyzer:
+            raise RuntimeError("MultiPassAnalyzer not initialized (use_multi_pass=False)")
+
+        # Get sender importance from event
+        sender_importance = "normal"
+        if event.sender:
+            # Could be enhanced with VIP detection from notes
+            sender_importance = getattr(event.sender, "importance", "normal") or "normal"
+
+        # Run multi-pass analysis
+        multi_pass_result = await self.multi_pass_analyzer.analyze(
+            event=event,
+            sender_importance=sender_importance,
+        )
+
+        # Convert to AnalysisResult for backward compatibility
+        analysis_result = self._convert_multi_pass_result(multi_pass_result)
+
+        return analysis_result, multi_pass_result
+
     async def process_batch(
         self,
         events: list[PerceivedEvent],
@@ -730,14 +886,16 @@ class V2EmailProcessor:
 
 def create_v2_processor(
     config: Optional[WorkflowV2Config] = None,
+    use_multi_pass: bool = False,
 ) -> V2EmailProcessor:
     """
     Factory function to create a V2EmailProcessor.
 
     Args:
         config: Optional WorkflowV2Config
+        use_multi_pass: Enable MultiPassAnalyzer (v2.2) instead of EventAnalyzer (v2.1)
 
     Returns:
         Configured V2EmailProcessor instance
     """
-    return V2EmailProcessor(config=config)
+    return V2EmailProcessor(config=config, use_multi_pass=use_multi_pass)
