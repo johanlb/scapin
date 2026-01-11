@@ -14,6 +14,7 @@ from src.jeeves.api.models.queue import (
     ActionOptionResponse,
     ApproveRequest,
     AttachmentResponse,
+    BulkReanalyzeResponse,
     EntityResponse,
     ModifyRequest,
     ProposedNoteResponse,
@@ -525,6 +526,32 @@ async def reanalyze_queue_item(
         )
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/reanalyze-all", response_model=APIResponse[BulkReanalyzeResponse])
+async def reanalyze_all_pending(
+    service: QueueService = Depends(get_queue_service),
+) -> APIResponse[BulkReanalyzeResponse]:
+    """
+    Reanalyze all pending queue items.
+
+    This triggers a fresh AI analysis for all items currently in 'pending' status.
+    Useful when the analysis template or model has been updated.
+    """
+    try:
+        result = await service.reanalyze_all_pending()
+        return APIResponse(
+            success=True,
+            data=BulkReanalyzeResponse(
+                total_items=result.get("total", 0),
+                started=result.get("started", 0),
+                failed=result.get("failed", 0),
+                status=result.get("status", "processing"),
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

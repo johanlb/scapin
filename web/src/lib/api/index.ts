@@ -27,6 +27,7 @@ export {
 	undoQueueItem,
 	canUndoQueueItem,
 	reanalyzeQueueItem,
+	reanalyzeAllPending,
 	// Notes Review
 	getNotesDue,
 	getReviewStats,

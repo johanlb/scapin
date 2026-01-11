@@ -7,7 +7,7 @@
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
-	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox, reanalyzeQueueItem, recordArchive, getFolderSuggestions } from '$lib/api';
+	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox, reanalyzeQueueItem, reanalyzeAllPending, recordArchive, getFolderSuggestions } from '$lib/api';
 	import type { QueueItem, ActionOption, SnoozeOption, FolderSuggestion } from '$lib/api';
 	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
 
@@ -38,7 +38,7 @@
 	let folderSuggestion = $state<FolderSuggestion | null>(null);
 
 	// Bug #49: Auto-fetch threshold
-	const AUTO_FETCH_THRESHOLD = 5;
+	const AUTO_FETCH_THRESHOLD = 20;
 	const AUTO_FETCH_COOLDOWN_MS = 60000; // 1 minute cooldown between auto-fetches
 	let autoFetchEnabled = $state(true); // Can be disabled by user
 	let lastAutoFetchTime = $state(0); // Timestamp of last auto-fetch
@@ -103,7 +103,6 @@
 	let currentIndex: number = $state(0);
 	let customInstruction: string = $state('');
 	let isProcessing: boolean = $state(false);
-	let showCustomInput: boolean = $state(false);
 	let showLevel3: boolean = $state(false);
 	let showHtmlContent: boolean = $state(false);
 
@@ -118,8 +117,7 @@
 		activeFilter = filter;
 		currentIndex = 0;
 		customInstruction = '';
-		showCustomInput = false;
-		await queueStore.fetchQueue(filter);
+				await queueStore.fetchQueue(filter);
 
 		// Check which approved items can be undone
 		if (filter === 'approved') {
@@ -194,6 +192,54 @@
 			);
 		} finally {
 			isFetchingEmails = false;
+		}
+	}
+
+	// Re-analyze all pending items
+	async function handleReanalyzeAll() {
+		if (isReanalyzing) return;
+
+		const pendingCount = queueStore.stats?.by_status?.pending ?? queueStore.items.length;
+		if (pendingCount === 0) {
+			toastStore.info('Aucun élément à réanalyser', { title: 'File vide' });
+			return;
+		}
+
+		isReanalyzing = true;
+
+		const processingToastId = toastStore.info(
+			`Réanalyse de ${pendingCount} élément${pendingCount > 1 ? 's' : ''} en cours...`,
+			{ title: 'Réanalyse', duration: 300000 } // 5 minutes max
+		);
+
+		try {
+			const result = await reanalyzeAllPending();
+
+			toastStore.dismiss(processingToastId);
+
+			// Refresh queue
+			await queueStore.fetchQueue('pending');
+			await queueStore.fetchStats();
+
+			if (result.started > 0) {
+				toastStore.success(
+					`${result.started}/${result.total_items} élément${result.started > 1 ? 's' : ''} réanalysé${result.started > 1 ? 's' : ''}${result.failed > 0 ? ` (${result.failed} échec${result.failed > 1 ? 's' : ''})` : ''}`,
+					{ title: 'Réanalyse terminée' }
+				);
+			} else {
+				toastStore.warning(
+					'Aucun élément n\'a pu être réanalysé',
+					{ title: 'Réanalyse échouée' }
+				);
+			}
+		} catch (err) {
+			toastStore.dismiss(processingToastId);
+			toastStore.error(
+				'Impossible de réanalyser les éléments. Vérifiez la connexion au serveur.',
+				{ title: 'Erreur' }
+			);
+		} finally {
+			isReanalyzing = false;
 		}
 	}
 
@@ -283,17 +329,12 @@
 			case 'D':
 				handleDelete(currentItem);
 				break;
-			case 'i':
-			case 'I':
-				showCustomInput = !showCustomInput;
-				break;
 			case 'v':
 			case 'V':
 				// v for details (legacy shortcut, e also works via centralized system)
 				showLevel3 = !showLevel3;
 				break;
 			case 'Escape':
-				showCustomInput = false;
 				showLevel3 = false;
 				showSnoozeMenu = false;
 				customInstruction = '';
@@ -304,12 +345,12 @@
 	async function handleSelectOption(item: QueueItem, option: ActionOption) {
 		if (isProcessing) return;
 
-		// For archive action: check if we need to show folder selector
+		// For archive action: check if we have a destination
 		if (option.action === 'archive') {
 			const destination = option.destination;
 
 			if (!destination) {
-				// Try to get AI suggestion for the folder
+				// No destination - try to get AI suggestion
 				try {
 					const suggestions = await getFolderSuggestions(
 						item.metadata.from_address,
@@ -338,10 +379,28 @@
 					return;
 				}
 			}
+			// Has destination - use it directly
+			await executeArchiveWithFolder(item, option, destination);
+			return;
 		}
 
-		// Non-archive action or archive with destination - proceed normally
+		// Non-archive action - proceed normally
 		await executeAction(item, option, option.destination ?? undefined);
+	}
+
+	// Open folder selector to choose a different folder
+	function handleArchiveElsewhere(item: QueueItem) {
+		pendingArchiveItem = item;
+		pendingArchiveOption = {
+			action: 'archive',
+			confidence: 0,
+			reasoning: 'Classement manuel',
+			reasoning_detailed: null,
+			destination: null,
+			is_recommended: false
+		};
+		folderSuggestion = null;
+		showFolderSelector = true;
 	}
 
 	async function executeArchiveWithFolder(item: QueueItem, option: ActionOption, folder: string) {
@@ -374,41 +433,38 @@
 			currentIndex = Math.max(0, queueStore.items.length - 1);
 		}
 		customInstruction = '';
-		showCustomInput = false;
 
-		// Show undo toast immediately
-		toastStore.undo(
-			`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
-			async () => {
-				await undoQueueItem(itemId);
-				await queueStore.fetchQueue('pending');
-				await queueStore.fetchStats();
-			},
-			{ itemId, title: 'Action effectuée' }
-		);
-
-		// Allow next action immediately (unlock UI)
-		isProcessing = false;
-
-		// Bug #53 fix: Execute API call in background (non-blocking)
+		// Execute action first, then show undo toast
+		// This ensures the action is recorded before undo can be triggered
 		try {
 			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, destination);
-			// Update stats in background (no await needed)
-			queueStore.fetchStats();
+
+			// Action succeeded - now show undo toast
+			toastStore.undo(
+				`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
+				async () => {
+					await undoQueueItem(itemId);
+					await queueStore.fetchQueue('pending');
+					await queueStore.fetchStats();
+				},
+				{ itemId, title: 'Action effectuée' }
+			);
+
+			// Update stats
+			await queueStore.fetchStats();
 			// Bug #49: Check if we need to auto-fetch
 			checkAutoFetch();
 		} catch (e) {
 			// Bug #52 fix: Restore item if action failed
 			console.error('Action failed:', e);
-			// Dismiss the undo toast since action failed
-			const undoToast = toastStore.findUndoByItemId(itemId);
-			if (undoToast) toastStore.dismiss(undoToast.id);
 			// Restore item to queue
 			queueStore.restoreItem(savedItem);
 			toastStore.error(
 				`Échec de l'action "${actionLabel}". L'email a été restauré.`,
 				{ title: 'Erreur IMAP' }
 			);
+		} finally {
+			isProcessing = false;
 		}
 	}
 
@@ -444,8 +500,7 @@
 				// Update the item in the store with the new analysis
 				queueStore.updateItemAnalysis(itemId, result.new_analysis);
 
-				showCustomInput = false;
-				toastStore.success(
+								toastStore.success(
 					`Nouvelle analyse effectuée pour : ${item.metadata.subject.slice(0, 30)}${item.metadata.subject.length > 30 ? '...' : ''}`,
 					{ title: 'Analyse terminée' }
 				);
@@ -482,15 +537,11 @@
 			currentIndex = Math.max(0, queueStore.items.length - 1);
 		}
 		customInstruction = '';
-		showCustomInput = false;
 
-		// Allow next action immediately
-		isProcessing = false;
-
-		// Execute in background
+		// Execute action
 		try {
 			await rejectQueueItem(item.id);
-			queueStore.fetchStats();
+			await queueStore.fetchStats();
 			// Bug #49: Check if we need to auto-fetch
 			checkAutoFetch();
 		} catch (e) {
@@ -500,6 +551,8 @@
 				`Échec du rejet. L'email a été restauré.`,
 				{ title: 'Erreur' }
 			);
+		} finally {
+			isProcessing = false;
 		}
 	}
 
@@ -519,37 +572,35 @@
 			currentIndex = Math.max(0, queueStore.items.length - 1);
 		}
 		customInstruction = '';
-		showCustomInput = false;
 
-		// Show undo toast immediately
-		toastStore.undo(
-			`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
-			async () => {
-				await undoQueueItem(itemId);
-				await queueStore.fetchQueue('pending');
-				await queueStore.fetchStats();
-			},
-			{ itemId, title: 'Email déplacé vers la corbeille' }
-		);
-
-		// Allow next action immediately
-		isProcessing = false;
-
-		// Execute in background
+		// Execute action first, then show undo toast
 		try {
 			await approveQueueItem(item.id, 'delete', item.analysis.category || undefined);
-			queueStore.fetchStats();
+
+			// Action succeeded - now show undo toast
+			toastStore.undo(
+				`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
+				async () => {
+					await undoQueueItem(itemId);
+					await queueStore.fetchQueue('pending');
+					await queueStore.fetchStats();
+				},
+				{ itemId, title: 'Email déplacé vers la corbeille' }
+			);
+
+			// Update stats
+			await queueStore.fetchStats();
 			// Bug #49: Check if we need to auto-fetch
 			checkAutoFetch();
 		} catch (e) {
 			console.error('Delete failed:', e);
-			const undoToast = toastStore.findUndoByItemId(itemId);
-			if (undoToast) toastStore.dismiss(undoToast.id);
 			queueStore.restoreItem(savedItem);
 			toastStore.error(
 				`Échec de la suppression. L'email a été restauré.`,
 				{ title: 'Erreur IMAP' }
 			);
+		} finally {
+			isProcessing = false;
 		}
 	}
 
@@ -561,8 +612,7 @@
 			currentIndex = 0; // Loop back to start
 		}
 		customInstruction = '';
-		showCustomInput = false;
-		showLevel3 = false;
+				showLevel3 = false;
 	}
 
 	// Navigation helpers for keyboard shortcuts
@@ -658,8 +708,7 @@
 	async function handleDeferCustomInstruction(item: QueueItem) {
 		if (!item || isSnoozing) return;
 		isSnoozing = true;
-		showCustomInput = false;
-		snoozeError = null;
+				snoozeError = null;
 
 		try {
 			// Snooze with the custom instruction as reason
@@ -708,8 +757,7 @@
 			queueStore.moveToEnd(item.id);
 		}
 		customInstruction = '';
-		showCustomInput = false;
-		showLevel3 = false;
+				showLevel3 = false;
 	}
 
 	function getActionLabel(action: string): string {
@@ -885,6 +933,24 @@
 						Récupérer
 					{/if}
 				</Button>
+
+				<!-- Re-analyze all button -->
+				{#if activeFilter === 'pending' && queueStore.items.length > 0}
+					<Button
+						variant="secondary"
+						size="sm"
+						onclick={handleReanalyzeAll}
+						disabled={isReanalyzing}
+					>
+						{#if isReanalyzing}
+							<span class="mr-1.5 animate-spin">🔄</span>
+							Réanalyse...
+						{:else}
+							<span class="mr-1.5">🔄</span>
+							Réanalyser
+						{/if}
+					</Button>
+				{/if}
 
 				<!-- Focus mode button -->
 				{#if activeFilter === 'pending' && queueStore.items.length > 0}
@@ -1342,6 +1408,41 @@
 									</div>
 								</button>
 							{/each}
+
+							<!-- Autre - Custom instruction (always visible) -->
+							<div class="w-full p-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)]/50">
+								<div class="flex items-center gap-2 mb-2">
+									<span class="text-lg">✏️</span>
+									<span class="text-sm font-medium text-[var(--color-text-secondary)]">Autre</span>
+								</div>
+								<Input
+									placeholder="Votre instruction, Monsieur..."
+									bind:value={customInstruction}
+									disabled={isProcessing || isReanalyzing}
+								/>
+								<div class="flex gap-2 mt-2">
+									<Button
+										variant="primary"
+										size="sm"
+										onclick={() => handleCustomInstruction(currentItem)}
+										disabled={isProcessing || isReanalyzing || !customInstruction.trim()}
+									>
+										{#if isReanalyzing}
+											<span class="mr-1 animate-spin">⏳</span> Analyse...
+										{:else}
+											<span class="mr-1">🔄</span> Analyser maintenant
+										{/if}
+									</Button>
+									<Button
+										variant="secondary"
+										size="sm"
+										onclick={() => handleDeferCustomInstruction(currentItem)}
+										disabled={isProcessing || isSnoozing || isReanalyzing || !customInstruction.trim()}
+									>
+										<span class="mr-1">⏰</span> Plus tard
+									</Button>
+								</div>
+							</div>
 						</div>
 					</div>
 				{:else}
@@ -1380,56 +1481,13 @@
 					</div>
 				{/if}
 
-				<!-- Custom instruction toggle (Bug #55: two buttons) -->
-				{#if showCustomInput}
-					<div class="space-y-2 p-3 rounded-lg border border-[var(--color-border)]">
-						<label for="custom-instruction" class="text-xs font-medium text-[var(--color-text-secondary)]">
-							Votre instruction, Monsieur :
-						</label>
-						<Input
-							id="custom-instruction"
-							placeholder="Ex: Classer dans Travail/Projets/2026"
-							bind:value={customInstruction}
-						/>
-						<div class="flex gap-2 flex-wrap">
-							<Button
-								variant="primary"
-								size="sm"
-								onclick={() => handleCustomInstruction(currentItem)}
-								disabled={isProcessing || isReanalyzing || !customInstruction.trim()}
-							>
-								{#if isReanalyzing}
-									<span class="mr-1 animate-spin">⏳</span> Analyse en cours...
-								{:else}
-									<span class="mr-1">🔄</span> Analyser maintenant
-								{/if}
-							</Button>
-							<Button
-								variant="secondary"
-								size="sm"
-								onclick={() => handleDeferCustomInstruction(currentItem)}
-								disabled={isProcessing || isSnoozing || isReanalyzing}
-							>
-								<span class="mr-1">⏰</span> Plus tard
-							</Button>
-							<Button
-								variant="secondary"
-								size="sm"
-								onclick={() => { showCustomInput = false; customInstruction = ''; }}
-								disabled={isReanalyzing}
-							>
-								Annuler
-							</Button>
-						</div>
-					</div>
-				{/if}
-
 				<!-- Bottom actions - Always available -->
 				<div class="pt-4 border-t border-[var(--color-border)] space-y-3">
 					<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide">
 						Actions rapides
 					</p>
 					<div class="flex flex-wrap gap-2">
+						<!-- Approuver -->
 						<Button
 							variant="primary"
 							size="sm"
@@ -1440,6 +1498,7 @@
 							<span class="mr-1">✅</span> Approuver
 							<span class="ml-1 text-xs opacity-60 font-mono">A</span>
 						</Button>
+						<!-- Rejeter -->
 						<Button
 							variant="secondary"
 							size="sm"
@@ -1450,6 +1509,36 @@
 							<span class="mr-1">🚫</span> Rejeter
 							<span class="ml-1 text-xs opacity-60 font-mono">R</span>
 						</Button>
+						<!-- Détails -->
+						<Button
+							variant={showLevel3 ? 'primary' : 'secondary'}
+							size="sm"
+							onclick={() => showLevel3 = !showLevel3}
+						>
+							<span class="mr-1">{showLevel3 ? '📖' : '📋'}</span>
+							{showLevel3 ? 'Vue simple' : 'Détails'}
+							<span class="ml-1 text-xs opacity-60 font-mono">E</span>
+						</Button>
+						<!-- Classer ailleurs -->
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={() => handleArchiveElsewhere(currentItem)}
+							disabled={isProcessing}
+						>
+							<span class="mr-1">📁</span> Classer
+						</Button>
+						<!-- Supprimer -->
+						<Button
+							variant="secondary"
+							size="sm"
+							onclick={() => handleDelete(currentItem)}
+							disabled={isProcessing}
+						>
+							<span class="mr-1">🗑️</span> Supprimer
+							<span class="ml-1 text-xs opacity-60 font-mono">D</span>
+						</Button>
+						<!-- Reporter -->
 						<div class="relative">
 							<Button
 								variant="secondary"
@@ -1486,35 +1575,6 @@
 								</div>
 							{/if}
 						</div>
-						<Button
-							variant={showLevel3 ? 'primary' : 'secondary'}
-							size="sm"
-							onclick={() => showLevel3 = !showLevel3}
-						>
-							<span class="mr-1">{showLevel3 ? '📖' : '📋'}</span>
-							{showLevel3 ? 'Vue simple' : 'Détails'}
-							<span class="ml-1 text-xs opacity-60 font-mono">E</span>
-						</Button>
-						<Button
-							variant="secondary"
-							size="sm"
-							onclick={() => handleDelete(currentItem)}
-							disabled={isProcessing}
-						>
-							<span class="mr-1">🗑️</span> Supprimer
-							<span class="ml-1 text-xs opacity-60 font-mono">D</span>
-						</Button>
-						{#if !showCustomInput}
-							<Button
-								variant="secondary"
-								size="sm"
-								onclick={() => showCustomInput = true}
-								disabled={isProcessing}
-							>
-								<span class="mr-1">✏️</span> Autre
-								<span class="ml-1 text-xs opacity-60 font-mono">I</span>
-							</Button>
-						{/if}
 					</div>
 				</div>
 
@@ -1533,10 +1593,9 @@
 					</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">A</span> approuver</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span> rejeter</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span> reporter</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">E</span> détails</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">D</span> supprimer</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">I</span> autre</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span> reporter</span>
 				</div>
 			</div>
 				</Card>

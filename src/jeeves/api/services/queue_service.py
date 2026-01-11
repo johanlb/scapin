@@ -762,7 +762,6 @@ class QueueService:
 
         metadata = item.get("metadata", {})
         content = item.get("content", {})
-        email_id = str(metadata.get("id", ""))
 
         # For immediate mode, run the reanalysis now
         if mode == "immediate":
@@ -911,6 +910,71 @@ class QueueService:
         except Exception as e:
             logger.error(f"Failed to reanalyze email: {e}")
             return None
+
+    async def reanalyze_all_pending(self) -> dict[str, Any]:
+        """
+        Reanalyze all pending queue items.
+
+        Triggers a fresh AI analysis for all items in 'pending' status.
+        Runs asynchronously - each item is reanalyzed in sequence.
+
+        Returns:
+            Dict with total, started, failed counts and status
+        """
+        pending_items = self._storage.get_items_by_status("pending")
+        total = len(pending_items)
+        started = 0
+        failed = 0
+
+        logger.info(f"Starting bulk reanalysis of {total} pending items")
+
+        for item in pending_items:
+            item_id = item.get("id")
+            if not item_id:
+                failed += 1
+                continue
+
+            try:
+                metadata = item.get("metadata", {})
+                content = item.get("content", {})
+
+                # Run reanalysis without user instruction
+                new_analysis = await self._reanalyze_sync(
+                    metadata=metadata,
+                    content=content,
+                    user_instruction="",  # No specific instruction
+                )
+
+                if new_analysis:
+                    # Save original analysis if first reanalysis
+                    if "original_analysis" not in item:
+                        item["original_analysis"] = item.get("analysis", {})
+
+                    # Update item with new analysis
+                    item["analysis"] = new_analysis
+                    item["reanalysis_count"] = item.get("reanalysis_count", 0) + 1
+
+                    self._storage.update_item(item_id, item)
+                    started += 1
+                    logger.debug(f"Reanalyzed item {item_id}")
+                else:
+                    failed += 1
+                    logger.warning(f"Failed to reanalyze item {item_id}")
+
+            except Exception as e:
+                failed += 1
+                logger.error(f"Error reanalyzing item {item_id}: {e}")
+
+        logger.info(
+            f"Bulk reanalysis complete: {started}/{total} succeeded, {failed} failed"
+        )
+
+        return {
+            "total": total,
+            "started": started,
+            "failed": failed,
+            "status": "complete" if failed == 0 else "partial",
+        }
 
 
 def _parse_datetime(value: str | None) -> datetime | None:

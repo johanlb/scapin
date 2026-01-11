@@ -920,6 +920,19 @@ export async function reanalyzeQueueItem(
 	});
 }
 
+export interface BulkReanalyzeResponse {
+	total_items: number;
+	started: number;
+	failed: number;
+	status: string;
+}
+
+export async function reanalyzeAllPending(): Promise<BulkReanalyzeResponse> {
+	return fetchApi<BulkReanalyzeResponse>('/queue/reanalyze-all', {
+		method: 'POST'
+	});
+}
+
 // ============================================================================
 // EMAIL TYPES
 // ============================================================================

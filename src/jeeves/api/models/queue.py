@@ -243,3 +243,12 @@ class ReanalyzeResponse(BaseModel):
     new_analysis: "QueueItemAnalysis | None" = Field(
         None, description="New analysis result (for immediate mode)"
     )
+
+
+class BulkReanalyzeResponse(BaseModel):
+    """Response for bulk reanalysis operation"""
+
+    total_items: int = Field(..., description="Total items to reanalyze")
+    started: int = Field(..., description="Items started for reanalysis")
+    failed: int = Field(0, description="Items that failed to start")
+    status: str = Field("processing", description="Overall status")
