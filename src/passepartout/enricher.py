@@ -299,7 +299,8 @@ class PKMEnricher:
         }
 
         section = section_names.get(extraction.type.value, "Notes")
-        importance_icon = "🔴" if extraction.importance.value == "haute" else "🟡"
+        importance_icons = {"haute": "🔴", "moyenne": "🟡", "basse": "⚪"}
+        importance_icon = importance_icons.get(extraction.importance.value, "🟡")
 
         content = f"""# {extraction.note_cible}
 

@@ -43,8 +43,9 @@ class ExtractionType(str, Enum):
 class ImportanceLevel(str, Enum):
     """Niveaux d'importance"""
 
-    HAUTE = "haute"
-    MOYENNE = "moyenne"
+    HAUTE = "haute"  # Critique, à ne pas rater
+    MOYENNE = "moyenne"  # Utile, bon à savoir
+    BASSE = "basse"  # Contexte, référence future
 
 
 class NoteAction(str, Enum):
