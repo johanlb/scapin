@@ -20,6 +20,17 @@ Multi-Pass Architecture (v2.2):
 - Pass 5: Expert analysis (Opus)
 """
 
+from src.sancho.context_searcher import (
+    CalendarContextBlock,
+    ConflictBlock,
+    ContextSearchConfig,
+    ContextSearcher,
+    EmailContextBlock,
+    EntityProfile,
+    NoteContextBlock,
+    StructuredContext,
+    TaskContextBlock,
+)
 from src.sancho.convergence import (
     AnalysisContext,
     DecomposedConfidence,
@@ -51,6 +62,16 @@ __all__ = [
     # Templates
     "TemplateManager",
     "get_template_manager",
+    # Context Searcher (Multi-Pass v2.2)
+    "CalendarContextBlock",
+    "ConflictBlock",
+    "ContextSearchConfig",
+    "ContextSearcher",
+    "EmailContextBlock",
+    "EntityProfile",
+    "NoteContextBlock",
+    "StructuredContext",
+    "TaskContextBlock",
     # Convergence (Multi-Pass v2.2)
     "AnalysisContext",
     "DecomposedConfidence",

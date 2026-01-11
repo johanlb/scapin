@@ -139,7 +139,7 @@ Analyse les événements via architecture multi-pass avec escalade intelligente 
 ```
 src/sancho/
 ├── convergence.py            # Logique convergence + escalade (~420 lignes) ✅ Sprint 7
-├── context_searcher.py       # Wrapper recherche contexte (TODO Sprint 7)
+├── context_searcher.py       # Wrapper recherche contexte (~640 lignes) ✅ Sprint 7
 ├── multi_pass_analyzer.py    # MultiPassAnalyzer v2.2 (TODO Sprint 7)
 ├── router.py                 # AIRouter + JSON repair (~500 lignes)
 ├── analyzer.py               # EventAnalyzer v2.1 (~476 lignes)
@@ -199,6 +199,54 @@ def is_high_stakes(extractions: list[Extraction], context: AnalysisContext, conf
 - Pass 3: "Sancho enquête de manière approfondie..."
 - Pass 4: "Sancho consulte ses sources..."
 - Pass 5: "Sancho délibère sur cette affaire..."
+
+### ContextSearcher (context_searcher.py) — Sprint 7
+
+Wrapper qui coordonne les recherches entre NoteManager et CrossSourceEngine pour construire un contexte structuré.
+
+```python
+@dataclass
+class StructuredContext:
+    """Contexte structuré pour injection dans les prompts"""
+    query_entities: list[str]           # Entités recherchées
+    search_timestamp: datetime
+    sources_searched: list[str]         # ["notes", "calendar", "email"]
+
+    notes: list[NoteContextBlock]       # Notes PKM pertinentes
+    calendar: list[CalendarContextBlock] # Événements liés
+    tasks: list[TaskContextBlock]       # Tâches OmniFocus
+    emails: list[EmailContextBlock]     # Historique email
+
+    entity_profiles: dict[str, EntityProfile]  # Profils consolidés
+    conflicts: list[ConflictBlock]             # Conflits détectés
+
+    def to_prompt_format(self) -> str:
+        """Génère le contexte formaté pour le prompt"""
+
+@dataclass
+class EntityProfile:
+    """Profil consolidé d'une entité depuis plusieurs sources"""
+    name: str
+    canonical_name: str    # Nom dans les notes PKM
+    entity_type: str       # personne, projet, entreprise
+    role: str | None       # "Tech Lead", "Client"
+    key_facts: list[str]   # 3-5 faits importants
+    related_entities: list[str]
+
+class ContextSearcher:
+    def __init__(self, note_manager: NoteManager, cross_source_engine: CrossSourceEngine): ...
+
+    async def search_for_entities(
+        self,
+        entities: list[str],
+        config: ContextSearchConfig,
+        sender_email: str | None = None
+    ) -> StructuredContext:
+        # 1. Recherche notes par nom d'entité
+        # 2. Recherche cross-source (calendar, tasks, email)
+        # 3. Construction des profils d'entités
+        # 4. Détection des conflits
+```
 
 ### Architecture Multi-Pass v2.2
 
