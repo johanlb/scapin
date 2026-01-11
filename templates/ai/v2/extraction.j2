@@ -41,16 +41,18 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
 | **decision** | "Budget validé 50k€", "Choix de React pour le frontend" | Non |
 | **engagement** | "Marc s'engage à livrer lundi", "Je dois rappeler Jean" | Oui si deadline |
 | **fait** | "Nouveau client signé", "Marie promue directrice" | Non |
-| **deadline** | "Livraison prévue le 15 mars", "Réunion reportée au 20" | **Toujours** |
+| **deadline** | "Livrer AVANT le 15 mars", "Date limite de réponse" | **Toujours** |
+| **evenement** | "Réunion le 20 janvier", "Anniversaire Marie le 15 juin" | Optionnel |
 | **relation** | "Marc rejoint le projet Alpha", "Jean quitte l'équipe" | Non |
 | **coordonnees** | "Tél: 06 12 34 56 78", "Adresse: 15 rue de Paris" | Non |
 | **montant** | "Facture de 1500€", "Contrat de 50k€/an" | Non |
 | **reference** | "Facture #2024-0342", "Dossier RH-789", "Ticket JIRA-1234" | Non |
 | **demande** | "Peux-tu m'envoyer le rapport ?", "Merci de valider avant vendredi" | Oui si deadline |
 
+**Note** : `deadline` = obligation avec conséquence si manquée. `evenement` = date importante sans obligation.
+
 ### ❌ NE PAS EXTRAIRE (informations éphémères)
 
-- Lieux/heures de réunions ponctuelles (sauf si récurrentes)
 - Formules de politesse ("Cordialement", "Merci")
 - Confirmations simples ("OK", "Bien reçu", "C'est noté")
 - Détails logistiques temporaires ("RDV au café du coin")
@@ -65,7 +67,7 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
   "extractions": [
     {
       "info": "Description concise de l'information (1-2 phrases max)",
-      "type": "decision|engagement|fait|deadline|relation|coordonnees|montant|reference|demande",
+      "type": "decision|engagement|fait|deadline|evenement|relation|coordonnees|montant|reference|demande",
       "importance": "haute|moyenne",
       "note_cible": "Titre de la note où stocker (existante ou à créer)",
       "note_action": "enrichir|creer",
@@ -210,6 +212,36 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
   "action": "flag",
   "confidence": 0.90,
   "raisonnement": "Demande urgente avec deadline explicite, nécessite action."
+}
+```
+
+### Exemple 5 : Événements et dates sans obligation
+
+**Input** : "N'oublie pas : réunion d'équipe le 25 janvier à 14h en salle B. Et c'est l'anniversaire de Sophie le 3 février !"
+
+```json
+{
+  "extractions": [
+    {
+      "info": "Réunion d'équipe le 25 janvier à 14h en salle B",
+      "type": "evenement",
+      "importance": "moyenne",
+      "note_cible": "Réunions Équipe",
+      "note_action": "enrichir",
+      "omnifocus": false
+    },
+    {
+      "info": "Anniversaire de Sophie le 3 février",
+      "type": "evenement",
+      "importance": "moyenne",
+      "note_cible": "Sophie",
+      "note_action": "enrichir",
+      "omnifocus": false
+    }
+  ],
+  "action": "archive",
+  "confidence": 0.92,
+  "raisonnement": "Deux dates importantes à retenir, sans obligation particulière."
 }
 ```
 

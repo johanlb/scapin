@@ -291,6 +291,7 @@ class PKMEnricher:
             "montant": "Montants",
             "reference": "Références",
             "demande": "Demandes",
+            "evenement": "Événements",
         }
 
         section = section_names.get(extraction.type.value, "Notes")

@@ -33,6 +33,7 @@ class ExtractionType(str, Enum):
     MONTANT = "montant"  # Valeurs financières, factures, contrats
     REFERENCE = "reference"  # Numéros de dossier, facture, ticket
     DEMANDE = "demande"  # Requêtes faites à Johan
+    EVENEMENT = "evenement"  # Dates importantes sans obligation (réunion, anniversaire)
 
 
 class ImportanceLevel(str, Enum):
