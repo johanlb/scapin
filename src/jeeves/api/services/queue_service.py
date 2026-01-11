@@ -249,6 +249,9 @@ class QueueService:
         metadata = item.get("metadata", {})
         email_id = metadata.get("id")
         folder = metadata.get("folder", "INBOX")
+        message_id = metadata.get("message_id")
+        subject = metadata.get("subject")
+        from_address = metadata.get("from_address")
 
         if not email_id:
             logger.warning(f"No email ID in queue item {item.get('id')}")
@@ -261,7 +264,14 @@ class QueueService:
             with imap_client.connect():
                 # Bug #60 fix: Add gray flag FIRST to mark as processed
                 # This prevents re-fetching even if the subsequent action fails
-                imap_client.add_flag(int(email_id), folder)
+                # Also marks in local SQLite tracker for iCloud compatibility
+                imap_client.add_flag(
+                    msg_id=int(email_id),
+                    folder=folder,
+                    message_id=message_id,
+                    subject=subject,
+                    from_address=from_address
+                )
 
                 if action in ("archive", "ARCHIVE"):
                     dest = destination or config.email.archive_folder or "Archive"

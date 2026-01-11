@@ -21,14 +21,15 @@ logger = get_logger("ai_router")
 
 def clean_json_string(json_str: str) -> str:
     """
-    Clean a JSON string by fixing common issues.
+    Clean a JSON string by fixing common issues from LLM responses.
 
     Handles:
     - Trailing commas before ] or }
     - Missing commas between properties/elements
     - Single-line comments (// ...)
     - Multi-line comments (/* ... */)
-    - Unescaped newlines in strings
+    - Markdown code blocks (```json ... ```)
+    - Extra text before/after JSON
 
     Args:
         json_str: Raw JSON string that might be malformed
@@ -36,6 +37,11 @@ def clean_json_string(json_str: str) -> str:
     Returns:
         Cleaned JSON string
     """
+    # Remove markdown code blocks if present
+    json_str = re.sub(r'```json\s*', '', json_str)
+    json_str = re.sub(r'```\s*$', '', json_str)
+    json_str = re.sub(r'```', '', json_str)
+
     # Remove single-line comments (// ...)
     json_str = re.sub(r'//[^\n]*', '', json_str)
 
@@ -61,12 +67,40 @@ def clean_json_string(json_str: str) -> str:
     json_str = re.sub(r'(\])\s+("|\[|\{)', r'\1, \2', json_str)
     json_str = re.sub(r'(\})\s+("|\[|\{)', r'\1, \2', json_str)
 
-    # Fix missing commas between array elements:
-    # e.g., ']\n    [' or '}\n    {' → '], [' or '}, {'
-    json_str = re.sub(r'(\])\s*\n\s*(\[)', r'\1, \2', json_str)
+    # Fix missing commas between array elements (objects in arrays):
+    # e.g., '}\n    {' → '}, {'  (between objects in an array)
     json_str = re.sub(r'(\})\s*\n\s*(\{)', r'\1, \2', json_str)
+    json_str = re.sub(r'(\])\s*\n\s*(\[)', r'\1, \2', json_str)
 
     return json_str
+
+
+def _repair_json_with_library(json_str: str) -> tuple[str, bool]:
+    """
+    Use json-repair library for robust JSON repair.
+
+    This handles complex cases like:
+    - Missing commas in nested structures
+    - Unquoted strings
+    - Trailing commas
+    - Single quotes instead of double quotes
+
+    Args:
+        json_str: Malformed JSON string
+
+    Returns:
+        Tuple of (repaired JSON string, success boolean)
+    """
+    try:
+        from json_repair import repair_json
+        repaired = repair_json(json_str)
+        return repaired, True
+    except ImportError:
+        logger.warning("json-repair library not installed, falling back to regex")
+        return json_str, False
+    except Exception as e:
+        logger.warning(f"json-repair failed: {e}")
+        return json_str, False
 
 
 class AIModel(str, Enum):
@@ -766,10 +800,44 @@ class AIRouter:
 
             json_str = response[json_start:json_end]
 
-            # Clean JSON string (fix trailing commas, remove comments)
-            json_str = clean_json_string(json_str)
+            # Multi-level JSON repair strategy:
+            # Level 1: Try direct parse (fast, ideal case)
+            # Level 2: json-repair library (robust, handles most issues)
+            # Level 3: Regex cleaning + json-repair (last resort)
+            data = None
 
-            data = json.loads(json_str)
+            # Level 1: Try direct parse
+            try:
+                data = json.loads(json_str)
+                logger.debug("JSON parsed directly without repair")
+            except json.JSONDecodeError as e1:
+                # Level 2: Try json-repair library first (handles complex cases better)
+                repaired, repair_success = _repair_json_with_library(json_str)
+                if repair_success:
+                    try:
+                        data = json.loads(repaired)
+                        logger.debug("JSON repaired successfully using json-repair library")
+                    except json.JSONDecodeError:
+                        pass  # Will try Level 3
+
+                # Level 3: If json-repair didn't work, try regex + json-repair
+                if data is None:
+                    cleaned = clean_json_string(json_str)
+                    try:
+                        data = json.loads(cleaned)
+                        logger.debug("JSON repaired using regex cleaning")
+                    except json.JSONDecodeError:
+                        # Last resort: json-repair on regex-cleaned string
+                        repaired2, _ = _repair_json_with_library(cleaned)
+                        try:
+                            data = json.loads(repaired2)
+                            logger.debug("JSON repaired using regex + json-repair")
+                        except json.JSONDecodeError:
+                            # All methods failed, raise original error
+                            raise e1 from None
+
+            if data is None:
+                raise json.JSONDecodeError("Failed to parse JSON", json_str, 0)
 
             # Normalize category to lowercase
             if 'category' in data and isinstance(data['category'], str):
@@ -835,7 +903,13 @@ class AIRouter:
             return analysis
 
         except json.JSONDecodeError as e:
-            # Log the error and the problematic JSON for debugging
+            # Log the error and a snippet of the problematic JSON
+            snippet = ""
+            if json_str and e.pos:
+                start = max(0, e.pos - 60)
+                end = min(len(json_str), e.pos + 40)
+                snippet = json_str[start:end].replace('\n', '\\n')
+
             logger.error(
                 f"Failed to parse JSON response: {e}",
                 extra={
@@ -843,18 +917,9 @@ class AIRouter:
                     "error_line": e.lineno,
                     "error_col": e.colno,
                     "error_pos": e.pos,
+                    "json_snippet": f"...{snippet}..." if snippet else "N/A"
                 }
             )
-            # Log a snippet around the error position for debugging
-            if json_str and e.pos:
-                start = max(0, e.pos - 50)
-                end = min(len(json_str), e.pos + 50)
-                snippet = json_str[start:end]
-                logger.debug(
-                    f"JSON snippet around error (pos {e.pos}): ...{snippet}...",
-                    extra={"email_id": metadata.id}
-                )
-            logger.debug(f"Full response text (first 1000 chars): {response[:1000]}")
             return None
         except Exception as e:
             logger.error(

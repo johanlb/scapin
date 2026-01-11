@@ -15,6 +15,7 @@ from typing import Optional, Union
 
 from src.core.config_manager import EmailAccountConfig, EmailConfig
 from src.core.schemas import EmailContent, EmailMetadata
+from src.integrations.email.processed_tracker import get_processed_tracker
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
 
@@ -370,8 +371,9 @@ class IMAPClient:
             folder: IMAP folder name (default: INBOX)
             limit: Maximum number of emails to fetch
             unread_only: Only fetch unread emails (UNSEEN flag)
-            unprocessed_only: Only fetch emails not yet processed by Scapin
-                              (no gray flag / $MailFlagBit6)
+            unprocessed_only: Only fetch emails not yet processed by Scapin.
+                              Uses local SQLite tracking instead of IMAP KEYWORD
+                              search (which doesn't work on iCloud).
 
         Returns:
             List of (metadata, content) tuples, sorted oldest first
@@ -388,12 +390,13 @@ class IMAPClient:
 
             # Build search criteria
             # IMAP returns messages in ascending order (oldest first)
+            # NOTE: We do NOT use UNKEYWORD for filtering because iCloud Mail
+            # doesn't support KEYWORD/UNKEYWORD search for custom keywords.
+            # Instead, we use local SQLite tracking (see below).
             criteria = []
             if unread_only:
                 criteria.append("UNSEEN")
-            if unprocessed_only:
-                # Exclude emails with Scapin processed flag (gray flag in Apple Mail)
-                criteria.append(f"UNKEYWORD {SCAPIN_PROCESSED_FLAG}")
+            # NOTE: unprocessed_only is handled via local tracking, not IMAP search
 
             # If no specific criteria, fetch all
             search_criteria = " ".join(criteria) if criteria else "ALL"
@@ -407,9 +410,31 @@ class IMAPClient:
             # Get message IDs (already in ascending order - oldest first)
             id_list = message_ids[0].split()
 
-            # Apply limit (take first N = oldest N emails)
-            if limit:
+            logger.info(
+                "Found emails in folder",
+                extra={
+                    "folder": folder,
+                    "total_found": len(id_list),
+                    "unread_only": unread_only,
+                    "unprocessed_only": unprocessed_only,
+                    "criteria": search_criteria
+                }
+            )
+
+            # If unprocessed_only, filter using local SQLite tracker
+            # This is necessary because iCloud Mail doesn't support KEYWORD search
+            if unprocessed_only and id_list:
+                id_list = self._filter_unprocessed_emails(id_list, folder, limit)
+                logger.info(
+                    f"After local tracking filter: {len(id_list)} unprocessed emails"
+                )
+            elif limit:
+                # Apply limit (take first N = oldest N emails)
                 id_list = id_list[:limit]
+
+            if not id_list:
+                logger.info(f"No emails to fetch from {folder}")
+                return []
 
             logger.info(
                 "Fetching emails",
@@ -417,8 +442,7 @@ class IMAPClient:
                     "folder": folder,
                     "count": len(id_list),
                     "unread_only": unread_only,
-                    "unprocessed_only": unprocessed_only,
-                    "criteria": search_criteria
+                    "unprocessed_only": unprocessed_only
                 }
             )
 
@@ -432,6 +456,115 @@ class IMAPClient:
         except Exception as e:
             logger.error(f"Error fetching emails: {e}", exc_info=True)
             return []
+
+    def _filter_unprocessed_emails(
+        self,
+        msg_ids: list[bytes],
+        _folder: str,
+        limit: Optional[int] = None
+    ) -> list[bytes]:
+        """
+        Filter message IDs to only include unprocessed emails.
+
+        Uses local SQLite tracking because iCloud Mail doesn't support
+        KEYWORD/UNKEYWORD IMAP search for custom keywords.
+
+        OPTIMIZATION: Fetches headers in batches and stops as soon as
+        we have enough unprocessed emails (limit). This avoids fetching
+        all 16k+ headers when we only need 20.
+
+        Args:
+            msg_ids: List of IMAP message IDs (bytes)
+            folder: Folder name
+            limit: Maximum number of unprocessed emails to return
+
+        Returns:
+            List of unprocessed message IDs
+        """
+        if not msg_ids or self._connection is None:
+            return []
+
+        try:
+            tracker = get_processed_tracker()
+            unprocessed_imap_ids: list[bytes] = []
+            batch_size = 200  # Fetch headers in batches of 200
+
+            # Process in batches, stopping early when we have enough
+            for batch_start in range(0, len(msg_ids), batch_size):
+                batch_end = min(batch_start + batch_size, len(msg_ids))
+                batch_ids = msg_ids[batch_start:batch_end]
+
+                # Fetch Message-ID headers for this batch
+                msg_set = b",".join(batch_ids)
+                status, response = self._connection.fetch(
+                    msg_set, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
+                )
+
+                if status != 'OK':
+                    logger.warning(f"Failed to fetch headers for batch {batch_start}-{batch_end}")
+                    continue
+
+                # Parse response to get IMAP ID -> Message-ID mapping
+                imap_to_message_id: dict[bytes, str] = {}
+
+                for item in response:
+                    if item is None or item == b")":
+                        continue
+
+                    if isinstance(item, tuple) and len(item) >= 2:
+                        header = item[0]
+                        header_data = item[1]
+
+                        if isinstance(header, bytes) and isinstance(header_data, bytes):
+                            try:
+                                imap_id = header.split()[0]
+                                header_str = header_data.decode('utf-8', errors='replace')
+                                for line in header_str.split('\n'):
+                                    if line.lower().startswith('message-id:'):
+                                        message_id = line.split(':', 1)[1].strip()
+                                        imap_to_message_id[imap_id] = message_id
+                                        break
+                            except Exception as e:
+                                logger.debug(f"Failed to parse header: {e}")
+
+                # Get Message-IDs for this batch
+                batch_message_ids = list(imap_to_message_id.values())
+
+                if not batch_message_ids:
+                    continue
+
+                # Filter using local tracker
+                unprocessed_message_ids = set(
+                    tracker.get_unprocessed_message_ids(batch_message_ids, self.account_id)
+                )
+
+                # Add unprocessed emails to result, preserving order
+                for imap_id in batch_ids:
+                    message_id = imap_to_message_id.get(imap_id)
+                    if message_id and message_id in unprocessed_message_ids:
+                        unprocessed_imap_ids.append(imap_id)
+
+                        # Stop early if we have enough!
+                        if limit and len(unprocessed_imap_ids) >= limit:
+                            logger.info(
+                                f"Early stop: found {limit} unprocessed emails "
+                                f"after checking {batch_end}/{len(msg_ids)} headers"
+                            )
+                            return unprocessed_imap_ids
+
+                logger.debug(
+                    f"Batch {batch_start}-{batch_end}: "
+                    f"{len(batch_message_ids)} headers, "
+                    f"{len(unprocessed_message_ids)} unprocessed, "
+                    f"{len(unprocessed_imap_ids)} total so far"
+                )
+
+            return unprocessed_imap_ids
+
+        except Exception as e:
+            logger.error(f"Error filtering unprocessed emails: {e}", exc_info=True)
+            # On error, return original list to avoid blocking email processing
+            return msg_ids[:limit] if limit else msg_ids
 
     def _flag_failed_email(self, msg_id: bytes, folder: str, error: str) -> None:
         """
@@ -1125,14 +1258,29 @@ class IMAPClient:
             logger.error(f"Failed to move email: {e}", exc_info=True)
             return False
 
-    def add_flag(self, msg_id: int, folder: str, flag: str = SCAPIN_PROCESSED_FLAG) -> bool:
+    def add_flag(
+        self,
+        msg_id: int,
+        folder: str,
+        flag: str = SCAPIN_PROCESSED_FLAG,
+        message_id: Optional[str] = None,
+        subject: Optional[str] = None,
+        from_address: Optional[str] = None
+    ) -> bool:
         """
-        Add a flag to an email
+        Add a flag to an email and mark it as processed in local tracker.
+
+        The IMAP flag provides visual feedback in Apple Mail (gray flag),
+        while the local SQLite tracker is used for filtering since iCloud
+        doesn't support KEYWORD search.
 
         Args:
-            msg_id: Email message ID
+            msg_id: IMAP message ID (numeric)
             folder: Folder containing the email
             flag: IMAP flag to add (default: gray flag for Scapin processed)
+            message_id: RFC 822 Message-ID for local tracking (optional but recommended)
+            subject: Email subject for logging/debugging
+            from_address: Sender address for logging/debugging
 
         Returns:
             True if successful
@@ -1165,6 +1313,7 @@ class IMAPClient:
 
             # Verify the flag was actually added by checking the response
             # Response format: [(b'<msg_id> (FLAGS (<flags>))', ...)]
+            flag_added = False
             if result[1] and len(result[1]) > 0:
                 response_data = result[1][0]
                 if isinstance(response_data, bytes):
@@ -1174,21 +1323,69 @@ class IMAPClient:
                             f"Successfully added flag {flag} to email {msg_id} in {folder}",
                             extra={"response": response_str}
                         )
-                        return True
+                        flag_added = True
                     else:
                         logger.warning(
                             f"Flag {flag} not found in STORE response for email {msg_id}",
                             extra={"response": response_str}
                         )
-                        # Still return True as the STORE command succeeded
-                        return True
+                        # Still continue as the STORE command succeeded
+                        flag_added = True
 
-            logger.info(f"Added flag {flag} to email {msg_id} in {folder}")
+            if not flag_added:
+                logger.info(f"Added flag {flag} to email {msg_id} in {folder}")
+
+            # Also mark in local SQLite tracker for filtering
+            # This is the primary tracking mechanism since iCloud KEYWORD search doesn't work
+            if message_id and flag == SCAPIN_PROCESSED_FLAG:
+                tracker = get_processed_tracker()
+                tracker.mark_processed(
+                    message_id=message_id,
+                    account_id=self.account_id,
+                    subject=subject,
+                    from_address=from_address
+                )
+                logger.debug(f"Marked email in local tracker: {message_id[:50] if message_id else 'N/A'}")
+
             return True
 
         except Exception as e:
             logger.error(f"Failed to add flag: {e}", exc_info=True)
             return False
+
+    def mark_as_processed(
+        self,
+        msg_id: int,
+        folder: str,
+        message_id: str,
+        subject: Optional[str] = None,
+        from_address: Optional[str] = None
+    ) -> bool:
+        """
+        Mark an email as processed by Scapin.
+
+        This is a convenience method that:
+        1. Adds the gray flag in Apple Mail (visual feedback)
+        2. Records in local SQLite tracker (for filtering)
+
+        Args:
+            msg_id: IMAP message ID (numeric)
+            folder: Folder containing the email
+            message_id: RFC 822 Message-ID header value
+            subject: Email subject for logging
+            from_address: Sender address for logging
+
+        Returns:
+            True if successful
+        """
+        return self.add_flag(
+            msg_id=msg_id,
+            folder=folder,
+            flag=SCAPIN_PROCESSED_FLAG,
+            message_id=message_id,
+            subject=subject,
+            from_address=from_address
+        )
 
     def remove_flag(self, msg_id: int, folder: str, flag: str = SCAPIN_PROCESSED_FLAG) -> bool:
         """

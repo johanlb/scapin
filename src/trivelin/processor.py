@@ -554,10 +554,14 @@ class EmailProcessor:
 
             # Flag the email to prevent reimport on next run
             # CRITICAL: This was missing before - auto-executed emails were re-fetched!
+            # Uses both IMAP flag (visual feedback) and local SQLite tracker (for filtering)
             try:
                 self.imap_client.add_flag(
                     msg_id=metadata.id,
-                    folder=metadata.folder or self.config.email.inbox_folder
+                    folder=metadata.folder or self.config.email.inbox_folder,
+                    message_id=metadata.message_id,
+                    subject=metadata.subject,
+                    from_address=metadata.from_address
                 )
             except Exception as e:
                 logger.warning(f"Failed to flag auto-executed email {metadata.id}: {e}")
@@ -604,13 +608,17 @@ class EmailProcessor:
             )
 
             # Flag the email to prevent reimport on next run
-            # Uses gray flag ($MailFlagBit6) which is filtered out by unprocessed_only=True
+            # Uses IMAP gray flag ($MailFlagBit6) for visual feedback AND
+            # local SQLite tracker for filtering (iCloud doesn't support KEYWORD search)
             # IMPORTANT: Always flag, even if save_item returned None (duplicate)
             # This ensures duplicates don't get re-fetched
             try:
                 flag_success = self.imap_client.add_flag(
                     msg_id=metadata.id,
-                    folder=metadata.folder or self.config.email.inbox_folder
+                    folder=metadata.folder or self.config.email.inbox_folder,
+                    message_id=metadata.message_id,
+                    subject=metadata.subject,
+                    from_address=metadata.from_address
                 )
                 if not flag_success:
                     logger.warning(
