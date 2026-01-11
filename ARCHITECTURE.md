@@ -56,7 +56,8 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 
 > **Paradigm Shift**: From "What action should I take?" to "What information can I extract?"
 >
-> **Spec complète**: [docs/specs/WORKFLOW_V2_SPEC.md](docs/specs/WORKFLOW_V2_SPEC.md)
+> **Spec simplifiée (v2.1)**: [docs/specs/WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)
+> **Plan d'implémentation**: [docs/specs/WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)
 
 ### Vision
 
@@ -71,83 +72,57 @@ Event → Classification          Event → Extraction d'information
                                       → Actions (side effect)
 ```
 
-### Architecture 6 Phases
+### Architecture 4 Phases (Simplifiée v2.1)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                          WORKFLOW V2 PIPELINE                            │
+│                    WORKFLOW V2.1 SIMPLIFIÉ                              │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 1: PERCEPTION + EXTRACTION (LOCAL)                 ~500ms │   │
-│  │  • GLiNER NER (personnes, orgs, dates, lieux, montants)          │   │
-│  │  • SetFit classification (domain, type, priority)                │   │
-│  │  • Sentence-transformers embeddings                              │   │
-│  │  Output: ExtractedEvent avec entities, classification, embedding │   │
+│  │  PHASE 1: PERCEPTION                                [LOCAL]       │   │
+│  │  • Normalisation → PerceivedEvent (existant)                      │   │
+│  │  • Embedding sentence-transformers (existant)                     │   │
+│  │  Temps: ~100ms                                                    │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                              ↓                                           │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 2: MATCHING + CONTEXTE (LOCAL)                     ~200ms │   │
-│  │  • FAISS entity matching (>0.85 similarity)                       │   │
-│  │  • Pattern recognition (expéditeur, sujet, structure)            │   │
-│  │  • Cross-source context (notes, calendar, teams)                 │   │
-│  │  • FAST PATH: Si pattern confiance >90% → Skip Phase 3           │   │
-│  │  Output: MatchedEvent avec context, patterns, fast_path flag     │   │
+│  │  PHASE 2: CONTEXTE                                  [LOCAL]       │   │
+│  │  • Recherche sémantique notes (FAISS)                             │   │
+│  │  • Top 3-5 notes pertinentes comme contexte                       │   │
+│  │  Temps: ~200ms                                                    │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                              ↓                                           │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 3: ANALYSE SÉMANTIQUE (API)           ~3s (si nécessaire) │   │
-│  │  • UN SEUL appel API (Claude Sonnet)                             │   │
-│  │  • Template enrichi avec tout le contexte                        │   │
-│  │  • Output structuré : informations à extraire                    │   │
-│  │  Output: SemanticAnalysis avec extracted_info[], actions[]       │   │
+│  │  PHASE 3: ANALYSE                                   [API]         │   │
+│  │  • 1 appel Haiku (défaut) — $0.03/événement                       │   │
+│  │  • Escalade Sonnet si confidence < 0.7                            │   │
+│  │  • Extraction entités + classification + action                   │   │
+│  │  Temps: ~1-2s                                                     │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                              ↓                                           │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 4: ENRICHISSEMENT PKM (LOCAL)                      ~100ms │   │
-│  │  • Routage : chaque info → note(s) appropriée(s)                 │   │
-│  │  • Création liens bidirectionnels [[wikilinks]]                  │   │
-│  │  • Mise à jour metadata SM-2                                     │   │
-│  │  • Création OmniFocus tasks si actionable                        │   │
-│  │  Output: EnrichmentResult avec notes_updated[], links_created[]  │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-│                              ↓                                           │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 5: ACTION (LOCAL)                                  ~200ms │   │
-│  │  • Exécution actions (archive, flag, draft)                      │   │
-│  │  • Mise à jour source (IMAP flags, etc.)                         │   │
-│  │  Output: ActionResult avec actions_executed[]                    │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-│                              ↓                                           │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 6: MAINTENANCE PKM (BACKGROUND)                  Async    │   │
-│  │  • Auto-linking entre notes                                      │   │
-│  │  • Fusion de notes similaires                                    │   │
-│  │  • Synthèse de threads                                           │   │
-│  │  • Nettoyage notes obsolètes                                     │   │
-│  │  Output: MaintenanceReport                                       │   │
+│  │  PHASE 4: APPLICATION                               [LOCAL]       │   │
+│  │  • Enrichir notes PKM                                             │   │
+│  │  • Créer tâches OmniFocus (si deadlines)                          │   │
+│  │  • Exécuter action (archive/flag/queue)                           │   │
+│  │  Temps: ~200ms                                                    │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                                                                          │
+│  TOTAL: ~2s par événement | COÛT: ~$36/mois (460 events/jour)           │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Fast Path (40% des événements)
+### Pourquoi Pas de Fast Path ?
 
-Le Fast Path permet de traiter ~40% des événements **sans appel API** :
+Haiku coûte ~$0.03/événement. La complexité d'un Fast Path ne vaut pas l'économie :
 
-```
-Conditions Fast Path:
-├─ Pattern connu avec confiance ≥ 90%
-├─ Expéditeur récurrent (newsletter, notification)
-├─ Structure reconnue (facture, confirmation)
-└─ Aucune information nouvelle à extraire
+| Approche | Coût/mois | Complexité | Qualité extraction |
+|----------|-----------|------------|-------------------|
+| Fast Path (40% skip) | ~$22 | Haute | Variable |
+| Tout Haiku | ~$36 | Basse | Constante |
 
-Exemples Fast Path:
-• Newsletter TechCrunch → Archive direct
-• Confirmation Amazon → Extract order_id, archive
-• Meeting reminder → Lien vers event calendrier
-• GitHub notification → Lien vers repo note
-```
+**Décision** : Analyser TOUT avec Haiku, escalader vers Sonnet si incertain.
 
 ### Types d'Information Extraits
 
