@@ -1,8 +1,8 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 1.0.0-alpha.4 (continuing from PKM v3.1.0)
+**Version**: 2.0.0-draft (Workflow v2: Knowledge Extraction)
 **Date**: 2026-01-11
-**Status**: ✅ Phase 0.6 Complete - All Valets Implemented
+**Status**: 🚧 Workflow v2 in design - Paradigm shift to Knowledge Extraction
 
 > Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
 
@@ -11,6 +11,7 @@
 ## 📋 Table of Contents
 
 - [Vision](#vision)
+- [Workflow v2: Knowledge Extraction](#workflow-v2-knowledge-extraction) ⭐ NEW
 - [Core Principles](#core-principles)
 - [Architecture Overview](#architecture-overview)
 - [Component Specifications](#component-specifications)
@@ -48,6 +49,154 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 - Long-term memory (knowledge base)
 - Multi-pass reasoning until confidence threshold met
 - Continuous learning and adaptation
+
+---
+
+## 🌟 Workflow v2: Knowledge Extraction
+
+> **Paradigm Shift**: From "What action should I take?" to "What information can I extract?"
+>
+> **Spec complète**: [docs/specs/WORKFLOW_V2_SPEC.md](docs/specs/WORKFLOW_V2_SPEC.md)
+
+### Vision
+
+Le workflow v1 ("Triage") se concentrait sur la classification et les actions. Le workflow v2 ("Knowledge Extraction") inverse la priorité : **l'objectif principal est d'enrichir en permanence le PKM** (Personal Knowledge Management), avec les actions comme effet secondaire.
+
+```
+Workflow v1 (Triage)           Workflow v2 (Knowledge Extraction)
+─────────────────────          ──────────────────────────────────
+Event → Classification          Event → Extraction d'information
+      → Action suggérée               → Enrichissement PKM
+      → (optionnel) Note              → Graphe de connaissances
+                                      → Actions (side effect)
+```
+
+### Architecture 6 Phases
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          WORKFLOW V2 PIPELINE                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PHASE 1: PERCEPTION + EXTRACTION (LOCAL)                 ~500ms │   │
+│  │  • GLiNER NER (personnes, orgs, dates, lieux, montants)          │   │
+│  │  • SetFit classification (domain, type, priority)                │   │
+│  │  • Sentence-transformers embeddings                              │   │
+│  │  Output: ExtractedEvent avec entities, classification, embedding │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                              ↓                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PHASE 2: MATCHING + CONTEXTE (LOCAL)                     ~200ms │   │
+│  │  • FAISS entity matching (>0.85 similarity)                       │   │
+│  │  • Pattern recognition (expéditeur, sujet, structure)            │   │
+│  │  • Cross-source context (notes, calendar, teams)                 │   │
+│  │  • FAST PATH: Si pattern confiance >90% → Skip Phase 3           │   │
+│  │  Output: MatchedEvent avec context, patterns, fast_path flag     │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                              ↓                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PHASE 3: ANALYSE SÉMANTIQUE (API)           ~3s (si nécessaire) │   │
+│  │  • UN SEUL appel API (Claude Sonnet)                             │   │
+│  │  • Template enrichi avec tout le contexte                        │   │
+│  │  • Output structuré : informations à extraire                    │   │
+│  │  Output: SemanticAnalysis avec extracted_info[], actions[]       │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                              ↓                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PHASE 4: ENRICHISSEMENT PKM (LOCAL)                      ~100ms │   │
+│  │  • Routage : chaque info → note(s) appropriée(s)                 │   │
+│  │  • Création liens bidirectionnels [[wikilinks]]                  │   │
+│  │  • Mise à jour metadata SM-2                                     │   │
+│  │  • Création OmniFocus tasks si actionable                        │   │
+│  │  Output: EnrichmentResult avec notes_updated[], links_created[]  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                              ↓                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PHASE 5: ACTION (LOCAL)                                  ~200ms │   │
+│  │  • Exécution actions (archive, flag, draft)                      │   │
+│  │  • Mise à jour source (IMAP flags, etc.)                         │   │
+│  │  Output: ActionResult avec actions_executed[]                    │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                              ↓                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PHASE 6: MAINTENANCE PKM (BACKGROUND)                  Async    │   │
+│  │  • Auto-linking entre notes                                      │   │
+│  │  • Fusion de notes similaires                                    │   │
+│  │  • Synthèse de threads                                           │   │
+│  │  • Nettoyage notes obsolètes                                     │   │
+│  │  Output: MaintenanceReport                                       │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fast Path (40% des événements)
+
+Le Fast Path permet de traiter ~40% des événements **sans appel API** :
+
+```
+Conditions Fast Path:
+├─ Pattern connu avec confiance ≥ 90%
+├─ Expéditeur récurrent (newsletter, notification)
+├─ Structure reconnue (facture, confirmation)
+└─ Aucune information nouvelle à extraire
+
+Exemples Fast Path:
+• Newsletter TechCrunch → Archive direct
+• Confirmation Amazon → Extract order_id, archive
+• Meeting reminder → Lien vers event calendrier
+• GitHub notification → Lien vers repo note
+```
+
+### Types d'Information Extraits
+
+| Type | Destinations | Exemple |
+|------|--------------|---------|
+| **Fait** | Note personne/projet | "Marie est promue directrice" |
+| **Décision** | Note projet + OmniFocus | "Budget approuvé: 50K€" |
+| **Tâche** | OmniFocus + Note projet | "Envoyer rapport avant vendredi" |
+| **Événement** | Note projet + Calendar | "Réunion Q2 le 15 janvier" |
+| **Contact** | Note personne | "Nouveau tel: 06..." |
+| **Référence** | Note concept + Lien | "Voir doc technique v2" |
+| **Contexte** | Note thread | "Suite à la discussion de hier..." |
+
+### Graphe de Connaissances
+
+Le PKM devient un **graphe neural** avec liens bidirectionnels :
+
+```
+┌────────────────┐         ┌────────────────┐
+│   Marie        │◄───────►│  Projet Alpha  │
+│   (personne)   │mentions │   (projet)     │
+└───────┬────────┘         └───────┬────────┘
+        │                          │
+        │ travaille_sur            │ deadline
+        │                          │
+        ▼                          ▼
+┌────────────────┐         ┌────────────────┐
+│  Budget Q2     │◄───────►│   15 janvier   │
+│  (concept)     │         │   (date)       │
+└────────────────┘         └────────────────┘
+```
+
+### Métriques de Succès
+
+| Métrique | Objectif | Mesure |
+|----------|----------|--------|
+| **Coût API** | -70% | Appels API / événement |
+| **Latence** | <1s (fast path), <4s (full) | Temps moyen |
+| **Qualité PKM** | +50% liens | Liens créés / semaine |
+| **Réponse questions** | 90% | Questions answerable depuis PKM |
+| **Bruit filtré** | 95% | Infos non pertinentes ignorées |
+
+### Migration
+
+La migration se fait en 3 phases progressives :
+
+1. **Phase A** : Nouveau pipeline coexiste avec l'ancien (feature flag)
+2. **Phase B** : Fast Path activé, API call comme fallback
+3. **Phase C** : Pipeline v2 par défaut, v1 deprecated
 
 ---
 
@@ -1659,10 +1808,10 @@ Each valet excels at their specialty, working together like a well-trained house
 
 ---
 
-**Status**: ✅ Phase 0.6 Complete - All Valets Implemented
+**Status**: 🚧 Workflow v2 in design - Paradigm shift to Knowledge Extraction
 **Repository**: https://github.com/johanlb/scapin
-**Version**: 1.0.0-alpha.3 (continuing from PKM v3.1.0)
-**Next Step**: Phase 1.0 - Trivelin Email (Intelligent Multi-Pass Processing)
-**Last Updated**: 2026-01-02
+**Version**: 2.0.0-draft
+**Next Step**: Workflow v2 Implementation (see [WORKFLOW_V2_SPEC.md](docs/specs/WORKFLOW_V2_SPEC.md))
+**Last Updated**: 2026-01-11
 
 🎭 *"The valet who can do anything is worth more than the master who can do nothing."* - Molière
