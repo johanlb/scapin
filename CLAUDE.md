@@ -4,7 +4,6 @@
 **Projet** : Scapin (anciennement PKM System)
 **Dépôt** : https://github.com/johanlb/scapin
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
-**Prochaine priorité** : 🌟 Workflow v2.1 — Knowledge Extraction (API-First)
 
 ---
 
@@ -32,8 +31,8 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **[UI_VOCABULARY.md](docs/UI_VOCABULARY.md)** | 🎭 **Vocabulaire UI** — Mapping termes UI ↔ technique | Traitement requêtes utilisateur, génération réponses |
 | **[CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)** | ✅ **Spec CrossSource** — Complété | Référence Sprint Cross-Source |
 | **[SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)** | ✅ **Spec Sprint 5** — Complété | Tests E2E, Lighthouse, Guide, Audit |
-| **[WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)** | 🌟 **Workflow v2.1** — Approuvé | Architecture Knowledge Extraction |
-| **[WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)** | 📋 **Plan Implémentation** — Prêt | 6 fichiers, ~880 lignes |
+| **[WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)** | ✅ **Workflow v2.1** — Complété | Architecture Knowledge Extraction |
+| **[WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)** | ✅ **Plan Implémentation** — Complété | 8 fichiers, ~2500 lignes |
 | **Ce fichier (CLAUDE.md)** | État actuel | Démarrage de session |
 
 ### Les 5 Principes Directeurs
@@ -111,7 +110,7 @@ Feedback via prochain journaling → Amélioration système
 
 ---
 
-## 📊 État Actuel (9 janvier 2026)
+## 📊 État Actuel (11 janvier 2026)
 
 ### Phases Complétées
 
@@ -123,6 +122,7 @@ Feedback via prochain journaling → Amélioration système
 | **0.5** | Architecture Cognitive | ✅ | ~8000 lignes |
 | **0.6** | Refactoring Valet | ✅ | ~5200 lignes migrées |
 | **1.7** | Note Enrichment System | ✅ | ~2200 lignes |
+| **2.1** | Workflow v2.1 Knowledge Extraction | ✅ | ~2500 lignes |
 
 ### Modules Valets Implémentés
 
@@ -374,15 +374,70 @@ cd web && npm run check   # Vérifier les types
 - API REST complète pour le journal
 - Frontend avec tabs multi-sources et corrections inline
 
+### Phase 2.1 : Workflow v2.1 — Knowledge Extraction ✅
+
+**Statut** : COMPLÉTÉ (11 janvier 2026)
+
+Pipeline d'extraction de connaissances avec escalade automatique Haiku → Sonnet.
+
+| Jour | Phase | Fichiers | Lignes | Tests |
+|------|-------|----------|--------|-------|
+| 1 | Foundations | `v2_models.py`, `config_manager.py` | ~400 | 48 |
+| 2 | Analysis | `analyzer.py`, `extraction.j2` | ~450 | 24 |
+| 3 | Application | `enricher.py`, `omnifocus.py` | ~600 | 58 |
+| 4 | Integration | `v2_processor.py`, `workflow.py` (API) | ~1050 | 32 |
+| **Total** | | **8 fichiers** | **~2500** | **162** |
+
+**Composants** :
+
+| Module | Fichier | Rôle |
+|--------|---------|------|
+| Models v2 | `src/core/models/v2_models.py` | Extraction, AnalysisResult, EnrichmentResult |
+| Config | `src/core/config_manager.py` | WorkflowV2Config avec seuils |
+| Analyzer | `src/sancho/analyzer.py` | EventAnalyzer avec escalade Haiku→Sonnet |
+| Template | `templates/ai/v2/extraction.j2` | Prompt d'extraction structuré |
+| Enricher | `src/passepartout/enricher.py` | PKMEnricher pour notes + OmniFocus |
+| OmniFocus | `src/integrations/apple/omnifocus.py` | Client AppleScript pour tâches |
+| Processor | `src/trivelin/v2_processor.py` | V2EmailProcessor orchestrateur |
+| API | `src/jeeves/api/routers/workflow.py` | Endpoints REST workflow |
+
+**API Endpoints** :
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/api/workflow/config` | GET | Configuration workflow |
+| `/api/workflow/stats` | GET | Statistiques de traitement |
+| `/api/workflow/analyze/email` | POST | Analyser un email via pipeline v2.1 |
+| `/api/workflow/apply` | POST | Appliquer des extractions manuellement |
+
+**Configuration** :
+```bash
+WORKFLOW_V2__ENABLED=true
+WORKFLOW_V2__AUTO_APPLY_THRESHOLD=0.9
+WORKFLOW_V2__ESCALATION_THRESHOLD=0.7
+WORKFLOW_V2__OMNIFOCUS_ENABLED=false
+```
+
+**Pipeline** :
+```
+Email → PerceivedEvent → Context Retrieval → Haiku Analysis
+                                    ↓
+                         confidence < 0.7 ? → Sonnet Escalation
+                                    ↓
+                         confidence ≥ 0.9 ? → Auto-apply to PKM
+                                    ↓
+                              Queue for review
+```
+
 ### Suite des Tests
 
-**Global** : 1824 tests, 95% couverture, 100% pass rate
+**Global** : 2346 tests, 95% couverture, 100% pass rate
 
 | Catégorie | Tests | Statut |
 |-----------|-------|--------|
-| Backend tests | 1824 | ✅ |
+| Backend tests | 2346 | ✅ |
 | Frontend tests | 8 | ✅ |
-| Skipped | 50 | ⏭️ |
+| Skipped | 72 | ⏭️ |
 
 ### Qualité du Code
 
@@ -542,6 +597,48 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-11 (Suite 2) — Workflow v2.1 Implementation Complete ✅
+
+**Focus** : Implémentation complète du pipeline d'extraction de connaissances v2.1
+
+**Accomplissements** :
+
+1. ✅ **Day 1 : Foundations** — Models & Config
+   - `src/core/models/v2_models.py` : Extraction, AnalysisResult, EnrichmentResult, ContextNote
+   - `src/core/config_manager.py` : WorkflowV2Config avec seuils configurables
+   - 48 tests unitaires
+
+2. ✅ **Day 2 : Analysis** — EventAnalyzer & Template
+   - `src/sancho/analyzer.py` : Escalade automatique Haiku → Sonnet
+   - `templates/ai/v2/extraction.j2` : Prompt structuré avec exemples
+   - 24 tests unitaires
+
+3. ✅ **Day 3 : Application** — PKMEnricher & OmniFocus
+   - `src/passepartout/enricher.py` : Application extractions aux notes
+   - `src/integrations/apple/omnifocus.py` : Création tâches via AppleScript
+   - 58 tests unitaires
+
+4. ✅ **Day 4 : Integration** — V2EmailProcessor & API
+   - `src/trivelin/v2_processor.py` : Orchestration complète du pipeline
+   - `src/jeeves/api/routers/workflow.py` : 4 endpoints REST
+   - `src/jeeves/api/models/workflow.py` : Modèles Pydantic API
+   - 32 tests unitaires
+
+5. ✅ **Manual Testing with curl**
+   - Tous les endpoints testés avec authentification JWT
+   - Pipeline complet : Context (3 notes) → Haiku → Escalation Sonnet → Response
+   - Bugs corrigés : PerceivedEvent fields, retrieve_context async, template timestamp, model ID
+
+**Commits** :
+- `836c255` — feat(workflow-v2): implement Day 4 - Integration phase
+- `36b983f` — fix(enricher): use correct config attribute notes_path
+- `69d9d6e` — fix(workflow-v2): fix runtime issues from manual testing
+- `e6bb1cb` — fix(tests): update context retrieval tests for async API
+
+**Tests** : 162 tests Workflow v2.1, 2346 tests total (100% pass)
+
+---
 
 ### Session 2026-01-11 (Suite) — Workflow v2.1 Knowledge Extraction Design ✅
 
