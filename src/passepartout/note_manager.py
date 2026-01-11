@@ -557,16 +557,9 @@ class NoteManager:
         """
         title_lower = title.lower().strip()
 
-        # First check cache
-        with self._cache_lock:
-            for note in self._note_cache.values():
-                if note.title.lower().strip() == title_lower:
-                    return note
-
-        # Search all notes on disk
-        for note_id in self.list_notes():
-            note = self.get_note(note_id)
-            if note and note.title.lower().strip() == title_lower:
+        # Search all notes (uses cache when available)
+        for note in self.get_all_notes():
+            if note.title.lower().strip() == title_lower:
                 return note
 
         return None
