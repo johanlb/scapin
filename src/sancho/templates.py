@@ -254,6 +254,7 @@ def render_email_analysis_prompt(
     date: Optional[str] = None,
     has_attachments: bool = False,
     existing_folders: Optional[list[str]] = None,
+    learned_suggestions: Optional[list[dict[str, Any]]] = None,
 ) -> str:
     """
     Render email analysis prompt for AI
@@ -271,6 +272,7 @@ def render_email_analysis_prompt(
         date: Email date
         has_attachments: Whether email has attachments
         existing_folders: List of existing IMAP folders
+        learned_suggestions: Folder suggestions from learning system
 
     Returns:
         Rendered prompt
@@ -290,6 +292,7 @@ def render_email_analysis_prompt(
         entities=entities or {},
         context_notes=context_notes or [],
         existing_folders=existing_folders or [],
+        learned_suggestions=learned_suggestions or [],
     )
 
 

@@ -374,6 +374,7 @@ class AIRouter:
         max_retries: int = 3,
         existing_folders: list[str] | None = None,
         user_instruction: str | None = None,
+        learned_suggestions: list[dict] | None = None,
     ) -> Optional[EmailAnalysis]:
         """
         Analyze email with AI
@@ -385,6 +386,7 @@ class AIRouter:
             max_retries: Maximum retry attempts
             existing_folders: List of existing IMAP folders for destination suggestions
             user_instruction: Optional user instruction to guide the analysis
+            learned_suggestions: Folder suggestions from learning system
 
         Returns:
             EmailAnalysis or None if analysis fails
@@ -410,6 +412,7 @@ class AIRouter:
                 date=metadata.date.isoformat(),
                 existing_folders=existing_folders or [],
                 user_instruction=user_instruction,
+                learned_suggestions=learned_suggestions or [],
             )
         except Exception as e:
             logger.error(f"Failed to render email analysis prompt: {e}", exc_info=True)
