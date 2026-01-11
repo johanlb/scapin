@@ -281,11 +281,16 @@ class PKMEnricher:
         """
         # Map type to section name
         section_names = {
-            "decision": "Decisions",
+            "decision": "Décisions",
             "engagement": "Engagements",
             "fait": "Faits",
             "deadline": "Jalons",
             "relation": "Relations",
+            # Nouveaux types v2.1.1
+            "coordonnees": "Coordonnées",
+            "montant": "Montants",
+            "reference": "Références",
+            "demande": "Demandes",
         }
 
         section = section_names.get(extraction.type.value, "Notes")

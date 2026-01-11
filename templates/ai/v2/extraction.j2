@@ -43,6 +43,10 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
 | **fait** | "Nouveau client signé", "Marie promue directrice" | Non |
 | **deadline** | "Livraison prévue le 15 mars", "Réunion reportée au 20" | **Toujours** |
 | **relation** | "Marc rejoint le projet Alpha", "Jean quitte l'équipe" | Non |
+| **coordonnees** | "Tél: 06 12 34 56 78", "Adresse: 15 rue de Paris" | Non |
+| **montant** | "Facture de 1500€", "Contrat de 50k€/an" | Non |
+| **reference** | "Facture #2024-0342", "Dossier RH-789", "Ticket JIRA-1234" | Non |
+| **demande** | "Peux-tu m'envoyer le rapport ?", "Merci de valider avant vendredi" | Oui si deadline |
 
 ### ❌ NE PAS EXTRAIRE (informations éphémères)
 
@@ -61,7 +65,7 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
   "extractions": [
     {
       "info": "Description concise de l'information (1-2 phrases max)",
-      "type": "decision|engagement|fait|deadline|relation",
+      "type": "decision|engagement|fait|deadline|relation|coordonnees|montant|reference|demande",
       "importance": "haute|moyenne",
       "note_cible": "Titre de la note où stocker (existante ou à créer)",
       "note_action": "enrichir|creer",
@@ -141,25 +145,71 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
 }
 ```
 
-### Exemple 3 : Nouvelle relation professionnelle
+### Exemple 3 : Email commercial avec coordonnées et montant
 
-**Input** : "Je te présente Marie Dupont, notre nouvelle directrice technique. Elle rejoint l'équipe le 1er février."
+**Input** : "Suite à notre échange, voici notre proposition : prestation à 1500€ HT. Contact : Sophie Martin, 06 12 34 56 78, sophie@agence.fr. Référence devis : DEV-2026-0042."
 
 ```json
 {
   "extractions": [
     {
-      "info": "Nouvelle directrice technique, rejoint l'équipe le 1er février",
-      "type": "relation",
+      "info": "Prestation proposée à 1500€ HT",
+      "type": "montant",
       "importance": "haute",
-      "note_cible": "Marie Dupont",
+      "note_cible": "Agence Marketing",
       "note_action": "creer",
+      "omnifocus": false
+    },
+    {
+      "info": "Sophie Martin - 06 12 34 56 78 - sophie@agence.fr",
+      "type": "coordonnees",
+      "importance": "moyenne",
+      "note_cible": "Sophie Martin",
+      "note_action": "creer",
+      "omnifocus": false
+    },
+    {
+      "info": "Devis DEV-2026-0042",
+      "type": "reference",
+      "importance": "moyenne",
+      "note_cible": "Agence Marketing",
+      "note_action": "enrichir",
       "omnifocus": false
     }
   ],
-  "action": "archive",
+  "action": "flag",
   "confidence": 0.88,
-  "raisonnement": "Nouvelle personne importante dans l'organisation à documenter."
+  "raisonnement": "Proposition commerciale avec montant, contact et référence à conserver."
+}
+```
+
+### Exemple 4 : Demande d'action
+
+**Input** : "Johan, peux-tu relire le contrat Durand et me faire un retour avant jeudi ? C'est urgent."
+
+```json
+{
+  "extractions": [
+    {
+      "info": "Relire le contrat Durand et faire un retour",
+      "type": "demande",
+      "importance": "haute",
+      "note_cible": "Contrat Durand",
+      "note_action": "enrichir",
+      "omnifocus": true
+    },
+    {
+      "info": "Retour attendu avant jeudi",
+      "type": "deadline",
+      "importance": "haute",
+      "note_cible": "Contrat Durand",
+      "note_action": "enrichir",
+      "omnifocus": true
+    }
+  ],
+  "action": "flag",
+  "confidence": 0.90,
+  "raisonnement": "Demande urgente avec deadline explicite, nécessite action."
 }
 ```
 

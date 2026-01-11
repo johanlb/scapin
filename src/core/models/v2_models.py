@@ -21,11 +21,18 @@ from typing import Optional
 class ExtractionType(str, Enum):
     """Types d'informations extractibles"""
 
+    # Types originaux
     DECISION = "decision"
     ENGAGEMENT = "engagement"
     FAIT = "fait"
     DEADLINE = "deadline"
     RELATION = "relation"
+
+    # Types ajoutés v2.1.1
+    COORDONNEES = "coordonnees"  # Téléphone, adresse, email de contacts
+    MONTANT = "montant"  # Valeurs financières, factures, contrats
+    REFERENCE = "reference"  # Numéros de dossier, facture, ticket
+    DEMANDE = "demande"  # Requêtes faites à Johan
 
 
 class ImportanceLevel(str, Enum):
@@ -123,6 +130,9 @@ class AnalysisResult:
         duration_ms: Durée de l'analyse en millisecondes
         timestamp: Horodatage de l'analyse
         escalated: Si True, l'analyse a été escaladée vers un modèle plus puissant
+        pattern_matches: Patterns Sganarelle correspondants (validation)
+        clarification_questions: Questions pour l'utilisateur si confiance basse
+        needs_clarification: True si l'analyse nécessite une clarification humaine
 
     Example:
         >>> result = AnalysisResult(
@@ -145,6 +155,13 @@ class AnalysisResult:
     duration_ms: float
     timestamp: datetime = field(default_factory=datetime.now)
     escalated: bool = False
+    # V2.2: Pattern validation (Sganarelle)
+    pattern_matches: list["PatternMatch"] = field(default_factory=list)
+    pattern_validated: bool = False
+    pattern_confidence_boost: float = 0.0
+    # V2.2: User clarification
+    clarification_questions: list["ClarificationQuestion"] = field(default_factory=list)
+    needs_clarification: bool = False
 
     def __post_init__(self) -> None:
         """Validation après initialisation"""
@@ -183,6 +200,11 @@ class AnalysisResult:
     def omnifocus_tasks_count(self) -> int:
         """Nombre d'extractions avec tâche OmniFocus"""
         return sum(1 for e in self.extractions if e.omnifocus)
+
+    @property
+    def effective_confidence(self) -> float:
+        """Confiance effective incluant le boost des patterns"""
+        return min(1.0, self.confidence + self.pattern_confidence_boost)
 
 
 @dataclass
@@ -295,3 +317,185 @@ class ContextNote:
         # Valider title non vide
         if not self.title or not self.title.strip():
             raise ValueError("title ne peut pas être vide")
+
+
+@dataclass
+class CrossSourceContext:
+    """
+    Contexte récupéré depuis les sources croisées (emails, calendar, teams, etc.).
+
+    Attributes:
+        source: Source de l'information (email, calendar, teams, whatsapp, files, web)
+        title: Titre ou sujet de l'item
+        content_summary: Résumé du contenu
+        relevance: Score de pertinence [0.0, 1.0]
+        timestamp: Date de l'item source
+        metadata: Métadonnées additionnelles
+    """
+
+    source: str
+    title: str
+    content_summary: str
+    relevance: float
+    timestamp: Optional[datetime] = None
+    metadata: dict = field(default_factory=dict)
+
+
+@dataclass
+class PatternMatch:
+    """
+    Un pattern Sganarelle qui correspond à l'événement.
+
+    Attributes:
+        pattern_id: Identifiant du pattern
+        description: Description du pattern
+        confidence: Confiance du pattern [0.0, 1.0]
+        suggested_action: Action suggérée par le pattern
+        occurrences: Nombre de fois que ce pattern a été observé
+    """
+
+    pattern_id: str
+    description: str
+    confidence: float
+    suggested_action: str
+    occurrences: int
+
+
+@dataclass
+class ClarificationQuestion:
+    """
+    Question à poser à l'utilisateur pour clarifier l'analyse.
+
+    Attributes:
+        question: La question à poser
+        reason: Pourquoi cette clarification est nécessaire
+        options: Options de réponse possibles (si applicable)
+        priority: Priorité de la question (haute, moyenne, basse)
+    """
+
+    question: str
+    reason: str
+    options: list[str] = field(default_factory=list)
+    priority: str = "moyenne"
+
+
+class V2MemoryState(str, Enum):
+    """États du cycle de vie de la mémoire de travail V2"""
+
+    INITIALIZED = "initialized"
+    CONTEXT_RETRIEVED = "context_retrieved"
+    ANALYZING = "analyzing"
+    PATTERN_VALIDATING = "pattern_validating"
+    NEEDS_CLARIFICATION = "needs_clarification"
+    APPLYING = "applying"
+    COMPLETE = "complete"
+    FAILED = "failed"
+
+
+@dataclass
+class V2WorkingMemory:
+    """
+    Mémoire de travail légère pour le Workflow V2.
+
+    Version simplifiée de WorkingMemory qui trace l'état cognitif
+    pendant le traitement d'un événement sans la complexité du multi-pass.
+
+    Attributes:
+        event_id: ID de l'événement en cours de traitement
+        state: État actuel du traitement
+        started_at: Horodatage du début
+        context_notes: Notes de contexte récupérées
+        cross_source_context: Contexte des sources croisées
+        pattern_matches: Patterns Sganarelle correspondants
+        analysis: Résultat de l'analyse (si disponible)
+        clarification_questions: Questions en attente
+        errors: Erreurs rencontrées
+        trace: Journal des étapes de traitement
+
+    Example:
+        >>> memory = V2WorkingMemory(event_id="email_123")
+        >>> memory.add_trace("Context retrieved", {"notes_count": 3})
+        >>> memory.transition_to(V2MemoryState.ANALYZING)
+    """
+
+    event_id: str
+    state: V2MemoryState = V2MemoryState.INITIALIZED
+    started_at: datetime = field(default_factory=datetime.now)
+    completed_at: Optional[datetime] = None
+
+    # Contexte
+    context_notes: list["ContextNote"] = field(default_factory=list)
+    cross_source_context: list["CrossSourceContext"] = field(default_factory=list)
+
+    # Validation
+    pattern_matches: list["PatternMatch"] = field(default_factory=list)
+
+    # Résultat
+    analysis: Optional["AnalysisResult"] = None
+
+    # Clarification
+    clarification_questions: list["ClarificationQuestion"] = field(default_factory=list)
+
+    # Suivi
+    errors: list[str] = field(default_factory=list)
+    trace: list[dict] = field(default_factory=list)
+
+    def transition_to(self, new_state: V2MemoryState) -> None:
+        """Change l'état de la mémoire de travail"""
+        old_state = self.state
+        self.state = new_state
+        self.add_trace(f"State transition: {old_state.value} → {new_state.value}")
+
+        if new_state in (V2MemoryState.COMPLETE, V2MemoryState.FAILED):
+            self.completed_at = datetime.now()
+
+    def add_trace(self, message: str, metadata: Optional[dict] = None) -> None:
+        """Ajoute une entrée au journal de trace"""
+        self.trace.append({
+            "timestamp": datetime.now().isoformat(),
+            "message": message,
+            "metadata": metadata or {},
+        })
+
+    def add_error(self, error: str) -> None:
+        """Ajoute une erreur"""
+        self.errors.append(error)
+        self.add_trace(f"Error: {error}")
+
+    @property
+    def duration_ms(self) -> float:
+        """Durée du traitement en millisecondes"""
+        end = self.completed_at or datetime.now()
+        return (end - self.started_at).total_seconds() * 1000
+
+    @property
+    def total_context_items(self) -> int:
+        """Nombre total d'items de contexte"""
+        return len(self.context_notes) + len(self.cross_source_context)
+
+    @property
+    def has_errors(self) -> bool:
+        """True si des erreurs ont été rencontrées"""
+        return len(self.errors) > 0
+
+    @property
+    def is_complete(self) -> bool:
+        """True si le traitement est terminé"""
+        return self.state in (V2MemoryState.COMPLETE, V2MemoryState.FAILED)
+
+    def to_dict(self) -> dict:
+        """Exporte la mémoire de travail en dictionnaire (pour logs/debug)"""
+        return {
+            "event_id": self.event_id,
+            "state": self.state.value,
+            "started_at": self.started_at.isoformat(),
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "duration_ms": self.duration_ms,
+            "context_notes_count": len(self.context_notes),
+            "cross_source_count": len(self.cross_source_context),
+            "pattern_matches_count": len(self.pattern_matches),
+            "has_analysis": self.analysis is not None,
+            "clarification_questions_count": len(self.clarification_questions),
+            "errors": self.errors,
+            "trace": self.trace,
+        }
