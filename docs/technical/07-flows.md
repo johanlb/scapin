@@ -102,20 +102,7 @@ CognitivePipeline.process(metadata, content)
 ├─ Stage 1: NORMALIZE (Trivelin) ~50ms
 │  └─ EmailNormalizer.normalize() → PerceivedEvent
 │
-├─ Stage 2: REASON (Sancho) ~500ms-2s
-│  ├─ Pass 1: Perception + Entity Recognition
-│  ├─ Pass 2: Context Retrieval (Passepartout)
-│  ├─ Pass 3: Analysis + Proposals
-│  ├─ Pass 4: Cross-source Enrichment
-│  ├─ Pass 5: Convergence + Confidence
-│  └─ Continue jusqu'à: convergence OU max_passes (5)
-│     ↓
-│  ReasoningResult {
-│      confidence: 0.92,
-│      converged: true,
-│      passes_executed: 3,
-│      final_analysis: EmailAnalysis
-│  }
+├─ Stage 2: REASON (Sancho) — Voir détails ci-dessous
 │
 ├─ Stage 3: PLAN (Planchet) ~100ms
 │  ├─ Construit DAG d'actions
@@ -137,6 +124,192 @@ CognitivePipeline.process(metadata, content)
 │
 └─ Stage 5: LEARN (Sganarelle) ~50ms
    └─ Mets à jour: patterns, calibration, confidence
+```
+
+### 2.2.1 Raisonnement Multi-Pass (Sancho) — Détail
+
+Le moteur de raisonnement `ReasoningEngine` exécute une boucle itérative jusqu'à convergence de confiance :
+
+```
+while confidence < 95% AND passes < 5:
+    execute_pass(pass_number)
+```
+
+#### Pass 1 : Analyse Initiale
+
+| Aspect | Valeur |
+|--------|--------|
+| **Modèle** | Claude Haiku (rapide, économique) |
+| **Objectif** | Comprendre rapidement l'événement |
+| **Confiance cible** | 60-70% |
+| **Durée** | 2-3 secondes |
+| **Entrées** | PerceivedEvent + PatternStore (patterns appris) |
+
+```
+_pass1_initial_analysis(working_memory)
+    ├─ PatternStore.find_matching_patterns(event)
+    │  └─ Patterns avec confidence >= 0.5, max 5
+    │
+    ├─ TemplateManager.render("ai/pass1_initial")
+    │  └─ Prompt avec event + learned_patterns
+    │
+    ├─ AIRouter.analyze_with_prompt(model=HAIKU)
+    │
+    └─ Hypothesis {
+           id: "pass1_initial",
+           confidence: 0.65,
+           metadata: { analysis, model: "haiku" }
+       }
+```
+
+#### Pass 2 : Enrichissement Contexte
+
+| Aspect | Valeur |
+|--------|--------|
+| **Modèle** | Claude Sonnet (équilibré) |
+| **Objectif** | Ré-analyser avec le contexte récupéré |
+| **Confiance cible** | 75-85% |
+| **Durée** | 3-5 secondes |
+| **Condition** | `enable_context=true` dans config |
+
+**Sources de contexte** :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ContextEngine (Notes Scapin)                                   │
+│  ───────────────────────────────                                │
+│  • Entity-based (40%) : Notes mentionnant mêmes entités        │
+│    └─ NoteManager.get_notes_by_entity(entity, top_k=10)        │
+│                                                                 │
+│  • Semantic (40%) : Similarité vectorielle FAISS               │
+│    └─ NoteManager.search_notes(query, top_k=10)                │
+│    └─ Embeddings: sentence-transformers (all-MiniLM-L6-v2)     │
+│                                                                 │
+│  • Thread-based (20%) : Même fil de discussion                 │
+│    └─ search_notes(f"thread:{thread_id}", top_k=5)             │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  CrossSourceEngine (Sources externes)                           │
+│  ────────────────────────────────────                           │
+│  • Calendar : Événements proches temporellement                 │
+│  • Teams : Messages récents pertinents                          │
+│  • Email : Historique d'échanges avec mêmes contacts           │
+│  • WhatsApp : Conversations récentes (si configuré)            │
+│  • Files : Fichiers locaux pertinents (ripgrep)                │
+│  • Web : Recherche Tavily/DuckDuckGo (si configuré)            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Flux** :
+
+```
+_pass2_context_enrichment(working_memory)
+    │
+    ├─ ContextEngine.retrieve_context_sync(event)
+    │  ├─ _retrieve_by_entities() → 40% poids
+    │  ├─ _retrieve_by_semantic() → 40% poids
+    │  └─ _retrieve_by_thread()   → 20% poids
+    │     ↓
+    │  _rank_and_deduplicate(candidates, top_k=5, min_relevance=0.3)
+    │
+    ├─ CrossSourceEngine.search(query, max_results=5)
+    │  └─ Convertit SourceItem → ContextItem
+    │
+    ├─ WorkingMemory.add_context_simple(source, type, content, relevance)
+    │
+    ├─ TemplateManager.render("ai/pass2_context")
+    │  └─ Prompt avec event + pass1_hypothesis + context_items
+    │
+    └─ AIRouter.analyze_with_prompt(model=SONNET)
+        ↓
+    Hypothesis {
+        id: "pass2_context",
+        confidence: 0.80,
+        metadata: { analysis, context_count }
+    }
+```
+
+#### Pass 3 : Raisonnement Profond
+
+| Aspect | Valeur |
+|--------|--------|
+| **Modèle** | Claude Sonnet |
+| **Objectif** | Chain-of-thought, exploration alternatives, validation logique |
+| **Confiance cible** | 85-92% |
+| **Durée** | 2-4 secondes |
+
+```
+_pass3_deep_reasoning(working_memory)
+    ├─ TemplateManager.render("ai/pass3_deep")
+    │  └─ Prompt avec event + pass2_hypothesis + confiance actuelle
+    │
+    ├─ AIRouter.analyze_with_prompt(model=SONNET)
+    │
+    └─ Hypothesis {
+           id: "pass3_deep",
+           confidence: 0.88,
+           supporting_evidence: [logic_chain]
+       }
+```
+
+#### Pass 4 : Validation (STUB)
+
+| Aspect | Valeur |
+|--------|--------|
+| **État** | Non implémenté (Phase 2.5) |
+| **Objectif prévu** | Consensus multi-provider (Anthropic + OpenAI) |
+| **Comportement actuel** | Pas d'augmentation artificielle de confiance |
+
+#### Pass 5 : Clarification Utilisateur
+
+| Aspect | Valeur |
+|--------|--------|
+| **Modèle** | Claude Sonnet |
+| **Objectif** | Générer questions ciblées pour lever les incertitudes |
+| **Confiance cible** | 95-99% |
+| **Condition** | Exécuté uniquement si confiance < seuil après Pass 3/4 |
+
+```
+_pass5_user_clarification(working_memory)
+    ├─ TemplateManager.render("ai/pass5_clarification")
+    │
+    ├─ AIRouter.analyze_with_prompt(model=SONNET)
+    │
+    └─ Questions ajoutées à WorkingMemory.open_questions
+       └─ Présentées dans la queue de review
+```
+
+### 2.2.2 Configuration du Pipeline Cognitif
+
+```python
+# src/core/config_manager.py → ProcessingConfig
+enable_cognitive_reasoning: bool = True
+cognitive_max_passes: int = 5
+cognitive_confidence_threshold: float = 0.95   # Seuil de convergence
+cognitive_timeout_seconds: int = 30
+
+# Contexte (Pass 2)
+enable_context_enrichment: bool = True
+context_top_k: int = 5                         # Nombre d'items contexte
+context_min_relevance: float = 0.3             # Score minimum
+```
+
+### 2.2.3 Résultat du Raisonnement
+
+```python
+ReasoningResult {
+    working_memory: WorkingMemory,        # État cognitif complet
+    final_analysis: EmailAnalysis,        # Décision finale
+    reasoning_trace: list[ReasoningPass], # Trace complète des passes
+    confidence: float,                    # 0.0-1.0
+    passes_executed: int,                 # Nombre de passes exécutées
+    total_duration_seconds: float,
+    converged: bool,                      # True si confidence >= seuil
+    key_factors: list[str],
+    uncertainties: list[str],
+    questions_for_user: list[dict]
+}
 ```
 
 ### 2.3 Auto-apply Proposals
