@@ -1,7 +1,7 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 2.1.0 (Workflow v2.1: Knowledge Extraction)
-**Date**: 2026-01-11
+**Version**: 2.1.2 (Workflow v2.1.2: Enhanced Extraction)
+**Date**: 2026-01-12
 **Status**: ✅ v1.0.0-rc.1 RELEASED — All features implemented
 
 > Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
@@ -130,11 +130,50 @@ Haiku coûte ~$0.03/événement. La complexité d'un Fast Path ne vaut pas l'éc
 |------|--------------|---------|
 | **Fait** | Note personne/projet | "Marie est promue directrice" |
 | **Décision** | Note projet + OmniFocus | "Budget approuvé: 50K€" |
-| **Tâche** | OmniFocus + Note projet | "Envoyer rapport avant vendredi" |
+| **Engagement** | Note personne + OmniFocus | "Marc s'engage à livrer lundi" |
+| **Deadline** | OmniFocus + Note projet | "Livrer AVANT le 15 mars" |
 | **Événement** | Note projet + Calendar | "Réunion Q2 le 15 janvier" |
-| **Contact** | Note personne | "Nouveau tel: 06..." |
+| **Relation** | Note personne | "Marc rejoint le projet Alpha" |
+| **Coordonnées** | Note personne | "Nouveau tel: 06..." |
+| **Montant** | Note entreprise/projet | "Contrat de 50k€/an" |
 | **Référence** | Note concept + Lien | "Voir doc technique v2" |
-| **Contexte** | Note thread | "Suite à la discussion de hier..." |
+| **Demande** | OmniFocus (si deadline) | "Peux-tu m'envoyer le rapport ?" |
+| **Citation** | Note personne | "Le CEO a dit : on double le budget" |
+| **Objectif** | Note projet | "Objectif Q1 : 100k utilisateurs" |
+| **Compétence** | Note personne | "Marie maîtrise React et Node.js" |
+| **Préférence** | Note personne | "Marc préfère les réunions le matin" |
+
+### Champs d'Extraction v2.1.2
+
+Chaque extraction inclut les champs suivants :
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `info` | string | Description concise (1-2 phrases) |
+| `type` | enum | Type d'extraction (voir ci-dessus) |
+| `importance` | enum | haute, moyenne, basse |
+| `note_cible` | string | Titre de la note cible |
+| `note_action` | enum | enrichir, creer |
+| `omnifocus` | bool | Créer tâche OmniFocus |
+| `calendar` | bool | Créer événement calendrier |
+| `date` | string? | Date ISO YYYY-MM-DD |
+| `time` | string? | Heure HH:MM |
+| `timezone` | string? | HF (France), HM (Madagascar), Maurice, UTC, Paris |
+| `duration` | int? | Durée en minutes (défaut 60) |
+| `has_attachments` | bool | Pièces jointes importantes |
+| `priority` | string? | Priorité OmniFocus (haute, normale, basse) |
+| `project` | string? | Projet OmniFocus cible |
+
+### Fuseaux Horaires Supportés
+
+| Indicateur | Zone | UTC Offset |
+|------------|------|------------|
+| `Paris`, `HF` | Europe/Paris | +1/+2 (été) |
+| `HM` | Indian/Antananarivo | +3 |
+| `Maurice`, `Mauritius` | Indian/Mauritius | +4 |
+| `UTC`, `GMT` | UTC | +0 |
+
+**Règle** : Sans indication explicite, le fuseau est déduit du contexte de l'expéditeur. Par défaut Europe/Paris.
 
 ### Graphe de Connaissances
 
@@ -1785,8 +1824,8 @@ Each valet excels at their specialty, working together like a well-trained house
 
 **Status**: ✅ v1.0.0-rc.1 RELEASED
 **Repository**: https://github.com/johanlb/scapin
-**Version**: 2.1.0
+**Version**: 2.1.2
 **Release**: [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
-**Last Updated**: 2026-01-11
+**Last Updated**: 2026-01-12
 
 🎭 *"The valet who can do anything is worth more than the master who can do nothing."* - Molière

@@ -1,7 +1,7 @@
 # Workflow v2 : Architecture Simplifiée
 
-**Version** : 2.1.1
-**Date** : 11 janvier 2026
+**Version** : 2.1.2
+**Date** : 12 janvier 2026
 **Statut** : Approuvé
 
 > Remplace WORKFLOW_V2_SPEC.md (trop complexe)
@@ -197,6 +197,15 @@ class Extraction:
     note_cible: str
     note_action: str  # enrichir, creer
     omnifocus: bool  # créer tâche OmniFocus ?
+    calendar: bool  # créer événement calendrier ?
+    date: str | None  # YYYY-MM-DD
+    time: str | None  # HH:MM
+    # v2.1.2: Nouveaux champs
+    timezone: str | None  # HF, HM, Maurice, UTC, Paris
+    duration: int | None  # minutes (défaut 60)
+    has_attachments: bool  # pièces jointes importantes
+    priority: str | None  # OmniFocus: haute, normale, basse
+    project: str | None  # OmniFocus: projet cible
 
 @dataclass
 class AnalysisResult:
@@ -219,6 +228,7 @@ async def apply_extractions(result: AnalysisResult) -> EnrichmentResult:
     notes_updated = []
     notes_created = []
     tasks_created = []
+    events_created = []  # v2.1.2
 
     for extraction in result.extractions:
         # 1. Trouver ou créer la note
@@ -243,14 +253,29 @@ async def apply_extractions(result: AnalysisResult) -> EnrichmentResult:
         if extraction.omnifocus:
             task_id = await omnifocus.create_task(
                 title=extraction.info,
-                note=f"Source: {event.subject}"
+                note=f"Source: {event.subject}",
+                due_date=extraction.date,
+                priority=extraction.priority,  # v2.1.2
+                project=extraction.project  # v2.1.2
             )
             tasks_created.append(task_id)
+
+        # 4. Créer événement calendrier si demandé (v2.1.2)
+        if extraction.calendar and extraction.date:
+            event_id = await calendar.create_event(
+                title=extraction.info,
+                date=extraction.date,
+                time=extraction.time,
+                timezone=extraction.timezone,  # HF, HM, Maurice, UTC
+                duration=extraction.duration or 60  # minutes
+            )
+            events_created.append(event_id)
 
     return EnrichmentResult(
         notes_updated=notes_updated,
         notes_created=notes_created,
-        tasks_created=tasks_created
+        tasks_created=tasks_created,
+        events_created=events_created  # v2.1.2
     )
 ```
 

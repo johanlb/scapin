@@ -1187,6 +1187,21 @@ Global MVP:        ████████████████████�
 
 ## Historique des Versions
 
+- **v1.0.0-alpha.20** (2026-01-12) : Workflow v2.1.2 Enhanced Extraction
+  - **5 nouveaux champs** : `timezone`, `duration`, `has_attachments`, `priority`, `project`
+  - **Fuseaux horaires** : Support HF (France), HM (Madagascar), Maurice, UTC avec conversion automatique
+  - **Durée événements** : Configurable (défaut 60 min), intégration Calendar
+  - **OmniFocus amélioré** : `priority` et `project` explicites pour les tâches
+  - **Règles note_cible enrichies** :
+    - Matrice type d'extraction → note_cible recommandée
+    - Résolution d'ambiguïtés (noms partiels, nouveaux contacts, info multi-cible)
+    - Utilisation optimisée du contexte fourni
+  - **Règles draft_reply détaillées** : Langue adaptée, registre, format
+  - **Gestion threads email** : Re:, Fwd:, contenu cité
+  - **15 exemples** dans le template (3 nouveaux : timezones, ambiguïté, anglais)
+  - **Tests** : 72 tests enricher+analyzer (17 nouveaux)
+  - **Commit** : `026e1ca`
+
 - **v1.0.0-alpha.19** (2026-01-11) : Workflow v2.1 Knowledge Extraction Design
   - **Simplification radicale** : 6 phases → 4 phases, ML local → API only
   - **Architecture API-First** : Haiku par défaut, escalade Sonnet si incertain

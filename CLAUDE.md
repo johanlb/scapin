@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 11 janvier 2026
+**Dernière mise à jour** : 12 janvier 2026
 **Projet** : Scapin (anciennement PKM System)
 **Dépôt** : https://github.com/johanlb/scapin
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -597,6 +597,61 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-12 — Workflow v2.1.2 Enhanced Extraction ✅
+
+**Focus** : Amélioration du template d'extraction avec fuseaux horaires, durée, nouveaux champs OmniFocus et règles enrichies
+
+**Accomplissements** :
+
+1. ✅ **5 nouveaux champs d'extraction**
+   - `timezone` — Fuseau horaire explicite (HF, HM, Maurice, UTC, Paris)
+   - `duration` — Durée en minutes pour événements (défaut 60)
+   - `has_attachments` — Pièces jointes importantes (justifie archive)
+   - `priority` — Priorité OmniFocus (haute, normale, basse)
+   - `project` — Projet OmniFocus cible
+
+2. ✅ **Support fuseaux horaires**
+   - TIMEZONE_INDICATORS dans enricher.py : Paris/HF, HM, Maurice, UTC/GMT
+   - Conversion automatique vers UTC pour le calendrier
+   - Règle : deviner selon contexte expéditeur si non explicite
+
+3. ✅ **Règles note_cible enrichies**
+   - Matrice type d'extraction → note_cible recommandée (14 types)
+   - Résolution d'ambiguïtés (noms partiels, inconnus, multi-cible)
+   - Utilisation du contexte fourni (réutiliser titres exacts)
+
+4. ✅ **Règles draft_reply détaillées**
+   - Cas d'utilisation (confirmations, remerciements, validations)
+   - Cas à éviter (négociations, conflits, décisions stratégiques)
+   - Format : même langue, registre adapté, pas de signature
+
+5. ✅ **Gestion threads email**
+   - Re: extraire UNIQUEMENT nouveau contenu
+   - Fwd: extraire infos originales si pertinentes
+   - Ignorer contenu cité (lignes ">")
+
+6. ✅ **3 nouveaux exemples**
+   - Exemple 13 : Fuseaux horaires différents (HM, Paris, Maurice)
+   - Exemple 14 : Résolution d'ambiguïtés avec contexte
+   - Exemple 15 : Email en anglais avec draft_reply adapté
+
+**Fichiers modifiés** :
+```
+src/core/models/v2_models.py     # +5 champs Extraction
+src/sancho/analyzer.py           # Parse nouveaux champs
+src/passepartout/enricher.py     # TIMEZONE_INDICATORS, duration, project
+src/utils/date_utils.py          # Utilitaires timezone
+templates/ai/v2/extraction.j2    # +418 lignes (règles + exemples)
+tests/unit/test_enricher.py      # +17 tests (timezone, duration, fields)
+tests/unit/test_v2_models.py     # Tests nouveaux champs
+```
+
+**Tests** : 72 tests enricher+analyzer passent, ruff 0 warnings
+
+**Commit** : `026e1ca` — feat(v2.1.2): add timezone, duration, priority, project fields to extractions
+
+---
 
 ### Session 2026-01-11 (Suite 3) — Workflow v2.1.1 Extraction Types Expansion ✅
 
