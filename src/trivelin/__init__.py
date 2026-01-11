@@ -21,6 +21,11 @@ from src.trivelin.cognitive_pipeline import (
 )
 from src.trivelin.omnifocus_processor import OmniFocusProcessor
 from src.trivelin.processor import EmailProcessor
+from src.trivelin.v2_processor import (
+    V2EmailProcessor,
+    V2ProcessingResult,
+    create_v2_processor,
+)
 
 __all__ = [
     "ActionFactory",
@@ -29,4 +34,8 @@ __all__ = [
     "CognitiveTimeoutError",
     "EmailProcessor",
     "OmniFocusProcessor",
+    # V2 Workflow
+    "V2EmailProcessor",
+    "V2ProcessingResult",
+    "create_v2_processor",
 ]

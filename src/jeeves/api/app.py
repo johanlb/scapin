@@ -33,6 +33,7 @@ from src.jeeves.api.routers import (
     system_router,
     teams_router,
     valets_router,
+    workflow_router,
 )
 from src.jeeves.api.services.notification_service import get_notification_service
 from src.jeeves.api.websocket import ws_router
@@ -163,6 +164,7 @@ def create_app() -> FastAPI:
     app.include_router(stats_router, prefix="/api/stats", tags=["Stats"])
     app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
     app.include_router(valets_router, prefix="/api/valets", tags=["Valets"])
+    app.include_router(workflow_router, prefix="/api/workflow", tags=["Workflow v2.1"])
     app.include_router(ws_router, prefix="/ws", tags=["WebSocket"])
 
     # Root endpoint

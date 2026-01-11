@@ -16,6 +16,7 @@ from src.jeeves.api.routers.stats import router as stats_router
 from src.jeeves.api.routers.system import router as system_router
 from src.jeeves.api.routers.teams import router as teams_router
 from src.jeeves.api.routers.valets import router as valets_router
+from src.jeeves.api.routers.workflow import router as workflow_router
 
 __all__ = [
     "auth_router",
@@ -34,4 +35,5 @@ __all__ = [
     "system_router",
     "teams_router",
     "valets_router",
+    "workflow_router",
 ]
