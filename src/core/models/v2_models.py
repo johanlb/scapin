@@ -34,6 +34,10 @@ class ExtractionType(str, Enum):
     REFERENCE = "reference"  # Numéros de dossier, facture, ticket
     DEMANDE = "demande"  # Requêtes faites à Johan
     EVENEMENT = "evenement"  # Dates importantes sans obligation (réunion, anniversaire)
+    CITATION = "citation"  # Propos importants à retenir verbatim
+    OBJECTIF = "objectif"  # Buts, cibles, KPIs mentionnés
+    COMPETENCE = "competence"  # Expertise/compétences d'une personne
+    PREFERENCE = "preference"  # Préférences de travail d'une personne
 
 
 class ImportanceLevel(str, Enum):

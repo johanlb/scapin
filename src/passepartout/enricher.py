@@ -292,6 +292,10 @@ class PKMEnricher:
             "reference": "Références",
             "demande": "Demandes",
             "evenement": "Événements",
+            "citation": "Citations",
+            "objectif": "Objectifs",
+            "competence": "Compétences",
+            "preference": "Préférences",
         }
 
         section = section_names.get(extraction.type.value, "Notes")
