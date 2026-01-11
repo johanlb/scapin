@@ -12,7 +12,7 @@ from typing import Final
 # =============================================================================
 
 # Maximum items per batch to prevent overwhelming the system
-DEFAULT_PROCESSING_LIMIT: Final[int] = 20
+DEFAULT_PROCESSING_LIMIT: Final[int] = 50
 
 # Maximum content size for email bodies (prevent memory issues)
 MAX_EMAIL_CONTENT_SIZE: Final[int] = 200_000  # 200KB

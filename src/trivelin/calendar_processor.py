@@ -31,7 +31,7 @@ logger = get_logger("trivelin.calendar_processor")
 
 # Default limit for processing - prevents overwhelming the system
 # Items are always processed oldest-first to handle backlog chronologically
-DEFAULT_PROCESSING_LIMIT = 20
+DEFAULT_PROCESSING_LIMIT = 50
 
 
 @dataclass

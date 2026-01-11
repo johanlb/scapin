@@ -23,6 +23,7 @@ from src.core.schemas import (
     ProcessedEmail,
 )
 from src.core.state_manager import get_state_manager
+from src.integrations.email.folder_preferences import FolderPreferencesStore
 from src.integrations.email.imap_client import IMAPClient
 from src.integrations.storage.queue_storage import get_queue_storage
 from src.monitoring.logger import get_logger
@@ -34,7 +35,7 @@ logger = get_logger("email_processor")
 # Default limit for processing - prevents overwhelming the system
 # This applies to all channels (email, teams, calendar)
 # Items are always processed oldest-first to handle backlog chronologically
-DEFAULT_PROCESSING_LIMIT = 20
+DEFAULT_PROCESSING_LIMIT = 50
 
 
 class EmailProcessor:
@@ -62,6 +63,7 @@ class EmailProcessor:
         self.event_bus = get_event_bus()
         self.error_manager = get_error_manager()
         self.queue_storage = get_queue_storage()
+        self.folder_preferences = FolderPreferencesStore()
         self._shutdown_requested = False
 
         # Setup graceful shutdown handlers
@@ -207,6 +209,35 @@ class EmailProcessor:
         Returns:
             EmailAnalysis or None if analysis fails
         """
+        # Get learned folder suggestions from preferences store
+        learned_suggestions = []
+        try:
+            suggestions = self.folder_preferences.get_suggestions(
+                sender_email=metadata.from_address,
+                subject=metadata.subject,
+                limit=5
+            )
+            # Convert to dict format for template
+            learned_suggestions = [
+                {
+                    "folder": s.folder,
+                    "confidence": int(s.confidence * 100),
+                    "reason": ", ".join(s.reasons) if s.reasons else "Utilisé précédemment"
+                }
+                for s in suggestions
+                if s.confidence >= 0.3  # Only include suggestions with >= 30% confidence
+            ]
+            if learned_suggestions:
+                logger.debug(
+                    "Found learned folder suggestions",
+                    extra={
+                        "email_id": metadata.id,
+                        "suggestions": [s["folder"] for s in learned_suggestions]
+                    }
+                )
+        except Exception as e:
+            logger.warning(f"Failed to get folder suggestions: {e}")
+
         # Try cognitive pipeline if enabled
         if self.cognitive_pipeline:
             try:
@@ -264,7 +295,8 @@ class EmailProcessor:
             metadata,
             content,
             model=AIModel.CLAUDE_HAIKU,
-            existing_folders=existing_folders
+            existing_folders=existing_folders,
+            learned_suggestions=learned_suggestions
         )
         return analysis
 
