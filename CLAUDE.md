@@ -598,6 +598,59 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-11 (Suite 3) — Workflow v2.1.1 Extraction Types Expansion ✅
+
+**Focus** : Extension des types d'extraction et niveaux d'importance pour une capture de connaissances plus complète
+
+**Accomplissements** :
+
+1. ✅ **Extension des types d'extraction** (5 → 14 types)
+   - **Types originaux** : decision, engagement, fait, deadline, relation
+   - **Nouveaux types v2.1.1** :
+     - `coordonnees` — Téléphone, adresse, email de contacts
+     - `montant` — Valeurs financières, factures, contrats
+     - `reference` — Numéros de dossier, facture, ticket
+     - `demande` — Requêtes faites à Johan
+     - `evenement` — Dates importantes sans obligation (réunion, anniversaire)
+     - `citation` — Propos exacts à retenir (verbatim)
+     - `objectif` — Buts, cibles, KPIs mentionnés
+     - `competence` — Expertise/compétences d'une personne
+     - `preference` — Préférences de travail d'une personne
+
+2. ✅ **Extension des niveaux d'importance** (2 → 3 niveaux)
+   - `haute` (🔴) — Critique, impact fort, à ne pas rater
+   - `moyenne` (🟡) — Utile, bon à savoir
+   - `basse` (⚪) — Contexte, référence future (ex: numéros, coordonnées)
+
+3. ✅ **Mise à jour du prompt d'extraction** (`templates/ai/v2/extraction.j2`)
+   - Tableau des 14 types avec colonnes Description + OmniFocus
+   - 6 exemples few-shot couvrant les cas d'usage
+   - Notes explicatives (deadline vs evenement, citation en guillemets)
+
+4. ✅ **Mise à jour de la documentation technique**
+   - `docs/specs/WORKFLOW_V2_SIMPLIFIED.md` — Version 2.1.1
+   - `docs/technical/06-data-models.md` — Section 3.3 Workflow v2.1.1
+
+**Fichiers modifiés** :
+```
+src/core/models/v2_models.py        # ExtractionType (14), ImportanceLevel (3)
+src/passepartout/enricher.py        # section_names, importance_icons
+src/sancho/analyzer.py              # _parse_importance simplifié
+templates/ai/v2/extraction.j2       # Prompt complet avec 14 types
+docs/specs/WORKFLOW_V2_SIMPLIFIED.md
+docs/technical/06-data-models.md
+```
+
+**Tests** : Workflow v2.1.1 testé sur emails réels (iCloud), 6/14 types utilisés dans le batch test
+
+**Commits** :
+- `c3fbeb8` — feat(v2.1.1): add 4 new extraction types
+- `87adfb7` — feat(v2.1.1): add evenement extraction type for dates
+- `a12ffa9` — feat(v2.1.1): add citation, objectif, competence, preference types
+- `c369e94` — feat(v2.1.1): add basse importance level (3-tier system)
+
+---
+
 ### Session 2026-01-11 (Suite 2) — Workflow v2.1 Implementation Complete ✅
 
 **Focus** : Implémentation complète du pipeline d'extraction de connaissances v2.1

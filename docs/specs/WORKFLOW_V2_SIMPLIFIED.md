@@ -1,6 +1,6 @@
 # Workflow v2 : Architecture Simplifiée
 
-**Version** : 2.1.0
+**Version** : 2.1.1
 **Date** : 11 janvier 2026
 **Statut** : Approuvé
 
@@ -129,18 +129,37 @@ Date: {{ event.timestamp }}
 
 Extrais UNIQUEMENT les informations PERMANENTES :
 
-✅ EXTRAIRE :
-- Décisions actées ("budget validé", "choix techno X")
-- Engagements ("Marc s'engage à livrer lundi")
-- Faits importants ("nouveau client signé", "Marie promue")
-- Dates clés (deadlines, jalons)
-- Relations ("Marc rejoint projet Alpha")
+### ✅ EXTRAIRE (14 types)
 
-❌ NE PAS EXTRAIRE :
-- Lieux/heures de réunion ponctuels
-- Formules de politesse
-- Confirmations simples ("OK", "Bien reçu")
+| Type | Description | OmniFocus |
+|------|-------------|-----------|
+| **decision** | Choix actés, arbitrages | Non |
+| **engagement** | Promesses, obligations | Oui si deadline |
+| **fait** | Faits importants, événements passés | Non |
+| **deadline** | Dates limites avec conséquences | **Toujours** |
+| **evenement** | Dates sans obligation (réunion, anniversaire) | Optionnel |
+| **relation** | Liens entre personnes/projets | Non |
+| **coordonnees** | Téléphone, adresse, email | Non |
+| **montant** | Valeurs financières, factures | Non |
+| **reference** | Numéros de dossier, facture, ticket | Non |
+| **demande** | Requêtes faites à Johan | Oui si deadline |
+| **citation** | Propos exacts à retenir (verbatim) | Non |
+| **objectif** | Buts, cibles, KPIs | Non |
+| **competence** | Expertise/compétences d'une personne | Non |
+| **preference** | Préférences de travail d'une personne | Non |
+
+### Niveaux d'importance (3)
+
+| Niveau | Description | Icône |
+|--------|-------------|-------|
+| **haute** | Critique, impact fort, à ne pas rater | 🔴 |
+| **moyenne** | Utile, bon à savoir | 🟡 |
+| **basse** | Contexte, référence future (ex: numéros, coordonnées) | ⚪ |
+
+### ❌ NE PAS EXTRAIRE
+- Formules de politesse, confirmations simples
 - Détails logistiques temporaires
+- Informations déjà connues (dans le contexte)
 
 ## FORMAT RÉPONSE
 
@@ -149,8 +168,8 @@ Extrais UNIQUEMENT les informations PERMANENTES :
   "extractions": [
     {
       "info": "Description concise de l'information",
-      "type": "decision|engagement|fait|deadline|relation",
-      "importance": "haute|moyenne",
+      "type": "decision|engagement|fait|deadline|evenement|relation|coordonnees|montant|reference|demande|citation|objectif|competence|preference",
+      "importance": "haute|moyenne|basse",
       "note_cible": "Titre de la note à enrichir",
       "note_action": "enrichir|creer",
       "omnifocus": false
@@ -171,8 +190,10 @@ Si rien d'important : `"extractions": []`
 @dataclass
 class Extraction:
     info: str
-    type: str  # decision, engagement, fait, deadline, relation
-    importance: str  # haute, moyenne
+    type: str  # 14 types: decision, engagement, fait, deadline, evenement,
+               #          relation, coordonnees, montant, reference, demande,
+               #          citation, objectif, competence, preference
+    importance: str  # haute, moyenne, basse
     note_cible: str
     note_action: str  # enrichir, creer
     omnifocus: bool  # créer tâche OmniFocus ?

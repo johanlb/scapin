@@ -670,6 +670,85 @@ class CrossSourceResult:
     from_cache: bool = False
 ```
 
+### 3.3 Workflow v2.1.1 (`src/core/models/v2_models.py`)
+
+> **Version** : 2.1.1 (11 janvier 2026)
+> Modèles pour l'analyse et l'extraction de connaissances des événements.
+
+#### Enums
+
+| Enum | Valeurs | Description |
+|------|---------|-------------|
+| **ExtractionType** | DECISION, ENGAGEMENT, FAIT, DEADLINE, EVENEMENT, RELATION, COORDONNEES, MONTANT, REFERENCE, DEMANDE, CITATION, OBJECTIF, COMPETENCE, PREFERENCE | 14 types d'information extractibles |
+| **ImportanceLevel** | HAUTE, MOYENNE, BASSE | 3 niveaux d'importance pour les extractions |
+| **NoteAction** | ENRICHIR, CREER | Action sur la note cible |
+| **EmailAction** | ARCHIVE, FLAG, QUEUE, DELETE, RIEN | Action sur l'événement après analyse |
+
+#### ExtractionType (Détail)
+
+| Type | Usage | OmniFocus |
+|------|-------|-----------|
+| **decision** | Choix actés, arbitrages | Non |
+| **engagement** | Promesses, obligations | Oui si deadline |
+| **fait** | Faits importants, événements passés | Non |
+| **deadline** | Dates limites avec conséquences | **Toujours** |
+| **evenement** | Dates sans obligation (réunion, anniversaire) | Optionnel |
+| **relation** | Liens entre personnes/projets | Non |
+| **coordonnees** | Téléphone, adresse, email de contacts | Non |
+| **montant** | Valeurs financières, factures, contrats | Non |
+| **reference** | Numéros de dossier, facture, ticket | Non |
+| **demande** | Requêtes faites à Johan | Oui si deadline |
+| **citation** | Propos exacts à retenir (verbatim) | Non |
+| **objectif** | Buts, cibles, KPIs mentionnés | Non |
+| **competence** | Expertise/compétences d'une personne | Non |
+| **preference** | Préférences de travail d'une personne | Non |
+
+#### ImportanceLevel (Détail)
+
+| Niveau | Description | Icône |
+|--------|-------------|-------|
+| **HAUTE** | Critique, impact fort, à ne pas rater | 🔴 |
+| **MOYENNE** | Utile, bon à savoir | 🟡 |
+| **BASSE** | Contexte, référence future (ex: numéros, coordonnées) | ⚪ |
+
+#### Extraction (Dataclass)
+
+```python
+@dataclass
+class Extraction:
+    info: str                    # Description concise (1-2 phrases)
+    type: ExtractionType         # Type d'information
+    importance: ImportanceLevel  # Niveau d'importance
+    note_cible: str              # Titre de la note où stocker
+    note_action: NoteAction      # enrichir ou creer
+    omnifocus: bool = False      # Créer tâche OmniFocus ?
+```
+
+#### AnalysisResult (Dataclass)
+
+```python
+@dataclass
+class AnalysisResult:
+    extractions: list[Extraction]
+    action: EmailAction
+    confidence: float            # 0.0-1.0
+    raisonnement: str
+    model_used: str              # haiku, sonnet
+    tokens_used: int
+    duration_ms: float
+    escalated: bool = False      # True si escaladé vers modèle puissant
+
+    # Properties
+    @property
+    def has_extractions(self) -> bool
+    @property
+    def high_confidence(self) -> bool  # >= 0.85
+    @property
+    def extraction_count(self) -> int
+    @property
+    def omnifocus_tasks_count(self) -> int
+```
+
 ---
 
 ## 4. Intégrations Externes
