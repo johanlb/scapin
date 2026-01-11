@@ -18,15 +18,40 @@ logger = get_logger("model_selector")
 
 class ModelTier(str, Enum):
     """
-    Model tiers for different use cases
+    Model tiers for different use cases.
 
-    HAIKU: Fast, economical - Best for simple tasks, health checks, quick responses
-    SONNET: Balanced - Best for general email processing, medium complexity tasks
-    OPUS: Powerful, thorough - Best for complex analysis, critical decisions
+    Multi-Pass v2.2 Architecture:
+    - HAIKU: Pass 1-3 (blind extraction, contextual refinement)
+    - SONNET: Pass 4 (deep reasoning when confidence < 80%)
+    - OPUS: Pass 5 (expert analysis when confidence < 75% OR high-stakes)
+
+    Cost/Speed Tradeoffs:
+    - HAIKU: ~$0.25/1M tokens, 1-2s — Fast, economical
+    - SONNET: ~$3/1M tokens, 2-4s — Balanced
+    - OPUS: ~$15/1M tokens, 4-8s — Powerful, thorough
     """
     HAIKU = "haiku"
     SONNET = "sonnet"
     OPUS = "opus"
+
+    @classmethod
+    def for_pass(cls, pass_number: int) -> "ModelTier":
+        """
+        Get the default model tier for a given pass number.
+
+        This is the baseline; actual selection may escalate based on confidence.
+
+        Args:
+            pass_number: Pass number (1-5)
+
+        Returns:
+            Default ModelTier for that pass
+        """
+        if pass_number <= 3:
+            return cls.HAIKU
+        if pass_number == 4:
+            return cls.SONNET
+        return cls.OPUS
 
 
 class ModelSelector:
@@ -158,12 +183,35 @@ class ModelSelector:
 
 # Use cases documentation
 """
-MODEL SELECTION GUIDE
-====================
+MODEL SELECTION GUIDE (v2.2)
+============================
+
+MULTI-PASS ARCHITECTURE
+-----------------------
+The v2.2 multi-pass analysis uses automatic model escalation:
+
+Pass 1-3 (HAIKU):
+- Blind extraction (no context)
+- Contextual refinement (with PKM context)
+- Target: 95% confidence with 2-3 passes
+- Cost: ~$0.001-0.003 per email
+
+Pass 4 (SONNET):
+- Deep reasoning for complex cases
+- Triggered when: confidence < 80% after Pass 3
+- Resolves ambiguities Haiku couldn't handle
+- Cost: ~$0.015 per escalated email
+
+Pass 5 (OPUS):
+- Expert analysis for critical decisions
+- Triggered when: confidence < 75% OR high-stakes
+- High-stakes = VIP sender, >10k€, deadline <48h
+- Cost: ~$0.08 per critical email
 
 HAIKU (Fast & Economical)
 -------------------------
 Best for:
+- Pass 1-3 in multi-pass analysis
 - Health checks (count_tokens, connectivity tests)
 - Simple categorization
 - Quick responses
@@ -176,6 +224,7 @@ Speed: Fastest (~1-2s for typical tasks)
 SONNET (Balanced)
 -----------------
 Best for:
+- Pass 4 deep reasoning
 - Email analysis and classification
 - Medium complexity reasoning
 - Content summarization
@@ -188,10 +237,11 @@ Speed: Medium (~2-4s for typical tasks)
 OPUS (Powerful & Thorough)
 ---------------------------
 Best for:
+- Pass 5 expert analysis
+- High-stakes decisions (money, VIPs, legal)
 - Complex decision making
 - Critical email routing
 - Detailed analysis requiring nuance
-- High-stakes automation
 - Tasks where accuracy is paramount
 
 Cost: ~$15 / 1M input tokens
@@ -199,6 +249,9 @@ Speed: Slower (~4-8s for typical tasks)
 
 RECOMMENDATION
 --------------
-Default to SONNET for email processing, use HAIKU for health checks
-and simple tasks, reserve OPUS for critical/complex decisions.
+Use MultiPassAnalyzer for email processing (automatic escalation).
+For direct API calls:
+- HAIKU for simple tasks
+- SONNET for medium complexity
+- OPUS for critical decisions
 """
