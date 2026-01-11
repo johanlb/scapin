@@ -63,12 +63,22 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
 - `moyenne` = utile, bon à savoir
 - `basse` = contexte, référence future (ex: numéros, coordonnées)
 
-### ❌ NE PAS EXTRAIRE (informations éphémères)
+### ❌ NE PAS EXTRAIRE
 
-- Formules de politesse ("Cordialement", "Merci")
+**Contenu sans valeur permanente** :
+- Formules de politesse ("Cordialement", "Bien à vous", "Merci")
 - Confirmations simples ("OK", "Bien reçu", "C'est noté")
-- Détails logistiques temporaires ("RDV au café du coin")
-- Informations déjà connues (présentes dans le contexte)
+- Signatures email (nom, titre, coordonnées en pied de mail)
+- Disclaimers légaux et mentions de confidentialité
+
+**Contenu redondant** :
+- Informations déjà présentes dans le contexte
+- Contenu des emails précédents (quoted replies ">")
+- Informations publiques facilement trouvables
+
+**Contenu éphémère** :
+- Liens de visioconférence expirés (Zoom, Teams, Meet)
+- Détails logistiques ponctuels sans valeur future
 
 ---
 
