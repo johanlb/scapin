@@ -138,6 +138,64 @@ L'interface Scapin utilise un vocabulaire évocateur du XVIIe siècle et de l'un
 
 ---
 
+## Table de correspondance : Analyse Multi-Pass (Sprint 7)
+
+### Noms des passes
+
+| Terme UI | Pass technique | Modèle | Description |
+|----------|----------------|--------|-------------|
+| **Coup d'œil** | Pass 1 | Haiku | Première lecture sans contexte |
+| **Investigation** | Pass 2 | Haiku | Enrichissement avec contexte |
+| **Enquête approfondie** | Pass 3 | Haiku | Approfondissement, nouvelles entités |
+| **Consultation** | Pass 4 | Sonnet | Raisonnement avancé |
+| **Délibération** | Pass 5 | Opus | Analyse experte, arbitrage |
+
+### Messages de statut pendant l'analyse
+
+| Pass | Message de statut |
+|------|-------------------|
+| Pass 1 | "Sancho jette un coup d'œil au contenu..." |
+| Pass 2 | "Sancho investigue..." |
+| Pass 3 | "Sancho enquête de manière approfondie..." |
+| Pass 4 | "Sancho consulte ses sources..." |
+| Pass 5 | "Sancho délibère sur cette affaire..." |
+| Recherche contexte | "Sancho consulte vos carnets..." |
+| Terminé | "Sancho a terminé son examen" |
+
+### Confiance décomposée
+
+| Terme technique | Terme UI (FR) | Description utilisateur |
+|-----------------|---------------|-------------------------|
+| `entity_confidence` | Identification des personnes | "Les personnes sont-elles bien identifiées ?" |
+| `action_confidence` | Certitude de l'action | "L'action suggérée est-elle la bonne ?" |
+| `extraction_confidence` | Capture des informations | "Les informations importantes sont-elles extraites ?" |
+| `completeness` | Complétude | "N'y a-t-il rien d'oublié ?" |
+| `overall` | Confiance globale | Score de confiance affiché à l'utilisateur |
+
+### Affichage de la confiance
+
+| Niveau | Couleur | Label UI |
+|--------|---------|----------|
+| 95-100% | 🟢 Vert | "Très confiant" |
+| 85-94% | 🟡 Jaune | "Confiant" |
+| 75-84% | 🟠 Orange | "Incertain" |
+| < 75% | 🔴 Rouge | "Requiert votre attention" |
+
+### Vocabulaire interne vs externe
+
+> **Principe** : Les noms de composants restent **techniques** pour la clarté du développement.
+> Les noms de **valets** conceptualisent le service rendu à haut niveau.
+
+| Composant technique | Valet associé | Visible utilisateur |
+|---------------------|---------------|---------------------|
+| `MultiPassAnalyzer` | Sancho | Non (interne) |
+| `ContextSearcher` | Passepartout | Non (interne) |
+| `PassExecutor` | Sancho | Non (interne) |
+| `Convergence` | Sancho | Non (interne) |
+| `CognitivePipeline` | Trivelin | Non (interne) |
+
+---
+
 ## Consignes pour l'IA
 
 ### Quand l'utilisateur dit... l'IA doit comprendre...
@@ -166,4 +224,5 @@ L'interface Scapin utilise un vocabulaire évocateur du XVIIe siècle et de l'un
 | Date | Version | Changements |
 |------|---------|-------------|
 | 2026-01-04 | 0.8.0 | Création du vocabulaire Scapin initial |
+| 2026-01-12 | 0.9.0 | Ajout vocabulaire Multi-Pass (Sprint 7) : noms de passes, messages de statut, confiance décomposée |
 
