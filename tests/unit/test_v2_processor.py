@@ -414,20 +414,23 @@ class TestContextRetrieval:
         self, mock_config, mock_ai_router, mock_note_manager, mock_event
     ):
         """Test successful context retrieval"""
+        # Mock ContextItem structure
+        mock_context_item = MagicMock()
+        mock_context_item.content = "# Project Alpha\n\nProject notes content here"
+        mock_context_item.relevance_score = 0.85
+        mock_context_item.type = "semantic"
+        mock_context_item.metadata = {
+            "note_title": "Project Alpha",
+            "note_type": "project",
+            "note_id": "note_123",
+        }
+
         mock_context_result = MagicMock()
-        mock_context_result.notes = [
-            MagicMock(
-                title="Project Alpha",
-                content="Project notes content here",
-                metadata={"type": "project"},
-                relevance=0.85,
-                note_id="note_123",
-            )
-        ]
+        mock_context_result.context_items = [mock_context_item]
 
         with patch("src.trivelin.v2_processor.ContextEngine") as MockCE:
             mock_ce_instance = MagicMock()
-            mock_ce_instance.retrieve.return_value = mock_context_result
+            mock_ce_instance.retrieve_context = AsyncMock(return_value=mock_context_result)
             MockCE.return_value = mock_ce_instance
 
             processor = V2EmailProcessor(
@@ -449,7 +452,9 @@ class TestContextRetrieval:
         """Test that context retrieval errors return empty list"""
         with patch("src.trivelin.v2_processor.ContextEngine") as MockCE:
             mock_ce_instance = MagicMock()
-            mock_ce_instance.retrieve.side_effect = Exception("Search failed")
+            mock_ce_instance.retrieve_context = AsyncMock(
+                side_effect=Exception("Search failed")
+            )
             MockCE.return_value = mock_ce_instance
 
             processor = V2EmailProcessor(
