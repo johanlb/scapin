@@ -434,6 +434,143 @@ class NoteManager:
         logger.info("Updated note", extra={"note_id": note_id})
         return True
 
+    def add_info(
+        self,
+        note_id: str,
+        info: str,
+        info_type: str,
+        importance: str,
+        source_id: str
+    ) -> bool:
+        """
+        Add information to an existing note.
+
+        Adds a formatted entry to the appropriate section of the note.
+        Creates the section if it doesn't exist.
+
+        Format in the note:
+        - **2026-01-11** : {info} — [source](scapin://event/{source_id})
+
+        Args:
+            note_id: Note identifier
+            info: Information to add (1-2 sentences)
+            info_type: Type of info (decision, engagement, fait, deadline, relation)
+            importance: Importance level (haute, moyenne)
+            source_id: Source event ID for traceability
+
+        Returns:
+            True if updated, False if note not found
+
+        Example:
+            >>> manager.add_info(
+            ...     note_id="projet-alpha",
+            ...     info="Budget de 50k€ validé pour la phase 2",
+            ...     info_type="decision",
+            ...     importance="haute",
+            ...     source_id="email_123"
+            ... )
+        """
+        note = self.get_note(note_id)
+        if not note:
+            logger.warning(
+                "Note not found for add_info",
+                extra={"note_id": note_id, "info_type": info_type}
+            )
+            return False
+
+        # Section names by info type
+        section_names = {
+            "decision": "Décisions",
+            "engagement": "Engagements",
+            "fait": "Faits",
+            "deadline": "Jalons",
+            "relation": "Relations"
+        }
+        section_name = section_names.get(info_type.lower(), "Informations")
+
+        # Format the entry
+        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        importance_marker = "🔴" if importance.lower() == "haute" else "🟡"
+        entry = f"- {importance_marker} **{date}** : {info} — [source](scapin://event/{source_id})"
+
+        # Find or create section in content
+        content = note.content
+        section_header = f"## {section_name}"
+
+        if section_header in content:
+            # Section exists - add entry after header
+            lines = content.split("\n")
+            new_lines = []
+            section_found = False
+            entry_added = False
+
+            for i, line in enumerate(lines):
+                new_lines.append(line)
+                if line.strip() == section_header and not entry_added:
+                    section_found = True
+                elif section_found and not entry_added:
+                    # Add entry on the next line after section header
+                    # Skip empty lines after header
+                    if line.strip() == "":
+                        continue
+                    # If this line starts with "- " it's an existing entry
+                    # Insert our new entry before existing entries (most recent first)
+                    if line.strip().startswith("- "):
+                        new_lines.insert(len(new_lines) - 1, entry)
+                        entry_added = True
+                    else:
+                        # Non-list content, add entry before it
+                        new_lines.insert(len(new_lines) - 1, entry)
+                        new_lines.insert(len(new_lines) - 1, "")
+                        entry_added = True
+
+            # If section was found but no entries exist yet
+            if section_found and not entry_added:
+                # Find the section header and add entry after it
+                for i, line in enumerate(new_lines):
+                    if line.strip() == section_header:
+                        new_lines.insert(i + 1, "")
+                        new_lines.insert(i + 2, entry)
+                        break
+
+            content = "\n".join(new_lines)
+        else:
+            # Section doesn't exist - create it at the end
+            if not content.endswith("\n"):
+                content += "\n"
+            content += f"\n{section_header}\n\n{entry}\n"
+
+        # Update the note
+        return self.update_note(note_id, content=content)
+
+    def get_note_by_title(self, title: str) -> Optional[Note]:
+        """
+        Get note by exact title match.
+
+        Searches through all notes for an exact title match (case-insensitive).
+
+        Args:
+            title: Note title to search for
+
+        Returns:
+            Note object or None if not found
+        """
+        title_lower = title.lower().strip()
+
+        # First check cache
+        with self._cache_lock:
+            for note in self._note_cache.values():
+                if note.title.lower().strip() == title_lower:
+                    return note
+
+        # Search all notes on disk
+        for note_id in self.list_notes():
+            note = self.get_note(note_id)
+            if note and note.title.lower().strip() == title_lower:
+                return note
+
+        return None
+
     def delete_note(self, note_id: str) -> bool:
         """
         Delete a note

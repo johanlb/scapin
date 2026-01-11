@@ -28,6 +28,11 @@ from src.passepartout.background_worker import (
 )
 from src.passepartout.context_engine import ContextEngine, ContextRetrievalResult
 from src.passepartout.embeddings import EmbeddingGenerator
+from src.passepartout.enricher import (
+    EnricherError,
+    PKMEnricher,
+    create_enricher,
+)
 from src.passepartout.note_enricher import (
     Enrichment,
     EnrichmentContext,
@@ -101,7 +106,11 @@ __all__ = [
     "ReviewContext",
     "ReviewResult",
     "ActionType",
-    # Enricher
+    # Enricher (v2.1 PKM)
+    "PKMEnricher",
+    "EnricherError",
+    "create_enricher",
+    # Enricher (original)
     "NoteEnricher",
     "Enrichment",
     "EnrichmentContext",

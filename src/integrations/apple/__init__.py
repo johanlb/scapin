@@ -28,6 +28,14 @@ from src.integrations.apple.notes_models import (
     SyncResult,
 )
 from src.integrations.apple.notes_sync import AppleNotesSync, get_apple_notes_sync
+from src.integrations.apple.omnifocus import (
+    OmniFocusClient,
+    OmniFocusError,
+    OmniFocusNotAvailableError,
+    OmniFocusTask,
+    OmniFocusTaskCreationError,
+    create_omnifocus_client,
+)
 
 __all__ = [
     # iCloud Calendar Client
@@ -55,4 +63,11 @@ __all__ = [
     # Apple Notes Sync
     "AppleNotesSync",
     "get_apple_notes_sync",
+    # OmniFocus
+    "OmniFocusClient",
+    "OmniFocusError",
+    "OmniFocusNotAvailableError",
+    "OmniFocusTask",
+    "OmniFocusTaskCreationError",
+    "create_omnifocus_client",
 ]
