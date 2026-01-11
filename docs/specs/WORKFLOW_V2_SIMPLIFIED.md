@@ -413,4 +413,113 @@ Les deux workflows peuvent coexister pendant la période de test.
 
 ---
 
+---
+
+## 11. Décisions de Conception
+
+### 11.1 Structure des Notes (Hybride)
+
+```markdown
+# Marc Dupont
+
+## Résumé
+Tech Lead Projet Alpha depuis janvier 2026. Budget 50k€ validé.
+
+## Historique récent
+- **2026-01-11** : Budget validé 50k€ — [source](scapin://email/123)
+- **2026-01-10** : Rejoint Projet Alpha — [source](scapin://email/118)
+
+## Historique archivé
+<!-- Entrées > 3 mois déplacées ici automatiquement -->
+```
+
+### 11.2 Création de Notes
+
+**Toujours demander confirmation** avant de créer une nouvelle note.
+
+```python
+if note_action == "creer":
+    # Ne pas créer automatiquement, mettre en queue
+    queue.add(QueueItem(
+        type="create_note",
+        title=extraction.note_cible,
+        content=extraction.info,
+        source_event=event_id
+    ))
+```
+
+### 11.3 Notes Longues (Auto-archivage)
+
+Quand une note dépasse 100 entrées dans "Historique récent" :
+- Déplacer les entrées > 3 mois vers "Historique archivé"
+- Garder le résumé à jour
+
+### 11.4 OmniFocus (Matching Projet)
+
+```python
+async def create_task(self, extraction: Extraction) -> str:
+    # 1. Essayer de matcher avec projet existant
+    projects = await self.omnifocus.list_projects()
+    matched = find_best_match(extraction.note_cible, projects)
+
+    if matched and matched.score > 0.8:
+        project = matched.name
+    else:
+        project = "Inbox"  # Fallback
+
+    return await self.omnifocus.create_task(
+        title=extraction.info,
+        project=project
+    )
+```
+
+### 11.5 Bootstrap (Création Agressive)
+
+Au début (PKM < 50 notes), être plus agressif :
+- Proposer plus de créations de notes
+- Seuils de création plus bas
+
+```python
+def should_propose_creation(self, pkm_size: int) -> bool:
+    if pkm_size < 50:
+        return True  # Bootstrap mode
+    return self.confidence > 0.7
+```
+
+### 11.6 Granularité : Petites Notes
+
+**Philosophie** : 1 note = 1 entité (personne, projet, concept)
+
+```
+notes/
+├── personnes/
+│   ├── Marc Dupont.md
+│   ├── Sophie Martin.md
+│   └── Marie Durand.md
+├── projets/
+│   ├── Projet Alpha.md
+│   └── Budget 2026.md
+├── concepts/
+│   ├── Architecture Microservices.md
+│   └── RGPD.md
+└── organisations/
+    ├── Acme Corp.md
+    └── DGFIP.md
+```
+
+### 11.7 Récapitulatif des Décisions
+
+| Question | Décision |
+|----------|----------|
+| Structure notes | Hybride (résumé + historique) |
+| Création notes | Toujours confirmation |
+| Notes longues | Auto-archivage > 3 mois |
+| OmniFocus projet | Matcher existant, sinon Inbox |
+| Bootstrap | Création agressive au début |
+| Correction erreurs | Manuelle (v2.1) |
+| Limite extractions | Pas de limite |
+| Granularité | Beaucoup de petites notes |
+
+---
+
 *Document simplifié le 11 janvier 2026*
