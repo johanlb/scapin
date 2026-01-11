@@ -921,7 +921,7 @@ class QueueService:
         Returns:
             Dict with total, started, failed counts and status
         """
-        pending_items = self._storage.get_items_by_status("pending")
+        pending_items = self._storage.load_queue(status="pending")
         total = len(pending_items)
         started = 0
         failed = 0
