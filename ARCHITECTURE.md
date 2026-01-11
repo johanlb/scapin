@@ -1,7 +1,7 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 1.0.0-alpha.3 (continuing from PKM v3.1.0)
-**Date**: 2026-01-02
+**Version**: 1.0.0-alpha.4 (continuing from PKM v3.1.0)
+**Date**: 2026-01-11
 **Status**: ✅ Phase 0.6 Complete - All Valets Implemented
 
 > Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
@@ -920,6 +920,56 @@ class UserFeedback:
 
 ---
 
+### 8. Email Integration Infrastructure
+
+**Module**: `src/integrations/email/`
+**Purpose**: Robust email fetching and tracking with iCloud IMAP workarounds.
+
+**Components**:
+
+#### ProcessedEmailTracker (`processed_tracker.py`)
+
+SQLite-based tracker for processed emails, necessary because iCloud IMAP doesn't support KEYWORD/UNKEYWORD search for custom flags.
+
+```python
+class ProcessedEmailTracker:
+    """Track processed emails using local SQLite database."""
+
+    def is_processed(self, message_id: str) -> bool:
+        """Check if email was already processed."""
+
+    def mark_processed(self, message_id: str, account_id: str,
+                       subject: str, from_address: str) -> bool:
+        """Mark email as processed in local database."""
+
+    def get_unprocessed_message_ids(self, all_ids: list[str]) -> list[str]:
+        """Filter to only unprocessed emails."""
+```
+
+**Key Design Decisions**:
+- IMAP flags still added for visual feedback in email clients
+- SQLite provides reliable local persistence
+- Thread-safe with `check_same_thread=False`
+- Batch processing with early stop for performance (1s vs 43s for 16k+ emails)
+
+#### JSON Repair Strategy (`src/sancho/router.py`)
+
+Multi-level repair strategy for malformed LLM JSON responses:
+
+```
+Level 1: Direct parse (ideal case, fast)
+    ↓ (on failure)
+Level 2: json-repair library (handles complex cases)
+    ↓ (on failure)
+Level 3: Regex cleaning + json-repair (last resort)
+```
+
+**Technologies**:
+- `json-repair` library: Robust handling of missing commas, unquoted strings, etc.
+- Regex patterns: Trailing commas, markdown code blocks, comments
+
+---
+
 ## 📝 Reasoning Flow Examples
 
 ### Example 1: Simple Email (1-2 passes)
@@ -1183,6 +1233,8 @@ RESULT: ✅ Success - Email fully processed, all actions completed
 | 6 | **Multi-provider consensus (Pass 4)** | Improve accuracy for uncertain cases | ✅ Approved |
 | 7 | **Git for PKM version control** | Safety + auditability | ✅ Approved |
 | 8 | **Transaction-based execution** | Atomic operations with rollback | ✅ Approved |
+| 9 | **Local SQLite for email tracking** | iCloud IMAP doesn't support KEYWORD search | ✅ Approved |
+| 10 | **Multi-level JSON repair** | LLM responses often have syntax errors | ✅ Approved |
 
 ### Technology Stack
 
@@ -1197,6 +1249,8 @@ RESULT: ✅ Success - Email fully processed, all actions completed
 | **Actions** | Plugin-based (ABC classes) | Extensibility |
 | **Event Bus** | Existing (Phase 1.5) | Already implemented |
 | **Config** | Pydantic Settings | Type-safe, validated |
+| **Email Tracking** | SQLite (processed_tracker.py) | Local persistence, iCloud IMAP workaround |
+| **JSON Repair** | json-repair library | Robust handling of malformed LLM responses |
 
 ### Performance Targets
 
