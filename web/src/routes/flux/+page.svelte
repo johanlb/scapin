@@ -2,13 +2,13 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import { Card, Button, Input, VirtualList, SwipeableCard, LongPressMenu } from '$lib/components/ui';
+	import { Card, Button, Input, VirtualList, SwipeableCard, LongPressMenu, FolderSelector } from '$lib/components/ui';
 	import type { MenuItem } from '$lib/components/ui/LongPressMenu.svelte';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
-	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox, reanalyzeQueueItem } from '$lib/api';
-	import type { QueueItem, ActionOption, SnoozeOption } from '$lib/api';
+	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox, reanalyzeQueueItem, recordArchive, getFolderSuggestions } from '$lib/api';
+	import type { QueueItem, ActionOption, SnoozeOption, FolderSuggestion } from '$lib/api';
 	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
 
 	// Detect touch device
@@ -30,6 +30,12 @@
 
 	// Reanalyze state
 	let isReanalyzing = $state(false);
+
+	// Folder selector state
+	let showFolderSelector = $state(false);
+	let pendingArchiveItem = $state<QueueItem | null>(null);
+	let pendingArchiveOption = $state<ActionOption | null>(null);
+	let folderSuggestion = $state<FolderSuggestion | null>(null);
 
 	// Bug #49: Auto-fetch threshold
 	const AUTO_FETCH_THRESHOLD = 5;
@@ -297,6 +303,61 @@
 
 	async function handleSelectOption(item: QueueItem, option: ActionOption) {
 		if (isProcessing) return;
+
+		// For archive action: check if we need to show folder selector
+		if (option.action === 'archive') {
+			const destination = option.destination;
+
+			if (!destination) {
+				// Try to get AI suggestion for the folder
+				try {
+					const suggestions = await getFolderSuggestions(
+						item.metadata.from_address,
+						item.metadata.subject,
+						1
+					);
+
+					if (suggestions.suggestions.length > 0 && suggestions.suggestions[0].confidence >= 0.8) {
+						// High confidence suggestion - use it directly
+						await executeArchiveWithFolder(item, option, suggestions.suggestions[0].folder);
+						return;
+					} else {
+						// No high-confidence suggestion - show folder selector
+						pendingArchiveItem = item;
+						pendingArchiveOption = option;
+						folderSuggestion = suggestions.suggestions[0] || null;
+						showFolderSelector = true;
+						return;
+					}
+				} catch {
+					// On error, show folder selector
+					pendingArchiveItem = item;
+					pendingArchiveOption = option;
+					folderSuggestion = null;
+					showFolderSelector = true;
+					return;
+				}
+			}
+		}
+
+		// Non-archive action or archive with destination - proceed normally
+		await executeAction(item, option, option.destination ?? undefined);
+	}
+
+	async function executeArchiveWithFolder(item: QueueItem, option: ActionOption, folder: string) {
+		// Record the archive for learning
+		try {
+			await recordArchive(folder, item.metadata.from_address, item.metadata.subject);
+		} catch (e) {
+			console.error('Failed to record archive for learning:', e);
+			// Continue anyway - recording is not critical
+		}
+
+		// Execute the action with the selected folder
+		await executeAction(item, option, folder);
+	}
+
+	async function executeAction(item: QueueItem, option: ActionOption, destination?: string) {
 		isProcessing = true;
 
 		// Save item info for undo and potential restore
@@ -331,7 +392,7 @@
 
 		// Bug #53 fix: Execute API call in background (non-blocking)
 		try {
-			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, option.destination);
+			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, destination);
 			// Update stats in background (no await needed)
 			queueStore.fetchStats();
 			// Bug #49: Check if we need to auto-fetch
@@ -349,6 +410,20 @@
 				{ title: 'Erreur IMAP' }
 			);
 		}
+	}
+
+	function handleFolderSelect(folder: string) {
+		if (pendingArchiveItem && pendingArchiveOption) {
+			executeArchiveWithFolder(pendingArchiveItem, pendingArchiveOption, folder);
+		}
+		closeFolderSelector();
+	}
+
+	function closeFolderSelector() {
+		showFolderSelector = false;
+		pendingArchiveItem = null;
+		pendingArchiveOption = null;
+		folderSuggestion = null;
 	}
 
 	async function handleCustomInstruction(item: QueueItem) {
@@ -1610,3 +1685,13 @@
 		</section>
 	{/if}
 </div>
+
+<!-- Folder Selector Modal -->
+{#if showFolderSelector && pendingArchiveItem}
+	<FolderSelector
+		senderEmail={pendingArchiveItem.metadata.from_address}
+		subject={pendingArchiveItem.metadata.subject}
+		onSelect={handleFolderSelect}
+		onCancel={closeFolderSelector}
+	/>
+{/if}

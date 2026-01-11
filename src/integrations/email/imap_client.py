@@ -1204,6 +1204,70 @@ class IMAPClient:
             logger.error(f"Error ensuring folder exists: {e}", exc_info=True)
             return False
 
+    def create_folder(self, folder: str) -> bool:
+        """
+        Create a new IMAP folder.
+
+        Handles nested folders by creating parent folders first.
+
+        Args:
+            folder: Folder name (e.g., "Archive/2025/Personal")
+
+        Returns:
+            True if folder was created or already exists
+        """
+        if self._connection is None:
+            raise RuntimeError("Not connected to IMAP server. Use connect() context manager.")
+
+        return self._ensure_folder_exists(folder)
+
+    def get_folder_tree(self) -> list[dict]:
+        """
+        Get folders as a hierarchical tree structure.
+
+        Returns:
+            List of folder dictionaries with structure:
+            {
+                "name": "Archive",
+                "path": "Archive",
+                "children": [
+                    {"name": "2024", "path": "Archive/2024", "children": []},
+                    {"name": "2025", "path": "Archive/2025", "children": []}
+                ]
+            }
+        """
+        folders = self.list_folders()
+
+        # Build tree structure
+        tree: dict = {}
+
+        for folder_path in folders:
+            parts = folder_path.split('/')
+            current = tree
+
+            for i, part in enumerate(parts):
+                if part not in current:
+                    current[part] = {
+                        'name': part,
+                        'path': '/'.join(parts[:i+1]),
+                        'children': {}
+                    }
+                current = current[part]['children']
+
+        # Convert to list format
+        def dict_to_list(d: dict) -> list[dict]:
+            result = []
+            for key in sorted(d.keys()):
+                item = d[key]
+                result.append({
+                    'name': item['name'],
+                    'path': item['path'],
+                    'children': dict_to_list(item['children'])
+                })
+            return result
+
+        return dict_to_list(tree)
+
     def move_email(self, msg_id: int, from_folder: str, to_folder: str) -> bool:
         """
         Move email to different folder

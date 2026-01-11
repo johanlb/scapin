@@ -1005,6 +1005,103 @@ export function getAttachmentUrl(emailId: string, filename: string, folder = 'IN
 }
 
 // ============================================================================
+// FOLDER TYPES
+// ============================================================================
+
+export interface EmailFolder {
+	path: string;
+	name: string;
+	delimiter: string;
+	has_children: boolean;
+	selectable: boolean;
+}
+
+export interface FolderTreeNode {
+	name: string;
+	path: string;
+	children: FolderTreeNode[];
+}
+
+export interface FolderSuggestion {
+	folder: string;
+	confidence: number;
+	reason: string;
+}
+
+export interface FolderSuggestions {
+	suggestions: FolderSuggestion[];
+	recent_folders: string[];
+	popular_folders: string[];
+}
+
+export interface CreateFolderResult {
+	path: string;
+	created: boolean;
+}
+
+// ============================================================================
+// FOLDER API FUNCTIONS
+// ============================================================================
+
+/**
+ * List all IMAP folders (flat list)
+ */
+export async function listFolders(): Promise<EmailFolder[]> {
+	return fetchApi<EmailFolder[]>('/email/folders');
+}
+
+/**
+ * Get folders as hierarchical tree
+ */
+export async function getFolderTree(): Promise<FolderTreeNode[]> {
+	return fetchApi<FolderTreeNode[]>('/email/folders/tree');
+}
+
+/**
+ * Get AI-powered folder suggestions based on sender and subject
+ */
+export async function getFolderSuggestions(
+	senderEmail?: string,
+	subject?: string,
+	limit = 5
+): Promise<FolderSuggestions> {
+	const params = new URLSearchParams();
+	if (senderEmail) params.set('sender_email', senderEmail);
+	if (subject) params.set('subject', subject);
+	params.set('limit', String(limit));
+
+	return fetchApi<FolderSuggestions>(`/email/folders/suggested?${params}`);
+}
+
+/**
+ * Create a new IMAP folder
+ */
+export async function createFolder(path: string): Promise<CreateFolderResult> {
+	return fetchApi<CreateFolderResult>('/email/folders', {
+		method: 'POST',
+		body: JSON.stringify({ path })
+	});
+}
+
+/**
+ * Record an archive action for learning
+ */
+export async function recordArchive(
+	folder: string,
+	senderEmail?: string,
+	subject?: string
+): Promise<{ folder: string; recorded: boolean }> {
+	return fetchApi<{ folder: string; recorded: boolean }>('/email/folders/record-archive', {
+		method: 'POST',
+		body: JSON.stringify({
+			folder,
+			sender_email: senderEmail,
+			subject
+		})
+	});
+}
+
+// ============================================================================
 // CALENDAR TYPES
 // ============================================================================
 

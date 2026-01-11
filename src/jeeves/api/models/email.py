@@ -105,3 +105,79 @@ class ExecuteActionRequest(BaseModel):
     action: str = Field(..., description="Action to execute: archive, delete, task")
     destination: str | None = Field(None, description="Destination folder for archive")
     task_title: str | None = Field(None, description="Task title if action is 'task'")
+
+
+# ============================================================================
+# Folder Models
+# ============================================================================
+
+
+class FolderResponse(BaseModel):
+    """Single folder information"""
+
+    path: str = Field(..., description="Full folder path (e.g., 'Archive/2024')")
+    name: str = Field(..., description="Display name (last component)")
+    delimiter: str = Field("/", description="Hierarchy delimiter")
+    has_children: bool = Field(False, description="Whether folder has subfolders")
+    selectable: bool = Field(True, description="Whether folder can be selected")
+
+
+class FolderTreeNode(BaseModel):
+    """Folder in hierarchical tree structure"""
+
+    name: str = Field(..., description="Folder display name")
+    path: str = Field(..., description="Full folder path")
+    children: list["FolderTreeNode"] = Field(
+        default_factory=list,
+        description="Child folders",
+    )
+
+
+class FolderSuggestionResponse(BaseModel):
+    """AI-powered folder suggestion"""
+
+    folder: str = Field(..., description="Suggested folder path")
+    confidence: float = Field(..., ge=0, le=1, description="Confidence score 0-1")
+    reason: str = Field(..., description="Reason for suggestion")
+
+
+class FolderSuggestionsResponse(BaseModel):
+    """Response with folder suggestions"""
+
+    suggestions: list[FolderSuggestionResponse] = Field(
+        default_factory=list,
+        description="Suggested folders ordered by confidence",
+    )
+    recent_folders: list[str] = Field(
+        default_factory=list,
+        description="Recently used folders",
+    )
+    popular_folders: list[str] = Field(
+        default_factory=list,
+        description="Most frequently used folders",
+    )
+
+
+class CreateFolderRequest(BaseModel):
+    """Request to create a new folder"""
+
+    path: str = Field(
+        ...,
+        min_length=1,
+        description="Folder path to create (e.g., 'Archive/Projects/2024')",
+    )
+
+
+class CreateFolderResponse(BaseModel):
+    """Response from folder creation"""
+
+    path: str = Field(..., description="Created folder path")
+    created: bool = Field(..., description="Whether folder was newly created")
+
+
+class RecordArchiveRequest(BaseModel):
+    """Request to record an archive action for learning"""
+
+    folder: str = Field(..., description="Destination folder used")
+    sender_email: str | None = Field(None, description="Sender email address")
+    subject: str | None = Field(None, description="Email subject")

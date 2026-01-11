@@ -1,0 +1,622 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { getFolderTree, getFolderSuggestions, createFolder } from '$lib/api';
+	import type { FolderTreeNode, FolderSuggestion, FolderSuggestions } from '$lib/api';
+	import Button from './Button.svelte';
+	import Input from './Input.svelte';
+
+	interface Props {
+		senderEmail?: string;
+		subject?: string;
+		onSelect: (folder: string) => void;
+		onCancel: () => void;
+	}
+
+	let { senderEmail, subject, onSelect, onCancel }: Props = $props();
+
+	// State
+	let suggestions: FolderSuggestion[] = $state([]);
+	let recentFolders: string[] = $state([]);
+	let popularFolders: string[] = $state([]);
+	let folderTree: FolderTreeNode[] = $state([]);
+	let searchQuery = $state('');
+	let newFolderPath = $state('');
+	let showCreateFolder = $state(false);
+	let isCreatingFolder = $state(false);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let expandedFolders = $state<Set<string>>(new Set());
+
+	// Filtered folders based on search
+	const filteredTree = $derived(
+		searchQuery.trim()
+			? filterTree(folderTree, searchQuery.toLowerCase())
+			: folderTree
+	);
+
+	// Flatten tree for search
+	function filterTree(nodes: FolderTreeNode[], query: string): FolderTreeNode[] {
+		const result: FolderTreeNode[] = [];
+		for (const node of nodes) {
+			const matches = node.name.toLowerCase().includes(query) ||
+				node.path.toLowerCase().includes(query);
+			const filteredChildren = filterTree(node.children || [], query);
+
+			if (matches || filteredChildren.length > 0) {
+				result.push({
+					...node,
+					children: filteredChildren
+				});
+			}
+		}
+		return result;
+	}
+
+	// Get all folder paths from tree (flattened)
+	function getAllFolderPaths(nodes: FolderTreeNode[]): string[] {
+		const paths: string[] = [];
+		for (const node of nodes) {
+			paths.push(node.path);
+			if (node.children?.length) {
+				paths.push(...getAllFolderPaths(node.children));
+			}
+		}
+		return paths;
+	}
+
+	// Expand all folders containing search matches
+	$effect(() => {
+		if (searchQuery.trim()) {
+			const allPaths = getAllFolderPaths(filteredTree);
+			expandedFolders = new Set(allPaths);
+		}
+	});
+
+	onMount(async () => {
+		await loadData();
+	});
+
+	async function loadData() {
+		isLoading = true;
+		error = null;
+
+		try {
+			// Load suggestions and tree in parallel
+			const [suggestionsData, treeData] = await Promise.all([
+				getFolderSuggestions(senderEmail, subject, 5),
+				getFolderTree()
+			]);
+
+			suggestions = suggestionsData.suggestions;
+			recentFolders = suggestionsData.recent_folders;
+			popularFolders = suggestionsData.popular_folders;
+			folderTree = treeData;
+
+			// Auto-expand first level
+			for (const node of folderTree) {
+				if (node.children?.length) {
+					expandedFolders.add(node.path);
+				}
+			}
+			expandedFolders = new Set(expandedFolders);
+		} catch (e) {
+			console.error('Failed to load folders:', e);
+			error = 'Impossible de charger les dossiers';
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function handleSelectFolder(path: string) {
+		onSelect(path);
+	}
+
+	function toggleFolder(path: string) {
+		if (expandedFolders.has(path)) {
+			expandedFolders.delete(path);
+		} else {
+			expandedFolders.add(path);
+		}
+		expandedFolders = new Set(expandedFolders);
+	}
+
+	async function handleCreateFolder() {
+		if (!newFolderPath.trim() || isCreatingFolder) return;
+
+		isCreatingFolder = true;
+		try {
+			await createFolder(newFolderPath.trim());
+			// Select the newly created folder
+			onSelect(newFolderPath.trim());
+		} catch (e) {
+			console.error('Failed to create folder:', e);
+			error = 'Impossible de créer le dossier';
+		} finally {
+			isCreatingFolder = false;
+		}
+	}
+
+	function getConfidenceColor(confidence: number): string {
+		if (confidence >= 0.8) return 'var(--color-success)';
+		if (confidence >= 0.5) return 'var(--color-accent)';
+		return 'var(--color-text-secondary)';
+	}
+
+	function getConfidenceLabel(confidence: number): string {
+		if (confidence >= 0.8) return 'Très probable';
+		if (confidence >= 0.5) return 'Probable';
+		return 'Suggestion';
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			onCancel();
+		}
+	}
+</script>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+<div
+	class="folder-selector-overlay"
+	onclick={onCancel}
+	role="dialog"
+	aria-modal="true"
+	tabindex="-1"
+>
+	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+	<div class="folder-selector" onclick={(e) => e.stopPropagation()} data-testid="folder-selector">
+		<header class="selector-header">
+			<h2>Choisir un dossier</h2>
+			<button class="close-btn" onclick={onCancel} aria-label="Fermer">×</button>
+		</header>
+
+		{#if isLoading}
+			<div class="loading-state">
+				<span class="spinner"></span>
+				<span>Chargement des dossiers...</span>
+			</div>
+		{:else if error}
+			<div class="error-state">
+				<span class="error-icon">⚠️</span>
+				<span>{error}</span>
+				<Button variant="ghost" size="sm" onclick={loadData}>Réessayer</Button>
+			</div>
+		{:else}
+			<!-- AI Suggestions -->
+			{#if suggestions.length > 0}
+				<section class="suggestions-section">
+					<h3>
+						<span class="section-icon">✨</span>
+						Suggestions intelligentes
+					</h3>
+					<div class="suggestions-list">
+						{#each suggestions as suggestion}
+							<button
+								class="suggestion-item"
+								onclick={() => handleSelectFolder(suggestion.folder)}
+								data-testid="folder-suggestion"
+							>
+								<div class="suggestion-main">
+									<span class="folder-icon">📁</span>
+									<span class="folder-path">{suggestion.folder}</span>
+								</div>
+								<div class="suggestion-meta">
+									<span
+										class="confidence-badge"
+										style="--confidence-color: {getConfidenceColor(suggestion.confidence)}"
+									>
+										{getConfidenceLabel(suggestion.confidence)}
+									</span>
+									<span class="suggestion-reason">{suggestion.reason}</span>
+								</div>
+							</button>
+						{/each}
+					</div>
+				</section>
+			{/if}
+
+			<!-- Recent Folders -->
+			{#if recentFolders.length > 0}
+				<section class="recent-section">
+					<h3>
+						<span class="section-icon">🕐</span>
+						Dossiers récents
+					</h3>
+					<div class="folder-chips">
+						{#each recentFolders.slice(0, 5) as folder}
+							<button
+								class="folder-chip"
+								onclick={() => handleSelectFolder(folder)}
+							>
+								{folder.split('/').pop() || folder}
+							</button>
+						{/each}
+					</div>
+				</section>
+			{/if}
+
+			<!-- Search -->
+			<div class="search-section" data-testid="folder-search">
+				<Input
+					type="text"
+					placeholder="Rechercher un dossier..."
+					bind:value={searchQuery}
+				/>
+			</div>
+
+			<!-- Folder Tree -->
+			<section class="tree-section">
+				<div class="tree-container">
+					{#if filteredTree.length === 0}
+						<div class="empty-state">
+							{#if searchQuery.trim()}
+								Aucun dossier trouvé pour "{searchQuery}"
+							{:else}
+								Aucun dossier disponible
+							{/if}
+						</div>
+					{:else}
+						{#each filteredTree as node}
+							{@render FolderNode(node, 0)}
+						{/each}
+					{/if}
+				</div>
+			</section>
+
+			<!-- Create New Folder -->
+			<section class="create-section">
+				{#if showCreateFolder}
+					<div class="create-form" data-testid="new-folder-input">
+						<Input
+							type="text"
+							placeholder="Archive/Nouveau/Dossier"
+							bind:value={newFolderPath}
+						/>
+						<Button
+							variant="primary"
+							size="sm"
+							onclick={handleCreateFolder}
+							disabled={!newFolderPath.trim() || isCreatingFolder}
+						>
+							{isCreatingFolder ? 'Création...' : 'Créer'}
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onclick={() => { showCreateFolder = false; newFolderPath = ''; }}
+						>
+							Annuler
+						</Button>
+					</div>
+				{:else}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => showCreateFolder = true}
+						data-testid="create-folder-btn"
+					>
+						<span class="btn-icon">+</span>
+						Créer un nouveau dossier
+					</Button>
+				{/if}
+			</section>
+		{/if}
+	</div>
+</div>
+
+{#snippet FolderNode(node: FolderTreeNode, depth: number)}
+	<div class="tree-node" style="--depth: {depth}">
+		<button
+			class="node-row"
+			onclick={() => {
+				if (node.children?.length) {
+					toggleFolder(node.path);
+				} else {
+					handleSelectFolder(node.path);
+				}
+			}}
+			ondblclick={() => handleSelectFolder(node.path)}
+		>
+			{#if node.children?.length}
+				<span class="expand-icon" class:expanded={expandedFolders.has(node.path)}>
+					▶
+				</span>
+			{:else}
+				<span class="expand-spacer"></span>
+			{/if}
+			<span class="folder-icon">📁</span>
+			<span class="node-name">{node.name}</span>
+		</button>
+
+		{#if node.children?.length && expandedFolders.has(node.path)}
+			<div class="node-children">
+				{#each node.children as child}
+					{@render FolderNode(child, depth + 1)}
+				{/each}
+			</div>
+		{/if}
+	</div>
+{/snippet}
+
+<style>
+	.folder-selector-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.6);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		padding: 1rem;
+	}
+
+	.folder-selector {
+		background: var(--color-bg);
+		border-radius: 12px;
+		width: 100%;
+		max-width: 500px;
+		max-height: 80vh;
+		display: flex;
+		flex-direction: column;
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+	}
+
+	.selector-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 1rem 1.25rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.selector-header h2 {
+		font-size: 1.1rem;
+		font-weight: 600;
+		margin: 0;
+	}
+
+	.close-btn {
+		background: none;
+		border: none;
+		font-size: 1.5rem;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		padding: 0.25rem;
+		line-height: 1;
+	}
+
+	.close-btn:hover {
+		color: var(--color-text);
+	}
+
+	.loading-state,
+	.error-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+		padding: 3rem 1rem;
+		color: var(--color-text-secondary);
+	}
+
+	.spinner {
+		width: 24px;
+		height: 24px;
+		border: 2px solid var(--color-border);
+		border-top-color: var(--color-accent);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+
+	.error-icon {
+		font-size: 1.5rem;
+	}
+
+	section {
+		padding: 0.75rem 1.25rem;
+	}
+
+	section h3 {
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		margin: 0 0 0.5rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.section-icon {
+		font-size: 1rem;
+	}
+
+	.suggestions-section {
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.suggestions-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.suggestion-item {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.75rem;
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: 8px;
+		cursor: pointer;
+		text-align: left;
+		width: 100%;
+		transition: all 0.15s ease;
+	}
+
+	.suggestion-item:hover {
+		border-color: var(--color-accent);
+		background: var(--color-bg-hover);
+	}
+
+	.suggestion-main {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: 500;
+	}
+
+	.folder-path {
+		font-family: var(--font-mono);
+		font-size: 0.9rem;
+	}
+
+	.suggestion-meta {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.8rem;
+		color: var(--color-text-secondary);
+		padding-left: 1.5rem;
+	}
+
+	.confidence-badge {
+		background: color-mix(in srgb, var(--confidence-color) 15%, transparent);
+		color: var(--confidence-color);
+		padding: 0.125rem 0.5rem;
+		border-radius: 4px;
+		font-weight: 500;
+		font-size: 0.75rem;
+	}
+
+	.recent-section {
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.folder-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.folder-chip {
+		background: var(--color-bg-secondary);
+		border: 1px solid var(--color-border);
+		border-radius: 16px;
+		padding: 0.375rem 0.75rem;
+		font-size: 0.85rem;
+		cursor: pointer;
+		transition: all 0.15s ease;
+	}
+
+	.folder-chip:hover {
+		border-color: var(--color-accent);
+		background: var(--color-bg-hover);
+	}
+
+	.search-section {
+		padding: 0.75rem 1.25rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.tree-section {
+		flex: 1;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		min-height: 200px;
+		max-height: 300px;
+	}
+
+	.tree-container {
+		flex: 1;
+		overflow-y: auto;
+		padding: 0.5rem 0;
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 2rem 1rem;
+		color: var(--color-text-secondary);
+	}
+
+	.tree-node {
+		user-select: none;
+	}
+
+	.node-row {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		width: 100%;
+		padding: 0.375rem 1rem;
+		padding-left: calc(1rem + var(--depth) * 1.25rem);
+		background: none;
+		border: none;
+		text-align: left;
+		cursor: pointer;
+		font-size: 0.9rem;
+		transition: background 0.1s ease;
+	}
+
+	.node-row:hover {
+		background: var(--color-bg-hover);
+	}
+
+	.expand-icon {
+		font-size: 0.6rem;
+		color: var(--color-text-secondary);
+		transition: transform 0.15s ease;
+		width: 1rem;
+		text-align: center;
+	}
+
+	.expand-icon.expanded {
+		transform: rotate(90deg);
+	}
+
+	.expand-spacer {
+		width: 1rem;
+	}
+
+	.folder-icon {
+		font-size: 1rem;
+	}
+
+	.node-name {
+		flex: 1;
+	}
+
+	.node-children {
+		margin-left: 0;
+	}
+
+	.create-section {
+		border-top: 1px solid var(--color-border);
+		padding: 1rem 1.25rem;
+	}
+
+	.create-form {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.create-form :global(input) {
+		flex: 1;
+	}
+
+	.btn-icon {
+		font-size: 1.1rem;
+		font-weight: 600;
+	}
+</style>

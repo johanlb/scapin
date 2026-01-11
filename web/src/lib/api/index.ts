@@ -47,6 +47,12 @@ export {
 	syncAppleNotes,
 	// Email
 	processInbox,
+	// Folders
+	listFolders,
+	getFolderTree,
+	getFolderSuggestions,
+	createFolder,
+	recordArchive,
 	// Teams
 	listTeamsChats,
 	listTeamsMessages,
@@ -114,5 +120,11 @@ export type {
 	TeamsSender,
 	TeamsMessage,
 	TeamsStats,
-	TeamsPollResult
+	TeamsPollResult,
+	// Folder types
+	EmailFolder,
+	FolderTreeNode,
+	FolderSuggestion,
+	FolderSuggestions,
+	CreateFolderResult
 } from './client';

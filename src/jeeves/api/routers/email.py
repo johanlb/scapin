@@ -12,14 +12,21 @@ from fastapi.responses import Response
 from src.jeeves.api.deps import get_email_service
 from src.jeeves.api.models.email import (
     AnalyzeEmailRequest,
+    CreateFolderRequest,
+    CreateFolderResponse,
     EmailAccountResponse,
     EmailAnalysisResponse,
     EmailMetadataResponse,
     EmailStatsResponse,
     ExecuteActionRequest,
+    FolderResponse,
+    FolderSuggestionResponse,
+    FolderSuggestionsResponse,
+    FolderTreeNode,
     ProcessedEmailResponse,
     ProcessInboxRequest,
     ProcessInboxResponse,
+    RecordArchiveRequest,
 )
 from src.jeeves.api.models.responses import APIResponse
 from src.jeeves.api.services.email_service import EmailService
@@ -283,5 +290,169 @@ async def get_attachment(
         raise HTTPException(status_code=400, detail=f"Invalid email ID: {e}") from e
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ============================================================================
+# Folder Endpoints
+# ============================================================================
+
+
+@router.get("/folders", response_model=APIResponse[list[FolderResponse]])
+async def list_folders(
+    service: EmailService = Depends(get_email_service),
+) -> APIResponse[list[FolderResponse]]:
+    """
+    List all IMAP folders
+
+    Returns flat list of all available folders with metadata.
+    """
+    try:
+        folders = await service.get_folders()
+
+        return APIResponse(
+            success=True,
+            data=[
+                FolderResponse(
+                    path=f["path"],
+                    name=f["name"],
+                    delimiter=f["delimiter"],
+                    has_children=f["has_children"],
+                    selectable=f["selectable"],
+                )
+                for f in folders
+            ],
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/folders/tree", response_model=APIResponse[list[FolderTreeNode]])
+async def get_folder_tree(
+    service: EmailService = Depends(get_email_service),
+) -> APIResponse[list[FolderTreeNode]]:
+    """
+    Get hierarchical folder tree
+
+    Returns folders as a nested tree structure for UI display.
+    """
+    try:
+        tree = await service.get_folder_tree()
+
+        def convert_node(node: dict) -> FolderTreeNode:
+            return FolderTreeNode(
+                name=node["name"],
+                path=node["path"],
+                children=[convert_node(c) for c in node.get("children", [])],
+            )
+
+        return APIResponse(
+            success=True,
+            data=[convert_node(n) for n in tree],
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/folders/suggested", response_model=APIResponse[FolderSuggestionsResponse])
+async def get_folder_suggestions(
+    sender_email: str | None = None,
+    subject: str | None = None,
+    limit: int = 5,
+    service: EmailService = Depends(get_email_service),
+) -> APIResponse[FolderSuggestionsResponse]:
+    """
+    Get AI-powered folder suggestions
+
+    Returns learned folder suggestions based on sender and subject,
+    plus recently and frequently used folders.
+
+    Args:
+        sender_email: Sender's email address for matching
+        subject: Email subject for keyword matching
+        limit: Maximum suggestions to return (1-20)
+    """
+    try:
+        result = await service.get_folder_suggestions(
+            sender_email=sender_email,
+            subject=subject,
+            limit=min(limit, 20),
+        )
+
+        return APIResponse(
+            success=True,
+            data=FolderSuggestionsResponse(
+                suggestions=[
+                    FolderSuggestionResponse(
+                        folder=s["folder"],
+                        confidence=s["confidence"],
+                        reason=s["reason"],
+                    )
+                    for s in result["suggestions"]
+                ],
+                recent_folders=result["recent_folders"],
+                popular_folders=result["popular_folders"],
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/folders", response_model=APIResponse[CreateFolderResponse])
+async def create_folder(
+    request: CreateFolderRequest,
+    service: EmailService = Depends(get_email_service),
+) -> APIResponse[CreateFolderResponse]:
+    """
+    Create a new IMAP folder
+
+    Supports nested folder paths (e.g., 'Archive/Projects/2024').
+    Parent folders are created automatically if needed.
+    """
+    try:
+        result = await service.create_folder(request.path)
+
+        return APIResponse(
+            success=True,
+            data=CreateFolderResponse(
+                path=result["path"],
+                created=result["created"],
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/folders/record-archive", response_model=APIResponse[dict])
+async def record_archive(
+    request: RecordArchiveRequest,
+    service: EmailService = Depends(get_email_service),
+) -> APIResponse[dict]:
+    """
+    Record an archive action for learning
+
+    Call this after archiving an email to train the folder suggestion system.
+    The system learns from sender, domain, and subject keywords.
+    """
+    try:
+        success = await service.record_archive(
+            folder=request.folder,
+            sender_email=request.sender_email,
+            subject=request.subject,
+        )
+
+        return APIResponse(
+            success=success,
+            data={
+                "folder": request.folder,
+                "recorded": success,
+            },
+            timestamp=datetime.now(timezone.utc),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

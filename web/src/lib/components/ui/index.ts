@@ -19,3 +19,4 @@ export { default as KeyboardShortcutsHelp } from './KeyboardShortcutsHelp.svelte
 export { default as QuickActionsMenu } from './QuickActionsMenu.svelte';
 export { default as LongPressMenu } from './LongPressMenu.svelte';
 export { default as LineChart } from './LineChart.svelte';
+export { default as FolderSelector } from './FolderSelector.svelte';

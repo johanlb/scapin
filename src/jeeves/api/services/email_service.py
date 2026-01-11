@@ -311,3 +311,187 @@ class EmailService:
         except Exception as e:
             logger.error(f"Failed to get attachment {filename} from email {email_id}: {e}")
             return None
+
+    # ========================================================================
+    # Folder Operations
+    # ========================================================================
+
+    async def get_folders(self) -> list[dict[str, Any]]:
+        """
+        Get list of all IMAP folders
+
+        Returns:
+            List of folder info dicts with path, name, delimiter
+        """
+        return await asyncio.to_thread(self._get_folders_sync)
+
+    def _get_folders_sync(self) -> list[dict[str, Any]]:
+        """Synchronous folder list (runs in thread pool)"""
+        from src.integrations.email.imap_client import IMAPClient
+
+        imap_client = IMAPClient(self._config.email)
+
+        try:
+            with imap_client.connect():
+                folders = imap_client.list_folders()
+                return [
+                    {
+                        "path": f.get("path", f.get("name", "")),
+                        "name": f.get("name", "").split("/")[-1],
+                        "delimiter": f.get("delimiter", "/"),
+                        "has_children": f.get("has_children", False),
+                        "selectable": f.get("selectable", True),
+                    }
+                    for f in folders
+                ]
+        except Exception as e:
+            logger.error(f"Failed to list folders: {e}")
+            return []
+
+    async def get_folder_tree(self) -> list[dict[str, Any]]:
+        """
+        Get hierarchical folder tree
+
+        Returns:
+            List of folder tree nodes with children
+        """
+        return await asyncio.to_thread(self._get_folder_tree_sync)
+
+    def _get_folder_tree_sync(self) -> list[dict[str, Any]]:
+        """Synchronous folder tree (runs in thread pool)"""
+        from src.integrations.email.imap_client import IMAPClient
+
+        imap_client = IMAPClient(self._config.email)
+
+        try:
+            with imap_client.connect():
+                return imap_client.get_folder_tree()
+        except Exception as e:
+            logger.error(f"Failed to get folder tree: {e}")
+            return []
+
+    async def get_folder_suggestions(
+        self,
+        sender_email: str | None = None,
+        subject: str | None = None,
+        limit: int = 5,
+    ) -> dict[str, Any]:
+        """
+        Get AI-powered folder suggestions
+
+        Based on learned preferences from past archive actions.
+
+        Args:
+            sender_email: Sender's email address
+            subject: Email subject for keyword matching
+            limit: Maximum number of suggestions
+
+        Returns:
+            Dict with suggestions, recent_folders, popular_folders
+        """
+        return await asyncio.to_thread(
+            self._get_folder_suggestions_sync, sender_email, subject, limit
+        )
+
+    def _get_folder_suggestions_sync(
+        self,
+        sender_email: str | None,
+        subject: str | None,
+        limit: int,
+    ) -> dict[str, Any]:
+        """Synchronous folder suggestions (runs in thread pool)"""
+        from src.integrations.email.folder_preferences import get_folder_preferences
+
+        store = get_folder_preferences()
+
+        suggestions = store.get_suggestions(
+            sender_email=sender_email,
+            subject=subject,
+            limit=limit,
+        )
+
+        return {
+            "suggestions": [
+                {
+                    "folder": s.folder,
+                    "confidence": s.confidence,
+                    "reason": s.reason,
+                }
+                for s in suggestions
+            ],
+            "recent_folders": store.get_recent_folders(limit=10),
+            "popular_folders": store.get_popular_folders(limit=10),
+        }
+
+    async def create_folder(self, path: str) -> dict[str, Any]:
+        """
+        Create a new IMAP folder
+
+        Args:
+            path: Folder path to create (supports nested paths)
+
+        Returns:
+            Dict with path and created status
+        """
+        return await asyncio.to_thread(self._create_folder_sync, path)
+
+    def _create_folder_sync(self, path: str) -> dict[str, Any]:
+        """Synchronous folder creation (runs in thread pool)"""
+        from src.integrations.email.imap_client import IMAPClient
+
+        imap_client = IMAPClient(self._config.email)
+
+        try:
+            with imap_client.connect():
+                created = imap_client.create_folder(path)
+                return {
+                    "path": path,
+                    "created": created,
+                }
+        except Exception as e:
+            logger.error(f"Failed to create folder {path}: {e}")
+            raise
+
+    async def record_archive(
+        self,
+        folder: str,
+        sender_email: str | None = None,
+        subject: str | None = None,
+    ) -> bool:
+        """
+        Record an archive action for learning
+
+        This feeds the folder suggestion algorithm.
+
+        Args:
+            folder: Destination folder used
+            sender_email: Sender's email address
+            subject: Email subject
+
+        Returns:
+            True if recorded successfully
+        """
+        return await asyncio.to_thread(
+            self._record_archive_sync, folder, sender_email, subject
+        )
+
+    def _record_archive_sync(
+        self,
+        folder: str,
+        sender_email: str | None,
+        subject: str | None,
+    ) -> bool:
+        """Synchronous archive recording (runs in thread pool)"""
+        from src.integrations.email.folder_preferences import get_folder_preferences
+
+        try:
+            store = get_folder_preferences()
+            store.record_archive(
+                folder=folder,
+                sender_email=sender_email,
+                subject=subject,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to record archive: {e}")
+            return False
