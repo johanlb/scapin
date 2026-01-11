@@ -145,6 +145,7 @@ src/sancho/
 ├── analyzer.py               # EventAnalyzer v2.1 (~476 lignes)
 ├── model_selector.py         # Sélection modèle (~200 lignes)
 ├── templates.py              # TemplateManager Jinja2 (~300 lignes)
+├── template_renderer.py      # Rendu templates v2.2 (~235 lignes) ✅ Sprint 7
 └── providers/
     ├── base.py               # Interface abstraite
     └── anthropic_provider.py # Provider Claude
@@ -247,6 +248,70 @@ class ContextSearcher:
         # 3. Construction des profils d'entités
         # 4. Détection des conflits
 ```
+
+### TemplateRenderer (template_renderer.py) — Sprint 7
+
+Rendu des templates Jinja2 pour les prompts multi-pass. Gère les templates dans `templates/ai/v2/`.
+
+```python
+class TemplateRenderer:
+    """Rendu des templates Jinja2 pour prompts multi-pass"""
+
+    def __init__(
+        self,
+        template_dir: Path | None = None,  # Défaut: templates/ai/v2/
+        auto_reload: bool = True,          # Hot reload dev
+    ):
+        self._env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            autoescape=select_autoescape(["html", "xml"]),
+            auto_reload=auto_reload,
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        # Filtres personnalisés
+        self._env.filters["truncate_smart"] = self._truncate_smart
+        self._env.filters["format_date"] = self._format_date
+        self._env.filters["format_confidence"] = self._format_confidence
+
+    def render(self, template_name: str, **context: Any) -> str:
+        """Rend un template avec contexte"""
+
+    def render_pass1(self, event: Any, max_content_chars: int = 8000) -> str:
+        """Template Pass 1 (Extraction aveugle)"""
+
+    def render_pass2(
+        self,
+        event: Any,
+        previous_result: dict,
+        context: Any,                 # StructuredContext
+        max_content_chars: int = 8000,
+        max_context_notes: int = 5,
+    ) -> str:
+        """Template Pass 2+ (Raffinement contextuel)"""
+
+    def render_pass4(
+        self,
+        event: Any,
+        passes: list[dict],           # Historique des passes
+        full_context: Any,            # StructuredContext complet
+        unresolved_issues: list[str],
+    ) -> str:
+        """Template Pass 4-5 (Raisonnement profond)"""
+
+def get_template_renderer() -> TemplateRenderer:
+    """Instance singleton"""
+```
+
+**Templates** (`templates/ai/v2/`):
+- `pass1_blind_extraction.j2` — Extraction aveugle sans contexte
+- `pass2_contextual_refinement.j2` — Raffinement avec StructuredContext
+- `pass4_deep_reasoning.j2` — Raisonnement Sonnet/Opus
+
+**Filtres Jinja2 personnalisés** :
+- `truncate_smart` — Tronque au mot (pas au milieu)
+- `format_date` — Formatage date ISO → "12 janvier 2026"
+- `format_confidence` — 0.85 → "85%"
 
 ### Architecture Multi-Pass v2.2
 

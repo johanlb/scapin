@@ -48,6 +48,7 @@ from src.sancho.convergence import (
 )
 from src.sancho.model_selector import ModelSelector, ModelTier
 from src.sancho.router import AIModel, AIRouter, RateLimiter, get_ai_router
+from src.sancho.template_renderer import TemplateRenderer, get_template_renderer
 from src.sancho.templates import TemplateManager, get_template_manager
 
 __all__ = [
@@ -62,6 +63,9 @@ __all__ = [
     # Templates
     "TemplateManager",
     "get_template_manager",
+    # Template Renderer (Multi-Pass v2.2)
+    "TemplateRenderer",
+    "get_template_renderer",
     # Context Searcher (Multi-Pass v2.2)
     "CalendarContextBlock",
     "ConflictBlock",

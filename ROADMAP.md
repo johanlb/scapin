@@ -2,7 +2,7 @@
 
 **Dernière mise à jour** : 12 janvier 2026
 **Version** : 1.0.0-rc.1
-**Phase actuelle** : ✅ Release Candidate 1 | 🚧 Sprint 7 (Multi-Pass v2.2) en cours (3/11)
+**Phase actuelle** : ✅ Release Candidate 1 | 🚧 Sprint 7 (Multi-Pass v2.2) en cours (4/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
 ---
@@ -886,7 +886,7 @@ cross_source:
 
 ## Sprint 7 : Workflow v2.2 — Multi-Pass Extraction 🌟
 
-**Statut** : 🚧 EN COURS — 3/11 items (27%)
+**Statut** : 🚧 EN COURS — 4/11 items (36%)
 **Objectif** : Améliorer la qualité d'extraction via analyse multi-passes et escalade intelligente
 **Spécification** : [MULTI_PASS_SPEC.md](docs/specs/MULTI_PASS_SPEC.md) ⭐ NEW
 **Workflow** : [WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md) (v2.2)
@@ -947,7 +947,7 @@ par **entités extraites** (précis), puis raffinement itératif jusqu'à confia
 | **Spécification** | Architecture Multi-Pass + ADRs | `docs/specs/MULTI_PASS_SPEC.md` | ✅ |
 | **Convergence** | Logique arrêt, seuils, escalade | `src/sancho/convergence.py` | ✅ |
 | **Contexte** | ContextSearcher wrapper | `src/sancho/context_searcher.py` | ✅ |
-| **Templates** | Structure Jinja2 + TemplateRenderer | `templates/ai/v2/` | ⬜ |
+| **Templates** | Structure Jinja2 + TemplateRenderer | `templates/ai/v2/` + `src/sancho/template_renderer.py` | ✅ |
 | **Templates** | Pass 1 blind extraction | `templates/ai/v2/pass1_blind_extraction.j2` | ⬜ |
 | **Templates** | Pass 2 contextual refinement | `templates/ai/v2/pass2_contextual_refinement.j2` | ⬜ |
 | **Templates** | Pass 4 deep reasoning | `templates/ai/v2/pass4_deep_reasoning.j2` | ⬜ |
