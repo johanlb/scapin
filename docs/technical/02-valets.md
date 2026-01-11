@@ -126,23 +126,28 @@ Email/Teams/Calendar → Trivelin.normalize()
 
 ---
 
-## 2. SANCHO - Raisonnement Multi-Pass
+## 2. SANCHO - Raisonnement Multi-Pass (v2.2)
 
 ### Responsabilité
 
-Analyse les événements via 5 passes itératives, convergeant vers confiance suffisante.
+Analyse les événements via architecture multi-pass avec escalade intelligente Haiku → Sonnet → Opus.
+
+> **Spec complète** : [docs/specs/MULTI_PASS_SPEC.md](../specs/MULTI_PASS_SPEC.md)
 
 ### Structure
 
 ```
 src/sancho/
-├── reasoning_engine.py   # ReasoningEngine (~1,000 lignes)
-├── router.py             # AIRouter + JSON repair (~500 lignes)
-├── model_selector.py     # Sélection modèle (~200 lignes)
-├── templates.py          # TemplateManager Jinja2 (~300 lignes)
+├── reasoning_engine.py       # ReasoningEngine (~1,000 lignes)
+├── router.py                 # AIRouter + JSON repair (~500 lignes)
+├── analyzer.py               # EventAnalyzer v2.1 (~476 lignes)
+├── multi_pass_analyzer.py    # MultiPassAnalyzer v2.2 (TODO)
+├── model_selector.py         # Sélection modèle (~200 lignes)
+├── model_escalator.py        # High-stakes detection (TODO)
+├── templates.py              # TemplateManager Jinja2 (~300 lignes)
 └── providers/
-    ├── base.py           # Interface abstraite
-    └── anthropic_provider.py  # Provider Claude
+    ├── base.py               # Interface abstraite
+    └── anthropic_provider.py # Provider Claude
 ```
 
 ### ReasoningEngine
@@ -183,15 +188,27 @@ class ReasoningEngine:
         """Execute 5-pass reasoning loop"""
 ```
 
-### Architecture 5 Passes
+### Architecture Multi-Pass v2.2
 
-| Pass | Nom | Confiance | Durée | Description |
-|------|-----|-----------|-------|-------------|
-| 1 | Initial Analysis | 60-70% | 2-3s | Analyse rapide (Haiku) |
-| 2 | Context Enrichment | 75-85% | 3-5s | Enrichissement Passepartout |
-| 3 | Deep Reasoning | 85-92% | 2-4s | Raisonnement multi-step |
-| 4 | Pattern Validation | 90-96% | 3-5s | Validation Sganarelle |
-| 5 | User Clarification | 95-99% | async | Questions si nécessaire |
+**Innovation** : Extraction → Contexte → Raffinement (flux inversé vs v2.1)
+
+| Pass | Modèle | Confiance | Description |
+|------|--------|-----------|-------------|
+| 1 | **Haiku** | 60-80% | Extraction AVEUGLE (sans contexte) |
+| 2-3 | **Haiku** | 80-95% | Raffinement avec contexte entités |
+| 4 | **Sonnet** | 85-95% | Escalade si conf < 80% |
+| 5 | **Opus** | 90-99% | Escalade si conf < 75% OU high-stakes |
+
+**Critères de convergence** :
+- Confiance ≥ 95%
+- 0 changements entre passes
+- Maximum 5 passes atteint
+
+**High-Stakes Detection** (escalade Opus automatique) :
+- Montant financier > 10,000€
+- Deadline < 48 heures
+- Expéditeur VIP (CEO, partenaire clé)
+- Implications légales/contractuelles
 
 ### AIRouter
 

@@ -1,86 +1,125 @@
 # Workflow v2 : Architecture Simplifiée
 
-**Version** : 2.1.2
+**Version** : 2.2.0
 **Date** : 12 janvier 2026
 **Statut** : Approuvé
 
 > Remplace WORKFLOW_V2_SPEC.md (trop complexe)
+> **v2.2** : Architecture Multi-Pass avec escalade Haiku → Sonnet → Opus
+> Voir [MULTI_PASS_SPEC.md](MULTI_PASS_SPEC.md) pour la spécification complète.
 
 ---
 
 ## 1. Principes
 
-### 1.1 Simplification Radicale
+### 1.1 Évolution Architecturale
 
-| Avant (v2 complexe) | Maintenant (v2.1) |
-|---------------------|-------------------|
-| 6 phases | 4 phases |
-| ML local (GLiNER, SetFit) | 0 ML local |
-| Fast Path complexe | Pas de Fast Path |
-| Multi-pass reasoning | 1 appel API |
-| ~27 nouveaux fichiers | ~6 nouveaux fichiers |
-| ~$100/mois | ~$16-20/mois |
+| Aspect | v2.1 | v2.2 (Multi-Pass) |
+|--------|------|-------------------|
+| Phases | 4 phases linéaires | Multi-pass itératif |
+| Contexte | Avant extraction | Après extraction (ciblé) |
+| Appels API | 1-2 (Haiku/Sonnet) | 1-5 (Haiku → Sonnet → Opus) |
+| Convergence | Seuil fixe 0.7 | Confiance 95% + stabilité |
+| Coût/mois | ~$38 | ~$59 (qualité +50%) |
+| Qualité | Variable | Excellente (92%+ confiance) |
 
-### 1.2 Philosophie
+### 1.2 Philosophie v2.2
 
 ```
-TOUT analyser avec l'API (Haiku)
-    → Extraction entités par l'IA (pas de ML local)
-    → Classification importance par l'IA
-    → Enrichissement PKM
-    → Action sur événement
+Multi-Pass : Extraire → Contextualiser → Raffiner
+    → Pass 1: Extraction AVEUGLE (sans contexte)
+    → Recherche contextuelle par ENTITÉS extraites
+    → Pass 2+: Raffinement avec contexte PRÉCIS
+    → Escalade Haiku → Sonnet → Opus si complexe
+    → Arrêt dès confiance 95% atteinte
 ```
 
-**Pourquoi ?** Haiku coûte $0.03/événement. Pas rentable de complexifier pour économiser ça.
+**Pourquoi l'inversion ?**
+- v2.1 : Recherche contexte AVANT extraction → recherche floue (sémantique)
+- v2.2 : Recherche contexte APRÈS extraction → recherche précise (par entité)
+
+**Coût maîtrisé** : ~85% des emails convergent en 2 passes Haiku (~$0.0028).
 
 ---
 
-## 2. Architecture
+## 2. Architecture v2.2 Multi-Pass
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    WORKFLOW V2.1                                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  PHASE 1 : PERCEPTION                        [LOCAL]    │   │
-│  │  • Normalisation → PerceivedEvent (existant)            │   │
-│  │  • Embedding (sentence-transformers, existant)          │   │
-│  │  Temps: ~100ms                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                           │                                     │
-│                           ▼                                     │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  PHASE 2 : CONTEXTE                          [LOCAL]    │   │
-│  │  • Recherche sémantique notes (FAISS, existant)         │   │
-│  │  • Top 3-5 notes pertinentes                            │   │
-│  │  • Résumé contexte pour prompt                          │   │
-│  │  Temps: ~200ms                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                           │                                     │
-│                           ▼                                     │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  PHASE 3 : ANALYSE                           [API]      │   │
-│  │  • 1 appel Haiku (défaut)                               │   │
-│  │  • Escalade Sonnet si confidence < 0.7                  │   │
-│  │  • Output: extractions + action                         │   │
-│  │  Temps: ~1-2s                                           │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                           │                                     │
-│                           ▼                                     │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  PHASE 4 : APPLICATION                       [LOCAL]    │   │
-│  │  • Enrichir notes (si extractions)                      │   │
-│  │  • Créer tâches OmniFocus (si deadlines/engagements)    │   │
-│  │  • Exécuter action (archive/flag/queue)                 │   │
-│  │  • Apprentissage Sganarelle (patterns)                  │   │
-│  │  Temps: ~200ms                                          │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-│  TOTAL: ~2s par événement                                      │
-│  COÛT: ~$0.03 par événement (Haiku)                            │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    WORKFLOW V2.2 MULTI-PASS                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  PERCEPTION                                            [LOCAL]      │ │
+│  │  Email → PerceivedEvent (normalisation + embedding)                │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                    ↓                                     │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  PASS 1: EXTRACTION AVEUGLE                            [HAIKU]     │ │
+│  │  • Prompt SANS contexte (évite biais)                              │ │
+│  │  • Extraction entités + action suggérée                            │ │
+│  │  • Confiance typique: 60-80%                                       │ │
+│  │  • Coût: ~$0.0013                                                  │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 95%? │──→ OUI ──→ APPLICATION                       │
+│            └──────┬──────┘                                              │
+│                   ↓ NON                                                  │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  RECHERCHE CONTEXTUELLE                           [LOCAL + API]    │ │
+│  │  Pour chaque entité extraite:                                      │ │
+│  │  • Notes PKM (recherche par titre/type)                            │ │
+│  │  • Calendar (événements avec cette personne/projet)                │ │
+│  │  • OmniFocus (tâches existantes)                                   │ │
+│  │  • Email archive (échanges précédents)                             │ │
+│  │  → CrossSourceEngine.search(entities)                              │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                    ↓                                     │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  PASS 2-3: RAFFINEMENT                                 [HAIKU]     │ │
+│  │  • Extraction + Contexte trouvé                                    │ │
+│  │  • Corrections: "Marc" → "Marc Dupont"                             │ │
+│  │  • Doublons: "info déjà dans note X"                               │ │
+│  │  • Confiance typique: 80-95%                                       │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 90%? │──→ OUI ──→ APPLICATION                       │
+│            └──────┬──────┘                                              │
+│                   ↓ NON (conf < 80%)                                     │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  PASS 4: ESCALADE SONNET                              [SONNET]     │ │
+│  │  • Raisonnement plus profond                                       │ │
+│  │  • Résolution ambiguïtés complexes                                 │ │
+│  │  • Coût: ~$0.015                                                   │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 90%? │──→ OUI ──→ APPLICATION                       │
+│            └──────┬──────┘                                              │
+│                   ↓ NON (conf < 75% OU high-stakes)                      │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  PASS 5: ESCALADE OPUS                                 [OPUS]      │ │
+│  │  • Raisonnement expert                                             │ │
+│  │  • High-stakes: montant > 10k€, deadline < 48h, VIP               │ │
+│  │  • Si incertain: génère question clarification                     │ │
+│  │  • Coût: ~$0.075                                                   │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                    ↓                                     │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  APPLICATION                                                        │ │
+│  │  • Enrichir notes PKM                                              │ │
+│  │  • Créer tâches OmniFocus / événements Calendar                    │ │
+│  │  • Exécuter action (archive/flag/queue)                            │ │
+│  │  • Apprentissage Sganarelle                                        │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                          │
+│  DISTRIBUTION: 15% Pass 1 | 70% Pass 2 | 10% Pass 3 | 4% Pass 4 | 1% P5│
+│  COÛT MOYEN: ~$0.0043/événement | TOTAL: ~$59/mois                      │
+│  CONFIANCE MOYENNE: 92%+                                                │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

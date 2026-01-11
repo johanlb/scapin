@@ -598,6 +598,63 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 
 ## 📝 Notes de Session
 
+### Session 2026-01-12 (Suite) — Workflow v2.2 Multi-Pass Architecture ✅
+
+**Focus** : Conception de l'architecture multi-pass avec escalade Haiku → Sonnet → Opus
+
+**Innovation clé** : Inversion du flux Contexte/Extraction
+- v2.1 : Contexte (sémantique) → Extraction → Application
+- v2.2 : Extraction (aveugle) → Contexte (par entités) → Raffinement → Application
+
+**Accomplissements** :
+
+1. ✅ **Spécification Multi-Pass** (`docs/specs/MULTI_PASS_SPEC.md` ~400 lignes)
+   - Architecture complète avec diagrammes
+   - Critères de convergence (confiance ≥ 95%, 0 changements, max 5 passes)
+   - Sélection de modèle par pass
+   - 3 types de prompts (blind, context, refinement)
+   - Estimation des coûts détaillée
+   - Plan d'implémentation en 6 jours
+
+2. ✅ **Escalade intelligente Haiku → Sonnet → Opus**
+   - Pass 1-3 : Haiku (rapide, économique)
+   - Pass 4 : Sonnet si confiance < 80%
+   - Pass 5 : Opus si confiance < 75% OU high-stakes
+
+3. ✅ **High-Stakes Detection**
+   - Montant financier > 10,000€
+   - Deadline < 48 heures
+   - Expéditeur VIP (CEO, partenaire clé)
+   - Implications légales/contractuelles
+
+4. ✅ **Recherche contextuelle précise**
+   - Par entités extraites (pas sémantique floue)
+   - CrossSourceEngine : Notes, Calendar, OmniFocus, Email archive
+
+5. ✅ **Documentation mise à jour**
+   - ARCHITECTURE.md → v2.2
+   - WORKFLOW_V2_SIMPLIFIED.md → v2.2
+   - ROADMAP.md → Sprint 7
+   - docs/technical/02-valets.md → Sancho v2.2
+   - docs/user-guide/06-architecture.md → Multi-Pass v2.2
+
+**Coûts estimés** :
+```
+Distribution par passes :
+- 15% Pass 1 (simple)    : $2.69/mois
+- 70% Pass 2 (contexte)  : $27.05/mois
+- 10% Pass 3 (raffinement): $5.66/mois
+- 4% Pass 4 (Sonnet)     : $9.38/mois
+- 1% Pass 5 (Opus)       : $10.63/mois
+
+TOTAL : ~$55-59/mois (vs $38/mois v2.1)
+Qualité : 92%+ confiance moyenne (vs 75% v2.1)
+```
+
+**Prochaine étape** : Implémentation Sprint 7 (~1,650 lignes en 6 jours)
+
+---
+
 ### Session 2026-01-12 — Workflow v2.1.2 Enhanced Extraction ✅
 
 **Focus** : Amélioration du template d'extraction avec fuseaux horaires, durée, nouveaux champs OmniFocus et règles enrichies
@@ -1660,5 +1717,5 @@ Tous les bugs sont résolus (#41-#46). Le projet est prêt pour le tag v1.0.0-rc
 
 ---
 
-**Dernière mise à jour** : 11 janvier 2026 par Claude
+**Dernière mise à jour** : 12 janvier 2026 par Claude
 **Prochaine révision** : Tag v1.0.0-rc.1

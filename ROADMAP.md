@@ -1,8 +1,8 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 11 janvier 2026
+**Dernière mise à jour** : 12 janvier 2026
 **Version** : 1.0.0-rc.1
-**Phase actuelle** : ✅ Release Candidate 1
+**Phase actuelle** : ✅ Release Candidate 1 | 🚧 Sprint 7 (Multi-Pass v2.2) en conception
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
 ---
@@ -884,73 +884,87 @@ cross_source:
 
 ---
 
-## Sprint 6 : Workflow v2.1 — Knowledge Extraction 🌟
+## Sprint 7 : Workflow v2.2 — Multi-Pass Extraction 🌟
 
-**Statut** : 🚧 EN COURS — 0/6 items
-**Objectif** : Enrichir le PKM automatiquement à partir de chaque événement
-**Spécification** : [WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)
-**Plan d'implémentation** : [WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)
+**Statut** : 🚧 CONCEPTION — Architecture validée
+**Objectif** : Améliorer la qualité d'extraction via analyse multi-passes et escalade intelligente
+**Spécification** : [MULTI_PASS_SPEC.md](docs/specs/MULTI_PASS_SPEC.md) ⭐ NEW
+**Workflow** : [WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md) (v2.2)
 
-### Vision
+### Vision v2.2
 
-> **Paradigm Shift** : De "Quelle action prendre ?" à "Quelle information extraire ?"
+> **Innovation clé** : Inversion du flux Contexte/Extraction
 
-Le workflow v1 ("Triage") se concentrait sur la classification et les actions.
-Le workflow v2.1 ("Knowledge Extraction") inverse la priorité : l'objectif principal
-est d'**enrichir en permanence le PKM**, avec les actions comme effet secondaire.
+Le workflow v2.1 cherchait le contexte AVANT l'extraction (recherche sémantique floue).
+Le workflow v2.2 inverse ce flux : extraction d'abord (aveugle), puis recherche de contexte
+par **entités extraites** (précis), puis raffinement itératif jusqu'à confiance 95%.
 
-### Architecture 4 Phases
+### Architecture Multi-Pass
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    WORKFLOW V2.1 SIMPLIFIÉ                              │
+│                    WORKFLOW V2.2 MULTI-PASS                              │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  Phase 1: PERCEPTION (local, ~100ms)                                    │
-│    → Normalisation PerceivedEvent + Embedding                           │
+│  PERCEPTION: Email → PerceivedEvent                              [LOCAL] │
+│                                   ↓                                      │
+│  PASS 1: Extraction AVEUGLE (sans contexte)                      [HAIKU] │
+│    → Entités + action suggérée | Confiance: 60-80%                      │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 95%? │──→ APPLICATION (15% des emails)              │
+│            └──────┬──────┘                                              │
+│                   ↓                                                      │
+│  RECHERCHE CONTEXTUELLE: Par entités → Notes, Calendar, OmniFocus       │
+│                                   ↓                                      │
+│  PASS 2-3: Raffinement avec contexte                             [HAIKU] │
+│    → "Marc" → "Marc Dupont (CFO)" | Confiance: 80-95%                   │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 90%? │──→ APPLICATION (70% des emails)              │
+│            └──────┬──────┘                                              │
+│                   ↓ (conf < 80%)                                         │
+│  PASS 4: Escalade Sonnet | Confiance: 85-95%                   [SONNET]  │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 90%? │──→ APPLICATION (10% des emails)              │
+│            └──────┬──────┘                                              │
+│                   ↓ (conf < 75% OU high-stakes)                          │
+│  PASS 5: Escalade Opus (expert) | Confiance: 90-99%              [OPUS]  │
+│    → Montant > 10k€, deadline < 48h, VIP sender                         │
+│                                   ↓                                      │
+│  APPLICATION: PKM, OmniFocus, Calendar, Actions                          │
 │                                                                          │
-│  Phase 2: CONTEXTE (local, ~200ms)                                      │
-│    → Recherche sémantique FAISS, top 3-5 notes pertinentes              │
-│                                                                          │
-│  Phase 3: ANALYSE (API, ~1-2s)                                          │
-│    → Haiku par défaut ($0.03/événement)                                 │
-│    → Escalade Sonnet si confidence < 0.7                                │
-│    → Extraction entités + classification + action                       │
-│                                                                          │
-│  Phase 4: APPLICATION (local, ~200ms)                                   │
-│    → Enrichir notes PKM                                                 │
-│    → Créer tâches OmniFocus (si deadlines)                              │
-│    → Exécuter action (archive/flag/queue)                               │
-│                                                                          │
-│  TOTAL: ~2s/événement | COÛT: ~$36/mois (460 events/jour)               │
+│  DISTRIBUTION: 15% P1 | 70% P2 | 10% P3 | 4% P4 | 1% P5                 │
+│  COÛT: ~$0.0043/événement | ~$59/mois (13,800 emails)                   │
+│  CONFIANCE MOYENNE: 92%+ (vs 75% en v2.1)                               │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Livrables
+### Livrables Sprint 7
 
 | Catégorie | Item | Fichier | Statut |
 |-----------|------|---------|--------|
-| **Configuration** | WorkflowV2Config | `src/core/config_manager.py` | ⬜ |
-| **Modèles** | Extraction, AnalysisResult | `src/core/models/v2_models.py` | ⬜ |
-| **Analyse** | Analyzer Haiku/Sonnet | `src/sancho/analyzer.py` | ⬜ |
-| **Template** | Prompt extraction | `src/sancho/templates/v2/extraction.j2` | ⬜ |
-| **Application** | Note Enricher | `src/passepartout/enricher.py` | ⬜ |
-| **Intégration** | Client OmniFocus | `src/integrations/apple/omnifocus.py` | ⬜ |
-| **Tests** | Tests unitaires | `tests/unit/test_v2_workflow.py` | ⬜ |
+| **Spécification** | Architecture Multi-Pass | `docs/specs/MULTI_PASS_SPEC.md` | ✅ |
+| **Modèles** | PassResult, ConvergenceCriteria | `src/core/models/v2_models.py` | ⬜ |
+| **Analyse** | MultiPassAnalyzer (Haiku/Sonnet/Opus) | `src/sancho/multi_pass_analyzer.py` | ⬜ |
+| **Templates** | 3 prompts (blind, context, refinement) | `src/sancho/templates/v2/` | ⬜ |
+| **Contexte** | EntityContextSearcher | `src/passepartout/entity_search.py` | ⬜ |
+| **Escalade** | ModelEscalator (high-stakes) | `src/sancho/model_escalator.py` | ⬜ |
+| **Tests** | Tests multi-pass | `tests/unit/test_multi_pass.py` | ⬜ |
 
-### Décisions de Conception
+### Décisions de Conception v2.2
 
 | Question | Décision |
 |----------|----------|
-| Structure notes | Hybride (résumé + historique récent + archivé) |
-| Création notes | Toujours demander confirmation |
-| Notes longues | Auto-archivage entrées > 3 mois |
-| OmniFocus projet | Matcher existant, sinon Inbox |
-| Bootstrap | Création agressive si PKM < 50 notes |
-| Correction erreurs | Manuelle (v2.1) |
-| Limite extractions | Pas de limite |
-| Granularité | Beaucoup de petites notes (1 note = 1 entité) |
+| Ordre des passes | Extraction → Contexte → Raffinement (inversé vs v2.1) |
+| Critère convergence | Confiance ≥ 95% OU 0 changements OU max 5 passes |
+| Escalade Sonnet | Confiance < 80% après pass 3 |
+| Escalade Opus | Confiance < 75% OU high-stakes détecté |
+| High-stakes | Montant > 10k€, deadline < 48h, VIP sender |
+| Recherche contexte | Par entités extraites (précis, pas sémantique) |
+| Coopération modèles | Haiku rapide → Sonnet profond → Opus expert |
 
-### Types d'Information Extraits
+### Types d'Information Extraits (14 types)
 
 | Type | Exemple | Destination |
 |------|---------|-------------|
@@ -958,46 +972,57 @@ est d'**enrichir en permanence le PKM**, avec les actions comme effet secondaire
 | **Décision** | "Budget approuvé: 50K€" | Note projet + OmniFocus |
 | **Engagement** | "Marc livrera lundi" | Note personne + OmniFocus |
 | **Deadline** | "Rapport pour vendredi" | OmniFocus |
+| **Événement** | "Réunion Q2 le 15 janvier" | Calendar + Note |
 | **Relation** | "Marc rejoint Projet Alpha" | Note personne + projet |
+| **Coordonnées** | "Nouveau tel: 06..." | Note personne |
+| **Montant** | "Contrat de 50k€/an" | Note entreprise |
+| **Référence** | "Voir doc technique v2" | Note concept |
+| **Demande** | "Peux-tu m'envoyer le rapport ?" | OmniFocus |
+| **Citation** | "Le CEO a dit : on double le budget" | Note personne |
+| **Objectif** | "Objectif Q1 : 100k utilisateurs" | Note projet |
+| **Compétence** | "Marie maîtrise React" | Note personne |
+| **Préférence** | "Marc préfère les réunions le matin" | Note personne |
 
-### Plan d'Implémentation
+### Plan d'Implémentation v2.2
 
 | Jour | Focus | Fichiers | Lignes |
 |------|-------|----------|--------|
-| 1 | Fondations | WorkflowV2Config, v2_models.py | ~150 |
-| 2 | Analyse | analyzer.py, extraction.j2 | ~230 |
-| 3 | Application | enricher.py, omnifocus.py | ~350 |
-| 4 | Intégration | Tests, processor.py integration | ~200 |
+| 1 | Modèles & Config | PassResult, ConvergenceCriteria | ~200 |
+| 2 | MultiPassAnalyzer | Boucle itérative, convergence | ~400 |
+| 3 | Templates | 3 prompts Jinja2 | ~300 |
+| 4 | EntityContextSearcher | Recherche par entités | ~250 |
+| 5 | ModelEscalator | High-stakes, escalade | ~200 |
+| 6 | Intégration & Tests | CognitivePipeline, tests | ~300 |
 
-**Total** : ~880 lignes en ~4 jours
+**Total** : ~1,650 lignes en ~6 jours
 
-### Coûts Estimés
+### Coûts Estimés v2.2
 
 ```
 460 événements/jour × 30 jours = 13,800 événements/mois
 
-90% Haiku (12,420 événements):
-  Input  : 12,420 × 2,500 tokens × $0.25/M = $7.76
-  Output : 12,420 × 500 tokens × $1.25/M = $7.76
-  Sous-total Haiku : $15.52
+Distribution par passes :
+- 15% (2,070) convergent en Pass 1 : 2,070 × $0.0013 = $2.69
+- 70% (9,660) convergent en Pass 2 : 9,660 × $0.0028 = $27.05
+- 10% (1,380) convergent en Pass 3 : 1,380 × $0.0041 = $5.66
+-  4% (552) escaladent à Sonnet   : 552 × $0.017 = $9.38
+-  1% (138) escaladent à Opus     : 138 × $0.077 = $10.63
 
-10% Sonnet (1,380 événements):
-  Input  : 1,380 × 2,500 tokens × $3/M = $10.35
-  Output : 1,380 × 500 tokens × $15/M = $10.35
-  Sous-total Sonnet : $20.70
-
-TOTAL : ~$36/mois
+TOTAL : ~$55.41/mois (vs $38/mois v2.1)
+Qualité : 92%+ confiance moyenne (vs 75% v2.1)
+ROI : +55% coût pour +23% qualité
 ```
 
-### Métriques de Succès
+### Métriques de Succès v2.2
 
-| Métrique | Objectif |
-|----------|----------|
-| Temps/événement | < 3s |
-| Coût/mois | < $50 |
-| Extractions pertinentes | > 85% |
-| Notes enrichies/jour | > 20 |
-| Erreurs/jour | < 5 |
+| Métrique | v2.1 | v2.2 Objectif |
+|----------|------|---------------|
+| Confiance moyenne | 75% | 92%+ |
+| Passes moyens | 1.1 | 1.95 |
+| Coût/mois | $38 | $59 |
+| Extractions précises | 70% | 90%+ |
+| High-stakes bien traités | N/A | 99%+ |
+| Temps moyen/email | 1.5s | 2.5s |
 
 ---
 
@@ -1186,6 +1211,18 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.21** (2026-01-12) : Workflow v2.2 Multi-Pass Architecture Design
+  - **Innovation majeure** : Inversion du flux Contexte/Extraction
+  - **Architecture Multi-Pass** : 1-5 passes avec convergence par confiance (95%+)
+  - **Escalade intelligente** : Haiku → Sonnet → Opus selon complexité
+  - **High-Stakes Detection** : Escalade automatique Opus si montant > 10k€, deadline < 48h, VIP
+  - **Recherche contextuelle précise** : Par entités extraites (vs sémantique floue)
+  - **Coût estimé** : ~$59/mois (vs $38/mois v2.1) pour +23% qualité
+  - **Confiance moyenne** : 92%+ (vs 75% v2.1)
+  - **Distribution passes** : 15% P1 | 70% P2 | 10% P3 | 4% P4 | 1% P5
+  - **Spécification complète** : `docs/specs/MULTI_PASS_SPEC.md` (~400 lignes)
+  - **Documentation mise à jour** : ARCHITECTURE.md v2.2, WORKFLOW_V2_SIMPLIFIED.md v2.2
 
 - **v1.0.0-alpha.20** (2026-01-12) : Workflow v2.1.2 Enhanced Extraction
   - **5 nouveaux champs** : `timezone`, `duration`, `has_attachments`, `priority`, `project`

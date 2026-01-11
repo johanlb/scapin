@@ -1,6 +1,6 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 2.1.2 (Workflow v2.1.2: Enhanced Extraction)
+**Version**: 2.2.0 (Workflow v2.2: Multi-Pass Extraction)
 **Date**: 2026-01-12
 **Status**: ✅ v1.0.0-rc.1 RELEASED — All features implemented
 
@@ -56,7 +56,8 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 
 > **Paradigm Shift**: From "What action should I take?" to "What information can I extract?"
 >
-> **Spec simplifiée (v2.1)**: [docs/specs/WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)
+> **Spec Multi-Pass (v2.2)**: [docs/specs/MULTI_PASS_SPEC.md](docs/specs/MULTI_PASS_SPEC.md) ⭐ NEW
+> **Spec simplifiée (v2.2)**: [docs/specs/WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)
 > **Plan d'implémentation**: [docs/specs/WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)
 
 ### Vision
@@ -72,46 +73,95 @@ Event → Classification          Event → Extraction d'information
                                       → Actions (side effect)
 ```
 
-### Architecture 4 Phases (Simplifiée v2.1)
+### Architecture Multi-Pass (v2.2)
+
+**Innovation clé** : Inversion du flux Contexte/Extraction
+- v2.1 : Contexte → Extraction (recherche floue sémantique)
+- v2.2 : Extraction → Contexte → Raffinement (recherche précise par entités)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    WORKFLOW V2.1 SIMPLIFIÉ                              │
+│                    WORKFLOW V2.2 MULTI-PASS                              │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 1: PERCEPTION                                [LOCAL]       │   │
-│  │  • Normalisation → PerceivedEvent (existant)                      │   │
-│  │  • Embedding sentence-transformers (existant)                     │   │
-│  │  Temps: ~100ms                                                    │   │
+│  │  PERCEPTION                                            [LOCAL]    │   │
+│  │  Email → PerceivedEvent (normalisation + embedding)               │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                              ↓                                           │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 2: CONTEXTE                                  [LOCAL]       │   │
-│  │  • Recherche sémantique notes (FAISS)                             │   │
-│  │  • Top 3-5 notes pertinentes comme contexte                       │   │
-│  │  Temps: ~200ms                                                    │   │
+│  │  PASS 1: EXTRACTION AVEUGLE                            [HAIKU]    │   │
+│  │  • Prompt SANS contexte (évite biais)                             │   │
+│  │  • Extraction entités + action suggérée                           │   │
+│  │  • Confiance typique: 60-80% | Coût: ~$0.0013                     │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 95%? │──→ OUI ──→ APPLICATION                       │
+│            └──────┬──────┘                                              │
+│                   ↓ NON                                                  │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  RECHERCHE CONTEXTUELLE (CrossSourceEngine)         [LOCAL+API]   │   │
+│  │  Pour chaque entité extraite: Notes PKM, Calendar, OmniFocus,     │   │
+│  │  Email archive → recherche PRÉCISE par nom d'entité               │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                              ↓                                           │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 3: ANALYSE                                   [API]         │   │
-│  │  • 1 appel Haiku (défaut) — $0.03/événement                       │   │
-│  │  • Escalade Sonnet si confidence < 0.7                            │   │
-│  │  • Extraction entités + classification + action                   │   │
-│  │  Temps: ~1-2s                                                     │   │
+│  │  PASS 2-3: RAFFINEMENT                                 [HAIKU]    │   │
+│  │  • Extraction + Contexte trouvé                                   │   │
+│  │  • Corrections: "Marc" → "Marc Dupont (CFO)"                      │   │
+│  │  • Doublons: "info déjà dans note X"                              │   │
+│  │  • Confiance typique: 80-95% | Coût: ~$0.0013/pass                │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 90%? │──→ OUI ──→ APPLICATION                       │
+│            └──────┬──────┘                                              │
+│                   ↓ NON (conf < 80%)                                     │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PASS 4: ESCALADE SONNET                              [SONNET]    │   │
+│  │  • Raisonnement plus profond                                      │   │
+│  │  • Résolution ambiguïtés complexes                                │   │
+│  │  • Coût: ~$0.015                                                  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 90%? │──→ OUI ──→ APPLICATION                       │
+│            └──────┬──────┘                                              │
+│                   ↓ NON (conf < 75% OU high-stakes)                      │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PASS 5: ESCALADE OPUS                                 [OPUS]     │   │
+│  │  • Raisonnement expert (ambiguïtés irréductibles)                 │   │
+│  │  • High-stakes: montant > 10k€, deadline < 48h, VIP               │   │
+│  │  • Si incertain: génère question clarification                    │   │
+│  │  • Coût: ~$0.075                                                  │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                              ↓                                           │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  PHASE 4: APPLICATION                               [LOCAL]       │   │
-│  │  • Enrichir notes PKM                                             │   │
-│  │  • Créer tâches OmniFocus (si deadlines)                          │   │
-│  │  • Exécuter action (archive/flag/queue)                           │   │
-│  │  Temps: ~200ms                                                    │   │
+│  │  APPLICATION                                          [LOCAL]     │   │
+│  │  • Enrichir notes PKM • Créer tâches/événements                   │   │
+│  │  • Exécuter action (archive/flag/queue) • Apprentissage           │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                                                                          │
-│  TOTAL: ~2s par événement | COÛT: ~$36/mois (460 events/jour)           │
+│  DISTRIBUTION: 15% P1 | 70% P2 | 10% P3 | 4% P4 | 1% P5                 │
+│  COÛT MOYEN: ~$0.0043/événement | TOTAL: ~$59/mois (13,800 emails)     │
+│  CONFIANCE MOYENNE: 92%+ (vs 75% en v2.1)                               │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Modèle d'Escalade Haiku → Sonnet → Opus
+
+| Pass | Modèle | Condition | Confiance attendue | Coût |
+|------|--------|-----------|-------------------|------|
+| 1-3 | Haiku | Par défaut | 60% → 95% | $0.0013 |
+| 4 | Sonnet | conf < 80% à P3 | 80% → 95% | $0.015 |
+| 5 | Opus | conf < 75% OU high-stakes | 90% → 99% | $0.075 |
+
+**High-Stakes Detection** : Escalade automatique vers Opus si :
+- Montant financier > 10,000€
+- Deadline < 48 heures
+- Expéditeur VIP (CEO, partenaire clé)
+- Implications légales/contractuelles
 
 ### Pourquoi Pas de Fast Path ?
 
@@ -1824,7 +1874,7 @@ Each valet excels at their specialty, working together like a well-trained house
 
 **Status**: ✅ v1.0.0-rc.1 RELEASED
 **Repository**: https://github.com/johanlb/scapin
-**Version**: 2.1.2
+**Version**: 2.2.0
 **Release**: [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 **Last Updated**: 2026-01-12
 

@@ -76,46 +76,60 @@ Scapin est composé d'une équipe de "valets" spécialisés, inspirés des servi
 
 ---
 
-## Raisonnement Multi-Passes
+## Raisonnement Multi-Passes (v2.2)
 
-Sancho utilise jusqu'à 5 passes de raisonnement :
+Sancho utilise une architecture multi-pass avec escalade intelligente :
 
-### Pass 1 : Analyse Initiale
+### Pass 1 : Extraction Aveugle (Haiku)
 
-- Classification du type de message
-- Extraction du sujet et de l'expéditeur
-- Score d'urgence initial
+- Analyse SANS contexte (évite les biais)
+- Extraction des entités mentionnées (personnes, projets, dates...)
+- Action suggérée initiale
+- Confiance typique : 60-80%
 
-### Pass 2 : Enrichissement Contexte
+### Recherche Contextuelle
 
-- Récupération des notes liées (Passepartout)
-- Historique des interactions avec l'expéditeur
-- Contexte des projets mentionnés
+Si confiance < 95%, recherche PRÉCISE par entités :
+- Notes PKM contenant ces personnes/projets
+- Événements calendrier liés
+- Tâches OmniFocus existantes
+- Emails précédents avec ces contacts
 
-### Pass 3 : Génération d'Action
+### Pass 2-3 : Raffinement (Haiku)
 
-- Proposition d'action (archive, répondre, tâche...)
-- Destination (dossier cible)
-- Score de confiance
+- Re-analyse avec contexte trouvé
+- Corrections : "Marc" → "Marc Dupont (CFO)"
+- Détection doublons : "info déjà dans note X"
+- Confiance typique : 80-95%
 
-### Pass 4 : Validation (optionnel)
+### Pass 4 : Escalade Sonnet (si nécessaire)
 
-Si confiance < 80% :
-- Deuxième analyse avec contexte supplémentaire
-- Consensus entre passes
+Si confiance < 80% après pass 3 :
+- Raisonnement plus profond
+- Résolution d'ambiguïtés complexes
+- Confiance typique : 85-95%
 
-### Pass 5 : Finalisation
+### Pass 5 : Escalade Opus (cas complexes)
 
-- Extraction finale des entités
-- Proposition de notes à créer/enrichir
-- Tâches à suggérer
+Si confiance < 75% OU cas "high-stakes" :
+- Montant > 10,000€
+- Deadline < 48 heures
+- Expéditeur VIP (CEO, partenaire clé)
+- Raisonnement expert, confiance : 90-99%
 
 ### Convergence
 
 Le processus s'arrête quand :
-- Confiance > 85%
+- Confiance ≥ 95%
+- Aucun changement entre deux passes
 - Maximum 5 passes atteint
-- Pas de changement entre passes
+
+### Coût Optimisé
+
+- 85% des emails : 1-2 passes Haiku (~$0.0028)
+- 10% : 3 passes Haiku (~$0.0041)
+- 4% : escalade Sonnet (~$0.017)
+- 1% : escalade Opus (~$0.077)
 
 ---
 
