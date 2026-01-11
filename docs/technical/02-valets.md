@@ -138,55 +138,67 @@ Analyse les événements via architecture multi-pass avec escalade intelligente 
 
 ```
 src/sancho/
-├── reasoning_engine.py       # ReasoningEngine (~1,000 lignes)
+├── convergence.py            # Logique convergence + escalade (~420 lignes) ✅ Sprint 7
+├── context_searcher.py       # Wrapper recherche contexte (TODO Sprint 7)
+├── multi_pass_analyzer.py    # MultiPassAnalyzer v2.2 (TODO Sprint 7)
 ├── router.py                 # AIRouter + JSON repair (~500 lignes)
 ├── analyzer.py               # EventAnalyzer v2.1 (~476 lignes)
-├── multi_pass_analyzer.py    # MultiPassAnalyzer v2.2 (TODO)
 ├── model_selector.py         # Sélection modèle (~200 lignes)
-├── model_escalator.py        # High-stakes detection (TODO)
 ├── templates.py              # TemplateManager Jinja2 (~300 lignes)
 └── providers/
     ├── base.py               # Interface abstraite
     └── anthropic_provider.py # Provider Claude
 ```
 
-### ReasoningEngine
+### Convergence (convergence.py) — Sprint 7
+
+Module de logique de convergence et d'escalade pour l'analyse multi-pass.
 
 ```python
 @dataclass
-class ReasoningResult:
-    working_memory: WorkingMemory
-    final_analysis: Optional[EmailAnalysis]
-    reasoning_trace: list[ReasoningPass]
-    confidence: float                    # 0.0-1.0
-    passes_executed: int                 # 1-5
-    total_duration_seconds: float
-    converged: bool                      # True si >= threshold
-    key_factors: list[str]
-    uncertainties: list[str]
-    questions_for_user: list[dict]
+class DecomposedConfidence:
+    """Confiance décomposée par dimension"""
+    entity_confidence: float       # Personnes/projets identifiés ?
+    action_confidence: float       # Action suggérée correcte ?
+    extraction_confidence: float   # Faits capturés ?
+    completeness: float            # Rien d'oublié ?
 
-class ReasoningEngine:
-    def __init__(
-        self,
-        ai_router: AIRouter,
-        template_manager: TemplateManager,
-        context_engine: Optional[ContextEngine] = None,
-        cross_source_engine: Optional[CrossSourceEngine] = None,
-        pattern_store: Optional[PatternStore] = None,
-        context_top_k: int = 5,
-        context_min_relevance: float = 0.3,
-        confidence_threshold: float = 0.85,
-        max_passes: int = 5,
-        timeout_seconds: int = 30
-    ): ...
+    @property
+    def overall(self) -> float:
+        return min(self.entity_confidence, self.action_confidence,
+                   self.extraction_confidence, self.completeness)
 
-    async def reason(
-        self,
-        perceived_event: PerceivedEvent
-    ) -> ReasoningResult:
-        """Execute 5-pass reasoning loop"""
+@dataclass
+class PassResult:
+    """Résultat d'une passe d'analyse"""
+    pass_number: int
+    pass_type: PassType
+    model_used: str
+    extractions: list[Extraction]
+    action: str
+    confidence: DecomposedConfidence
+    entities_discovered: set[str]
+    changes_made: list[str]
+
+def should_stop(current: PassResult, previous: PassResult | None, config: MultiPassConfig) -> tuple[bool, str]:
+    """Détermine si on doit arrêter les passes"""
+    # Critères: confiance ≥ 95%, pas de changements, max passes, action simple
+
+def select_model(pass_number: int, confidence: float, context: AnalysisContext, config: MultiPassConfig) -> tuple[ModelTier, str]:
+    """Sélectionne le modèle pour la passe suivante"""
+    # Pass 1-3: Haiku, Pass 4: Sonnet si conf < 80%, Pass 5: Opus si conf < 75%
+
+def is_high_stakes(extractions: list[Extraction], context: AnalysisContext, config: MultiPassConfig) -> bool:
+    """Détecte les décisions critiques nécessitant Opus"""
+    # Montant > 10k€, deadline < 48h, VIP sender
 ```
+
+**Messages UI** (voir UI_VOCABULARY.md) :
+- Pass 1: "Sancho jette un coup d'œil au contenu..."
+- Pass 2: "Sancho investigue..."
+- Pass 3: "Sancho enquête de manière approfondie..."
+- Pass 4: "Sancho consulte ses sources..."
+- Pass 5: "Sancho délibère sur cette affaire..."
 
 ### Architecture Multi-Pass v2.2
 
