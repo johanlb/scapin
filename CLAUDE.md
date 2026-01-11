@@ -780,15 +780,7 @@ src/jeeves/api/services/queue_service.py     # MODIFIED (message_id)
 - `6f7fd86` — fix: multiple performance and stability improvements
 - `d80d2f1` — fix(web): disable SSR for SPA mode
 
-**Bugs restants identifiés** (voir GitHub Issues pour suivi) :
-| Bug | Priorité | Issue |
-|-----|----------|-------|
-| Édition de notes ne fonctionne pas | HIGH | #41 |
-| Chat panel IA non connecté au backend | MEDIUM | #42 |
-| Page révision en boucle infinie | HIGH | #43 |
-| Bouton fetch emails sans réponse | MEDIUM | #44 |
-| Suppression de notes depuis UI | LOW | #45 |
-| Rendu fichiers attachés (PDF, JPG, WAV) | LOW | #46 |
+**Bugs identifiés** : ✅ Tous résolus (#41-#46)
 
 ---
 
@@ -1536,46 +1528,9 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 - ✅ Sprint 5 : Qualité & Release (6/6)
 - ✅ Sprint Cross-Source (12/12)
 
-### Bugs à corriger avant v1.0 RC
+### Statut v1.0 RC : ✅ PRÊT
 
-| Bug | Priorité | Issue |
-|-----|----------|-------|
-| Édition de notes ne fonctionne pas | HIGH | #41 |
-| Page révision en boucle infinie | HIGH | #43 |
-| Chat panel IA non connecté au backend | MEDIUM | #42 |
-| Bouton fetch emails sans réponse | MEDIUM | #44 |
-| Suppression de notes depuis UI | LOW | #45 |
-| Rendu fichiers attachés (PDF, JPG, WAV) | LOW | #46 |
-
-### Prochaine priorité : Workflow v2.1 — Knowledge Extraction
-
-**Objectif** : Enrichir le PKM automatiquement à partir de chaque événement (email, Teams, Calendar).
-
-**Plan d'implémentation** (~4 jours) :
-
-| Jour | Focus | Fichiers |
-|------|-------|----------|
-| 1 | Fondations | `WorkflowV2Config`, `v2_models.py` |
-| 2 | Analyse | `analyzer.py`, `extraction.j2` |
-| 3 | Application | `enricher.py`, `omnifocus.py` |
-| 4 | Intégration | Tests, intégration processor.py |
-
-**Fichiers à créer** (~880 lignes) :
-- `src/core/models/v2_models.py` (~100 lignes)
-- `src/sancho/analyzer.py` (~150 lignes)
-- `src/sancho/templates/v2/extraction.j2` (~80 lignes)
-- `src/passepartout/enricher.py` (~200 lignes)
-- `src/integrations/apple/omnifocus.py` (~150 lignes)
-- `tests/unit/test_v2_workflow.py` (~200 lignes)
-
-**Spec complète** : [WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)
-
-### Bugs en attente (v1.0 RC)
-
-| Bug | Priorité | Issue |
-|-----|----------|-------|
-| Édition de notes ne fonctionne pas | HIGH | #41 |
-| Page révision en boucle infinie | HIGH | #43 |
+Tous les bugs sont résolus (#41-#46). Le projet est prêt pour le tag v1.0.0-rc.1.
 
 ### Post-v1.0 (Phase 2.5)
 
@@ -1598,4 +1553,4 @@ Toujours respecter les principes de DESIGN_PHILOSOPHY.md :
 ---
 
 **Dernière mise à jour** : 11 janvier 2026 par Claude
-**Prochaine révision** : Implémentation Workflow v2.1
+**Prochaine révision** : Tag v1.0.0-rc.1
