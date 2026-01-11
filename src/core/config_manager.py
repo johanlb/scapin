@@ -721,6 +721,115 @@ class BriefingConfig(BaseModel):
     )
 
 
+class WorkflowV2Config(BaseModel):
+    """
+    Configuration Workflow v2.1 — Knowledge Extraction
+
+    Controls the new 4-phase knowledge extraction pipeline:
+    1. Perception: Event normalization
+    2. Context: Note retrieval for enrichment
+    3. Analysis: AI extraction with Haiku → Sonnet escalation
+    4. Application: PKM enrichment and OmniFocus task creation
+
+    Key features:
+    - Model escalation: Haiku first, Sonnet if low confidence
+    - Auto-application: High confidence extractions applied automatically
+    - OmniFocus integration: Deadlines create tasks automatically
+    """
+
+    # Activation
+    enabled: bool = Field(
+        False,
+        description="Enable Workflow v2.1 knowledge extraction (opt-in, default OFF)"
+    )
+
+    # Modèles AI
+    default_model: str = Field(
+        "haiku",
+        description="Default model for analysis (haiku = fast/cheap)"
+    )
+    escalation_model: str = Field(
+        "sonnet",
+        description="Escalation model for low confidence cases (sonnet = more capable)"
+    )
+    escalation_threshold: float = Field(
+        0.7,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold below which to escalate to stronger model"
+    )
+
+    # Contexte (what context to provide to AI)
+    context_notes_count: int = Field(
+        3,
+        ge=0,
+        le=10,
+        description="Maximum number of context notes to include in prompt"
+    )
+    context_note_max_chars: int = Field(
+        300,
+        ge=50,
+        le=1000,
+        description="Maximum characters per context note summary"
+    )
+    event_content_max_chars: int = Field(
+        2000,
+        ge=500,
+        le=10000,
+        description="Maximum characters of event content to include"
+    )
+
+    # Application automatique
+    auto_apply_threshold: float = Field(
+        0.85,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for automatic application (no human review)"
+    )
+    notify_threshold: float = Field(
+        0.7,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold below which to notify user"
+    )
+
+    # OmniFocus integration
+    omnifocus_enabled: bool = Field(
+        True,
+        description="Enable OmniFocus task creation for deadlines"
+    )
+    omnifocus_default_project: str = Field(
+        "Inbox",
+        description="Default OmniFocus project for new tasks"
+    )
+
+    # Extraction rules
+    min_extraction_importance: str = Field(
+        "moyenne",
+        description="Minimum importance level to extract (haute or moyenne)"
+    )
+    extract_decisions: bool = Field(
+        True,
+        description="Extract decisions from events"
+    )
+    extract_engagements: bool = Field(
+        True,
+        description="Extract engagements/commitments from events"
+    )
+    extract_deadlines: bool = Field(
+        True,
+        description="Extract deadlines from events"
+    )
+    extract_relations: bool = Field(
+        True,
+        description="Extract relationship information from events"
+    )
+    extract_facts: bool = Field(
+        True,
+        description="Extract important facts from events"
+    )
+
+
 class APIConfig(BaseModel):
     """
     API server configuration.
@@ -811,6 +920,7 @@ class ScapinConfig(BaseSettings):
     calendar: CalendarConfig = Field(default_factory=CalendarConfig)
     icloud_calendar: ICloudCalendarConfig = Field(default_factory=ICloudCalendarConfig)
     briefing: BriefingConfig = Field(default_factory=BriefingConfig)
+    workflow_v2: WorkflowV2Config = Field(default_factory=WorkflowV2Config)
     auth: AuthConfig = Field(default_factory=AuthConfig)
     api: APIConfig = Field(default_factory=APIConfig)
 
