@@ -6,6 +6,63 @@ Helper functions for date and time operations.
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
+
+# Default local timezone for Johan (France)
+LOCAL_TIMEZONE = ZoneInfo("Europe/Paris")
+
+
+def get_local_timezone() -> ZoneInfo:
+    """
+    Get the local timezone for the user.
+
+    Returns:
+        ZoneInfo for Europe/Paris (configurable if needed)
+    """
+    return LOCAL_TIMEZONE
+
+
+def now_local() -> datetime:
+    """
+    Get current datetime in local timezone
+
+    Returns:
+        Current datetime in local timezone with timezone info
+    """
+    return datetime.now(tz=LOCAL_TIMEZONE)
+
+
+def local_to_utc(dt: datetime) -> datetime:
+    """
+    Convert local datetime to UTC.
+
+    If the datetime is naive (no timezone), assumes it's in local timezone.
+
+    Args:
+        dt: Datetime in local timezone (or naive)
+
+    Returns:
+        Datetime in UTC
+    """
+    if dt.tzinfo is None:
+        # Assume local timezone for naive datetime
+        dt = dt.replace(tzinfo=LOCAL_TIMEZONE)
+    return dt.astimezone(timezone.utc)
+
+
+def utc_to_local(dt: datetime) -> datetime:
+    """
+    Convert UTC datetime to local timezone.
+
+    Args:
+        dt: Datetime in UTC
+
+    Returns:
+        Datetime in local timezone
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(LOCAL_TIMEZONE)
 
 
 def now_utc() -> datetime:

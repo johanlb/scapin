@@ -75,20 +75,33 @@ class Extraction:
 
     Attributes:
         info: Description concise de l'information (ex: "Budget validé 50k€")
-        type: Type d'information (decision, engagement, fait, deadline, relation)
-        importance: Niveau d'importance (haute, moyenne)
+        type: Type d'information (14 types: decision, engagement, fait, etc.)
+        importance: Niveau d'importance (haute, moyenne, basse)
         note_cible: Titre de la note où stocker l'information
         note_action: Action à effectuer (enrichir ou creer)
         omnifocus: Si True, créer aussi une tâche OmniFocus
+        calendar: Si True, créer aussi un événement calendrier (pour type evenement)
+        date: Date associée au format YYYY-MM-DD (optionnel, pour deadlines/events)
+        time: Heure associée au format HH:MM (optionnel, pour events)
+        timezone: Fuseau horaire explicite (HF, HM, Maurice, UTC, Paris)
+        duration: Durée en minutes (défaut 60 pour events)
+        has_attachments: Signale des pièces jointes importantes
+        priority: Priorité OmniFocus (haute, normale, basse)
+        project: Projet OmniFocus cible
 
     Example:
         >>> extraction = Extraction(
-        ...     info="Marc livrera le rapport lundi",
-        ...     type=ExtractionType.ENGAGEMENT,
-        ...     importance=ImportanceLevel.HAUTE,
-        ...     note_cible="Projet Alpha",
+        ...     info="Réunion le 25 janvier à 14h",
+        ...     type=ExtractionType.EVENEMENT,
+        ...     importance=ImportanceLevel.MOYENNE,
+        ...     note_cible="Réunions",
         ...     note_action=NoteAction.ENRICHIR,
-        ...     omnifocus=True
+        ...     omnifocus=False,
+        ...     calendar=True,
+        ...     date="2026-01-25",
+        ...     time="14:00",
+        ...     timezone="HF",
+        ...     duration=90
         ... )
     """
 
@@ -98,6 +111,15 @@ class Extraction:
     note_cible: str
     note_action: NoteAction
     omnifocus: bool = False
+    calendar: bool = False
+    date: Optional[str] = None  # Format YYYY-MM-DD
+    time: Optional[str] = None  # Format HH:MM
+    # V2.1.2: New fields
+    timezone: Optional[str] = None  # HF, HM, Maurice, UTC, Paris
+    duration: Optional[int] = None  # Duration in minutes (default 60)
+    has_attachments: bool = False  # Important attachments present
+    priority: Optional[str] = None  # OmniFocus priority: haute, normale, basse
+    project: Optional[str] = None  # OmniFocus project name
 
     def __post_init__(self) -> None:
         """Validation et normalisation après initialisation"""
@@ -161,6 +183,8 @@ class AnalysisResult:
     duration_ms: float
     timestamp: datetime = field(default_factory=datetime.now)
     escalated: bool = False
+    # V2.1.1: Draft reply suggestion
+    draft_reply: Optional[str] = None
     # V2.2: Pattern validation (Sganarelle)
     pattern_matches: list["PatternMatch"] = field(default_factory=list)
     pattern_validated: bool = False
@@ -241,12 +265,13 @@ class EnrichmentResult:
     """
     Résultat de l'application des extractions au PKM.
 
-    Contient les listes des notes mises à jour/créées et des tâches créées.
+    Contient les listes des notes mises à jour/créées, tâches et événements créés.
 
     Attributes:
         notes_updated: IDs des notes enrichies
         notes_created: IDs des notes nouvellement créées
         tasks_created: IDs des tâches OmniFocus créées
+        events_created: IDs des événements calendrier créés
         errors: Liste des erreurs rencontrées
 
     Example:
@@ -254,6 +279,7 @@ class EnrichmentResult:
         ...     notes_updated=["note_123", "note_456"],
         ...     notes_created=["note_new"],
         ...     tasks_created=["task_789"],
+        ...     events_created=["event_456"],
         ...     errors=[]
         ... )
         >>> result.success
@@ -265,6 +291,7 @@ class EnrichmentResult:
     notes_updated: list[str] = field(default_factory=list)
     notes_created: list[str] = field(default_factory=list)
     tasks_created: list[str] = field(default_factory=list)
+    events_created: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -280,7 +307,11 @@ class EnrichmentResult:
     @property
     def has_changes(self) -> bool:
         """Retourne True si des changements ont été effectués"""
-        return self.total_notes_affected > 0 or len(self.tasks_created) > 0
+        return (
+            self.total_notes_affected > 0
+            or len(self.tasks_created) > 0
+            or len(self.events_created) > 0
+        )
 
 
 @dataclass

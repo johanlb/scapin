@@ -4,8 +4,9 @@ Tests for PKMEnricher — Workflow v2.1 Knowledge Application
 Ce module teste l'application des extractions au PKM.
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.core.models.v2_models import (
     AnalysisResult,
@@ -16,8 +17,7 @@ from src.core.models.v2_models import (
     ImportanceLevel,
     NoteAction,
 )
-from src.passepartout.enricher import PKMEnricher, EnricherError, create_enricher
-
+from src.passepartout.enricher import PKMEnricher, create_enricher
 
 # ============================================================================
 # Fixtures
@@ -44,6 +44,19 @@ def mock_omnifocus_client():
     mock_task = MagicMock()
     mock_task.task_id = "task_456"
     client.create_task.return_value = mock_task
+
+    return client
+
+
+@pytest.fixture
+def mock_calendar_client():
+    """Create a mock CalendarClient"""
+    client = AsyncMock()
+
+    # Create mock event
+    mock_event = MagicMock()
+    mock_event.event_id = "event_789"
+    client.create_event.return_value = mock_event
 
     return client
 
@@ -80,6 +93,21 @@ def sample_extraction_with_omnifocus():
         note_cible="Projet Alpha",
         note_action=NoteAction.ENRICHIR,
         omnifocus=True,
+        calendar=False,
+    )
+
+
+@pytest.fixture
+def sample_extraction_with_calendar():
+    """Create a sample extraction with calendar event"""
+    return Extraction(
+        info="Réunion d'équipe le 25 janvier à 14h",
+        type=ExtractionType.EVENEMENT,
+        importance=ImportanceLevel.MOYENNE,
+        note_cible="Réunions Équipe",
+        note_action=NoteAction.ENRICHIR,
+        omnifocus=False,
+        calendar=True,
     )
 
 
@@ -480,7 +508,7 @@ class TestBuildNoteContent:
         content = enricher._build_note_content(extraction)
 
         assert "# Test" in content
-        assert "## Decisions" in content
+        assert "## Décisions" in content  # French section name
         assert "🔴" in content  # High importance
         assert "Budget approuvé" in content
 
@@ -529,3 +557,505 @@ class TestCreateEnricher:
 
         assert enricher.omnifocus_client is mock_omnifocus_client
         assert enricher.omnifocus_enabled is True
+
+    def test_create_enricher_with_calendar(
+        self, mock_note_manager, mock_calendar_client
+    ):
+        """Test factory with calendar client"""
+        enricher = create_enricher(
+            note_manager=mock_note_manager,
+            omnifocus_enabled=False,
+            calendar_client=mock_calendar_client,
+            calendar_enabled=True,
+        )
+
+        assert enricher.calendar_client is mock_calendar_client
+        assert enricher.calendar_enabled is True
+
+
+# ============================================================================
+# Calendar Integration Tests
+# ============================================================================
+
+
+class TestCalendarIntegration:
+    """Tests for calendar event creation"""
+
+    @pytest.fixture
+    def enricher_with_calendar(self, mock_note_manager, mock_calendar_client):
+        """Create enricher with calendar client"""
+        return PKMEnricher(
+            note_manager=mock_note_manager,
+            calendar_client=mock_calendar_client,
+            calendar_enabled=True,
+        )
+
+    def test_init_with_calendar(self, mock_note_manager, mock_calendar_client):
+        """Test initialization with calendar client"""
+        enricher = PKMEnricher(
+            note_manager=mock_note_manager,
+            calendar_client=mock_calendar_client,
+            calendar_enabled=True,
+        )
+
+        assert enricher.calendar_client is mock_calendar_client
+        assert enricher.calendar_enabled is True
+
+    def test_init_without_calendar(self, mock_note_manager):
+        """Test initialization without calendar client"""
+        enricher = PKMEnricher(
+            note_manager=mock_note_manager,
+            calendar_enabled=True,  # enabled but no client
+        )
+
+        assert enricher.calendar_client is None
+        assert enricher.calendar_enabled is False  # disabled because no client
+
+    @pytest.mark.asyncio
+    async def test_apply_extraction_with_calendar(
+        self,
+        enricher_with_calendar,
+        mock_note_manager,
+        mock_calendar_client,
+        sample_extraction_with_calendar,
+    ):
+        """Test applying extraction that creates calendar event"""
+        analysis = AnalysisResult(
+            extractions=[sample_extraction_with_calendar],
+            action=EmailAction.ARCHIVE,
+            confidence=0.9,
+            raisonnement="Test",
+            model_used="haiku",
+            tokens_used=500,
+            duration_ms=1200.0,
+        )
+
+        result = await enricher_with_calendar.apply(analysis, "email_123")
+
+        assert result.success is True
+        assert len(result.notes_created) == 1
+        assert len(result.events_created) == 1
+        assert result.events_created[0] == "event_789"
+        mock_calendar_client.create_event.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_calendar_disabled_no_event_created(
+        self,
+        mock_note_manager,
+        mock_calendar_client,
+        sample_extraction_with_calendar,
+    ):
+        """Test that calendar events are not created when disabled"""
+        enricher = PKMEnricher(
+            note_manager=mock_note_manager,
+            calendar_client=mock_calendar_client,
+            calendar_enabled=False,
+        )
+
+        analysis = AnalysisResult(
+            extractions=[sample_extraction_with_calendar],
+            action=EmailAction.ARCHIVE,
+            confidence=0.9,
+            raisonnement="Test",
+            model_used="haiku",
+            tokens_used=500,
+            duration_ms=1200.0,
+        )
+
+        result = await enricher.apply(analysis, "email_123")
+
+        assert result.success is True
+        assert len(result.events_created) == 0
+        mock_calendar_client.create_event.assert_not_called()
+
+
+# ============================================================================
+# DateTime Extraction Tests
+# ============================================================================
+
+
+class TestDateTimeExtraction:
+    """Tests for _extract_datetime_from_info method"""
+
+    @pytest.fixture
+    def enricher(self, mock_note_manager):
+        """Create enricher for testing"""
+        return PKMEnricher(note_manager=mock_note_manager)
+
+    def test_extract_iso_datetime(self, enricher):
+        """Test extracting ISO format datetime - returns UTC"""
+        result = enricher._extract_datetime_from_info("Event 2026-01-25 14:30")
+
+        assert result is not None
+        start, end = result
+        assert start.year == 2026
+        assert start.month == 1
+        assert start.day == 25
+        # 14:30 Paris (UTC+1 in winter) = 13:30 UTC
+        assert start.hour == 13
+        assert start.minute == 30
+
+    def test_extract_french_date_with_time(self, enricher):
+        """Test extracting French date with time - returns UTC"""
+        result = enricher._extract_datetime_from_info("Réunion le 25 janvier à 14h30")
+
+        assert result is not None
+        start, end = result
+        assert start.month == 1
+        assert start.day == 25
+        # 14:30 Paris (UTC+1 in winter) = 13:30 UTC
+        assert start.hour == 13
+        assert start.minute == 30
+
+    def test_extract_french_date_without_time(self, enricher):
+        """Test extracting French date without explicit time - returns UTC"""
+        result = enricher._extract_datetime_from_info("Anniversaire le 15 mars")
+
+        assert result is not None
+        start, end = result
+        assert start.month == 3
+        assert start.day == 15
+        # Default 9:00 Paris (UTC+1 in winter) = 8:00 UTC
+        assert start.hour == 8
+
+    def test_extract_date_with_hour_only(self, enricher):
+        """Test extracting date with hour only (no minutes) - returns UTC"""
+        result = enricher._extract_datetime_from_info("Meeting le 20 février à 10h")
+
+        assert result is not None
+        start, end = result
+        assert start.month == 2
+        assert start.day == 20
+        # 10:00 Paris (UTC+1 in winter) = 9:00 UTC
+        assert start.hour == 9
+        assert start.minute == 0
+
+    def test_extract_no_date(self, enricher):
+        """Test that None is returned when no date found"""
+        result = enricher._extract_datetime_from_info("Une note sans date")
+
+        assert result is None
+
+    def test_extract_event_duration(self, enricher):
+        """Test that default duration is 1 hour"""
+        result = enricher._extract_datetime_from_info("Meeting le 20 janvier à 14h")
+
+        assert result is not None
+        start, end = result
+        # 14:00 Paris = 13:00 UTC (but duration check is independent of timezone)
+        assert (end - start).total_seconds() == 3600  # 1 hour
+
+
+# ============================================================================
+# Timezone Indicator Tests
+# ============================================================================
+
+
+class TestTimezoneIndicators:
+    """Tests for timezone indicator parsing (HF, HM, Paris)"""
+
+    @pytest.fixture
+    def enricher(self, mock_note_manager):
+        """Create enricher for testing"""
+        return PKMEnricher(note_manager=mock_note_manager)
+
+    def test_extract_time_with_paris_indicator(self, enricher):
+        """Test 9h Paris is parsed as Europe/Paris timezone"""
+        result = enricher._extract_datetime_from_info(
+            "Call le 20 janvier à 9h Paris"
+        )
+
+        assert result is not None
+        start, end = result
+        # 9:00 Paris (UTC+1 winter) = 8:00 UTC
+        assert start.hour == 8
+        assert start.minute == 0
+
+    def test_extract_time_with_hf_indicator(self, enricher):
+        """Test 14h HF (Heure France) is parsed as Europe/Paris timezone"""
+        result = enricher._extract_datetime_from_info(
+            "Réunion le 15 février à 14h HF"
+        )
+
+        assert result is not None
+        start, end = result
+        # 14:00 Paris (UTC+1 winter) = 13:00 UTC
+        assert start.hour == 13
+        assert start.minute == 0
+
+    def test_extract_time_with_hm_indicator(self, enricher):
+        """Test 10h HM (Heure Madagascar) is parsed as Indian/Antananarivo timezone"""
+        result = enricher._extract_datetime_from_info(
+            "Appel le 25 mars à 10h HM"
+        )
+
+        assert result is not None
+        start, end = result
+        # 10:00 Madagascar (UTC+3) = 7:00 UTC
+        assert start.hour == 7
+        assert start.minute == 0
+
+    def test_extract_time_with_utc_indicator(self, enricher):
+        """Test 12h UTC stays as UTC"""
+        result = enricher._extract_datetime_from_info(
+            "Sync le 10 avril à 12h UTC"
+        )
+
+        assert result is not None
+        start, end = result
+        # 12:00 UTC = 12:00 UTC (no conversion)
+        assert start.hour == 12
+        assert start.minute == 0
+
+    def test_extract_time_case_insensitive(self, enricher):
+        """Test timezone indicators are case-insensitive"""
+        result = enricher._extract_datetime_from_info(
+            "Meeting le 5 mai à 15h PARIS"
+        )
+
+        assert result is not None
+        start, end = result
+        # 15:00 Paris (UTC+2 summer) = 13:00 UTC
+        # Note: May is in summer, so Paris is UTC+2
+        assert start.hour == 13
+        assert start.minute == 0
+
+    def test_extract_time_without_indicator_uses_local(self, enricher):
+        """Test that times without indicator default to local timezone (Paris)"""
+        result = enricher._extract_datetime_from_info(
+            "Réunion le 20 janvier à 14h"
+        )
+
+        assert result is not None
+        start, end = result
+        # 14:00 Paris (UTC+1 winter) = 13:00 UTC (default behavior)
+        assert start.hour == 13
+
+    def test_extract_time_with_minutes_and_tz(self, enricher):
+        """Test parsing time with minutes and timezone indicator"""
+        result = enricher._extract_datetime_from_info(
+            "Call le 15 janvier à 9h30 HF"
+        )
+
+        assert result is not None
+        start, end = result
+        # 9:30 Paris (UTC+1) = 8:30 UTC
+        assert start.hour == 8
+        assert start.minute == 30
+
+    def test_extract_time_with_maurice_indicator(self, enricher):
+        """Test 9h Maurice (Port Louis) is parsed as Indian/Mauritius timezone"""
+        result = enricher._extract_datetime_from_info(
+            "Call le 20 janvier à 9h Maurice"
+        )
+
+        assert result is not None
+        start, end = result
+        # 9:00 Mauritius (UTC+4) = 5:00 UTC
+        assert start.hour == 5
+        assert start.minute == 0
+
+
+# ============================================================================
+# New V2.1.2 Field Tests
+# ============================================================================
+
+
+class TestExplicitTimezoneAndDuration:
+    """Tests for explicit timezone and duration in _parse_explicit_datetime"""
+
+    @pytest.fixture
+    def enricher(self, mock_note_manager):
+        """Create enricher for testing"""
+        return PKMEnricher(note_manager=mock_note_manager)
+
+    def test_explicit_timezone_hf(self, enricher):
+        """Test explicit HF timezone in _parse_explicit_datetime"""
+        result = enricher._parse_explicit_datetime(
+            "2026-01-20", "14:00", timezone_str="HF"
+        )
+
+        assert result is not None
+        start, end = result
+        # 14:00 HF (Paris, UTC+1) = 13:00 UTC
+        assert start.hour == 13
+        assert start.minute == 0
+
+    def test_explicit_timezone_hm(self, enricher):
+        """Test explicit HM timezone in _parse_explicit_datetime"""
+        result = enricher._parse_explicit_datetime(
+            "2026-01-20", "10:00", timezone_str="HM"
+        )
+
+        assert result is not None
+        start, end = result
+        # 10:00 HM (Madagascar, UTC+3) = 7:00 UTC
+        assert start.hour == 7
+        assert start.minute == 0
+
+    def test_explicit_timezone_maurice(self, enricher):
+        """Test explicit Maurice timezone in _parse_explicit_datetime"""
+        result = enricher._parse_explicit_datetime(
+            "2026-01-20", "09:00", timezone_str="maurice"
+        )
+
+        assert result is not None
+        start, end = result
+        # 9:00 Maurice (UTC+4) = 5:00 UTC
+        assert start.hour == 5
+        assert start.minute == 0
+
+    def test_explicit_duration_90_minutes(self, enricher):
+        """Test explicit duration of 90 minutes"""
+        result = enricher._parse_explicit_datetime(
+            "2026-01-20", "14:00", duration_minutes=90
+        )
+
+        assert result is not None
+        start, end = result
+        # Duration should be 90 minutes
+        assert (end - start).total_seconds() == 90 * 60
+
+    def test_explicit_duration_30_minutes(self, enricher):
+        """Test explicit duration of 30 minutes"""
+        result = enricher._parse_explicit_datetime(
+            "2026-01-20", "14:00", duration_minutes=30
+        )
+
+        assert result is not None
+        start, end = result
+        # Duration should be 30 minutes
+        assert (end - start).total_seconds() == 30 * 60
+
+    def test_default_duration_60_minutes(self, enricher):
+        """Test default duration is 60 minutes when not specified"""
+        result = enricher._parse_explicit_datetime(
+            "2026-01-20", "14:00"
+        )
+
+        assert result is not None
+        start, end = result
+        # Default duration should be 60 minutes
+        assert (end - start).total_seconds() == 60 * 60
+
+    def test_combined_timezone_and_duration(self, enricher):
+        """Test combining explicit timezone and duration"""
+        result = enricher._parse_explicit_datetime(
+            "2026-01-20", "10:00", timezone_str="HM", duration_minutes=120
+        )
+
+        assert result is not None
+        start, end = result
+        # 10:00 HM (UTC+3) = 7:00 UTC
+        assert start.hour == 7
+        # Duration should be 120 minutes
+        assert (end - start).total_seconds() == 120 * 60
+
+
+class TestExtractionNewFields:
+    """Tests for new Extraction fields: priority, project, has_attachments"""
+
+    @pytest.fixture
+    def mock_note_manager(self):
+        """Create a mock NoteManager"""
+        from unittest.mock import MagicMock
+        manager = MagicMock()
+        manager.create_note.return_value = "note_new_123"
+        manager.add_info.return_value = True
+        manager.get_note_by_title.return_value = None
+        return manager
+
+    @pytest.fixture
+    def mock_omnifocus_client(self):
+        """Create a mock OmniFocusClient"""
+        from unittest.mock import AsyncMock, MagicMock
+        client = AsyncMock()
+        client.is_available.return_value = True
+        mock_task = MagicMock()
+        mock_task.task_id = "task_456"
+        client.create_task.return_value = mock_task
+        return client
+
+    @pytest.fixture
+    def enricher_with_omnifocus(self, mock_note_manager, mock_omnifocus_client):
+        """Create enricher with OmniFocus"""
+        return PKMEnricher(
+            note_manager=mock_note_manager,
+            omnifocus_client=mock_omnifocus_client,
+            omnifocus_enabled=True,
+        )
+
+    @pytest.mark.asyncio
+    async def test_omnifocus_uses_explicit_project(
+        self, enricher_with_omnifocus, mock_note_manager, mock_omnifocus_client
+    ):
+        """Test that explicit project field is used for OmniFocus tasks"""
+        from src.core.models.v2_models import (
+            AnalysisResult, EmailAction, Extraction, ExtractionType,
+            ImportanceLevel, NoteAction
+        )
+
+        extraction = Extraction(
+            info="Deadline urgente",
+            type=ExtractionType.DEADLINE,
+            importance=ImportanceLevel.HAUTE,
+            note_cible="Notes Générales",
+            note_action=NoteAction.CREER,
+            omnifocus=True,
+            date="2026-01-20",
+            project="Mon Projet Spécifique",  # Explicit project
+        )
+
+        analysis = AnalysisResult(
+            extractions=[extraction],
+            action=EmailAction.ARCHIVE,
+            confidence=0.9,
+            raisonnement="Test",
+            model_used="haiku",
+            tokens_used=500,
+            duration_ms=1000.0,
+        )
+
+        await enricher_with_omnifocus.apply(analysis, "email_test")
+
+        # Check that create_task was called with the explicit project
+        mock_omnifocus_client.create_task.assert_called_once()
+        call_kwargs = mock_omnifocus_client.create_task.call_args.kwargs
+        assert call_kwargs["project"] == "Mon Projet Spécifique"
+
+    @pytest.mark.asyncio
+    async def test_omnifocus_uses_explicit_date(
+        self, enricher_with_omnifocus, mock_note_manager, mock_omnifocus_client
+    ):
+        """Test that explicit date field is used for OmniFocus tasks"""
+        from src.core.models.v2_models import (
+            AnalysisResult, EmailAction, Extraction, ExtractionType,
+            ImportanceLevel, NoteAction
+        )
+
+        extraction = Extraction(
+            info="Livraison importante",
+            type=ExtractionType.DEADLINE,
+            importance=ImportanceLevel.HAUTE,
+            note_cible="Projet Test",
+            note_action=NoteAction.CREER,
+            omnifocus=True,
+            date="2026-03-15",  # Explicit date
+        )
+
+        analysis = AnalysisResult(
+            extractions=[extraction],
+            action=EmailAction.ARCHIVE,
+            confidence=0.9,
+            raisonnement="Test",
+            model_used="haiku",
+            tokens_used=500,
+            duration_ms=1000.0,
+        )
+
+        await enricher_with_omnifocus.apply(analysis, "email_test")
+
+        # Check that create_task was called with the explicit date
+        mock_omnifocus_client.create_task.assert_called_once()
+        call_kwargs = mock_omnifocus_client.create_task.call_args.kwargs
+        assert call_kwargs["due_date"] == "2026-03-15"

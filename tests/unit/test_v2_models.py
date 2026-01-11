@@ -484,18 +484,20 @@ class TestEnums:
 
     def test_extraction_type_values(self):
         """Test que tous les types d'extraction sont bien définis"""
-        # Types originaux + types ajoutés v2.1.1
+        # 14 types définis dans v2.1.1
         expected_values = {
             "decision", "engagement", "fait", "deadline", "relation",
-            "coordonnees", "montant", "reference", "evenement", "demande"
+            "coordonnees", "montant", "reference", "evenement", "demande",
+            "citation", "objectif", "competence", "preference"
         }
         actual_values = {t.value for t in ExtractionType}
         assert actual_values == expected_values
 
     def test_importance_level_values(self):
-        """Test les niveaux d'importance"""
+        """Test les niveaux d'importance (3 niveaux v2.1.1)"""
         assert ImportanceLevel.HAUTE.value == "haute"
         assert ImportanceLevel.MOYENNE.value == "moyenne"
+        assert ImportanceLevel.BASSE.value == "basse"
 
     def test_note_action_values(self):
         """Test les actions sur les notes"""

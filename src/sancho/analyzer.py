@@ -303,6 +303,13 @@ class EventAnalyzer:
             confidence = float(data.get("confidence", 0.5))
             confidence = max(0.0, min(1.0, confidence))  # Clamp to [0, 1]
 
+            # Get optional draft_reply
+            draft_reply = data.get("draft_reply")
+            if draft_reply and isinstance(draft_reply, str):
+                draft_reply = draft_reply.strip() or None
+            else:
+                draft_reply = None
+
             return AnalysisResult(
                 extractions=extractions,
                 action=action,
@@ -312,6 +319,7 @@ class EventAnalyzer:
                 tokens_used=usage.get("total_tokens", 0),
                 duration_ms=duration_ms,
                 escalated=False,
+                draft_reply=draft_reply,
             )
 
         except json.JSONDecodeError as e:
@@ -379,6 +387,16 @@ class EventAnalyzer:
                     ext_data.get("note_action", "enrichir")
                 )
 
+                # Parse optional date/time fields
+                date_str = ext_data.get("date")
+                time_str = ext_data.get("time")
+
+                # V2.1.2: Parse new optional fields
+                timezone_str = ext_data.get("timezone")
+                duration_val = ext_data.get("duration")
+                priority_str = ext_data.get("priority")
+                project_str = ext_data.get("project")
+
                 extraction = Extraction(
                     info=info,
                     type=ext_type,
@@ -386,6 +404,15 @@ class EventAnalyzer:
                     note_cible=note_cible,
                     note_action=note_action,
                     omnifocus=bool(ext_data.get("omnifocus", False)),
+                    calendar=bool(ext_data.get("calendar", False)),
+                    date=date_str if date_str else None,
+                    time=time_str if time_str else None,
+                    # V2.1.2: New fields
+                    timezone=timezone_str if timezone_str else None,
+                    duration=int(duration_val) if duration_val else None,
+                    has_attachments=bool(ext_data.get("has_attachments", False)),
+                    priority=priority_str if priority_str else None,
+                    project=project_str if project_str else None,
                 )
                 extractions.append(extraction)
 
