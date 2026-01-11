@@ -425,7 +425,7 @@ def create_enricher(
         from src.core.config_manager import get_config
 
         config = get_config()
-        note_manager = NoteManager(storage_dir=config.storage.notes_dir)
+        note_manager = NoteManager(notes_dir=config.storage.notes_path)
 
     if omnifocus_client is None and omnifocus_enabled:
         from src.integrations.apple.omnifocus import create_omnifocus_client
