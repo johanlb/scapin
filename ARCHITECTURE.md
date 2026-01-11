@@ -1,8 +1,8 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 2.1.0 (Workflow v2.1: Knowledge Extraction - Simplified)
+**Version**: 2.1.0 (Workflow v2.1: Knowledge Extraction)
 **Date**: 2026-01-11
-**Status**: ✅ Workflow v2.1 approved - Ready for implementation
+**Status**: ✅ v1.0.0-rc.1 RELEASED — All features implemented
 
 > Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
 
@@ -1783,10 +1783,10 @@ Each valet excels at their specialty, working together like a well-trained house
 
 ---
 
-**Status**: ✅ Workflow v2.1 approved - Ready for implementation
+**Status**: ✅ v1.0.0-rc.1 RELEASED
 **Repository**: https://github.com/johanlb/scapin
 **Version**: 2.1.0
-**Next Step**: Workflow v2.1 Implementation (see [WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md))
+**Release**: [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 **Last Updated**: 2026-01-11
 
 🎭 *"The valet who can do anything is worth more than the master who can do nothing."* - Molière

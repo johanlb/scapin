@@ -145,7 +145,7 @@ scapin/
 │   │   └── routes/              # Pages (file-based routing)
 │   └── static/                  # PWA (manifest, sw.js)
 │
-├── tests/                       # 1824+ tests
+├── tests/                       # 2346+ tests
 ├── docs/                        # Documentation
 └── config/                      # Configuration YAML
 ```
@@ -160,7 +160,7 @@ scapin/
 | **Lignes de code TypeScript/Svelte** | ~15,000 |
 | **Fichiers Python** | ~150 |
 | **Fichiers Frontend** | ~100 |
-| **Tests** | 1,824+ |
+| **Tests** | 2,346+ |
 | **Couverture** | 95% |
 | **Modèles de données** | 120+ |
 | **Endpoints API** | 60+ |

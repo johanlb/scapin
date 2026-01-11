@@ -1,10 +1,10 @@
 # Suivi des Écarts — Scapin
 
-**Dernière mise à jour** : 9 janvier 2026
+**Dernière mise à jour** : 11 janvier 2026
+**Version** : v1.0.0-rc.1
 **Total items** : 139
-**MVP** : 86 | **Nice-to-have** : 53 | **Complétés** : 81
-**Sprint actuel** : Sprint 5 — Qualité & Release (1/6 — 17%)
-**Prochaine priorité** : Lighthouse > 90, Guide Utilisateur, Audit sécurité
+**MVP** : 86 | **Nice-to-have** : 53 | **Complétés** : 86
+**Statut** : ✅ MVP COMPLET — Release Candidate 1
 
 ---
 
@@ -278,16 +278,16 @@
 
 ---
 
-## 12. Qualité & Documentation (6 items) → Voir Sprint 5
+## 12. Qualité & Documentation (6 items) — ✅ COMPLÉTÉ
 
 | Status | Item | Priorité |
 |--------|------|----------|
 | ✅ | Tests E2E Playwright (toutes pages, desktop + mobile) | MVP |
-| ⬜ | Performance Lighthouse > 90 (toutes métriques) | MVP |
-| ⬜ | Guide utilisateur complet (7 sections) | MVP |
-| ⬜ | Page /help in-app | MVP |
-| ⬜ | Audit sécurité OWASP + dépendances | MVP |
-| ⬜ | Revue code finale | — |
+| ✅ | Performance Lighthouse > 90 (toutes métriques) | MVP |
+| ✅ | Guide utilisateur complet (7 sections) | MVP |
+| ✅ | Page /help in-app | MVP |
+| ✅ | Audit sécurité OWASP + dépendances | MVP |
+| ✅ | Revue code finale | — |
 
 ---
 
@@ -357,43 +357,44 @@
 | Cognitif | 3 | 0 | 3 | 1 |
 | Phase 0.9+ | 3 | 0 | 3 | 0 |
 | UI Components | 6 | 6 | 0 | 6 ✅ |
-| Qualité & Docs | 6 | 6 | 0 | 1 |
+| Qualité & Docs | 6 | 6 | 0 | 6 ✅ |
 | **✅ Cross-Source** | **12** | **12** | **0** | **12 ✅** |
 | **✅ Valets Dashboard** | **4** | **4** | **0** | **4 ✅** |
-| **TOTAL** | **139** | **86** | **53** | **81** |
+| **TOTAL** | **139** | **86** | **53** | **86 ✅** |
 
 ---
 
 ## Progression
 
 ```
-MVP:          ██████████████████░░ 81/86 (94%)
+MVP:          ████████████████████ 86/86 (100%) ✅
 Nice-to-have: ██░░░░░░░░░░░░░░░░░░ 7/53 (13%)
-Total:        █████████████████░░░ 88/139 (63%)
+Total:        █████████████████░░░ 93/139 (67%)
 
 Sprint 1:     ████████████████████ 19/19 (100%) ✅
 Sprint 2:     ████████████████████ 13/13 (100%) ✅
 Sprint 3:     ████████████████████ 18/18 (100%) ✅
 Cross-Source: ████████████████████ 12/12 (100%) ✅
 Sprint 4:     ████████████████████ 18/18 (100%) ✅
-Sprint 5:     ███░░░░░░░░░░░░░░░░░  1/6  (17%) 🟡 EN COURS
+Sprint 5:     ████████████████████  6/6  (100%) ✅
 ```
 
 ---
 
-## 15. Sprint 5 : Qualité & Release (6 items) — 🟡 EN COURS
+## 15. Sprint 5 : Qualité & Release (6 items) — ✅ COMPLÉTÉ
 
-> **Objectif** : v1.0 Release Candidate
+> **Objectif** : v1.0 Release Candidate ✅ ATTEINT
 > **Spécification** : [SPRINT_5_SPEC.md](specs/SPRINT_5_SPEC.md)
+> **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
 | Status | Item | Priorité |
 |--------|------|----------|
 | ✅ | Tests E2E Playwright (132 tests × 5 browsers = 660 tests) | MVP |
-| ⬜ | Performance Lighthouse > 90 (toutes métriques) | MVP |
-| ⬜ | Guide utilisateur complet (7 sections) | MVP |
-| ⬜ | Page /help in-app | MVP |
-| ⬜ | Audit sécurité OWASP + dépendances | MVP |
-| ⬜ | Revue code finale | — |
+| ✅ | Performance Lighthouse > 90 (toutes métriques) | MVP |
+| ✅ | Guide utilisateur complet (7 sections) | MVP |
+| ✅ | Page /help in-app | MVP |
+| ✅ | Audit sécurité OWASP + dépendances | MVP |
+| ✅ | Revue code finale | — |
 
 ---
 

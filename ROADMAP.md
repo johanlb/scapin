@@ -1,9 +1,9 @@
 # Scapin — Feuille de Route Produit
 
 **Dernière mise à jour** : 11 janvier 2026
-**Version** : 1.0.0-alpha.19 (suite de PKM v3.1.0)
-**Phase actuelle** : Sprint 6 🚧 — Workflow v2.1 Knowledge Extraction
-**Prochaine priorité** : Implémentation Workflow v2.1 (~4 jours)
+**Version** : 1.0.0-rc.1
+**Phase actuelle** : ✅ Release Candidate 1
+**Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
 ---
 
@@ -11,15 +11,15 @@
 
 ### Statut Global
 
-**État** : Sprint 6 EN COURS — Workflow v2.1 Knowledge Extraction 🚧
+**État** : ✅ v1.0.0-rc.1 RELEASED
 
 | Métrique | Valeur |
 |----------|--------|
-| **Tests** | 2148+ backend + 660 E2E, 95% couverture, 100% pass rate |
+| **Tests** | 2346+ backend + 660 E2E, 95% couverture, 100% pass rate |
 | **Qualité Code** | 10/10 (Ruff 0 warnings, svelte-check 0 errors) |
-| **Phases complétées** | 0.5 à 1.6 + 0.7 à 0.9 + Sprints 1-5 + Cross-Source |
-| **MVP v1.0** | ✅ COMPLET (86/86 items) |
-| **Prochaine priorité** | 🌟 Workflow v2.1 — Knowledge Extraction |
+| **Phases complétées** | Toutes (Sprints 1-5 + Cross-Source + Workflow v2.1) |
+| **Bugs ouverts** | 0 |
+| **Prochaine étape** | Phase 2.5 (Nice-to-have) |
 | **Dépôt** | https://github.com/johanlb/scapin |
 
 ### Vision
@@ -91,7 +91,7 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 | 0.8 | Interface Web (SvelteKit) | 8 | ✅ |
 | 0.9 | PWA Mobile | — | ✅ |
 
-**Total tests** : 1697 | **Couverture** : 95% | **Pass rate** : 100%
+**Total tests** : 2346+ | **Couverture** : 95% | **Pass rate** : 100%
 
 ---
 

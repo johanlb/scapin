@@ -1,8 +1,8 @@
 # 🎭 Scapin — Votre Gardien Cognitif Personnel
 
-**Version** : 1.0.0-alpha  
-**Statut** : 🏗️ Développement actif — Architecture cognitive complète  
-**Python** : 3.9+
+**Version** : 1.0.0-rc.1
+**Statut** : ✅ Release Candidate 1 — [Changelog](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
+**Python** : 3.11+
 
 > Nommé d'après Scapin, le valet rusé et inventif de Molière qui trouve toujours une solution.
 
