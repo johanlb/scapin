@@ -122,6 +122,80 @@ def encode_imap_folder_name(folder_name: str) -> str:
     return encoded
 
 
+def decode_imap_folder_name(folder_name: str) -> str:
+    """
+    Decode folder name from IMAP modified UTF-7.
+
+    IMAP uses modified UTF-7 for mailbox names with non-ASCII characters.
+    - ASCII printable characters (0x20-0x7E except &) are unchanged
+    - &- is decoded as &
+    - &XYZ- sequences are base64-decoded UTF-16BE
+
+    Example:
+        "&AMA-" -> "À"
+        "&AOk-" -> "é"
+        "Factures &- Achats" -> "Factures & Achats"
+        "Copropri&AOk-t&AOk-" -> "Copropriété"
+
+    Args:
+        folder_name: IMAP modified UTF-7 encoded folder name
+
+    Returns:
+        Decoded folder name in UTF-8
+    """
+    if not folder_name:
+        return folder_name
+
+    # Remove surrounding quotes if present
+    if folder_name.startswith('"') and folder_name.endswith('"'):
+        folder_name = folder_name[1:-1]
+        # Unescape internal quotes
+        folder_name = folder_name.replace('\\"', '"')
+
+    result = []
+    i = 0
+
+    while i < len(folder_name):
+        if folder_name[i] == '&':
+            # Find the end of the encoded sequence
+            end = folder_name.find('-', i + 1)
+            if end == -1:
+                # No closing -, treat as literal
+                result.append('&')
+                i += 1
+                continue
+
+            if end == i + 1:
+                # &- is just &
+                result.append('&')
+                i = end + 1
+            else:
+                # Decode the base64 sequence
+                b64 = folder_name[i + 1:end]
+                # Replace , with / (IMAP modified UTF-7 uses , instead of /)
+                b64 = b64.replace(',', '/')
+                # Add padding if needed
+                padding = (4 - len(b64) % 4) % 4
+                b64 += '=' * padding
+
+                try:
+                    # Decode from base64
+                    utf16_bytes = codecs.decode(b64.encode('ascii'), 'base64')
+                    # Decode from UTF-16BE
+                    decoded = utf16_bytes.decode('utf-16-be')
+                    result.append(decoded)
+                except Exception:
+                    # If decoding fails, keep the original
+                    result.append(folder_name[i:end + 1])
+
+                i = end + 1
+        else:
+            result.append(folder_name[i])
+            i += 1
+
+    return ''.join(result)
+
+
 def decode_mime_header(header_value: str) -> str:
     """
     Decode MIME-encoded email header (like Subject, From name, etc.)
@@ -342,6 +416,8 @@ class IMAPClient:
                     parts = item.rsplit('"', 2)
                     if len(parts) >= 2:
                         folder_name = parts[-2]
+                        # Decode IMAP modified UTF-7 to UTF-8
+                        folder_name = decode_imap_folder_name(folder_name)
                         # Skip system folders that start with [
                         if not folder_name.startswith('['):
                             folders.append(folder_name)
@@ -1294,19 +1370,13 @@ class IMAPClient:
             self._connection.select(from_folder)
 
             # Encode folder name to IMAP modified UTF-7 for non-ASCII characters
+            # encode_imap_folder_name already handles quoting if needed
             to_folder_encoded = encode_imap_folder_name(to_folder)
 
-            # Quote the folder name if it contains special characters
-            # IMAP requires quoting for names with spaces or special chars
-            if ' ' in to_folder_encoded or '&' in to_folder_encoded:
-                to_folder_quoted = f'"{to_folder_encoded}"'
-            else:
-                to_folder_quoted = to_folder_encoded
-
-            logger.debug(f"Folder: '{to_folder}' -> '{to_folder_encoded}' -> '{to_folder_quoted}'")
+            logger.debug(f"Folder: '{to_folder}' -> '{to_folder_encoded}'")
 
             # Copy to destination
-            result = self._connection.copy(str(msg_id).encode(), to_folder_quoted)
+            result = self._connection.copy(str(msg_id).encode(), to_folder_encoded)
             if result[0] != 'OK':
                 logger.error(f"Failed to copy email to {to_folder}")
                 return False
