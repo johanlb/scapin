@@ -292,9 +292,9 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
       "omnifocus": false
     }
   ],
-  "action": "archive",
+  "action": "delete",
   "confidence": 0.92,
-  "raisonnement": "Deux dates importantes à retenir, sans obligation particulière."
+  "raisonnement": "Dates extraites dans le PKM, email sans valeur légale à conserver."
 }
 ```
 
@@ -338,9 +338,147 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
       "omnifocus": false
     }
   ],
-  "action": "archive",
+  "action": "delete",
   "confidence": 0.90,
-  "raisonnement": "Compte-rendu riche avec citation importante, objectif chiffré et infos sur Sophie."
+  "raisonnement": "Compte-rendu extrait dans le PKM, email sans valeur légale."
+}
+```
+
+### Exemple 7 : Engagement ferme
+
+**Input** : "Je m'engage à terminer la maquette pour vendredi. Tu peux compter sur moi."
+
+```json
+{
+  "extractions": [
+    {
+      "info": "Engagement à terminer la maquette pour vendredi",
+      "type": "engagement",
+      "importance": "haute",
+      "note_cible": "Projet Maquette",
+      "note_action": "enrichir",
+      "omnifocus": true
+    }
+  ],
+  "action": "delete",
+  "confidence": 0.88,
+  "raisonnement": "Engagement clair avec deadline implicite, info extraite."
+}
+```
+
+### Exemple 8 : Fait important avec valeur légale
+
+**Input** : "FYI : Nous avons signé le contrat avec Acme Corp hier. Le deal est conclu pour 3 ans, 150k€/an."
+
+```json
+{
+  "extractions": [
+    {
+      "info": "Contrat signé avec Acme Corp pour 3 ans",
+      "type": "fait",
+      "importance": "haute",
+      "note_cible": "Acme Corp",
+      "note_action": "enrichir",
+      "omnifocus": false
+    },
+    {
+      "info": "Contrat Acme Corp : 150k€/an",
+      "type": "montant",
+      "importance": "haute",
+      "note_cible": "Acme Corp",
+      "note_action": "enrichir",
+      "omnifocus": false
+    }
+  ],
+  "action": "archive",
+  "confidence": 0.92,
+  "raisonnement": "Contrat signé = valeur légale potentielle, à conserver."
+}
+```
+
+### Exemple 9 : Relations dans l'équipe
+
+**Input** : "Marie rejoint l'équipe Alpha lundi. Elle remplace Thomas qui part chez Beta Corp."
+
+```json
+{
+  "extractions": [
+    {
+      "info": "Marie rejoint l'équipe Alpha",
+      "type": "relation",
+      "importance": "moyenne",
+      "note_cible": "Marie",
+      "note_action": "enrichir",
+      "omnifocus": false
+    },
+    {
+      "info": "Thomas quitte l'équipe Alpha pour Beta Corp",
+      "type": "relation",
+      "importance": "moyenne",
+      "note_cible": "Thomas",
+      "note_action": "enrichir",
+      "omnifocus": false
+    }
+  ],
+  "action": "delete",
+  "confidence": 0.90,
+  "raisonnement": "Mouvements d'équipe extraits, email sans valeur légale."
+}
+```
+
+### Exemple 10 : Cas ambigu nécessitant revue humaine
+
+**Input** : "Il faudrait qu'on parle du truc dont je t'ai parlé. C'est assez sensible. Appelle-moi."
+
+```json
+{
+  "extractions": [],
+  "action": "queue",
+  "confidence": 0.45,
+  "raisonnement": "Message vague et sensible, nécessite revue humaine."
+}
+```
+
+### Exemple 11 : Conversation en cours
+
+**Input** : "J'attends le retour de Marc sur les specs. Je te tiens au courant dès que j'ai des news."
+
+```json
+{
+  "extractions": [],
+  "action": "rien",
+  "confidence": 0.85,
+  "raisonnement": "Email de suivi, conversation en cours, rien à extraire."
+}
+```
+
+### Exemple 12 : Références administratives (importance basse)
+
+**Input** : "Pour info, ton numéro de dossier RH est RH-2026-0847. Ton badge sera prêt demain, référence BADGE-4521."
+
+```json
+{
+  "extractions": [
+    {
+      "info": "Numéro dossier RH : RH-2026-0847",
+      "type": "reference",
+      "importance": "basse",
+      "note_cible": "Admin Johan",
+      "note_action": "enrichir",
+      "omnifocus": false
+    },
+    {
+      "info": "Référence badge : BADGE-4521",
+      "type": "reference",
+      "importance": "basse",
+      "note_cible": "Admin Johan",
+      "note_action": "enrichir",
+      "omnifocus": false
+    }
+  ],
+  "action": "delete",
+  "confidence": 0.90,
+  "raisonnement": "Références administratives extraites, email sans valeur à conserver."
 }
 ```
 
