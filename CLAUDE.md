@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 9 janvier 2026
+**Dernière mise à jour** : 11 janvier 2026
 **Projet** : Scapin (anciennement PKM System)  
 **Dépôt** : https://github.com/johanlb/scapin  
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -539,6 +539,47 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-11 — Email Processing Fixes (iCloud IMAP + JSON Parsing) ✅
+
+**Focus** : Correction des problèmes de traitement email avec iCloud IMAP et parsing JSON
+
+**Accomplissements** :
+
+1. ✅ **Tracking local SQLite pour emails traités** (`src/integrations/email/processed_tracker.py` ~270 lignes)
+   - Problème : iCloud stocke les flags custom (`$MailFlagBit6`) mais ne supporte pas KEYWORD/UNKEYWORD search
+   - Solution : Tracker SQLite local pour mémoriser les emails traités
+   - Les flags IMAP sont toujours ajoutés pour le feedback visuel dans les clients email
+
+2. ✅ **Optimisation batch avec early stop** (`src/integrations/email/imap_client.py`)
+   - Problème : Scan de 16,818 headers prenait ~43 secondes
+   - Solution : Batch de 200 headers avec arrêt dès qu'on a assez d'emails non traités
+   - Résultat : ~1 seconde au lieu de ~43 secondes
+
+3. ✅ **Réparation JSON robuste** (`src/sancho/router.py`)
+   - Problème : Erreurs "Expecting ',' delimiter" sur les réponses IA
+   - Solution : Stratégie multi-niveaux :
+     - Level 1 : Parse direct (cas idéal)
+     - Level 2 : Librairie `json-repair` (gère les cas complexes)
+     - Level 3 : Regex cleaning + json-repair (dernier recours)
+   - Résultat : Tous les emails parsés avec succès
+
+**Fichiers créés/modifiés** :
+```
+src/integrations/email/processed_tracker.py  # NEW (~270 lignes)
+src/integrations/email/imap_client.py        # MODIFIED (batch + tracking)
+src/sancho/router.py                         # MODIFIED (JSON repair)
+src/trivelin/processor.py                    # MODIFIED (message_id)
+src/jeeves/api/services/queue_service.py     # MODIFIED (message_id)
+```
+
+**Tests** : 58 tests passent, ruff 0 warnings
+
+**Commit** : `e47428c` — fix(email): fix iCloud IMAP tracking and JSON parsing issues
+
+**TODO restant** : Sélection de dossier pour l'action Archive (navigation IMAP, création)
+
+---
 
 ### Session 2026-01-09 (Suite 7) — Bug Fixes Performance & Stabilité ✅
 
