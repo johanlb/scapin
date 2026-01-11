@@ -7,7 +7,7 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
 **Type** : {{ event.event_type.value }}
 **De** : {{ event.metadata.get('from_name', '') }} <{{ event.metadata.get('from_address', 'N/A') }}>
 **Sujet** : {{ event.title }}
-**Date** : {{ event.timestamp.strftime('%Y-%m-%d %H:%M') }}
+**Date** : {{ event.occurred_at.strftime('%Y-%m-%d %H:%M') }}
 {% if event.metadata.get('to_addresses') %}
 **À** : {{ event.metadata.get('to_addresses') }}
 {% endif %}

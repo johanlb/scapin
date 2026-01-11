@@ -146,18 +146,44 @@ async def analyze_email_v2(
         processor = _get_v2_processor()
 
         # Get email and convert to PerceivedEvent
-        from src.core.events.universal_event import EventType, PerceivedEvent
+        from src.core.events.universal_event import (
+            EventSource,
+            EventType,
+            PerceivedEvent,
+            UrgencyLevel,
+        )
+
+        now = datetime.now(timezone.utc)
 
         # For now, create a basic event from email ID
         # In production, this would fetch from IMAP
         event = PerceivedEvent(
             event_id=request.email_id,
-            event_type=EventType.INFORMATION,
+            source=EventSource.EMAIL,
+            source_id=request.email_id,
+            occurred_at=now,
+            received_at=now,
             title=f"Email {request.email_id}",
             content="",  # Would be populated from IMAP
-            source="email",
-            timestamp=datetime.now(timezone.utc),
+            event_type=EventType.INFORMATION,
+            urgency=UrgencyLevel.NONE,
+            entities=[],
+            topics=[],
+            keywords=[],
+            from_person="unknown",
+            to_people=[],
+            cc_people=[],
+            thread_id=None,
+            references=[],
+            in_reply_to=None,
+            has_attachments=False,
+            attachment_count=0,
+            attachment_types=[],
+            urls=[],
             metadata={"email_id": request.email_id},
+            perception_confidence=0.5,
+            needs_clarification=False,
+            clarification_questions=[],
         )
 
         result = await processor.process_event(event, auto_apply=request.auto_apply)

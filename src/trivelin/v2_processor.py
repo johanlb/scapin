@@ -270,34 +270,28 @@ class V2EmailProcessor:
             List of ContextNote objects
         """
         try:
-            # Build query from event
-            query = f"{event.title} {event.content[:500]}"
-
-            # Get relevant notes from context engine
-            context_result = self.context_engine.retrieve(
-                query=query,
-                entities=[],  # Could extract entities from event
+            # Get relevant context from context engine
+            context_result = await self.context_engine.retrieve_context(
+                event=event,
                 top_k=self.config.context_notes_count,
                 min_relevance=0.3,
             )
 
-            # Convert to ContextNote format
+            # Convert ContextItem to ContextNote format
             context_notes = []
-            for note_result in context_result.notes:
+            for item in context_result.context_items:
                 # Truncate content for context
-                content_summary = note_result.content[
-                    : self.config.context_note_max_chars
-                ]
-                if len(note_result.content) > self.config.context_note_max_chars:
+                content_summary = item.content[: self.config.context_note_max_chars]
+                if len(item.content) > self.config.context_note_max_chars:
                     content_summary += "..."
 
                 context_notes.append(
                     ContextNote(
-                        title=note_result.title,
-                        type=note_result.metadata.get("type", "note"),
+                        title=item.metadata.get("note_title", "Unknown"),
+                        type=item.metadata.get("note_type", item.type),
                         content_summary=content_summary,
-                        relevance=note_result.relevance,
-                        note_id=note_result.note_id,
+                        relevance=item.relevance_score,
+                        note_id=item.metadata.get("note_id"),
                     )
                 )
 

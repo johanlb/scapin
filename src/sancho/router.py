@@ -106,7 +106,7 @@ def _repair_json_with_library(json_str: str) -> tuple[str, bool]:
 class AIModel(str, Enum):
     """Available AI models"""
     CLAUDE_HAIKU = "claude-3-5-haiku-20241022"
-    CLAUDE_SONNET = "claude-3-5-sonnet-20241022"
+    CLAUDE_SONNET = "claude-sonnet-4-20250514"
     CLAUDE_OPUS = "claude-opus-4-20250514"
 
 
