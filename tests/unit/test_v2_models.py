@@ -484,7 +484,11 @@ class TestEnums:
 
     def test_extraction_type_values(self):
         """Test que tous les types d'extraction sont bien définis"""
-        expected_values = {"decision", "engagement", "fait", "deadline", "relation"}
+        # Types originaux + types ajoutés v2.1.1
+        expected_values = {
+            "decision", "engagement", "fait", "deadline", "relation",
+            "coordonnees", "montant", "reference", "evenement", "demande"
+        }
         actual_values = {t.value for t in ExtractionType}
         assert actual_values == expected_values
 

@@ -9,16 +9,11 @@ who notices details others miss.
 Trivelin handles:
 - Email perception and normalization
 - Event triage and prioritization
-- Cognitive pipeline orchestration (Phase 1.0)
 - Multi-source event intake (Teams, Calendar, OmniFocus, etc.)
+- V2 Workflow processing with CrossSource, Patterns, and Clarification
 """
 
 from src.trivelin.action_factory import ActionFactory
-from src.trivelin.cognitive_pipeline import (
-    CognitivePipeline,
-    CognitivePipelineResult,
-    CognitiveTimeoutError,
-)
 from src.trivelin.omnifocus_processor import OmniFocusProcessor
 from src.trivelin.processor import EmailProcessor
 from src.trivelin.v2_processor import (
@@ -29,12 +24,9 @@ from src.trivelin.v2_processor import (
 
 __all__ = [
     "ActionFactory",
-    "CognitivePipeline",
-    "CognitivePipelineResult",
-    "CognitiveTimeoutError",
     "EmailProcessor",
     "OmniFocusProcessor",
-    # V2 Workflow
+    # V2 Workflow (recommended)
     "V2EmailProcessor",
     "V2ProcessingResult",
     "create_v2_processor",

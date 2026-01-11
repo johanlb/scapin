@@ -81,75 +81,10 @@ class EmailProcessor:
         except Exception as e:
             logger.warning(f"NoteManager not available for auto-apply: {e}")
 
-        # Initialize cognitive pipeline if enabled
-        self.cognitive_pipeline = None
-        if self.config.processing.enable_cognitive_reasoning:
-            self._init_cognitive_pipeline()
-
         logger.info(
             "Email processor initialized",
             extra={
-                "cognitive_enabled": self.cognitive_pipeline is not None,
                 "auto_apply_enabled": self.note_manager is not None,
-            }
-        )
-
-    def _init_cognitive_pipeline(self) -> None:
-        """Initialize the cognitive pipeline components with context engine"""
-        from src.trivelin.cognitive_pipeline import CognitivePipeline
-
-        # Initialize ContextEngine if NoteManager is available and context enrichment enabled
-        context_engine = None
-        if (
-            self.note_manager is not None
-            and self.config.processing.enable_context_enrichment
-        ):
-            try:
-                from src.passepartout.context_engine import ContextEngine
-
-                context_engine = ContextEngine(
-                    note_manager=self.note_manager,
-                    # Default weights: entity 40%, semantic 40%, thread 20%
-                )
-                logger.info(
-                    "ContextEngine initialized for cognitive pipeline",
-                    extra={
-                        "top_k": self.config.processing.context_top_k,
-                        "min_relevance": self.config.processing.context_min_relevance,
-                    }
-                )
-            except Exception as e:
-                logger.warning(f"ContextEngine not available: {e}")
-
-        # Initialize CrossSourceEngine for multi-source context retrieval
-        cross_source_engine = None
-        try:
-            from src.passepartout.cross_source import create_cross_source_engine
-
-            cross_source_engine = create_cross_source_engine(self.config)
-            logger.info(
-                "CrossSourceEngine initialized for cognitive pipeline",
-                extra={
-                    "available_sources": cross_source_engine.available_sources,
-                }
-            )
-        except Exception as e:
-            logger.warning(f"CrossSourceEngine not available: {e}")
-
-        self.cognitive_pipeline = CognitivePipeline(
-            ai_router=self.ai_router,
-            config=self.config.processing,
-            context_engine=context_engine,
-            cross_source_engine=cross_source_engine,
-        )
-        logger.info(
-            "Cognitive pipeline initialized",
-            extra={
-                "confidence_threshold": self.config.processing.cognitive_confidence_threshold,
-                "timeout_seconds": self.config.processing.cognitive_timeout_seconds,
-                "max_passes": self.config.processing.cognitive_max_passes,
-                "context_enabled": context_engine is not None,
-                "cross_source_enabled": cross_source_engine is not None,
             }
         )
 
@@ -191,19 +126,15 @@ class EmailProcessor:
         existing_folders: list[str] | None = None
     ) -> Optional[EmailAnalysis]:
         """
-        Analyze email using cognitive pipeline or legacy single-pass
+        Analyze email using AI (direct single-pass analysis)
 
-        When cognitive reasoning is enabled:
-        - Uses CognitivePipeline for multi-pass reasoning
-        - Falls back to legacy mode on failure if configured
-
-        When cognitive reasoning is disabled:
-        - Uses direct AI router call (legacy mode)
+        Note: For advanced multi-pass analysis with context and pattern validation,
+        use V2EmailProcessor instead.
 
         Args:
             metadata: Email metadata
             content: Email content
-            auto_execute: Whether to auto-execute actions (passed to pipeline)
+            _auto_execute: Unused (kept for API compatibility)
             existing_folders: List of existing IMAP folders for destination suggestions
 
         Returns:
@@ -238,59 +169,7 @@ class EmailProcessor:
         except Exception as e:
             logger.warning(f"Failed to get folder suggestions: {e}")
 
-        # Try cognitive pipeline if enabled
-        if self.cognitive_pipeline:
-            try:
-                pipeline_result = self.cognitive_pipeline.process(
-                    metadata, content, auto_execute=False  # Don't auto-execute in pipeline
-                )
-
-                if pipeline_result.success and pipeline_result.analysis:
-                    logger.debug(
-                        "Cognitive pipeline analysis complete",
-                        extra={
-                            "email_id": metadata.id,
-                            "confidence": pipeline_result.analysis.confidence,
-                            "passes": pipeline_result.reasoning_result.passes_executed
-                            if pipeline_result.reasoning_result else 0,
-                            "duration": pipeline_result.total_duration_seconds,
-                        }
-                    )
-                    return pipeline_result.analysis
-
-                # Pipeline failed - check if we should fallback
-                if self.config.processing.fallback_on_failure:
-                    logger.warning(
-                        "Cognitive pipeline failed, falling back to legacy mode",
-                        extra={
-                            "email_id": metadata.id,
-                            "error": pipeline_result.error,
-                            "error_stage": pipeline_result.error_stage,
-                            "timed_out": pipeline_result.timed_out,
-                        }
-                    )
-                    # Fall through to legacy mode below
-                else:
-                    logger.error(
-                        "Cognitive pipeline failed, no fallback configured",
-                        extra={
-                            "email_id": metadata.id,
-                            "error": pipeline_result.error,
-                        }
-                    )
-                    return None
-
-            except Exception as e:
-                logger.error(
-                    f"Cognitive pipeline exception: {e}",
-                    extra={"email_id": metadata.id},
-                    exc_info=True
-                )
-                if not self.config.processing.fallback_on_failure:
-                    return None
-                # Fall through to legacy mode
-
-        # Legacy mode: direct AI router call
+        # Direct AI router call
         analysis = self.ai_router.analyze_email(
             metadata,
             content,

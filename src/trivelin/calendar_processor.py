@@ -132,16 +132,9 @@ class CalendarProcessor:
         # Initialize normalizer
         self.normalizer = normalizer or CalendarNormalizer()
 
-        # Initialize cognitive pipeline if enabled
-        self.cognitive_pipeline = None
-        processing_config = get_config().processing
-        if processing_config.enable_cognitive_reasoning:
-            self._init_cognitive_pipeline()
-
         logger.info(
             "Calendar processor initialized",
             extra={
-                "cognitive_enabled": self.cognitive_pipeline is not None,
                 "poll_interval": self.config.poll_interval_seconds,
                 "days_ahead": self.config.days_ahead,
             }
@@ -161,20 +154,6 @@ class CalendarProcessor:
         )
         graph_client = GraphClient(authenticator=authenticator)
         return CalendarClient(graph=graph_client)
-
-    def _init_cognitive_pipeline(self) -> None:
-        """Initialize the cognitive pipeline"""
-        from src.sancho.router import get_ai_router
-        from src.trivelin.cognitive_pipeline import CognitivePipeline
-
-        config = get_config()
-        ai_router = get_ai_router(config.ai)
-
-        self.cognitive_pipeline = CognitivePipeline(
-            ai_router=ai_router,
-            config=config.processing,
-        )
-        logger.info("Cognitive pipeline initialized for Calendar processing")
 
     async def poll_and_process(
         self,
@@ -267,22 +246,9 @@ class CalendarProcessor:
                     reason="Already processed",
                 )
 
-            # Process through cognitive pipeline if enabled
-            if self.cognitive_pipeline:
-                pipeline_result = await self._process_with_pipeline(perceived_event)
-
-                # Mark as processed
-                self._mark_processed(perceived_event.event_id, pipeline_result)
-
-                return CalendarProcessingResult(
-                    event_id=event.event_id,
-                    success=pipeline_result.get("success", True),
-                    actions_taken=pipeline_result.get("actions", []),
-                    confidence=pipeline_result.get("confidence"),
-                )
-
-            # No cognitive pipeline - just log and mark processed
-            logger.info(f"Processed event {event.event_id} (no cognitive pipeline)")
+            # Basic processing - mark as processed
+            # Note: For advanced analysis, use V2EmailProcessor with Calendar normalization
+            logger.info(f"Processed event {event.event_id}")
             self._mark_processed(perceived_event.event_id, {"mode": "basic"})
 
             return CalendarProcessingResult(
@@ -297,86 +263,6 @@ class CalendarProcessor:
                 success=False,
                 error=str(e),
             )
-
-    async def _process_with_pipeline(
-        self,
-        event: PerceivedEvent,
-    ) -> dict[str, Any]:
-        """
-        Process event through cognitive pipeline
-
-        Uses the ReasoningEngine to analyze the event and optionally
-        plan/execute actions through Planchet/Figaro.
-
-        Returns dict with:
-        - success: bool
-        - actions: list[str]
-        - confidence: float
-        - analysis: Optional analysis result
-        """
-        logger.debug(f"Processing event {event.event_id} through cognitive pipeline")
-
-        try:
-            # Access the reasoning engine from the cognitive pipeline
-            reasoning_engine = self.cognitive_pipeline.reasoning_engine
-
-            # Run reasoning on the event
-            reasoning_result = reasoning_engine.reason(event)
-
-            actions_taken: list[str] = []
-            analysis_dict: dict[str, Any] = {}
-
-            # Extract analysis if available
-            if reasoning_result.final_analysis:
-                analysis = reasoning_result.final_analysis
-                analysis_dict = {
-                    "action": analysis.action.value,
-                    "category": analysis.category.value if analysis.category else None,
-                    "summary": analysis.summary,
-                    "priority": analysis.priority.value if analysis.priority else None,
-                }
-
-                # If confident and auto-execute is enabled, plan and execute
-                if reasoning_result.confidence >= self.cognitive_pipeline.config.cognitive_confidence_threshold:
-                    # Plan actions
-                    action_plan = self.cognitive_pipeline.planning_engine.plan(
-                        reasoning_result.working_memory
-                    )
-
-                    # Execute if no approval required
-                    if action_plan and not action_plan.requires_approval():
-                        execution_result = self.cognitive_pipeline.orchestrator.execute_plan(
-                            action_plan
-                        )
-                        actions_taken = [a.action_type for a in execution_result.executed_actions]
-
-            logger.info(
-                f"Pipeline processing complete for {event.event_id}",
-                extra={
-                    "confidence": reasoning_result.confidence,
-                    "converged": reasoning_result.converged,
-                    "passes": reasoning_result.passes_executed,
-                    "actions_taken": len(actions_taken),
-                }
-            )
-
-            return {
-                "success": True,
-                "actions": actions_taken,
-                "confidence": reasoning_result.confidence,
-                "analysis": analysis_dict,
-                "passes": reasoning_result.passes_executed,
-                "converged": reasoning_result.converged,
-            }
-
-        except Exception as e:
-            logger.error(f"Pipeline processing failed for {event.event_id}: {e}")
-            return {
-                "success": False,
-                "actions": [],
-                "confidence": 0.0,
-                "error": str(e),
-            }
 
     def _is_processed(self, event_id: str) -> bool:
         """Check if an event has already been processed"""
