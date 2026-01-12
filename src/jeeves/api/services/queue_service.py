@@ -1186,7 +1186,7 @@ class QueueService:
                     "note_type": ext.type,  # fait, decision, engagement, deadline, etc.
                     "title": ext.note_cible,  # Target note title
                     "content_summary": ext.info,  # The extracted information
-                    "confidence": ext.confidence,  # Confidence in this extraction
+                    "confidence": ext.confidence.to_dict(),  # 4-dimension confidence dict
                     "reasoning": f"Extraction de type '{ext.type}' (importance: {ext.importance})",
                     "target_note_id": None,  # Would need lookup to find existing note
                     "required": ext.required,  # Required for safe archiving

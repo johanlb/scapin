@@ -1263,21 +1263,20 @@
 								{@const willApply = willNoteBeAutoApplied(note)}
 								{@const threshold = note.required ? AUTO_APPLY_THRESHOLD_REQUIRED : AUTO_APPLY_THRESHOLD_OPTIONAL}
 								{@const isManuallySet = note.manually_approved !== null && note.manually_approved !== undefined}
-								<div class="flex items-center justify-between text-sm {!willApply && !isManuallySet ? 'opacity-60' : ''}">
+								{@const isChecked = note.manually_approved === true || (note.manually_approved !== false && willApply)}
+								<div class="flex items-center justify-between text-sm {!isChecked ? 'opacity-60' : ''}">
 									<span class="flex items-center gap-2">
-										{#if showLevel3}
-											<!-- Manual approval checkbox in Details mode -->
-											<input
-												type="checkbox"
-												checked={note.manually_approved === true || (note.manually_approved === null && willApply)}
-												class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-												title={note.manually_approved === true ? 'Forcé manuellement' : note.manually_approved === false ? 'Rejeté manuellement' : 'Automatique'}
-												onchange={(e) => {
-													// TODO: Implement API call to update manually_approved
-													console.log('Toggle note approval:', noteIndex, e.currentTarget.checked);
-												}}
-											/>
-										{/if}
+										<!-- Checkbox to control whether note will be applied -->
+										<input
+											type="checkbox"
+											checked={isChecked}
+											class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+											title={isManuallySet ? (note.manually_approved ? 'Forcé manuellement' : 'Rejeté manuellement') : (willApply ? 'Sera appliqué automatiquement' : 'Cliquer pour forcer l\'application')}
+											onchange={(e) => {
+												// TODO: Implement API call to update manually_approved
+												console.log('Toggle note approval:', noteIndex, e.currentTarget.checked);
+											}}
+										/>
 										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
 											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
 										</span>
@@ -1291,15 +1290,6 @@
 										{:else}
 											<span class="text-[var(--color-text-tertiary)] italic">cible non identifiée</span>
 										{/if}
-										{#if isManuallySet}
-											<span class="text-xs px-1.5 py-0.5 rounded {note.manually_approved ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300'}" title={note.manually_approved ? 'Forcé par utilisateur' : 'Rejeté par utilisateur'}>
-												{note.manually_approved ? '👤 Forcé' : '👤 Rejeté'}
-											</span>
-										{:else if willApply}
-											<span class="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300" title="Sera enregistré automatiquement">
-												✓ Auto
-											</span>
-										{/if}
 									</span>
 									<span class="flex items-center gap-1">
 										{#if showLevel3 && note.weakness_label}
@@ -1308,8 +1298,8 @@
 											</span>
 										{/if}
 										<span
-											class="text-xs font-medium px-1.5 py-0.5 rounded {willApply || note.manually_approved === true ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
-											title={willApply ? `Sera enregistré (≥${Math.round(threshold * 100)}%)` : `En attente de validation (<${Math.round(threshold * 100)}%)`}
+											class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
+											title={isChecked ? `Sera enregistré (≥${Math.round(threshold * 100)}%)` : `En attente de validation (<${Math.round(threshold * 100)}%)`}
 										>
 											{Math.round(note.confidence * 100)}%
 										</span>
@@ -1333,12 +1323,23 @@
 							Tâches proposées
 						</h4>
 						<div class="space-y-2">
-							{#each filterTasks(currentItem.analysis.proposed_tasks, showLevel3) as task}
+							{#each filterTasks(currentItem.analysis.proposed_tasks, showLevel3) as task, taskIndex}
 								{@const willApply = willTaskBeAutoApplied(task)}
 								{@const isPastDue = isDateObsolete(task.due_date)}
-								<div class="flex items-center justify-between text-sm {!willApply || isPastDue ? 'opacity-60' : ''}">
+								{@const isChecked = willApply && !isPastDue}
+								<div class="flex items-center justify-between text-sm {!isChecked ? 'opacity-60' : ''}">
 									<span class="flex items-center gap-2">
-										<span class="text-[var(--color-event-omnifocus)]">✓</span>
+										<!-- Checkbox to control whether task will be created -->
+										<input
+											type="checkbox"
+											checked={isChecked}
+											class="w-4 h-4 rounded border-gray-300 text-[var(--color-event-omnifocus)] focus:ring-[var(--color-event-omnifocus)] cursor-pointer"
+											title={isChecked ? 'Sera créée automatiquement' : 'Cliquer pour forcer la création'}
+											onchange={(e) => {
+												// TODO: Implement API call to update task approval
+												console.log('Toggle task approval:', taskIndex, e.currentTarget.checked);
+											}}
+										/>
 										<span class="text-[var(--color-text-primary)]">{task.title}</span>
 										{#if task.project}
 											<span class="text-xs text-[var(--color-text-tertiary)]">
@@ -1350,15 +1351,10 @@
 												📅 {task.due_date}{isDatePast(task.due_date) ? ' (passée)' : ''}
 											</span>
 										{/if}
-										{#if willApply && !isPastDue}
-											<span class="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300" title="Sera créée automatiquement">
-												✓ Auto
-											</span>
-										{/if}
 									</span>
 									<span
-										class="text-xs font-medium px-1.5 py-0.5 rounded {willApply && !isPastDue ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
-										title={willApply && !isPastDue ? `Sera créée (≥${Math.round(AUTO_APPLY_THRESHOLD_OPTIONAL * 100)}%)` : `En attente de validation (<${Math.round(AUTO_APPLY_THRESHOLD_OPTIONAL * 100)}%)`}
+										class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
+										title={isChecked ? `Sera créée (≥${Math.round(AUTO_APPLY_THRESHOLD_OPTIONAL * 100)}%)` : `En attente de validation (<${Math.round(AUTO_APPLY_THRESHOLD_OPTIONAL * 100)}%)`}
 									>
 										{Math.round(task.confidence * 100)}%
 									</span>
