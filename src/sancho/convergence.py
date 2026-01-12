@@ -223,7 +223,7 @@ class MultiPassConfig:
     skip_pass2_if_confident: bool = True  # Skip if Pass 1 > 95%
 
     # High-stakes thresholds
-    high_stakes_amount_threshold: float = 10000  # EUR
+    high_stakes_amount_threshold: float = 200  # EUR (or equivalent value)
     high_stakes_deadline_days: int = 2  # days
 
     # Costs (for monitoring, in USD per 1k tokens)
