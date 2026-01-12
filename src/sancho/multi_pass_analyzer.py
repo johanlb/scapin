@@ -789,6 +789,18 @@ class MultiPassAnalyzer:
                 else:
                     ext_confidence = 0.8
 
+                # Check for past dates (> 30 days ago)
+                ext_date = ext_data.get("date")
+                has_obsolete_date = False
+                if ext_date:
+                    has_obsolete_date = self._is_date_obsolete(ext_date)
+                    if has_obsolete_date:
+                        # Don't mark as required if date is obsolete
+                        required = False
+                        # Set very low confidence to signal "not actionable"
+                        ext_confidence = 0.0
+                        logger.debug(f"Extraction with obsolete date ({ext_date}): not required, confidence=0")
+
                 extraction = Extraction(
                     info=info,
                     type=ext_type,
@@ -797,7 +809,7 @@ class MultiPassAnalyzer:
                     note_action=ext_data.get("note_action", "enrichir"),
                     omnifocus=bool(ext_data.get("omnifocus", False)),
                     calendar=bool(ext_data.get("calendar", False)),
-                    date=ext_data.get("date"),
+                    date=ext_date,
                     time=ext_data.get("time"),
                     timezone=ext_data.get("timezone"),
                     duration=ext_data.get("duration"),
@@ -877,6 +889,31 @@ class MultiPassAnalyzer:
 
         # Low importance extractions are optional
         return False
+
+    def _is_date_obsolete(self, date_str: str, days_threshold: int = 30) -> bool:
+        """
+        Check if a date is obsolete (more than N days in the past).
+
+        Args:
+            date_str: Date string in YYYY-MM-DD format
+            days_threshold: Number of days after which a date is considered obsolete
+
+        Returns:
+            True if the date is more than days_threshold days in the past
+        """
+        from datetime import datetime, timedelta
+
+        if not date_str:
+            return False
+
+        try:
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+            threshold_date = datetime.now().date() - timedelta(days=days_threshold)
+            return date_obj < threshold_date
+        except ValueError:
+            # If we can't parse the date, don't mark as obsolete
+            logger.warning(f"Could not parse date: {date_str}")
+            return False
 
     def _build_result(
         self,

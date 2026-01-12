@@ -88,6 +88,10 @@ export type {
 	QueueItemAnalysis,
 	QueueStats,
 	PaginatedResponse,
+	// Sprint 2: Entity types
+	Entity,
+	ProposedNote,
+	ProposedTask,
 	// Snooze types
 	SnoozeOption,
 	SnoozeResponse,

@@ -375,6 +375,27 @@ class QueueService:
                     logger.info(f"Keep/defer action for email {email_id} - marked as processed")
                     return True
 
+                elif action in ("flag", "FLAG"):
+                    # Flag action - mark email as important/flagged but keep in inbox
+                    # The gray flag was already added above, now add the flagged flag
+                    try:
+                        imap_client.add_flag(
+                            msg_id=int(email_id),
+                            flag="\\Flagged",
+                            folder=folder,
+                        )
+                        logger.info(f"Flagged email {email_id} in {folder}")
+                        return True
+                    except Exception as e:
+                        logger.warning(f"Failed to add Flagged flag to email {email_id}: {e}")
+                        # Still return True since the gray flag was added - email won't be re-fetched
+                        return True
+
+                elif action in ("rien", "RIEN", "none", "NONE"):
+                    # No action needed - just mark as processed (gray flag already added)
+                    logger.info(f"No action for email {email_id} - marked as processed")
+                    return True
+
                 else:
                     logger.warning(f"Unknown action: {action} for email {email_id}")
                     return False
@@ -424,9 +445,10 @@ class QueueService:
         failed = []
 
         for note_proposal in notes_to_execute:
-            note_title = note_proposal.get("title")
-            content = note_proposal.get("content_summary")
-            note_type = note_proposal.get("note_type", "fait")
+            # Support both multi-pass format (title/content_summary) and old format (note_title/content)
+            note_title = note_proposal.get("title") or note_proposal.get("note_title")
+            content = note_proposal.get("content_summary") or note_proposal.get("content")
+            note_type = note_proposal.get("note_type") or note_proposal.get("type", "fait")
             importance = note_proposal.get("importance", "moyenne")
             action = note_proposal.get("action", "enrichir")
 
@@ -517,11 +539,13 @@ class QueueService:
         source_id: str,
     ) -> bool:
         """Synchronous enrichment execution (runs in thread pool)"""
+        from src.core.config_manager import get_config
         from src.passepartout.note_manager import NoteManager
 
         try:
-            # Get or create note manager
-            note_manager = NoteManager()
+            # Get config and create note manager with correct notes_dir
+            config = get_config()
+            note_manager = NoteManager(notes_dir=config.storage.notes_path)
 
             if action == "creer":
                 # Create a new note

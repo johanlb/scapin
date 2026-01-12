@@ -306,7 +306,11 @@ def calculate_global_confidence(result: PassResult) -> float:
 
     The global confidence is the MINIMUM of:
     - The action confidence (overall)
-    - The confidence of any REQUIRED extractions
+    - The confidence of any REQUIRED extractions (that have confidence >= 10%)
+
+    Extractions with confidence < 10% are considered "rejections" by the AI
+    (the AI is saying "don't do this") and are excluded from the calculation.
+    They should NOT pull down the global confidence or trigger escalation.
 
     This ensures we don't archive an email if we're not confident
     about capturing the important information it contains.
@@ -317,16 +321,20 @@ def calculate_global_confidence(result: PassResult) -> float:
     Returns:
         Global confidence score (0.0-1.0)
     """
+    # Threshold below which we consider the AI is saying "no" rather than "unsure"
+    REJECTION_THRESHOLD = 0.10
+
     action_confidence = result.confidence.overall
 
-    # Get required extractions that lead to actions
+    # Get required extractions that lead to actions AND have meaningful confidence
+    # Extractions with confidence < 10% are "rejections", not "uncertainties"
     required_extractions = [
         e for e in result.extractions
-        if e.required and e.is_actionable()
+        if e.required and e.is_actionable() and e.confidence >= REJECTION_THRESHOLD
     ]
 
     if not required_extractions:
-        # No required extractions, use action confidence
+        # No required extractions with meaningful confidence, use action confidence
         return action_confidence
 
     # Global confidence = min(action, all required extractions)
@@ -335,19 +343,43 @@ def calculate_global_confidence(result: PassResult) -> float:
 
     global_conf = min(action_confidence, min_extraction_conf)
 
+    # Count rejected extractions for logging
+    rejected_count = len([
+        e for e in result.extractions
+        if e.required and e.is_actionable() and e.confidence < REJECTION_THRESHOLD
+    ])
+
     logger.debug(
         f"Global confidence: {global_conf:.2f} "
         f"(action={action_confidence:.2f}, "
         f"required_extractions={len(required_extractions)}, "
+        f"rejected_extractions={rejected_count}, "
         f"min_extraction={min_extraction_conf:.2f})"
     )
 
     return global_conf
 
 
-def get_required_extractions(result: PassResult) -> list[Extraction]:
-    """Get all required extractions that lead to actions."""
-    return [e for e in result.extractions if e.required and e.is_actionable()]
+def get_required_extractions(result: PassResult, exclude_rejections: bool = True) -> list[Extraction]:
+    """
+    Get all required extractions that lead to actions.
+
+    Args:
+        result: The pass result containing extractions
+        exclude_rejections: If True, exclude extractions with confidence < 10%
+                           (these are "rejections" by the AI, not uncertainties)
+
+    Returns:
+        List of required, actionable extractions
+    """
+    REJECTION_THRESHOLD = 0.10
+
+    extractions = [e for e in result.extractions if e.required and e.is_actionable()]
+
+    if exclude_rejections:
+        extractions = [e for e in extractions if e.confidence >= REJECTION_THRESHOLD]
+
+    return extractions
 
 
 def should_downgrade_action(result: PassResult, config: MultiPassConfig) -> tuple[bool, str]:

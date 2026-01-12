@@ -8,8 +8,67 @@
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox, reanalyzeQueueItem, reanalyzeAllPending, recordArchive, getFolderSuggestions } from '$lib/api';
-	import type { QueueItem, ActionOption, SnoozeOption, FolderSuggestion } from '$lib/api';
+	import type { QueueItem, ActionOption, SnoozeOption, FolderSuggestion, ProposedNote, ProposedTask } from '$lib/api';
 	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
+
+	// Constants for filtering
+	const CONFIDENCE_THRESHOLD = 0.1; // Below this, AI is saying "no" not "unsure"
+	const DAYS_THRESHOLD = 30; // Days after which a past date is considered obsolete
+
+	/**
+	 * Filter proposed notes to only show actionable ones.
+	 * Hides notes with empty/generic titles or very low confidence (< 10%).
+	 * In Details mode (showLevel3), shows all notes including rejected ones.
+	 */
+	function filterNotes(notes: ProposedNote[] | undefined, showAll: boolean): ProposedNote[] {
+		if (!notes) return [];
+		return notes.filter(note => {
+			const hasValidTitle = note.title && note.title.toLowerCase() !== 'general' && note.title.trim() !== '';
+			const hasHighEnoughConfidence = note.confidence >= CONFIDENCE_THRESHOLD;
+			// In Details mode, show all. Otherwise filter out invalid/low-confidence
+			return showAll || (hasValidTitle && hasHighEnoughConfidence);
+		});
+	}
+
+	/**
+	 * Filter proposed tasks to only show actionable ones.
+	 * Hides tasks with due dates > 30 days in the past or very low confidence (< 10%).
+	 * In Details mode (showLevel3), shows all tasks including rejected ones.
+	 */
+	function filterTasks(tasks: ProposedTask[] | undefined, showAll: boolean): ProposedTask[] {
+		if (!tasks) return [];
+		const thirtyDaysAgo = new Date(Date.now() - DAYS_THRESHOLD * 24 * 60 * 60 * 1000);
+		return tasks.filter(task => {
+			const hasHighEnoughConfidence = task.confidence >= CONFIDENCE_THRESHOLD;
+			// Filter out tasks with due dates more than 30 days in the past
+			let hasValidDueDate = true;
+			if (task.due_date) {
+				const dueDate = new Date(task.due_date);
+				hasValidDueDate = !isNaN(dueDate.getTime()) && dueDate >= thirtyDaysAgo;
+			}
+			// In Details mode, show all. Otherwise filter
+			return showAll || (hasHighEnoughConfidence && hasValidDueDate);
+		});
+	}
+
+	/**
+	 * Check if a date is in the past.
+	 */
+	function isDatePast(dateStr: string | null | undefined): boolean {
+		if (!dateStr) return false;
+		const date = new Date(dateStr);
+		return !isNaN(date.getTime()) && date < new Date();
+	}
+
+	/**
+	 * Check if a date is obsolete (> 30 days in the past).
+	 */
+	function isDateObsolete(dateStr: string | null | undefined): boolean {
+		if (!dateStr) return false;
+		const date = new Date(dateStr);
+		const thirtyDaysAgo = new Date(Date.now() - DAYS_THRESHOLD * 24 * 60 * 60 * 1000);
+		return !isNaN(date.getTime()) && date < thirtyDaysAgo;
+	}
 
 	// Detect touch device
 	const isTouchDevice = $derived(browser && ('ontouchstart' in window || navigator.maxTouchPoints > 0));
@@ -1172,26 +1231,31 @@
 				{/if}
 
 				<!-- Proposed Notes (Sprint 2) -->
-				{#if currentItem.analysis.proposed_notes && currentItem.analysis.proposed_notes.length > 0}
+				<!-- Only show notes with valid targets and confidence >= 10% (unless in Details mode) -->
+				{#if filterNotes(currentItem.analysis.proposed_notes, showLevel3).length > 0}
 					<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
 						<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
 							Notes proposées
 						</h4>
 						<div class="space-y-2">
-							{#each currentItem.analysis.proposed_notes as note}
+							{#each filterNotes(currentItem.analysis.proposed_notes, showLevel3) as note}
 								{@const noteActionClass = note.action === 'create' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-300'}
-								{@const requiredClass = 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}
-								<div class="flex items-center justify-between text-sm">
+								{@const isLowConf = note.confidence < CONFIDENCE_THRESHOLD}
+								<div class="flex items-center justify-between text-sm {isLowConf ? 'opacity-50' : ''}">
 									<span class="flex items-center gap-2">
 										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
 											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
 										</span>
 										{#if note.required}
-											<span class="text-xs px-1.5 py-0.5 rounded {requiredClass}" title="Requis pour archiver en toute sécurité">
+											<span class="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300" title="Requis pour archiver en toute sécurité">
 												Requis
 											</span>
 										{/if}
-										<span class="text-[var(--color-text-primary)]">{note.title}</span>
+										{#if note.title && note.title.toLowerCase() !== 'general'}
+											<span class="text-[var(--color-text-primary)]">{note.title}</span>
+										{:else}
+											<span class="text-[var(--color-text-tertiary)] italic">cible non identifiée</span>
+										{/if}
 										{#if note.auto_applied}
 											<span class="text-xs px-1.5 py-0.5 rounded" style="background: rgba(var(--color-success-rgb, 34, 197, 94), 0.2); color: var(--color-success)">
 												Auto
@@ -1216,14 +1280,17 @@
 				{/if}
 
 				<!-- Proposed Tasks (Sprint 2) -->
-				{#if currentItem.analysis.proposed_tasks && currentItem.analysis.proposed_tasks.length > 0}
+				<!-- Only show tasks with valid dates and confidence >= 10% (unless in Details mode) -->
+				{#if filterTasks(currentItem.analysis.proposed_tasks, showLevel3).length > 0}
 					<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
 						<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
 							Tâches proposées
 						</h4>
 						<div class="space-y-2">
-							{#each currentItem.analysis.proposed_tasks as task}
-								<div class="flex items-center justify-between text-sm">
+							{#each filterTasks(currentItem.analysis.proposed_tasks, showLevel3) as task}
+								{@const isLowConf = task.confidence < CONFIDENCE_THRESHOLD}
+								{@const isPastDue = isDateObsolete(task.due_date)}
+								<div class="flex items-center justify-between text-sm {isLowConf || isPastDue ? 'opacity-50' : ''}">
 									<span class="flex items-center gap-2">
 										<span class="text-[var(--color-event-omnifocus)]">✓</span>
 										<span class="text-[var(--color-text-primary)]">{task.title}</span>
@@ -1233,8 +1300,8 @@
 											</span>
 										{/if}
 										{#if task.due_date}
-											<span class="text-xs text-[var(--color-warning)]">
-												📅 {task.due_date}
+											<span class="text-xs {isDatePast(task.due_date) ? 'text-[var(--color-error)] line-through' : 'text-[var(--color-warning)]'}">
+												📅 {task.due_date}{isDatePast(task.due_date) ? ' (passée)' : ''}
 											</span>
 										{/if}
 										{#if task.auto_applied}
