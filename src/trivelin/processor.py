@@ -9,7 +9,7 @@ import sys
 from typing import Any, Optional
 
 from src.core.config_manager import get_config
-from src.core.entities import AUTO_APPLY_THRESHOLD
+from src.core.entities import should_auto_apply
 from src.core.error_manager import get_error_manager
 from src.core.events import ProcessingEvent, ProcessingEventType, get_event_bus
 from src.core.schemas import (
@@ -771,7 +771,9 @@ class EmailProcessor:
         """
         Auto-apply high-confidence proposed_notes and proposed_tasks
 
-        Applies proposals that meet AUTO_APPLY_THRESHOLD (0.90).
+        Applies proposals based on confidence thresholds:
+        - Required enrichments: >= 85% (aligned with action minimum)
+        - Optional enrichments: >= 90%
         Lower confidence proposals remain in the analysis for UI display
         and manual review.
 
@@ -795,8 +797,9 @@ class EmailProcessor:
                 confidence = proposal.get("confidence", 0)
                 action = proposal.get("action", "")
                 title = proposal.get("title", "")
+                is_required = proposal.get("required", False)
 
-                if confidence >= AUTO_APPLY_THRESHOLD:
+                if should_auto_apply(confidence, is_required):
                     applied = self._apply_proposed_note(proposal, email_id)
                     if applied:
                         if action == "create":
@@ -826,7 +829,7 @@ class EmailProcessor:
                 confidence = proposal.get("confidence", 0)
                 title = proposal.get("title", "")
 
-                if confidence >= AUTO_APPLY_THRESHOLD:
+                if should_auto_apply(confidence, False):  # Tasks are not required
                     applied = self._apply_proposed_task(proposal, email_id)
                     if applied:
                         result["tasks_created"] += 1
@@ -1003,7 +1006,7 @@ class EmailProcessor:
 - **Type**: {note_type}
 - **Source**: Email ({email_id})
 - **Créé**: {now}
-- **Auto-appliqué**: Oui (confiance >= {AUTO_APPLY_THRESHOLD * 100:.0f}%)
+- **Auto-appliqué**: Oui (confiance suffisante)
 
 ## Notes
 

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from src.core.entities import AUTO_APPLY_THRESHOLD
+from src.core.entities import should_auto_apply
 from src.jeeves.api.deps import get_queue_service
 from src.jeeves.api.models.queue import (
     ActionOptionResponse,
@@ -98,7 +98,7 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             confidence=pn.get("confidence", 0.0),
             reasoning=pn.get("reasoning", ""),
             target_note_id=pn.get("target_note_id"),
-            auto_applied=pn.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+            auto_applied=should_auto_apply(pn.get("confidence", 0), pn.get("required", False)),
             required=pn.get("required", False),
             importance=pn.get("importance", "moyenne"),
         )
@@ -115,7 +115,7 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             due_date=pt.get("due_date"),
             confidence=pt.get("confidence", 0.0),
             reasoning=pt.get("reasoning", ""),
-            auto_applied=pt.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+            auto_applied=should_auto_apply(pt.get("confidence", 0), False),  # Tasks are not required
         )
         for pt in raw_proposed_tasks
     ]
@@ -629,7 +629,7 @@ def _convert_analysis_to_response(analysis: dict | None) -> QueueItemAnalysis | 
             confidence=pn.get("confidence", 0.0),
             reasoning=pn.get("reasoning", ""),
             target_note_id=pn.get("target_note_id"),
-            auto_applied=pn.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+            auto_applied=should_auto_apply(pn.get("confidence", 0), pn.get("required", False)),
             required=pn.get("required", False),
             importance=pn.get("importance", "moyenne"),
         )
@@ -646,7 +646,7 @@ def _convert_analysis_to_response(analysis: dict | None) -> QueueItemAnalysis | 
             due_date=pt.get("due_date"),
             confidence=pt.get("confidence", 0.0),
             reasoning=pt.get("reasoning", ""),
-            auto_applied=pt.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+            auto_applied=should_auto_apply(pt.get("confidence", 0), False),  # Tasks are not required
         )
         for pt in raw_proposed_tasks
     ]
