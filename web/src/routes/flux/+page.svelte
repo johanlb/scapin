@@ -11,43 +11,58 @@
 	import type { QueueItem, ActionOption, SnoozeOption, FolderSuggestion, ProposedNote, ProposedTask } from '$lib/api';
 	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
 
-	// Constants for filtering
-	const CONFIDENCE_THRESHOLD = 0.2; // Below this, AI is saying "no" not "unsure"
+	// Constants for filtering - synchronized with backend auto-apply thresholds
+	// See src/core/entities.py: AUTO_APPLY_THRESHOLD and AUTO_APPLY_THRESHOLD_REQUIRED
+	const AUTO_APPLY_THRESHOLD_REQUIRED = 0.85; // Required enrichments
+	const AUTO_APPLY_THRESHOLD_OPTIONAL = 0.90; // Optional enrichments
 	const DAYS_THRESHOLD = 90; // Days after which a past date is considered obsolete
 
 	/**
-	 * Filter proposed notes to only show actionable ones.
-	 * Hides notes with empty/generic titles or very low confidence (< 20%).
-	 * In Details mode (showLevel3), shows all notes including rejected ones.
+	 * Check if a note will be auto-applied based on its confidence and required status.
+	 */
+	function willNoteBeAutoApplied(note: ProposedNote): boolean {
+		const threshold = note.required ? AUTO_APPLY_THRESHOLD_REQUIRED : AUTO_APPLY_THRESHOLD_OPTIONAL;
+		return note.confidence >= threshold;
+	}
+
+	/**
+	 * Check if a task will be auto-applied based on its confidence.
+	 * Tasks are never "required", so they always use the optional threshold.
+	 */
+	function willTaskBeAutoApplied(task: ProposedTask): boolean {
+		return task.confidence >= AUTO_APPLY_THRESHOLD_OPTIONAL;
+	}
+
+	/**
+	 * Filter proposed notes to only show ones that will be auto-applied.
+	 * In Details mode (showAll), shows all notes including those that won't be applied.
 	 */
 	function filterNotes(notes: ProposedNote[] | undefined, showAll: boolean): ProposedNote[] {
 		if (!notes) return [];
 		return notes.filter(note => {
 			const hasValidTitle = note.title && note.title.toLowerCase() !== 'general' && note.title.trim() !== '';
-			const hasHighEnoughConfidence = note.confidence >= CONFIDENCE_THRESHOLD;
-			// In Details mode, show all. Otherwise filter out invalid/low-confidence
-			return showAll || (hasValidTitle && hasHighEnoughConfidence);
+			// In Details mode, show all. Otherwise only show notes that will be auto-applied
+			return showAll || (hasValidTitle && willNoteBeAutoApplied(note));
 		});
 	}
 
 	/**
-	 * Filter proposed tasks to only show actionable ones.
-	 * Hides tasks with due dates > 90 days in the past or very low confidence (< 20%).
-	 * In Details mode (showLevel3), shows all tasks including rejected ones.
+	 * Filter proposed tasks to only show ones that will be auto-applied.
+	 * Also filters out tasks with due dates > 90 days in the past.
+	 * In Details mode (showAll), shows all tasks including those that won't be applied.
 	 */
 	function filterTasks(tasks: ProposedTask[] | undefined, showAll: boolean): ProposedTask[] {
 		if (!tasks) return [];
-		const thirtyDaysAgo = new Date(Date.now() - DAYS_THRESHOLD * 24 * 60 * 60 * 1000);
+		const ninetyDaysAgo = new Date(Date.now() - DAYS_THRESHOLD * 24 * 60 * 60 * 1000);
 		return tasks.filter(task => {
-			const hasHighEnoughConfidence = task.confidence >= CONFIDENCE_THRESHOLD;
-			// Filter out tasks with due dates more than 30 days in the past
+			// Filter out tasks with due dates more than 90 days in the past
 			let hasValidDueDate = true;
 			if (task.due_date) {
 				const dueDate = new Date(task.due_date);
-				hasValidDueDate = !isNaN(dueDate.getTime()) && dueDate >= thirtyDaysAgo;
+				hasValidDueDate = !isNaN(dueDate.getTime()) && dueDate >= ninetyDaysAgo;
 			}
-			// In Details mode, show all. Otherwise filter
-			return showAll || (hasHighEnoughConfidence && hasValidDueDate);
+			// In Details mode, show all. Otherwise only show tasks that will be auto-applied
+			return showAll || (willTaskBeAutoApplied(task) && hasValidDueDate);
 		});
 	}
 
@@ -1240,8 +1255,9 @@
 						<div class="space-y-2">
 							{#each filterNotes(currentItem.analysis.proposed_notes, showLevel3) as note}
 								{@const noteActionClass = note.action === 'create' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-300'}
-								{@const isLowConf = note.confidence < CONFIDENCE_THRESHOLD}
-								<div class="flex items-center justify-between text-sm {isLowConf ? 'opacity-50' : ''}">
+								{@const willApply = willNoteBeAutoApplied(note)}
+								{@const threshold = note.required ? AUTO_APPLY_THRESHOLD_REQUIRED : AUTO_APPLY_THRESHOLD_OPTIONAL}
+								<div class="flex items-center justify-between text-sm {!willApply ? 'opacity-60' : ''}">
 									<span class="flex items-center gap-2">
 										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
 											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
@@ -1256,15 +1272,15 @@
 										{:else}
 											<span class="text-[var(--color-text-tertiary)] italic">cible non identifiée</span>
 										{/if}
-										{#if note.auto_applied}
-											<span class="text-xs px-1.5 py-0.5 rounded" style="background: rgba(var(--color-success-rgb, 34, 197, 94), 0.2); color: var(--color-success)">
-												Auto
+										{#if willApply}
+											<span class="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300" title="Sera enregistré automatiquement">
+												✓ Auto
 											</span>
 										{/if}
 									</span>
 									<span
-										class="text-xs"
-										style="color: {note.confidence >= 0.9 ? 'var(--color-success)' : note.confidence >= 0.7 ? 'var(--color-warning)' : 'var(--color-text-tertiary)'}"
+										class="text-xs font-medium px-1.5 py-0.5 rounded {willApply ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
+										title={willApply ? `Sera enregistré (≥${Math.round(threshold * 100)}%)` : `En attente de validation (<${Math.round(threshold * 100)}%)`}
 									>
 										{Math.round(note.confidence * 100)}%
 									</span>
@@ -1288,9 +1304,9 @@
 						</h4>
 						<div class="space-y-2">
 							{#each filterTasks(currentItem.analysis.proposed_tasks, showLevel3) as task}
-								{@const isLowConf = task.confidence < CONFIDENCE_THRESHOLD}
+								{@const willApply = willTaskBeAutoApplied(task)}
 								{@const isPastDue = isDateObsolete(task.due_date)}
-								<div class="flex items-center justify-between text-sm {isLowConf || isPastDue ? 'opacity-50' : ''}">
+								<div class="flex items-center justify-between text-sm {!willApply || isPastDue ? 'opacity-60' : ''}">
 									<span class="flex items-center gap-2">
 										<span class="text-[var(--color-event-omnifocus)]">✓</span>
 										<span class="text-[var(--color-text-primary)]">{task.title}</span>
@@ -1304,15 +1320,15 @@
 												📅 {task.due_date}{isDatePast(task.due_date) ? ' (passée)' : ''}
 											</span>
 										{/if}
-										{#if task.auto_applied}
-											<span class="text-xs px-1.5 py-0.5 rounded" style="background: rgba(var(--color-success-rgb, 34, 197, 94), 0.2); color: var(--color-success)">
-												Auto
+										{#if willApply && !isPastDue}
+											<span class="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300" title="Sera créée automatiquement">
+												✓ Auto
 											</span>
 										{/if}
 									</span>
 									<span
-										class="text-xs"
-										style="color: {task.confidence >= 0.9 ? 'var(--color-success)' : task.confidence >= 0.7 ? 'var(--color-warning)' : 'var(--color-text-tertiary)'}"
+										class="text-xs font-medium px-1.5 py-0.5 rounded {willApply && !isPastDue ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
+										title={willApply && !isPastDue ? `Sera créée (≥${Math.round(AUTO_APPLY_THRESHOLD_OPTIONAL * 100)}%)` : `En attente de validation (<${Math.round(AUTO_APPLY_THRESHOLD_OPTIONAL * 100)}%)`}
 									>
 										{Math.round(task.confidence * 100)}%
 									</span>
