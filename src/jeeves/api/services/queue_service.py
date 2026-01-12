@@ -1033,8 +1033,9 @@ class QueueService:
     async def reanalyze_item(
         self,
         item_id: str,
-        user_instruction: str,
+        user_instruction: str = "",
         mode: str = "immediate",
+        force_model: str | None = None,
     ) -> dict[str, Any] | None:
         """
         Reanalyze a queue item with user instruction
@@ -1043,8 +1044,9 @@ class QueueService:
 
         Args:
             item_id: Queue item ID
-            user_instruction: User's instruction for reanalysis
+            user_instruction: User's instruction for reanalysis (optional)
             mode: 'immediate' (wait for result) or 'background' (queue for later)
+            force_model: Force a specific model ('opus', 'sonnet', 'haiku') or None for auto
 
         Returns:
             Dict with status and new analysis, or None if not found
@@ -1062,6 +1064,7 @@ class QueueService:
                 metadata=metadata,
                 content=content,
                 user_instruction=user_instruction,
+                force_model=force_model,
             )
 
             if new_analysis:
@@ -1114,6 +1117,7 @@ class QueueService:
         metadata: dict[str, Any],
         content: dict[str, Any],
         user_instruction: str,
+        force_model: str | None = None,
     ) -> dict[str, Any] | None:
         """
         Run reanalysis with user instruction using Multi-Pass v2.2.
@@ -1122,6 +1126,7 @@ class QueueService:
             metadata: Email metadata
             content: Email content
             user_instruction: User's instruction
+            force_model: Force a specific model ('opus', 'sonnet', 'haiku') or None
 
         Returns:
             New analysis dict or None on failure
@@ -1130,6 +1135,7 @@ class QueueService:
             metadata,
             content,
             user_instruction,
+            force_model,
         )
 
     async def _reanalyze_email_multi_pass(
@@ -1137,14 +1143,23 @@ class QueueService:
         metadata: dict[str, Any],
         content: dict[str, Any],
         user_instruction: str,
+        force_model: str | None = None,
     ) -> dict[str, Any] | None:
         """
         Reanalysis using Multi-Pass v2.2 Analyzer.
 
         Uses the new MultiPassAnalyzer for intelligent multi-pass analysis
         with model escalation (Haiku -> Sonnet -> Opus).
+
+        Args:
+            metadata: Email metadata
+            content: Email content
+            user_instruction: User's instruction
+            force_model: Force a specific model ('opus', 'sonnet', 'haiku') or None
         """
         from src.core.config_manager import get_config
+        from src.sancho.convergence import MultiPassConfig
+        from src.sancho.model_selector import ModelTier
         from src.sancho.multi_pass_analyzer import MultiPassAnalyzer
         from src.sancho.router import get_ai_router
 
@@ -1155,10 +1170,22 @@ class QueueService:
             # Create adapter event for templates
             event = _create_email_event_adapter(metadata, content, user_instruction)
 
+            # Build multi-pass config with optional forced model
+            mp_config = MultiPassConfig()
+            if force_model:
+                model_map = {
+                    "opus": ModelTier.OPUS,
+                    "sonnet": ModelTier.SONNET,
+                    "haiku": ModelTier.HAIKU,
+                }
+                mp_config.force_model = model_map.get(force_model.lower())
+                logger.info(f"Reanalysis with forced model: {force_model}")
+
             # Create MultiPassAnalyzer and run analysis
             analyzer = MultiPassAnalyzer(
                 ai_router=ai_router,
                 context_searcher=None,  # Could add later for context enrichment
+                config=mp_config,
             )
 
             # Run multi-pass analysis

@@ -257,14 +257,17 @@ class ReanalyzeRequest(BaseModel):
     """Request to reanalyze a queue item with user instruction"""
 
     user_instruction: str = Field(
-        ...,
-        min_length=1,
+        default="",
         max_length=500,
         description="User instruction for reanalysis (e.g., 'Classer dans Archive/2025/Relevés')",
     )
     mode: str = Field(
         "immediate",
         description="Reanalysis mode: 'immediate' (wait for result) or 'background' (queue for later)",
+    )
+    force_model: str | None = Field(
+        None,
+        description="Force a specific model: 'opus', 'sonnet', or 'haiku'. If None, uses automatic escalation.",
     )
 
 

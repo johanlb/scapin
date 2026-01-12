@@ -603,6 +603,7 @@ async def reanalyze_queue_item(
             item_id=item_id,
             user_instruction=request.user_instruction,
             mode=request.mode,
+            force_model=request.force_model,
         )
         if not result:
             raise HTTPException(

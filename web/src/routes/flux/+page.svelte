@@ -7,7 +7,7 @@
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
-	import { approveQueueItem, rejectQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox, reanalyzeQueueItem, reanalyzeAllPending, recordArchive, getFolderSuggestions } from '$lib/api';
+	import { approveQueueItem, undoQueueItem, canUndoQueueItem, snoozeQueueItem, processInbox, reanalyzeQueueItem, reanalyzeAllPending, recordArchive, getFolderSuggestions } from '$lib/api';
 	import type { QueueItem, ActionOption, SnoozeOption, FolderSuggestion, ProposedNote, ProposedTask } from '$lib/api';
 	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
 
@@ -159,7 +159,7 @@
 
 		const actionShortcuts = createQueueActionShortcuts(
 			() => handleApproveRecommended(),
-			() => currentItem && handleReject(currentItem),
+			() => currentItem && handleReanalyzeOpus(currentItem),  // R = Reanalyze with Opus
 			() => toggleSnoozeMenu(),
 			() => { showLevel3 = !showLevel3; },
 			'/flux'
@@ -602,36 +602,47 @@
 		}
 	}
 
-	async function handleReject(item: QueueItem) {
-		if (isProcessing) return;
-		isProcessing = true;
+	// Reanalyze with Opus state
+	let isReanalyzingOpus = $state(false);
 
-		// Save for potential restore
-		const savedItem = { ...item };
+	async function handleReanalyzeOpus(item: QueueItem) {
+		if (isReanalyzingOpus || isProcessing) return;
+		isReanalyzingOpus = true;
 
-		// Bug #53 fix: Optimistic update
-		queueStore.removeFromList(item.id);
+		const processingToastId = toastStore.info(
+			'Réanalyse en cours avec Opus...',
+			{ title: 'Analyse approfondie', duration: 120000 }
+		);
 
-		if (currentIndex >= queueStore.items.length) {
-			currentIndex = Math.max(0, queueStore.items.length - 1);
-		}
-		customInstruction = '';
-
-		// Execute action
 		try {
-			await rejectQueueItem(item.id);
-			await queueStore.fetchStats();
-			// Bug #49: Check if we need to auto-fetch
-			checkAutoFetch();
+			const result = await reanalyzeQueueItem(item.id, '', 'immediate', 'opus');
+
+			toastStore.dismiss(processingToastId);
+
+			if (result.status === 'complete' && result.new_analysis) {
+				// Refresh queue to get updated item
+				await queueStore.fetchQueue('pending');
+				await queueStore.fetchStats();
+
+				toastStore.success(
+					`Nouvelle analyse terminée. Action: ${result.new_analysis.action} (${result.new_analysis.confidence}%)`,
+					{ title: 'Analyse Opus' }
+				);
+			} else {
+				toastStore.warning(
+					'La réanalyse n\'a pas produit de nouveau résultat.',
+					{ title: 'Analyse Opus' }
+				);
+			}
 		} catch (e) {
-			console.error('Reject failed:', e);
-			queueStore.restoreItem(savedItem);
+			toastStore.dismiss(processingToastId);
+			console.error('Reanalyze with Opus failed:', e);
 			toastStore.error(
-				`Échec du rejet. L'email a été restauré.`,
+				'Échec de la réanalyse. Veuillez réessayer.',
 				{ title: 'Erreur' }
 			);
 		} finally {
-			isProcessing = false;
+			isReanalyzingOpus = false;
 		}
 	}
 
@@ -934,13 +945,12 @@
 			handler: () => { showSnoozeMenu = true; }
 		});
 
-		// Reject
+		// Reanalyze with Opus
 		menuItems.push({
-			id: 'reject',
-			label: 'Rejeter',
-			icon: '🚫',
-			variant: 'danger',
-			handler: () => handleReject(item)
+			id: 'reanalyze-opus',
+			label: 'Réanalyser (Opus)',
+			icon: '🧠',
+			handler: () => handleReanalyzeOpus(item)
 		});
 
 		// View details
@@ -963,10 +973,10 @@
 	} : undefined);
 
 	const swipeLeftAction = $derived(currentItem ? {
-		icon: '✕',
-		label: 'Rejeter',
-		color: 'var(--color-urgency-urgent)',
-		action: () => currentItem && handleReject(currentItem)
+		icon: '🧠',
+		label: 'Opus',
+		color: 'var(--color-accent)',
+		action: () => currentItem && handleReanalyzeOpus(currentItem)
 	} : undefined);
 
 	const stats = $derived(queueStore.stats);
@@ -1137,7 +1147,7 @@
 
 		<!-- Mobile hint for swipe gestures (shown only on touch devices) -->
 		<div class="text-xs text-center text-[var(--color-text-tertiary)] py-2 mb-2 md:hidden">
-			<span class="opacity-70">← Glisser pour rejeter</span>
+			<span class="opacity-70">← Glisser pour Opus</span>
 			<span class="mx-3">•</span>
 			<span class="font-medium">Appui long = menu</span>
 			<span class="mx-3">•</span>
@@ -1614,15 +1624,19 @@
 							<span class="mr-1">✅</span> Approuver
 							<span class="ml-1 text-xs opacity-60 font-mono">A</span>
 						</Button>
-						<!-- Rejeter -->
+						<!-- Réanalyser avec Opus -->
 						<Button
 							variant="secondary"
 							size="sm"
-							onclick={() => handleReject(currentItem)}
-							disabled={isProcessing}
-							data-testid="reject-button"
+							onclick={() => handleReanalyzeOpus(currentItem)}
+							disabled={isProcessing || isReanalyzingOpus}
+							data-testid="reanalyze-opus-button"
 						>
-							<span class="mr-1">🚫</span> Rejeter
+							{#if isReanalyzingOpus}
+								<span class="mr-1 animate-spin">⏳</span> Opus...
+							{:else}
+								<span class="mr-1">🧠</span> Opus
+							{/if}
 							<span class="ml-1 text-xs opacity-60 font-mono">R</span>
 						</Button>
 						<!-- Détails -->

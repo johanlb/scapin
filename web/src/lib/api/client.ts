@@ -921,14 +921,16 @@ export interface ReanalyzeResponse {
 
 export async function reanalyzeQueueItem(
 	itemId: string,
-	userInstruction: string,
-	mode: 'immediate' | 'background' = 'immediate'
+	userInstruction: string = '',
+	mode: 'immediate' | 'background' = 'immediate',
+	forceModel: 'opus' | 'sonnet' | 'haiku' | null = null
 ): Promise<ReanalyzeResponse> {
 	return fetchApi<ReanalyzeResponse>(`/queue/${itemId}/reanalyze`, {
 		method: 'POST',
 		body: JSON.stringify({
 			user_instruction: userInstruction,
-			mode
+			mode,
+			force_model: forceModel
 		})
 	});
 }

@@ -324,6 +324,9 @@ class MultiPassConfig:
     cost_sonnet_per_1k: float = 0.003
     cost_opus_per_1k: float = 0.015
 
+    # Force model (override automatic selection)
+    force_model: "ModelTier | None" = None  # Force all passes to use this model
+
 
 # Status messages for UI (see UI_VOCABULARY.md)
 PASS_STATUS_MESSAGES = {
@@ -523,6 +526,11 @@ def select_model(
     Returns:
         Tuple of (ModelTier, reason)
     """
+    # Force model if configured (e.g., user requested Opus analysis)
+    if config.force_model is not None:
+        logger.info(f"Using forced model: {config.force_model.value}")
+        return config.force_model, "forced"
+
     # Pass 1-3: Always Haiku (economical, sufficient with context)
     if pass_number <= 3:
         return ModelTier.HAIKU, "default"
