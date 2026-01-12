@@ -890,7 +890,7 @@ class MultiPassAnalyzer:
         # Low importance extractions are optional
         return False
 
-    def _is_date_obsolete(self, date_str: str, days_threshold: int = 30) -> bool:
+    def _is_date_obsolete(self, date_str: str, days_threshold: int = 90) -> bool:
         """
         Check if a date is obsolete (more than N days in the past).
 

@@ -12,12 +12,12 @@
 	import { registerShortcuts, createNavigationShortcuts, createQueueActionShortcuts } from '$lib/utils/keyboard-shortcuts';
 
 	// Constants for filtering
-	const CONFIDENCE_THRESHOLD = 0.1; // Below this, AI is saying "no" not "unsure"
-	const DAYS_THRESHOLD = 30; // Days after which a past date is considered obsolete
+	const CONFIDENCE_THRESHOLD = 0.2; // Below this, AI is saying "no" not "unsure"
+	const DAYS_THRESHOLD = 90; // Days after which a past date is considered obsolete
 
 	/**
 	 * Filter proposed notes to only show actionable ones.
-	 * Hides notes with empty/generic titles or very low confidence (< 10%).
+	 * Hides notes with empty/generic titles or very low confidence (< 20%).
 	 * In Details mode (showLevel3), shows all notes including rejected ones.
 	 */
 	function filterNotes(notes: ProposedNote[] | undefined, showAll: boolean): ProposedNote[] {
@@ -32,7 +32,7 @@
 
 	/**
 	 * Filter proposed tasks to only show actionable ones.
-	 * Hides tasks with due dates > 30 days in the past or very low confidence (< 10%).
+	 * Hides tasks with due dates > 90 days in the past or very low confidence (< 20%).
 	 * In Details mode (showLevel3), shows all tasks including rejected ones.
 	 */
 	function filterTasks(tasks: ProposedTask[] | undefined, showAll: boolean): ProposedTask[] {

@@ -322,7 +322,7 @@ def calculate_global_confidence(result: PassResult) -> float:
         Global confidence score (0.0-1.0)
     """
     # Threshold below which we consider the AI is saying "no" rather than "unsure"
-    REJECTION_THRESHOLD = 0.10
+    REJECTION_THRESHOLD = 0.20
 
     action_confidence = result.confidence.overall
 
@@ -372,7 +372,7 @@ def get_required_extractions(result: PassResult, exclude_rejections: bool = True
     Returns:
         List of required, actionable extractions
     """
-    REJECTION_THRESHOLD = 0.10
+    REJECTION_THRESHOLD = 0.20
 
     extractions = [e for e in result.extractions if e.required and e.is_actionable()]
 
