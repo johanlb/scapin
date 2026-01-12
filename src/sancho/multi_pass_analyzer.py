@@ -653,11 +653,14 @@ class MultiPassAnalyzer:
             if parse_method != "direct":
                 logger.info(f"Pass {pass_number} JSON parsed using method: {parse_method}")
 
-            # Parse extractions
-            extractions = self._parse_extractions(data.get("extractions", []))
-
-            # Parse confidence
+            # Parse confidence FIRST (so we can use global confidence as default for extractions)
             confidence = self._parse_confidence(data.get("confidence", {}))
+
+            # Parse extractions (passing global confidence as default for per-extraction confidence)
+            extractions = self._parse_extractions(
+                data.get("extractions", []),
+                default_confidence=confidence.overall
+            )
 
             # Get entities discovered
             entities = set(data.get("entities_discovered", []))
@@ -750,12 +753,16 @@ class MultiPassAnalyzer:
 
         return response[json_start:json_end]
 
-    def _parse_extractions(self, extractions_data: list) -> list[Extraction]:
+    def _parse_extractions(
+        self, extractions_data: list, default_confidence: float = 0.8
+    ) -> list[Extraction]:
         """
         Parse extractions list from JSON data.
 
         Args:
             extractions_data: List of extraction dicts from JSON
+            default_confidence: Default confidence to use if not specified per-extraction
+                               (typically the global analysis confidence)
 
         Returns:
             List of validated Extraction objects
@@ -782,12 +789,15 @@ class MultiPassAnalyzer:
                 else:
                     required = bool(explicit_required)
 
-                # Get confidence for this extraction (default 0.8 if not set)
-                ext_confidence = ext_data.get("confidence", 0.8)
-                if isinstance(ext_confidence, (int, float)):
+                # Get confidence for this extraction
+                # Use global analysis confidence as default if not specified
+                ext_confidence = ext_data.get("confidence")
+                if ext_confidence is None:
+                    ext_confidence = default_confidence
+                elif isinstance(ext_confidence, (int, float)):
                     ext_confidence = float(ext_confidence)
                 else:
-                    ext_confidence = 0.8
+                    ext_confidence = default_confidence
 
                 # Check for past dates (> 30 days ago)
                 ext_date = ext_data.get("date")
