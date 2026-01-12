@@ -1056,48 +1056,51 @@
 		</div>
 	</header>
 
-	<!-- Stats as clickable filters -->
-	<section class="grid grid-cols-3 gap-2 mb-6">
+	<!-- Stats as compact clickable filters -->
+	<section class="flex gap-2 mb-4 text-sm">
 		<button
-			class="rounded-xl p-3 text-center transition-all border-2"
-			class:border-[var(--color-accent)]={activeFilter === 'pending'}
-			class:bg-[var(--color-bg-secondary)]={activeFilter === 'pending'}
-			class:border-transparent={activeFilter !== 'pending'}
-			class:hover:border-[var(--color-border)]={activeFilter !== 'pending'}
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class:bg-[var(--color-accent)]={activeFilter === 'pending'}
+			class:text-white={activeFilter === 'pending'}
+			class:bg-[var(--color-bg-secondary)]={activeFilter !== 'pending'}
+			class:text-[var(--color-text-secondary)]={activeFilter !== 'pending'}
+			class:hover:bg-[var(--color-bg-tertiary)]={activeFilter !== 'pending'}
 			onclick={() => changeFilter('pending')}
 		>
-			<p class="text-xl font-bold text-[var(--color-warning)]">
+			<span class="font-bold text-[var(--color-warning)]" class:text-white={activeFilter === 'pending'}>
 				{stats?.by_status?.pending ?? 0}
-			</p>
-			<p class="text-xs text-[var(--color-text-tertiary)]">À votre attention</p>
+			</span>
+			<span>en attente</span>
 		</button>
 
 		<button
-			class="rounded-xl p-3 text-center transition-all border-2"
-			class:border-[var(--color-accent)]={activeFilter === 'approved'}
-			class:bg-[var(--color-bg-secondary)]={activeFilter === 'approved'}
-			class:border-transparent={activeFilter !== 'approved'}
-			class:hover:border-[var(--color-border)]={activeFilter !== 'approved'}
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class:bg-[var(--color-accent)]={activeFilter === 'approved'}
+			class:text-white={activeFilter === 'approved'}
+			class:bg-[var(--color-bg-secondary)]={activeFilter !== 'approved'}
+			class:text-[var(--color-text-secondary)]={activeFilter !== 'approved'}
+			class:hover:bg-[var(--color-bg-tertiary)]={activeFilter !== 'approved'}
 			onclick={() => changeFilter('approved')}
 		>
-			<p class="text-xl font-bold text-[var(--color-success)]">
+			<span class="font-bold text-[var(--color-success)]" class:text-white={activeFilter === 'approved'}>
 				{stats?.by_status?.approved ?? 0}
-			</p>
-			<p class="text-xs text-[var(--color-text-tertiary)]">Traités</p>
+			</span>
+			<span>traités</span>
 		</button>
 
 		<button
-			class="rounded-xl p-3 text-center transition-all border-2"
-			class:border-[var(--color-accent)]={activeFilter === 'rejected'}
-			class:bg-[var(--color-bg-secondary)]={activeFilter === 'rejected'}
-			class:border-transparent={activeFilter !== 'rejected'}
-			class:hover:border-[var(--color-border)]={activeFilter !== 'rejected'}
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class:bg-[var(--color-accent)]={activeFilter === 'rejected'}
+			class:text-white={activeFilter === 'rejected'}
+			class:bg-[var(--color-bg-secondary)]={activeFilter !== 'rejected'}
+			class:text-[var(--color-text-secondary)]={activeFilter !== 'rejected'}
+			class:hover:bg-[var(--color-bg-tertiary)]={activeFilter !== 'rejected'}
 			onclick={() => changeFilter('rejected')}
 		>
-			<p class="text-xl font-bold text-[var(--color-urgency-urgent)]">
+			<span class="font-bold text-[var(--color-urgency-urgent)]" class:text-white={activeFilter === 'rejected'}>
 				{stats?.by_status?.rejected ?? 0}
-			</p>
-			<p class="text-xs text-[var(--color-text-tertiary)]">Écartés</p>
+			</span>
+			<span>écartés</span>
 		</button>
 	</section>
 
@@ -1140,409 +1143,355 @@
 			</div>
 		</Card>
 
-	<!-- SINGLE ITEM VIEW for pending items -->
+	<!-- SINGLE ITEM VIEW for pending items - REDESIGNED UI -->
 	{:else if activeFilter === 'pending' && currentItem}
 		{@const options = currentItem.analysis.options || []}
 		{@const hasOptions = options.length > 0}
+		{@const recommendedOption = options.find(o => o.is_recommended) || options[0]}
+		{@const otherOptions = options.filter(o => o !== recommendedOption)}
+		{@const notesCount = filterNotes(currentItem.analysis.proposed_notes, false).length}
+		{@const tasksCount = filterTasks(currentItem.analysis.proposed_tasks, false).length}
+		{@const enrichmentsCount = notesCount + tasksCount}
 
-		<!-- Mobile hint for swipe gestures (shown only on touch devices) -->
-		<div class="text-xs text-center text-[var(--color-text-tertiary)] py-2 mb-2 md:hidden">
-			<span class="opacity-70">← Glisser pour Opus</span>
-			<span class="mx-3">•</span>
-			<span class="font-medium">Appui long = menu</span>
-			<span class="mx-3">•</span>
-			<span class="opacity-70">Approuver →</span>
+		<!-- Collapsible state for enrichments -->
+		{#snippet enrichmentsSection()}
+			{@const notes = filterNotes(currentItem.analysis.proposed_notes, showLevel3)}
+			{@const tasks = filterTasks(currentItem.analysis.proposed_tasks, showLevel3)}
+			{#if notes.length > 0 || tasks.length > 0}
+				<div class="space-y-2">
+					{#each notes as note, noteIndex}
+						{@const noteActionClass = note.action === 'create' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-300'}
+						{@const willApply = willNoteBeAutoApplied(note)}
+						{@const threshold = note.required ? AUTO_APPLY_THRESHOLD_REQUIRED : AUTO_APPLY_THRESHOLD_OPTIONAL}
+						{@const isManuallySet = note.manually_approved !== null && note.manually_approved !== undefined}
+						{@const isChecked = note.manually_approved === true || (note.manually_approved !== false && willApply)}
+						<div class="flex items-center justify-between text-sm {!isChecked ? 'opacity-60' : ''}">
+							<span class="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={isChecked}
+									class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+									title={isManuallySet ? (note.manually_approved ? 'Forcé' : 'Rejeté') : (willApply ? 'Auto' : 'Manuel')}
+									onchange={() => console.log('Toggle note:', noteIndex)}
+								/>
+								<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
+									{note.action === 'create' ? '+' : '~'} {note.note_type}
+								</span>
+								{#if note.required}
+									<span class="text-xs px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300">!</span>
+								{/if}
+								<span class="text-[var(--color-text-primary)] truncate max-w-[200px]">{note.title || 'Sans titre'}</span>
+							</span>
+							<span class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}">
+								{Math.round(note.confidence * 100)}%
+							</span>
+						</div>
+					{/each}
+					{#each tasks as task, taskIndex}
+						{@const willApply = willTaskBeAutoApplied(task)}
+						{@const isPastDue = isDateObsolete(task.due_date)}
+						{@const isChecked = willApply && !isPastDue}
+						<div class="flex items-center justify-between text-sm {!isChecked ? 'opacity-60' : ''}">
+							<span class="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={isChecked}
+									class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+									onchange={() => console.log('Toggle task:', taskIndex)}
+								/>
+								<span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300">📋</span>
+								<span class="text-[var(--color-text-primary)] truncate max-w-[200px]">{task.title}</span>
+								{#if task.due_date}
+									<span class="text-xs {isDatePast(task.due_date) ? 'text-red-500 line-through' : 'text-orange-500'}">
+										{task.due_date}
+									</span>
+								{/if}
+							</span>
+							<span class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}">
+								{Math.round(task.confidence * 100)}%
+							</span>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		{/snippet}
+
+		<!-- Mobile swipe hint -->
+		<div class="text-xs text-center text-[var(--color-text-tertiary)] py-1 mb-2 md:hidden">
+			← Opus • Appui long = menu • Approuver →
 		</div>
 
-		<!-- SwipeableCard wraps for mobile swipe gestures (no-op on desktop) -->
 		<SwipeableCard
 			rightAction={swipeRightAction}
 			leftAction={swipeLeftAction}
 			threshold={100}
 		>
-			<!-- LongPressMenu for mobile context menu (right-click on desktop) -->
 			<LongPressMenu items={getMobileMenuItems(currentItem)}>
-				<Card padding="lg">
-					<div class="space-y-5">
-						<!-- Progress indicator -->
-						<div class="flex items-center justify-between text-xs text-[var(--color-text-tertiary)]">
-							<span>Pli {currentIndex + 1} sur {queueStore.items.length}</span>
-							<div class="flex gap-1">
-								{#each queueStore.items as _, idx}
-									<div
-										class="w-2 h-2 rounded-full transition-colors"
-										class:bg-[var(--color-accent)]={idx === currentIndex}
-										class:bg-[var(--color-border)]={idx !== currentIndex}
-									></div>
-								{/each}
+				<Card padding="md">
+					<div class="space-y-4">
+						<!-- SECTION 1: Navigation + Email Header (compact) -->
+						<div class="flex items-start justify-between gap-3">
+							<div class="flex-1 min-w-0">
+								<div class="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)] mb-1">
+									<button onclick={navigatePrevious} class="hover:text-[var(--color-accent)] p-1">←</button>
+									<span>{currentIndex + 1}/{queueStore.items.length}</span>
+									<button onclick={navigateNext} class="hover:text-[var(--color-accent)] p-1">→</button>
+									{#if currentItem.analysis.category}
+										<span class="px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)]">
+											{getCategoryLabel(currentItem.analysis.category)}
+										</span>
+									{/if}
+								</div>
+								<h2 class="text-lg font-bold text-[var(--color-text-primary)] leading-tight">
+									{currentItem.metadata.subject}
+								</h2>
+								<p class="text-sm text-[var(--color-text-secondary)] mt-0.5">
+									{currentItem.metadata.from_name || currentItem.metadata.from_address}
+									<span class="text-[var(--color-text-tertiary)]">•</span>
+									<span class="text-[var(--color-text-tertiary)]">
+										{currentItem.metadata.date ? formatRelativeTime(currentItem.metadata.date) : formatRelativeTime(currentItem.queued_at)}
+									</span>
+									{#if currentItem.metadata.has_attachments}
+										<span class="text-[var(--color-text-tertiary)]">• 📎</span>
+									{/if}
+								</p>
 							</div>
 						</div>
 
-				<!-- Snooze feedback -->
-				{#if snoozeSuccess}
-					<div class="flex items-center gap-2 p-2 rounded-lg bg-green-500/20 text-green-400 text-sm animate-pulse">
-						<span>💤</span>
-						<span>{snoozeSuccess}</span>
-					</div>
-				{:else if snoozeError}
-					<div class="flex items-center gap-2 p-2 rounded-lg bg-red-500/20 text-red-400 text-sm">
-						<span>⚠️</span>
-						<span>{snoozeError}</span>
-					</div>
-				{/if}
-
-				<!-- Why in queue - Scapin explanation -->
-				<div class="flex items-center gap-2 p-2 rounded-lg bg-[var(--color-bg-tertiary)]">
-					<span class="text-lg">🎭</span>
-					<p class="text-xs text-[var(--color-text-secondary)] italic">
-						{getConfidenceExplanation(currentItem.analysis.confidence)}
-						<span class="font-medium" style="color: {getConfidenceColor(currentItem.analysis.confidence)}">
-							({currentItem.analysis.confidence}% de confiance)
-						</span>
-					</p>
-				</div>
-
-				<!-- Email header -->
-				<div>
-					<h2 class="text-xl font-bold text-[var(--color-text-primary)] mb-2">
-						{currentItem.metadata.subject}
-					</h2>
-					<div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-						<span>{currentItem.metadata.from_name || currentItem.metadata.from_address}</span>
-						<span class="text-[var(--color-text-tertiary)]">•</span>
-						<span class="text-[var(--color-text-tertiary)]">
-							{#if currentItem.metadata.date}
-								{formatRelativeTime(currentItem.metadata.date)}
-							{:else}
-								{formatRelativeTime(currentItem.queued_at)}
-							{/if}
-						</span>
-						{#if currentItem.analysis.category}
-							<span class="px-2 py-0.5 rounded-full text-xs bg-[var(--color-bg-tertiary)]">
-								{getCategoryLabel(currentItem.analysis.category)}
-							</span>
-						{/if}
-					</div>
-				</div>
-
-				<!-- AI Summary -->
-				{#if currentItem.analysis.summary}
-					<div class="p-4 rounded-lg bg-[var(--color-bg-secondary)] border-l-4 border-[var(--color-accent)]">
-						<p class="text-[var(--color-text-primary)]">
-							{currentItem.analysis.summary}
-						</p>
-					</div>
-				{/if}
-
-				<!-- Extracted Entities -->
-				{#if currentItem.analysis.entities && Object.keys(currentItem.analysis.entities).length > 0}
-					<div class="flex flex-wrap gap-1.5">
-						{#each Object.entries(currentItem.analysis.entities) as [type, entities]}
-							{#each entities as entity}
-								{@const entityClass = {
-									person: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
-									project: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
-									date: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
-									amount: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
-									organization: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300',
-									phone: 'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300',
-									url: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300',
-									discovered: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300'
-								}[type] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300'}
-								<span
-									class="px-2 py-0.5 text-xs rounded-full {entityClass}"
-									title="{type}: {entity.value} ({Math.round(entity.confidence * 100)}%)"
-								>
-									{entity.value}
-								</span>
-							{/each}
-						{/each}
-					</div>
-				{/if}
-
-				<!-- Proposed Notes (Sprint 2) -->
-				<!-- Only show notes with valid targets and confidence >= 10% (unless in Details mode) -->
-				{#if filterNotes(currentItem.analysis.proposed_notes, showLevel3).length > 0}
-					<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
-						<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
-							Notes proposées
-						</h4>
-						<div class="space-y-2">
-							{#each filterNotes(currentItem.analysis.proposed_notes, showLevel3) as note, noteIndex}
-								{@const noteActionClass = note.action === 'create' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-300'}
-								{@const willApply = willNoteBeAutoApplied(note)}
-								{@const threshold = note.required ? AUTO_APPLY_THRESHOLD_REQUIRED : AUTO_APPLY_THRESHOLD_OPTIONAL}
-								{@const isManuallySet = note.manually_approved !== null && note.manually_approved !== undefined}
-								{@const isChecked = note.manually_approved === true || (note.manually_approved !== false && willApply)}
-								<div class="flex items-center justify-between text-sm {!isChecked ? 'opacity-60' : ''}">
-									<span class="flex items-center gap-2">
-										<!-- Checkbox to control whether note will be applied -->
-										<input
-											type="checkbox"
-											checked={isChecked}
-											class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-											title={isManuallySet ? (note.manually_approved ? 'Forcé manuellement' : 'Rejeté manuellement') : (willApply ? 'Sera appliqué automatiquement' : 'Cliquer pour forcer l\'application')}
-											onchange={(e) => {
-												// TODO: Implement API call to update manually_approved
-												console.log('Toggle note approval:', noteIndex, e.currentTarget.checked);
-											}}
-										/>
-										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
-											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
-										</span>
-										{#if note.required}
-											<span class="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300" title="Requis pour archiver en toute sécurité">
-												Requis
+						<!-- SECTION 2: ACTION CARD (prominent, at top) -->
+						{#if hasOptions && recommendedOption}
+							<div class="p-4 rounded-xl bg-gradient-to-r from-[var(--color-bg-secondary)] to-[var(--color-bg-tertiary)] border-2 border-[var(--color-accent)]/30">
+								<div class="flex items-center gap-3 mb-3">
+									<div
+										class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm"
+										style="background-color: color-mix(in srgb, {getActionColor(recommendedOption.action)} 25%, transparent)"
+									>
+										{getActionIcon(recommendedOption.action)}
+									</div>
+									<div class="flex-1">
+										<div class="flex items-center gap-2">
+											<span class="text-lg font-bold" style="color: {getActionColor(recommendedOption.action)}">
+												{getActionLabel(recommendedOption.action)}
 											</span>
+											<!-- Confidence bar -->
+											<div class="flex-1 max-w-[100px] h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+												<div
+													class="h-full rounded-full transition-all"
+													style="width: {recommendedOption.confidence}%; background-color: {getConfidenceColor(recommendedOption.confidence)}"
+												></div>
+											</div>
+											<span class="text-xs font-medium" style="color: {getConfidenceColor(recommendedOption.confidence)}">
+												{recommendedOption.confidence}%
+											</span>
+										</div>
+										<p class="text-sm text-[var(--color-text-secondary)] mt-0.5 line-clamp-2">
+											{recommendedOption.reasoning}
+										</p>
+										{#if recommendedOption.destination}
+											<p class="text-xs text-[var(--color-text-tertiary)] mt-0.5">→ {recommendedOption.destination}</p>
 										{/if}
-										{#if note.title && note.title.toLowerCase() !== 'general'}
-											<span class="text-[var(--color-text-primary)]">{note.title}</span>
+									</div>
+								</div>
+								<!-- Action buttons integrated -->
+								<div class="flex flex-wrap gap-2">
+									<Button
+										variant="primary"
+										size="sm"
+										onclick={handleApproveRecommended}
+										disabled={isProcessing}
+										data-testid="approve-button"
+									>
+										✓ Approuver <span class="ml-1 opacity-60 font-mono text-xs">A</span>
+									</Button>
+									{#if otherOptions.length > 0}
+										<div class="relative">
+											<Button
+												variant="secondary"
+												size="sm"
+												onclick={() => showLevel3 = !showLevel3}
+											>
+												Autres ({otherOptions.length}) <span class="ml-1 opacity-60">▾</span>
+											</Button>
+										</div>
+									{/if}
+									<Button
+										variant="secondary"
+										size="sm"
+										onclick={() => handleReanalyzeOpus(currentItem)}
+										disabled={isProcessing || isReanalyzingOpus}
+										data-testid="reanalyze-opus-button"
+									>
+										{#if isReanalyzingOpus}
+											⏳ Opus...
 										{:else}
-											<span class="text-[var(--color-text-tertiary)] italic">cible non identifiée</span>
+											🧠 Opus <span class="ml-1 opacity-60 font-mono text-xs">R</span>
 										{/if}
-									</span>
-									<span class="flex items-center gap-1">
-										{#if showLevel3 && note.weakness_label}
-											<span class="text-xs text-[var(--color-text-tertiary)] italic">
-												· {note.weakness_label}
-											</span>
-										{/if}
-										<span
-											class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
-											title={isChecked ? `Sera enregistré (≥${Math.round(threshold * 100)}%)` : `En attente de validation (<${Math.round(threshold * 100)}%)`}
-										>
-											{Math.round(note.confidence * 100)}%
-										</span>
-									</span>
+									</Button>
 								</div>
-								{#if showLevel3 && note.reasoning}
-									<p class="text-xs text-[var(--color-text-tertiary)] ml-4 pl-2 border-l border-[var(--color-border)]">
-										{note.reasoning}
-									</p>
-								{/if}
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				<!-- Proposed Tasks (Sprint 2) -->
-				<!-- Only show tasks with valid dates and confidence >= 10% (unless in Details mode) -->
-				{#if filterTasks(currentItem.analysis.proposed_tasks, showLevel3).length > 0}
-					<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
-						<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
-							Tâches proposées
-						</h4>
-						<div class="space-y-2">
-							{#each filterTasks(currentItem.analysis.proposed_tasks, showLevel3) as task, taskIndex}
-								{@const willApply = willTaskBeAutoApplied(task)}
-								{@const isPastDue = isDateObsolete(task.due_date)}
-								{@const isChecked = willApply && !isPastDue}
-								<div class="flex items-center justify-between text-sm {!isChecked ? 'opacity-60' : ''}">
-									<span class="flex items-center gap-2">
-										<!-- Checkbox to control whether task will be created -->
-										<input
-											type="checkbox"
-											checked={isChecked}
-											class="w-4 h-4 rounded border-gray-300 text-[var(--color-event-omnifocus)] focus:ring-[var(--color-event-omnifocus)] cursor-pointer"
-											title={isChecked ? 'Sera créée automatiquement' : 'Cliquer pour forcer la création'}
-											onchange={(e) => {
-												// TODO: Implement API call to update task approval
-												console.log('Toggle task approval:', taskIndex, e.currentTarget.checked);
-											}}
-										/>
-										<span class="text-[var(--color-text-primary)]">{task.title}</span>
-										{#if task.project}
-											<span class="text-xs text-[var(--color-text-tertiary)]">
-												→ {task.project}
-											</span>
-										{/if}
-										{#if task.due_date}
-											<span class="text-xs {isDatePast(task.due_date) ? 'text-[var(--color-error)] line-through' : 'text-[var(--color-warning)]'}">
-												📅 {task.due_date}{isDatePast(task.due_date) ? ' (passée)' : ''}
-											</span>
-										{/if}
-									</span>
-									<span
-										class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
-										title={isChecked ? `Sera créée (≥${Math.round(AUTO_APPLY_THRESHOLD_OPTIONAL * 100)}%)` : `En attente de validation (<${Math.round(AUTO_APPLY_THRESHOLD_OPTIONAL * 100)}%)`}
+							</div>
+						{:else}
+							<!-- Fallback when no options -->
+							<div class="p-4 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
+								<div class="flex items-center gap-3">
+									<div
+										class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+										style="background-color: color-mix(in srgb, {getActionColor(currentItem.analysis.action)} 25%, transparent)"
 									>
-										{Math.round(task.confidence * 100)}%
-									</span>
+										{getActionIcon(currentItem.analysis.action)}
+									</div>
+									<div class="flex-1">
+										<div class="flex items-center gap-2">
+											<span class="text-lg font-bold" style="color: {getActionColor(currentItem.analysis.action)}">
+												{getActionLabel(currentItem.analysis.action)}
+											</span>
+											<div class="flex-1 max-w-[100px] h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+												<div
+													class="h-full rounded-full"
+													style="width: {currentItem.analysis.confidence}%; background-color: {getConfidenceColor(currentItem.analysis.confidence)}"
+												></div>
+											</div>
+											<span class="text-xs font-medium" style="color: {getConfidenceColor(currentItem.analysis.confidence)}">
+												{currentItem.analysis.confidence}%
+											</span>
+										</div>
+										{#if currentItem.analysis.reasoning}
+											<p class="text-sm text-[var(--color-text-secondary)] mt-0.5">{currentItem.analysis.reasoning}</p>
+										{/if}
+									</div>
 								</div>
-								{#if showLevel3 && task.reasoning}
-									<p class="text-xs text-[var(--color-text-tertiary)] ml-4 pl-2 border-l border-[var(--color-border)]">
-										{task.reasoning}
-									</p>
-								{/if}
-							{/each}
-						</div>
-					</div>
-				{/if}
+								<div class="flex gap-2 mt-3">
+									<Button variant="primary" size="sm" onclick={handleApproveRecommended} disabled={isProcessing}>
+										✓ Approuver <span class="ml-1 opacity-60 font-mono text-xs">A</span>
+									</Button>
+									<Button variant="secondary" size="sm" onclick={() => handleReanalyzeOpus(currentItem)} disabled={isProcessing || isReanalyzingOpus}>
+										{isReanalyzingOpus ? '⏳' : '🧠'} Opus
+									</Button>
+								</div>
+							</div>
+						{/if}
 
-				<!-- Context Used (Sprint 2 - Notes that enriched the analysis) -->
-				{#if currentItem.analysis.context_used && currentItem.analysis.context_used.length > 0}
-					<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]">
-						<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
-							Contexte utilisé
-						</h4>
-						<div class="flex flex-wrap gap-1.5">
-							{#each currentItem.analysis.context_used as noteId}
-								<a
-									href="/notes/{noteId}"
-									class="text-xs px-2 py-1 rounded-full bg-[var(--color-event-notes)]/20 text-[var(--color-event-notes)] hover:bg-[var(--color-event-notes)]/30 transition-colors"
-								>
-									📝 {noteId.slice(0, 20)}...
-								</a>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
-				<!-- Email content preview (always visible) -->
-				{#if currentItem.content?.preview || currentItem.content?.full_text}
-					{@const contentText = currentItem.content?.full_text || currentItem.content?.preview || ''}
-					{@const previewLines = contentText.split('\n').slice(0, 5).join('\n')}
-					{@const hasMore = contentText.split('\n').length > 5 || contentText.length > 300}
-
-					{#if showLevel3}
-						<!-- Détails mode: Full content with HTML toggle -->
-						<div class="space-y-2">
-							{#if currentItem.content?.html_body}
-								<div class="flex gap-2">
+						<!-- SECTION 3: Other options (shown when expanded) -->
+						{#if showLevel3 && otherOptions.length > 0}
+							<div class="space-y-2">
+								<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase">Autres options</p>
+								{#each otherOptions as option, idx}
 									<button
-										class="text-xs px-2 py-1 rounded transition-colors {!showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'}"
-										onclick={() => showHtmlContent = false}
+										class="w-full text-left p-3 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-secondary)] transition-all"
+										disabled={isProcessing}
+										onclick={() => handleSelectOption(currentItem, option)}
 									>
-										📝 Texte
+										<div class="flex items-center gap-2">
+											<span class="w-6 h-6 rounded bg-[var(--color-bg-tertiary)] flex items-center justify-center text-xs font-mono">{idx + 2}</span>
+											<span class="text-lg">{getActionIcon(option.action)}</span>
+											<span class="font-medium" style="color: {getActionColor(option.action)}">{getActionLabel(option.action)}</span>
+											<span class="text-xs ml-auto" style="color: {getConfidenceColor(option.confidence)}">{option.confidence}%</span>
+										</div>
+										<p class="text-xs text-[var(--color-text-secondary)] mt-1 ml-8">{option.reasoning}</p>
 									</button>
-									<button
-										class="text-xs px-2 py-1 rounded transition-colors {showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'}"
-										onclick={() => showHtmlContent = true}
-									>
-										🌐 HTML
-									</button>
-								</div>
-							{/if}
+								{/each}
+							</div>
+						{/if}
 
+						<!-- SECTION 4: EMAIL PREVIEW (HTML, visible, limited height) -->
+						<div class="rounded-lg border border-[var(--color-border)] overflow-hidden">
+							<div class="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
+								<span class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase">Email</span>
+								{#if currentItem.content?.html_body}
+									<div class="flex gap-1">
+										<button
+											class="text-xs px-2 py-0.5 rounded {!showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+											onclick={() => showHtmlContent = false}
+										>Texte</button>
+										<button
+											class="text-xs px-2 py-0.5 rounded {showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+											onclick={() => showHtmlContent = true}
+										>HTML</button>
+									</div>
+								{/if}
+							</div>
 							{#if showHtmlContent && currentItem.content?.html_body}
-								<!-- Note: sandbox without allow-same-origin for security (prevents script access to parent) -->
 								<iframe
 									srcdoc={currentItem.content.html_body}
 									sandbox=""
-									class="w-full h-96 rounded-lg border border-[var(--color-border)] bg-white"
-									title="Contenu HTML de l'email"
+									class="w-full h-64 bg-white"
+									title="Email HTML"
 								></iframe>
 							{:else}
-								<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-80 overflow-y-auto border border-[var(--color-border)]">
-									{contentText}
+								<div class="p-3 text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-64 overflow-y-auto bg-[var(--color-bg-primary)]">
+									{currentItem.content?.full_text || currentItem.content?.preview || 'Aucun contenu'}
 								</div>
 							{/if}
 						</div>
-					{:else}
-						<!-- Normal mode: Short preview (5 lines) -->
-						<div class="p-3 rounded-lg bg-[var(--color-bg-tertiary)] text-sm text-[var(--color-text-secondary)]">
-							<p class="whitespace-pre-wrap line-clamp-5">
-								{previewLines.length > 300 ? previewLines.slice(0, 300) + '...' : previewLines}
-							</p>
-							{#if hasMore}
-								<p class="text-xs text-[var(--color-accent)] mt-2">
-									Appuyer sur V (Détails) pour voir le contenu complet
-									{#if currentItem.content?.html_body}
-										<span class="text-[var(--color-text-tertiary)]">• HTML disponible</span>
-									{/if}
-								</p>
-							{/if}
-						</div>
-					{/if}
-				{/if}
 
-				<!-- Metadata enrichment when showLevel3 -->
-				{#if showLevel3}
-					<div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--color-text-tertiary)] p-2 rounded-lg bg-[var(--color-bg-secondary)]">
-						<span>📧 {currentItem.metadata.from_address}</span>
-						<span>📁 {currentItem.metadata.folder || 'INBOX'}</span>
-						{#if currentItem.metadata.has_attachments}
-							<span>📎 Pièces jointes</span>
+						<!-- SECTION 5: Enrichments (collapsible summary) -->
+						{#if enrichmentsCount > 0}
+							<details class="group">
+								<summary class="flex items-center justify-between cursor-pointer p-2 rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors">
+									<span class="text-sm font-medium text-[var(--color-text-primary)]">
+										📝 {enrichmentsCount} enrichissement{enrichmentsCount > 1 ? 's' : ''}
+										{#if filterNotes(currentItem.analysis.proposed_notes, false).some(n => n.required)}
+											<span class="text-xs px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 ml-1">requis</span>
+										{/if}
+									</span>
+									<span class="text-[var(--color-text-tertiary)] group-open:rotate-180 transition-transform">▼</span>
+								</summary>
+								<div class="pt-2 pl-2">
+									{@render enrichmentsSection()}
+								</div>
+							</details>
 						{/if}
-						<span>🕐 Analysé {formatRelativeTime(currentItem.queued_at)}</span>
-					</div>
-				{/if}
 
-				<!-- Action options - CLICK TO VALIDATE -->
-				{#if hasOptions}
-					<div class="space-y-3">
-						<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide">
-							Choisissez une action <span class="font-normal">(clic = validation immédiate)</span>
-						</p>
+						<!-- SECTION 6: Entities (only in Details mode) -->
+						{#if showLevel3 && currentItem.analysis.entities && Object.keys(currentItem.analysis.entities).length > 0}
+							<div class="p-2 rounded-lg bg-[var(--color-bg-secondary)]">
+								<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase mb-2">Entités extraites</p>
+								<div class="flex flex-wrap gap-1">
+									{#each Object.entries(currentItem.analysis.entities) as [type, entities]}
+										{#each entities as entity}
+											{@const entityClass = {
+												person: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+												project: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
+												date: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+												amount: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+												organization: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300'
+											}[type] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300'}
+											<span class="px-2 py-0.5 text-xs rounded-full {entityClass}">{entity.value}</span>
+										{/each}
+									{/each}
+								</div>
+							</div>
+						{/if}
 
-						<div class="grid gap-2">
-							{#each options as option, idx}
-								<button
-									class="w-full text-left p-4 rounded-xl border-2 border-[var(--color-border)] hover:border-[var(--color-accent)] hover:bg-[var(--color-bg-secondary)] transition-all group disabled:opacity-50"
-									disabled={isProcessing}
-									onclick={() => handleSelectOption(currentItem, option)}
-								>
-									<div class="flex items-center gap-3">
-										<!-- Keyboard shortcut -->
-										<div class="w-8 h-8 rounded-lg bg-[var(--color-bg-tertiary)] group-hover:bg-[var(--color-accent)] group-hover:text-white flex items-center justify-center text-sm font-mono font-bold transition-colors">
-											{idx + 1}
-										</div>
-
-										<!-- Action icon -->
-										<div
-											class="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
-											style="background-color: color-mix(in srgb, {getActionColor(option.action)} 20%, transparent)"
-										>
-											{getActionIcon(option.action)}
-										</div>
-
-										<!-- Option content - enriched when showLevel3 -->
-										<div class="flex-1 min-w-0">
-											<div class="flex items-center gap-2">
-												<span
-													class="font-semibold"
-													style="color: {getActionColor(option.action)}"
-												>
-													{getActionLabel(option.action)}
-												</span>
-												{#if option.is_recommended}
-													<span class="text-xs px-1.5 py-0.5 rounded bg-[var(--color-accent)] text-white">
-														Recommandé
-													</span>
-												{/if}
-												<span
-													class="text-xs ml-auto"
-													style="color: {getConfidenceColor(option.confidence)}"
-												>
-													{option.confidence}%
-												</span>
-											</div>
-											<!-- Show detailed reasoning when Level 3, otherwise short -->
-											<p class="text-xs text-[var(--color-text-secondary)] mt-0.5" class:text-sm={showLevel3 && option.reasoning_detailed}>
-												{#if showLevel3 && option.reasoning_detailed}
-													{option.reasoning_detailed}
-												{:else}
-													{option.reasoning}
-												{/if}
-											</p>
-											{#if option.destination && option.action !== 'delete'}
-												<p class="text-xs text-[var(--color-text-tertiary)] mt-0.5">
-													→ {option.destination}
-												</p>
-											{/if}
-										</div>
+						<!-- SECTION 7: Context & Metadata (only in Details mode) -->
+						{#if showLevel3}
+							{#if currentItem.analysis.context_used && currentItem.analysis.context_used.length > 0}
+								<div class="p-2 rounded-lg bg-[var(--color-bg-secondary)]">
+									<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase mb-1">Contexte utilisé</p>
+									<div class="flex flex-wrap gap-1">
+										{#each currentItem.analysis.context_used as noteId}
+											<a href="/notes/{noteId}" class="text-xs px-2 py-0.5 rounded-full bg-[var(--color-event-notes)]/20 text-[var(--color-event-notes)] hover:bg-[var(--color-event-notes)]/30">
+												📝 {noteId.slice(0, 15)}...
+											</a>
+										{/each}
 									</div>
-								</button>
-							{/each}
+								</div>
+							{/if}
+							<div class="flex flex-wrap gap-2 text-xs text-[var(--color-text-tertiary)] p-2 rounded-lg bg-[var(--color-bg-secondary)]">
+								<span>📧 {currentItem.metadata.from_address}</span>
+								<span>📁 {currentItem.metadata.folder || 'INBOX'}</span>
+								<span>🕐 {formatRelativeTime(currentItem.queued_at)}</span>
+							</div>
+						{/if}
 
-							<!-- Autre - Custom instruction (always visible) -->
-							<div class="w-full p-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)]/50">
+						<!-- SECTION 8: Custom instruction -->
+						{#if showLevel3}
+							<div class="p-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)]/50">
 								<div class="flex items-center gap-2 mb-2">
-									<span class="text-lg">✏️</span>
-									<span class="text-sm font-medium text-[var(--color-text-secondary)]">Autre</span>
+									<span>✏️</span>
+									<span class="text-sm font-medium text-[var(--color-text-secondary)]">Instruction personnalisée</span>
 								</div>
 								<Input
-									placeholder="Votre instruction, Monsieur..."
+									placeholder="Votre instruction..."
 									bind:value={customInstruction}
 									disabled={isProcessing || isReanalyzing}
 								/>
@@ -1553,11 +1502,7 @@
 										onclick={() => handleCustomInstruction(currentItem)}
 										disabled={isProcessing || isReanalyzing || !customInstruction.trim()}
 									>
-										{#if isReanalyzing}
-											<span class="mr-1 animate-spin">⏳</span> Analyse...
-										{:else}
-											<span class="mr-1">🔄</span> Analyser maintenant
-										{/if}
+										{isReanalyzing ? '⏳' : '🔄'} Analyser
 									</Button>
 									<Button
 										variant="secondary"
@@ -1565,171 +1510,67 @@
 										onclick={() => handleDeferCustomInstruction(currentItem)}
 										disabled={isProcessing || isSnoozing || isReanalyzing || !customInstruction.trim()}
 									>
-										<span class="mr-1">⏰</span> Plus tard
+										⏰ Plus tard
 									</Button>
 								</div>
 							</div>
-						</div>
-					</div>
-				{:else}
-					<!-- Fallback for items without options - show recommendation, use Approuver button below -->
-					<div class="p-4 rounded-lg bg-[var(--color-bg-tertiary)]">
-						<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-3">
-							Recommandation de Scapin
-						</p>
-						<div class="flex items-center gap-3">
-							<div
-								class="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
-								style="background-color: color-mix(in srgb, {getActionColor(currentItem.analysis.action)} 20%, transparent)"
+						{/if}
+
+						<!-- SECTION 9: Secondary actions (bottom bar) -->
+						<div class="flex flex-wrap items-center gap-2 pt-3 border-t border-[var(--color-border)]">
+							<Button
+								variant={showLevel3 ? 'primary' : 'ghost'}
+								size="sm"
+								onclick={() => showLevel3 = !showLevel3}
 							>
-								{getActionIcon(currentItem.analysis.action)}
-							</div>
-							<div class="flex-1">
-								<div class="flex items-center gap-2">
-									<span class="font-semibold text-lg" style="color: {getActionColor(currentItem.analysis.action)}">
-										{getActionLabel(currentItem.analysis.action)}
-									</span>
-									<span
-										class="text-sm px-2 py-0.5 rounded-full"
-										style="background-color: color-mix(in srgb, {getConfidenceColor(currentItem.analysis.confidence)} 20%, transparent); color: {getConfidenceColor(currentItem.analysis.confidence)}"
-									>
-										{currentItem.analysis.confidence}%
-									</span>
-								</div>
-								{#if currentItem.analysis.reasoning}
-									<p class="text-sm text-[var(--color-text-secondary)] mt-1">
-										{currentItem.analysis.reasoning}
-									</p>
+								{showLevel3 ? '📖 Simple' : '📋 Détails'} <span class="ml-1 opacity-60 font-mono text-xs">E</span>
+							</Button>
+							<div class="flex-1"></div>
+							<Button variant="ghost" size="sm" onclick={() => handleArchiveElsewhere(currentItem)} disabled={isProcessing}>
+								📁
+							</Button>
+							<Button variant="ghost" size="sm" onclick={() => handleDelete(currentItem)} disabled={isProcessing}>
+								🗑️ <span class="ml-1 opacity-60 font-mono text-xs">D</span>
+							</Button>
+							<div class="relative">
+								<Button variant="ghost" size="sm" onclick={toggleSnoozeMenu} disabled={isProcessing} data-testid="snooze-button">
+									💤 <span class="ml-1 opacity-60 font-mono text-xs">S</span>
+								</Button>
+								{#if showSnoozeMenu}
+									<button type="button" class="fixed inset-0 z-40" onclick={() => showSnoozeMenu = false} aria-label="Fermer"></button>
+									<div class="absolute bottom-full right-0 mb-2 z-50 min-w-[160px] py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] shadow-lg">
+										{#each snoozeOptions as option}
+											<button
+												type="button"
+												class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-secondary)]"
+												onclick={() => handleSnoozeOption(option.value)}
+												disabled={isSnoozing}
+											>{option.label}</button>
+										{/each}
+									</div>
 								{/if}
 							</div>
 						</div>
-						<p class="text-xs text-[var(--color-text-tertiary)] mt-3 italic">
-							Utilisez le bouton <span class="font-semibold">Approuver</span> ci-dessous ou appuyez sur <span class="font-mono bg-[var(--color-bg-secondary)] px-1 rounded">A</span>
-						</p>
-					</div>
-				{/if}
 
-				<!-- Bottom actions - Always available -->
-				<div class="pt-4 border-t border-[var(--color-border)] space-y-3">
-					<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide">
-						Actions rapides
-					</p>
-					<div class="flex flex-wrap gap-2">
-						<!-- Approuver -->
-						<Button
-							variant="primary"
-							size="sm"
-							onclick={handleApproveRecommended}
-							disabled={isProcessing}
-							data-testid="approve-button"
-						>
-							<span class="mr-1">✅</span> Approuver
-							<span class="ml-1 text-xs opacity-60 font-mono">A</span>
-						</Button>
-						<!-- Réanalyser avec Opus -->
-						<Button
-							variant="secondary"
-							size="sm"
-							onclick={() => handleReanalyzeOpus(currentItem)}
-							disabled={isProcessing || isReanalyzingOpus}
-							data-testid="reanalyze-opus-button"
-						>
-							{#if isReanalyzingOpus}
-								<span class="mr-1 animate-spin">⏳</span> Opus...
-							{:else}
-								<span class="mr-1">🧠</span> Opus
-							{/if}
-							<span class="ml-1 text-xs opacity-60 font-mono">R</span>
-						</Button>
-						<!-- Détails -->
-						<Button
-							variant={showLevel3 ? 'primary' : 'secondary'}
-							size="sm"
-							onclick={() => showLevel3 = !showLevel3}
-						>
-							<span class="mr-1">{showLevel3 ? '📖' : '📋'}</span>
-							{showLevel3 ? 'Vue simple' : 'Détails'}
-							<span class="ml-1 text-xs opacity-60 font-mono">E</span>
-						</Button>
-						<!-- Classer ailleurs -->
-						<Button
-							variant="secondary"
-							size="sm"
-							onclick={() => handleArchiveElsewhere(currentItem)}
-							disabled={isProcessing}
-						>
-							<span class="mr-1">📁</span> Classer
-						</Button>
-						<!-- Supprimer -->
-						<Button
-							variant="secondary"
-							size="sm"
-							onclick={() => handleDelete(currentItem)}
-							disabled={isProcessing}
-						>
-							<span class="mr-1">🗑️</span> Supprimer
-							<span class="ml-1 text-xs opacity-60 font-mono">D</span>
-						</Button>
-						<!-- Reporter -->
-						<div class="relative">
-							<Button
-								variant="secondary"
-								size="sm"
-								onclick={toggleSnoozeMenu}
-								disabled={isProcessing}
-								data-testid="snooze-button"
-							>
-								<span class="mr-1">💤</span> Reporter
-								<span class="ml-1 text-xs opacity-60 font-mono">S</span>
-							</Button>
-
-							<!-- Snooze dropdown menu -->
-							{#if showSnoozeMenu}
-								<!-- Backdrop to close menu -->
-								<button
-									type="button"
-									class="fixed inset-0 z-40"
-									onclick={() => showSnoozeMenu = false}
-									aria-label="Fermer le menu"
-								></button>
-
-								<div class="absolute bottom-full left-0 mb-2 z-50 min-w-[180px] py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] shadow-lg">
-									{#each snoozeOptions as option}
-										<button
-											type="button"
-											class="w-full text-left px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors disabled:opacity-50"
-											onclick={() => handleSnoozeOption(option.value)}
-											disabled={isSnoozing}
-										>
-											{option.label}
-										</button>
-									{/each}
-								</div>
-							{/if}
+						<!-- Keyboard help (compact) -->
+						<div class="text-xs text-center text-[var(--color-text-tertiary)] flex flex-wrap justify-center gap-2">
+							<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1 rounded">J/K</span> nav</span>
+							<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1 rounded">A</span> approuver</span>
+							<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1 rounded">R</span> opus</span>
+							<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1 rounded">E</span> détails</span>
 						</div>
-					</div>
-				</div>
 
-				<!-- Keyboard shortcuts help -->
-				<div class="text-xs text-center text-[var(--color-text-tertiary)] pt-3 flex flex-wrap justify-center gap-x-3 gap-y-1">
-					<span>
-						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">J</span>
-						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-0.5">K</span>
-						<span class="ml-1">naviguer</span>
-					</span>
-					<span>
-						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">1</span>
-						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-0.5">2</span>
-						<span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded ml-0.5">3</span>
-						<span class="ml-1">options</span>
-					</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">A</span> approuver</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span> opus</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">E</span> détails</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">D</span> supprimer</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span> reporter</span>
-				</div>
-			</div>
+						<!-- Snooze/Error feedback -->
+						{#if snoozeSuccess}
+							<div class="flex items-center gap-2 p-2 rounded-lg bg-green-500/20 text-green-400 text-sm">
+								<span>💤</span><span>{snoozeSuccess}</span>
+							</div>
+						{:else if snoozeError}
+							<div class="flex items-center gap-2 p-2 rounded-lg bg-red-500/20 text-red-400 text-sm">
+								<span>⚠️</span><span>{snoozeError}</span>
+							</div>
+						{/if}
+					</div>
 				</Card>
 			</LongPressMenu>
 		</SwipeableCard>
