@@ -723,6 +723,8 @@ interface ProposedNote {
 	reasoning: string;
 	target_note_id: string | null;
 	auto_applied: boolean;
+	required: boolean;  // Whether this enrichment is required for safe archiving
+	importance: 'haute' | 'moyenne' | 'basse';  // Importance level
 }
 
 interface ProposedTask {

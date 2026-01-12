@@ -125,6 +125,13 @@ class Extraction:
     time: str | None = None
     timezone: str | None = None
     duration: int | None = None
+    # New fields for atomic transaction logic
+    required: bool = False  # If True, this extraction MUST be executed for safe archiving
+    confidence: float = 0.8  # Confidence in this specific extraction (0.0-1.0)
+
+    def is_actionable(self) -> bool:
+        """Check if this extraction leads to an action (note, task, calendar)"""
+        return bool(self.note_cible or self.omnifocus or self.calendar)
 
 
 @dataclass
@@ -167,6 +174,8 @@ class PassResult:
                     "time": e.time,
                     "timezone": e.timezone,
                     "duration": e.duration,
+                    "required": e.required,
+                    "confidence": e.confidence,
                 }
                 for e in self.extractions
             ],
@@ -279,11 +288,96 @@ def should_stop(
         return True, "max_passes"
 
     # Criterion 5: Simple action and acceptable confidence
+    # BUT only if no required extractions have low confidence
     if current.action in ["archive", "rien"] and confidence >= config.confidence_minimum:
-        logger.debug(f"Pass {current.pass_number}: Stopping - simple action with acceptable confidence")
-        return True, "simple_action"
+        global_conf = calculate_global_confidence(current)
+        if global_conf >= config.confidence_minimum:
+            logger.debug(f"Pass {current.pass_number}: Stopping - simple action with acceptable global confidence ({global_conf:.2f})")
+            return True, "simple_action"
+        else:
+            logger.debug(f"Pass {current.pass_number}: Continuing - required extractions have low confidence ({global_conf:.2f})")
 
     return False, ""
+
+
+def calculate_global_confidence(result: PassResult) -> float:
+    """
+    Calculate global confidence considering required extractions.
+
+    The global confidence is the MINIMUM of:
+    - The action confidence (overall)
+    - The confidence of any REQUIRED extractions
+
+    This ensures we don't archive an email if we're not confident
+    about capturing the important information it contains.
+
+    Args:
+        result: The pass result containing action and extractions
+
+    Returns:
+        Global confidence score (0.0-1.0)
+    """
+    action_confidence = result.confidence.overall
+
+    # Get required extractions that lead to actions
+    required_extractions = [
+        e for e in result.extractions
+        if e.required and e.is_actionable()
+    ]
+
+    if not required_extractions:
+        # No required extractions, use action confidence
+        return action_confidence
+
+    # Global confidence = min(action, all required extractions)
+    extraction_confidences = [e.confidence for e in required_extractions]
+    min_extraction_conf = min(extraction_confidences)
+
+    global_conf = min(action_confidence, min_extraction_conf)
+
+    logger.debug(
+        f"Global confidence: {global_conf:.2f} "
+        f"(action={action_confidence:.2f}, "
+        f"required_extractions={len(required_extractions)}, "
+        f"min_extraction={min_extraction_conf:.2f})"
+    )
+
+    return global_conf
+
+
+def get_required_extractions(result: PassResult) -> list[Extraction]:
+    """Get all required extractions that lead to actions."""
+    return [e for e in result.extractions if e.required and e.is_actionable()]
+
+
+def should_downgrade_action(result: PassResult, config: MultiPassConfig) -> tuple[bool, str]:
+    """
+    Check if action should be downgraded due to low extraction confidence.
+
+    If we want to archive but have required extractions with low confidence,
+    we should flag for review instead of archiving.
+
+    Returns:
+        Tuple of (should_downgrade, new_action)
+    """
+    if result.action not in ["archive", "delete", "rien"]:
+        return False, result.action
+
+    required = get_required_extractions(result)
+    if not required:
+        return False, result.action
+
+    min_conf = min(e.confidence for e in required)
+
+    # If any required extraction has low confidence, flag for review
+    if min_conf < config.confidence_minimum:
+        logger.info(
+            f"Downgrading action from '{result.action}' to 'flag' - "
+            f"required extraction confidence too low ({min_conf:.2f})"
+        )
+        return True, "flag"
+
+    return False, result.action
 
 
 def select_model(

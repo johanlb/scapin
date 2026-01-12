@@ -99,6 +99,8 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             reasoning=pn.get("reasoning", ""),
             target_note_id=pn.get("target_note_id"),
             auto_applied=pn.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+            required=pn.get("required", False),
+            importance=pn.get("importance", "moyenne"),
         )
         for pn in raw_proposed_notes
     ]
@@ -628,6 +630,8 @@ def _convert_analysis_to_response(analysis: dict | None) -> QueueItemAnalysis | 
             reasoning=pn.get("reasoning", ""),
             target_note_id=pn.get("target_note_id"),
             auto_applied=pn.get("confidence", 0) >= AUTO_APPLY_THRESHOLD,
+            required=pn.get("required", False),
+            importance=pn.get("importance", "moyenne"),
         )
         for pn in raw_proposed_notes
     ]

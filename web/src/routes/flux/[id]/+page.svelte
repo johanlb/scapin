@@ -491,11 +491,17 @@
 							</h4>
 							{#each item.analysis.proposed_notes as note}
 								{@const noteActionClass = note.action === 'create' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-300'}
+								{@const requiredClass = note.required ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-500/20 dark:text-gray-400'}
 								<div class="flex items-center justify-between text-sm py-1">
 									<span class="flex items-center gap-2">
 										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
 											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
 										</span>
+										{#if note.required}
+											<span class="text-xs px-1.5 py-0.5 rounded {requiredClass}" title="Requis pour archiver en toute sécurité">
+												Requis
+											</span>
+										{/if}
 										{note.title}
 									</span>
 									<span class="text-xs text-[var(--color-text-tertiary)]">

@@ -131,6 +131,8 @@ class MultiPassResult:
                     "time": e.time,
                     "timezone": e.timezone,
                     "duration": e.duration,
+                    "required": e.required,
+                    "confidence": e.confidence,
                 }
                 for e in self.extractions
             ],
@@ -706,10 +708,29 @@ class MultiPassAnalyzer:
                     logger.warning("Skipping extraction with empty info")
                     continue
 
+                # Determine if this extraction should be required based on type/importance
+                # if not explicitly set
+                ext_type = ext_data.get("type", "fait")
+                importance = ext_data.get("importance", "moyenne")
+                explicit_required = ext_data.get("required")
+
+                # Auto-determine required if not explicitly set
+                if explicit_required is None:
+                    required = self._should_be_required(ext_type, importance)
+                else:
+                    required = bool(explicit_required)
+
+                # Get confidence for this extraction (default 0.8 if not set)
+                ext_confidence = ext_data.get("confidence", 0.8)
+                if isinstance(ext_confidence, (int, float)):
+                    ext_confidence = float(ext_confidence)
+                else:
+                    ext_confidence = 0.8
+
                 extraction = Extraction(
                     info=info,
-                    type=ext_data.get("type", "fait"),
-                    importance=ext_data.get("importance", "moyenne"),
+                    type=ext_type,
+                    importance=importance,
                     note_cible=ext_data.get("note_cible"),
                     note_action=ext_data.get("note_action", "enrichir"),
                     omnifocus=bool(ext_data.get("omnifocus", False)),
@@ -718,6 +739,8 @@ class MultiPassAnalyzer:
                     time=ext_data.get("time"),
                     timezone=ext_data.get("timezone"),
                     duration=ext_data.get("duration"),
+                    required=required,
+                    confidence=ext_confidence,
                 )
                 extractions.append(extraction)
 
@@ -747,6 +770,51 @@ class MultiPassAnalyzer:
             extraction_confidence=float(confidence_data.get("extraction_confidence", 0.5)),
             completeness=float(confidence_data.get("completeness", 0.5)),
         )
+
+    def _should_be_required(self, ext_type: str, importance: str) -> bool:
+        """
+        Determine if an extraction should be marked as required.
+
+        An extraction is required if losing it would mean losing important
+        information when archiving/deleting the email.
+
+        Logic based on type and importance:
+        - All deadlines are ALWAYS required (any importance)
+        - High importance: decision, engagement, demande, montant, fait, evenement
+        - Medium importance: engagement, demande (typically have implicit deadlines)
+
+        Args:
+            ext_type: Type of extraction (deadline, engagement, decision, etc.)
+            importance: Importance level (haute, moyenne, basse)
+
+        Returns:
+            True if extraction should be required for safe archiving
+        """
+        ext_type = ext_type.lower()
+        importance = importance.lower()
+
+        # Deadlines are ALWAYS required regardless of importance
+        if ext_type == "deadline":
+            return True
+
+        # High importance extractions
+        if importance == "haute":
+            return ext_type in {
+                "decision",
+                "engagement",
+                "demande",
+                "montant",
+                "fait",
+                "evenement",
+            }
+
+        # Medium importance - only engagements and demandes
+        # (they typically imply follow-up actions)
+        if importance == "moyenne":
+            return ext_type in {"engagement", "demande"}
+
+        # Low importance extractions are optional
+        return False
 
     def _build_result(
         self,

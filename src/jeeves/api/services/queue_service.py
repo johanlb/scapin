@@ -114,18 +114,26 @@ class QueueService:
         modified_action: str | None = None,
         modified_category: str | None = None,
         destination: str | None = None,
+        execute_enrichments: bool = True,
     ) -> dict[str, Any] | None:
         """
-        Approve a queue item and execute the IMAP action
+        Approve a queue item and execute enrichments + IMAP action atomically.
+
+        Atomic Transaction Logic:
+        1. Execute all required enrichments first
+        2. If any required enrichment fails, abort (don't execute email action)
+        3. Execute email action only after enrichments succeed
+        4. Execute optional enrichments (best-effort, don't block)
 
         Args:
             item_id: Queue item ID
             modified_action: Override action (optional)
             modified_category: Override category (optional)
             destination: Destination folder (optional, uses option's destination if not provided)
+            execute_enrichments: Whether to execute note enrichments (default True)
 
         Returns:
-            Updated item or None if not found
+            Updated item or None if not found/failed
         """
         item = self._storage.get_item(item_id)
         if not item:
@@ -142,7 +150,39 @@ class QueueService:
         original_folder = metadata.get("folder", "INBOX")
         email_id = metadata.get("id")
 
-        # Execute the IMAP action
+        # ATOMIC TRANSACTION: Execute required enrichments FIRST
+        # If the action is archive/delete and there are required enrichments,
+        # we MUST execute them successfully before proceeding
+        enrichments_executed = []
+        enrichments_failed = []
+
+        if execute_enrichments and action in ("archive", "delete", "ARCHIVE", "DELETE"):
+            enrichment_success, enrichments_executed, enrichments_failed = await self._execute_enrichments(
+                item, only_required=True
+            )
+
+            if not enrichment_success:
+                # Required enrichments failed - abort the operation
+                logger.error(
+                    f"Required enrichments failed for item {item_id}, aborting",
+                    extra={
+                        "item_id": item_id,
+                        "action": action,
+                        "failed_enrichments": enrichments_failed,
+                    },
+                )
+                # Update item with enrichment failure info
+                self._storage.update_item(
+                    item_id,
+                    {
+                        "enrichment_status": "failed",
+                        "enrichment_error": f"Failed enrichments: {', '.join(enrichments_failed)}",
+                    },
+                )
+                # Return None to signal failure - frontend should show error
+                return None
+
+        # Execute the IMAP action (only after enrichments succeed)
         imap_success = await self._execute_email_action(item, action, dest)
 
         # Bug #52 fix: Only mark as approved if IMAP action succeeded
@@ -154,6 +194,20 @@ class QueueService:
             )
             # Return None to signal failure - frontend will show error
             return None
+
+        # Execute optional enrichments (best-effort, don't block on failures)
+        if execute_enrichments:
+            optional_success, opt_executed, opt_failed = await self._execute_enrichments(
+                item, only_required=False  # Execute ALL remaining enrichments
+            )
+            enrichments_executed.extend([e for e in opt_executed if e not in enrichments_executed])
+            enrichments_failed.extend(opt_failed)
+
+            if opt_failed:
+                logger.warning(
+                    f"Some optional enrichments failed for item {item_id}",
+                    extra={"failed": opt_failed}
+                )
 
         if email_id:
             # Record action in history for undo capability
@@ -186,6 +240,12 @@ class QueueService:
         if modified_category:
             updates["modified_category"] = modified_category
 
+        # Track enrichment results
+        if enrichments_executed or enrichments_failed:
+            updates["enrichment_status"] = "complete" if not enrichments_failed else "partial"
+            updates["enrichments_executed"] = enrichments_executed
+            updates["enrichments_failed"] = enrichments_failed
+
         success = self._storage.update_item(item_id, updates)
         if not success:
             return None
@@ -204,6 +264,8 @@ class QueueService:
                 "original_confidence": original_confidence,
                 "destination": dest,
                 "subject": metadata.get("subject", "")[:50],
+                "enrichments_executed": enrichments_executed,
+                "enrichments_failed": enrichments_failed,
             }
         )
 
@@ -319,6 +381,196 @@ class QueueService:
 
         except Exception as e:
             logger.error(f"Failed to execute action {action} on email {email_id}: {e}")
+            return False
+
+    async def _execute_enrichments(
+        self,
+        item: dict[str, Any],
+        only_required: bool = True,
+    ) -> tuple[bool, list[str], list[str]]:
+        """
+        Execute note enrichments for a queue item.
+
+        This executes all proposed_notes enrichments atomically. If any required
+        enrichment fails, the entire operation is considered failed.
+
+        Args:
+            item: Queue item with analysis containing proposed_notes
+            only_required: If True, only execute required enrichments
+
+        Returns:
+            Tuple of (success, executed_enrichments, failed_enrichments)
+        """
+        analysis = item.get("analysis", {})
+        proposed_notes = analysis.get("proposed_notes", [])
+        source_id = item.get("id", "unknown")
+
+        if not proposed_notes:
+            logger.debug(f"No proposed notes to execute for item {source_id}")
+            return True, [], []
+
+        # Filter to only required if specified
+        if only_required:
+            notes_to_execute = [n for n in proposed_notes if n.get("required", False)]
+        else:
+            notes_to_execute = proposed_notes
+
+        if not notes_to_execute:
+            logger.debug(f"No {'required ' if only_required else ''}notes to execute for item {source_id}")
+            return True, [], []
+
+        # Execute enrichments
+        executed = []
+        failed = []
+
+        for note_proposal in notes_to_execute:
+            note_title = note_proposal.get("title")
+            content = note_proposal.get("content_summary")
+            note_type = note_proposal.get("note_type", "fait")
+            importance = note_proposal.get("importance", "moyenne")
+            action = note_proposal.get("action", "enrichir")
+
+            if not note_title or not content:
+                logger.warning(f"Skipping enrichment with missing title or content: {note_proposal}")
+                continue
+
+            try:
+                success = await self._execute_single_enrichment(
+                    note_title=note_title,
+                    content=content,
+                    note_type=note_type,
+                    importance=importance,
+                    action=action,
+                    source_id=source_id,
+                )
+
+                if success:
+                    executed.append(note_title)
+                    logger.info(
+                        f"Executed enrichment for note '{note_title}'",
+                        extra={"note_type": note_type, "importance": importance}
+                    )
+                else:
+                    failed.append(note_title)
+                    logger.warning(f"Failed to enrich note '{note_title}'")
+
+            except Exception as e:
+                failed.append(note_title)
+                logger.error(f"Error enriching note '{note_title}': {e}")
+
+        # Check if any required enrichments failed
+        has_required_failures = False
+        for note_proposal in notes_to_execute:
+            if note_proposal.get("required", False) and note_proposal.get("title") in failed:
+                has_required_failures = True
+                break
+
+        overall_success = not has_required_failures
+
+        logger.info(
+            f"Enrichments complete: {len(executed)} executed, {len(failed)} failed, success={overall_success}",
+            extra={"item_id": source_id, "executed": executed, "failed": failed}
+        )
+
+        return overall_success, executed, failed
+
+    async def _execute_single_enrichment(
+        self,
+        note_title: str,
+        content: str,
+        note_type: str,
+        importance: str,
+        action: str,
+        source_id: str,
+    ) -> bool:
+        """
+        Execute a single note enrichment.
+
+        Args:
+            note_title: Title of the target note
+            content: Information to add
+            note_type: Type of information (fait, decision, engagement, etc.)
+            importance: Importance level (haute, moyenne, basse)
+            action: Action to perform (enrichir or creer)
+            source_id: Source event ID for traceability
+
+        Returns:
+            True if successful
+        """
+        return await asyncio.to_thread(
+            self._execute_single_enrichment_sync,
+            note_title,
+            content,
+            note_type,
+            importance,
+            action,
+            source_id,
+        )
+
+    def _execute_single_enrichment_sync(
+        self,
+        note_title: str,
+        content: str,
+        note_type: str,
+        importance: str,
+        action: str,
+        source_id: str,
+    ) -> bool:
+        """Synchronous enrichment execution (runs in thread pool)"""
+        from src.passepartout.note_manager import NoteManager
+
+        try:
+            # Get or create note manager
+            note_manager = NoteManager()
+
+            if action == "creer":
+                # Create a new note
+                note = note_manager.create_note(
+                    title=note_title,
+                    content=f"# {note_title}\n\n",
+                    tags=[note_type],
+                )
+                if note:
+                    # Add the info to the new note
+                    return note_manager.add_info(
+                        note_id=note.note_id,
+                        info=content,
+                        info_type=note_type,
+                        importance=importance,
+                        source_id=source_id,
+                    )
+                return False
+            else:
+                # Enrichir: find existing note by title
+                notes = note_manager.search_notes(note_title, top_k=5)
+                matching_note = None
+
+                for note, _score in notes:
+                    if note.title.lower() == note_title.lower():
+                        matching_note = note
+                        break
+
+                if not matching_note:
+                    # Note not found - log and return success (non-blocking)
+                    logger.warning(
+                        f"Note '{note_title}' not found for enrichment, skipping",
+                        extra={"note_title": note_title, "note_type": note_type}
+                    )
+                    # Return True because we don't want to block on missing notes
+                    # The user can still review and create the note manually
+                    return True
+
+                # Add info to existing note
+                return note_manager.add_info(
+                    note_id=matching_note.note_id,
+                    info=content,
+                    info_type=note_type,
+                    importance=importance,
+                    source_id=source_id,
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to execute enrichment for '{note_title}': {e}", exc_info=True)
             return False
 
     async def modify_item(
@@ -893,9 +1145,11 @@ class QueueService:
                     "note_type": ext.type,  # fait, decision, engagement, deadline, etc.
                     "title": ext.note_cible,  # Target note title
                     "content_summary": ext.info,  # The extracted information
-                    "confidence": 0.8 if ext.importance == "haute" else 0.6 if ext.importance == "moyenne" else 0.4,
+                    "confidence": ext.confidence,  # Confidence in this extraction
                     "reasoning": f"Extraction de type '{ext.type}' (importance: {ext.importance})",
                     "target_note_id": None,  # Would need lookup to find existing note
+                    "required": ext.required,  # Required for safe archiving
+                    "importance": ext.importance,  # haute, moyenne, basse
                 })
             if ext.omnifocus:
                 proposed_tasks.append({

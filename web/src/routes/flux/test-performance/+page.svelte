@@ -56,7 +56,7 @@
 					options: [],
 					// Sprint 2: Entity extraction fields
 					entities: i % 5 === 0 ? { person: [{ value: 'Jean Dupont', confidence: 0.9, type: 'person', source: 'extraction', metadata: {} }] } : {},
-					proposed_notes: i % 7 === 0 ? [{ action: 'create' as const, note_type: 'personne', title: 'Jean Dupont', content_summary: 'Contact professionnel', confidence: 0.85, reasoning: 'Nouvelle personne détectée', auto_applied: false, target_note_id: null }] : [],
+					proposed_notes: i % 7 === 0 ? [{ action: 'create' as const, note_type: 'personne', title: 'Jean Dupont', content_summary: 'Contact professionnel', confidence: 0.85, reasoning: 'Nouvelle personne détectée', auto_applied: false, target_note_id: null, required: false, importance: 'moyenne' as const }] : [],
 					proposed_tasks: i % 10 === 0 ? [{ title: 'Répondre à Jean', note: 'Email urgent', project: 'Communications', due_date: '2026-01-10', confidence: 0.9, reasoning: 'Action requise', auto_applied: false }] : [],
 					context_used: i % 6 === 0 ? ['note-jean-dupont-abc123', 'note-projet-xyz-789'] : [],
 					// Sprint 3: Draft replies

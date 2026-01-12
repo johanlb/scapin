@@ -39,6 +39,8 @@ class ProposedNoteResponse(BaseModel):
     reasoning: str = Field("", description="Why this note should be created/enriched")
     target_note_id: str | None = Field(None, description="Target note ID for enrichment")
     auto_applied: bool = Field(False, description="Whether this was auto-applied (conf >= 0.90)")
+    required: bool = Field(False, description="Whether this enrichment is required for safe archiving")
+    importance: str = Field("moyenne", description="Importance level: haute, moyenne, basse")
 
 
 class ProposedTaskResponse(BaseModel):

@@ -1180,11 +1180,17 @@
 						<div class="space-y-2">
 							{#each currentItem.analysis.proposed_notes as note}
 								{@const noteActionClass = note.action === 'create' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-300'}
+								{@const requiredClass = 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'}
 								<div class="flex items-center justify-between text-sm">
 									<span class="flex items-center gap-2">
 										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
 											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
 										</span>
+										{#if note.required}
+											<span class="text-xs px-1.5 py-0.5 rounded {requiredClass}" title="Requis pour archiver en toute sécurité">
+												Requis
+											</span>
+										{/if}
 										<span class="text-[var(--color-text-primary)]">{note.title}</span>
 										{#if note.auto_applied}
 											<span class="text-xs px-1.5 py-0.5 rounded" style="background: rgba(var(--color-success-rgb, 34, 197, 94), 0.2); color: var(--color-success)">
