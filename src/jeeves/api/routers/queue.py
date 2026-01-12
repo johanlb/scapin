@@ -16,6 +16,7 @@ from src.jeeves.api.models.queue import (
     AttachmentResponse,
     BulkReanalyzeResponse,
     EntityResponse,
+    ExtractionConfidenceResponse,
     ModifyRequest,
     ProposedNoteResponse,
     ProposedTaskResponse,
@@ -44,6 +45,50 @@ def _parse_datetime(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return None
+
+
+def _parse_extraction_confidence(
+    conf_data: dict | float | None,
+) -> tuple[float, ExtractionConfidenceResponse | None, str | None]:
+    """
+    Parse extraction confidence data.
+
+    Returns:
+        tuple: (overall_score, confidence_details, weakness_label)
+    """
+    if conf_data is None:
+        return 0.8, None, None
+
+    if isinstance(conf_data, (int, float)):
+        # Legacy single score format
+        return float(conf_data), None, None
+
+    if isinstance(conf_data, dict):
+        # New 4-dimension format
+        quality = float(conf_data.get("quality", 0.8))
+        target_match = float(conf_data.get("target_match", 0.8))
+        relevance = float(conf_data.get("relevance", 0.8))
+        completeness = float(conf_data.get("completeness", 0.8))
+
+        # Calculate geometric mean
+        overall = (quality * target_match * relevance * completeness) ** 0.25
+
+        # Use pre-computed overall if available (from backend)
+        overall = float(conf_data.get("overall", overall))
+
+        # Get weakness label if provided
+        weakness_label = conf_data.get("weakness_label")
+
+        details = ExtractionConfidenceResponse(
+            quality=quality,
+            target_match=target_match,
+            relevance=relevance,
+            completeness=completeness,
+            overall=overall,
+        )
+        return overall, details, weakness_label
+
+    return 0.8, None, None
 
 
 def _convert_item_to_response(item: dict) -> QueueItemResponse:
@@ -89,21 +134,39 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
 
     # Convert proposed_notes to response format
     raw_proposed_notes = analysis.get("proposed_notes", [])
-    proposed_notes = [
-        ProposedNoteResponse(
-            action=pn.get("action", "create"),
-            note_type=pn.get("note_type", "general"),
-            title=pn.get("title", ""),
-            content_summary=pn.get("content_summary", ""),
-            confidence=pn.get("confidence", 0.0),
-            reasoning=pn.get("reasoning", ""),
-            target_note_id=pn.get("target_note_id"),
-            auto_applied=should_auto_apply(pn.get("confidence", 0), pn.get("required", False)),
-            required=pn.get("required", False),
-            importance=pn.get("importance", "moyenne"),
+    proposed_notes = []
+    for pn in raw_proposed_notes:
+        # Parse 4-dimension confidence
+        conf_score, conf_details, weakness_label = _parse_extraction_confidence(
+            pn.get("confidence")
         )
-        for pn in raw_proposed_notes
-    ]
+        # Also check for pre-computed confidence_score from backend
+        if "confidence_score" in pn:
+            conf_score = float(pn["confidence_score"])
+        # Get weakness_label from backend if available
+        if "weakness_label" in pn:
+            weakness_label = pn["weakness_label"]
+
+        required = pn.get("required", False)
+        manually_approved = pn.get("manually_approved")
+
+        proposed_notes.append(
+            ProposedNoteResponse(
+                action=pn.get("action", "create"),
+                note_type=pn.get("note_type", "general"),
+                title=pn.get("title", ""),
+                content_summary=pn.get("content_summary", ""),
+                confidence=conf_score,
+                confidence_details=conf_details,
+                weakness_label=weakness_label,
+                reasoning=pn.get("reasoning", ""),
+                target_note_id=pn.get("target_note_id"),
+                auto_applied=should_auto_apply(conf_score, required, manually_approved),
+                required=required,
+                importance=pn.get("importance", "moyenne"),
+                manually_approved=manually_approved,
+            )
+        )
 
     # Convert proposed_tasks to response format
     raw_proposed_tasks = analysis.get("proposed_tasks", [])
@@ -633,21 +696,39 @@ def _convert_analysis_to_response(analysis: dict | None) -> QueueItemAnalysis | 
 
     # Convert proposed_notes to response format
     raw_proposed_notes = analysis.get("proposed_notes", [])
-    proposed_notes = [
-        ProposedNoteResponse(
-            action=pn.get("action", "create"),
-            note_type=pn.get("note_type", "general"),
-            title=pn.get("title", ""),
-            content_summary=pn.get("content_summary", ""),
-            confidence=pn.get("confidence", 0.0),
-            reasoning=pn.get("reasoning", ""),
-            target_note_id=pn.get("target_note_id"),
-            auto_applied=should_auto_apply(pn.get("confidence", 0), pn.get("required", False)),
-            required=pn.get("required", False),
-            importance=pn.get("importance", "moyenne"),
+    proposed_notes = []
+    for pn in raw_proposed_notes:
+        # Parse 4-dimension confidence
+        conf_score, conf_details, weakness_label = _parse_extraction_confidence(
+            pn.get("confidence")
         )
-        for pn in raw_proposed_notes
-    ]
+        # Also check for pre-computed confidence_score from backend
+        if "confidence_score" in pn:
+            conf_score = float(pn["confidence_score"])
+        # Get weakness_label from backend if available
+        if "weakness_label" in pn:
+            weakness_label = pn["weakness_label"]
+
+        required = pn.get("required", False)
+        manually_approved = pn.get("manually_approved")
+
+        proposed_notes.append(
+            ProposedNoteResponse(
+                action=pn.get("action", "create"),
+                note_type=pn.get("note_type", "general"),
+                title=pn.get("title", ""),
+                content_summary=pn.get("content_summary", ""),
+                confidence=conf_score,
+                confidence_details=conf_details,
+                weakness_label=weakness_label,
+                reasoning=pn.get("reasoning", ""),
+                target_note_id=pn.get("target_note_id"),
+                auto_applied=should_auto_apply(conf_score, required, manually_approved),
+                required=required,
+                importance=pn.get("importance", "moyenne"),
+                manually_approved=manually_approved,
+            )
+        )
 
     # Convert proposed_tasks to response format
     raw_proposed_tasks = analysis.get("proposed_tasks", [])

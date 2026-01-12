@@ -245,24 +245,42 @@ class ProposedTask:
 
 
 # Threshold for auto-applying proposed notes/tasks
-AUTO_APPLY_THRESHOLD = 0.90  # For optional enrichments
-AUTO_APPLY_THRESHOLD_REQUIRED = 0.85  # For required enrichments (aligned with action minimum)
+# Adjusted for geometric mean confidence (4 dimensions)
+AUTO_APPLY_THRESHOLD = 0.85  # For optional enrichments
+AUTO_APPLY_THRESHOLD_REQUIRED = 0.80  # For required enrichments
 
 
-def should_auto_apply(confidence: float, is_required: bool) -> bool:
+def should_auto_apply(
+    confidence: float,
+    is_required: bool,
+    manually_approved: bool | None = None,
+) -> bool:
     """
     Determine if an enrichment should be auto-applied.
 
-    Required enrichments use a lower threshold (85%) to ensure critical
+    Manual override takes precedence:
+    - manually_approved=True → always apply
+    - manually_approved=False → never apply
+    - manually_approved=None → use confidence threshold
+
+    Required enrichments use a lower threshold (80%) to ensure critical
     information is saved before archiving the email.
-    Optional enrichments use a higher threshold (90%) for extra caution.
+    Optional enrichments use a higher threshold (85%) for extra caution.
 
     Args:
-        confidence: The confidence score (0.0-1.0)
+        confidence: The confidence score (0.0-1.0), typically geometric mean
         is_required: Whether this enrichment is marked as required
+        manually_approved: User override (True=force, False=reject, None=auto)
 
     Returns:
-        True if the enrichment should be auto-applied
+        True if the enrichment should be applied
     """
+    # Manual override takes precedence
+    if manually_approved is True:
+        return True
+    if manually_approved is False:
+        return False
+
+    # Auto-apply based on confidence threshold
     threshold = AUTO_APPLY_THRESHOLD_REQUIRED if is_required else AUTO_APPLY_THRESHOLD
     return confidence >= threshold

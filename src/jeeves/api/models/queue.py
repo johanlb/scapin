@@ -28,6 +28,16 @@ class EntityResponse(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
+class ExtractionConfidenceResponse(BaseModel):
+    """4-dimension confidence for an extraction"""
+
+    quality: float = Field(0.8, description="Info accuracy (0-1)")
+    target_match: float = Field(0.8, description="Correct target note (0-1)")
+    relevance: float = Field(0.8, description="Worth saving (0-1)")
+    completeness: float = Field(0.8, description="No missing details (0-1)")
+    overall: float = Field(0.8, description="Geometric mean of 4 dimensions")
+
+
 class ProposedNoteResponse(BaseModel):
     """Proposed note creation or enrichment"""
 
@@ -35,12 +45,21 @@ class ProposedNoteResponse(BaseModel):
     note_type: str = Field(..., description="Type of note (personne, projet, etc.)")
     title: str = Field(..., description="Note title")
     content_summary: str = Field(..., description="Content summary")
-    confidence: float = Field(..., description="Proposal confidence 0-1")
+    confidence: float = Field(..., description="Overall confidence (geometric mean) 0-1")
+    confidence_details: ExtractionConfidenceResponse | None = Field(
+        None, description="4-dimension confidence breakdown"
+    )
+    weakness_label: str | None = Field(
+        None, description="Label for weakest dimension if significantly lower"
+    )
     reasoning: str = Field("", description="Why this note should be created/enriched")
     target_note_id: str | None = Field(None, description="Target note ID for enrichment")
-    auto_applied: bool = Field(False, description="Whether this was auto-applied (conf >= 0.90)")
+    auto_applied: bool = Field(False, description="Whether this was auto-applied (conf >= threshold)")
     required: bool = Field(False, description="Whether this enrichment is required for safe archiving")
     importance: str = Field("moyenne", description="Importance level: haute, moyenne, basse")
+    manually_approved: bool | None = Field(
+        None, description="User override: True=force save, False=reject, None=auto"
+    )
 
 
 class ProposedTaskResponse(BaseModel):
@@ -155,6 +174,15 @@ class QueueStatsResponse(BaseModel):
     newest_item: datetime | None = Field(None, description="Newest item timestamp")
 
 
+class EnrichmentApprovalUpdate(BaseModel):
+    """Manual approval update for a single enrichment"""
+
+    index: int = Field(..., description="Index of the enrichment in proposed_notes list")
+    approved: bool | None = Field(
+        ..., description="True=force save, False=reject, None=reset to auto"
+    )
+
+
 class ApproveRequest(BaseModel):
     """Request to approve a queue item"""
 
@@ -169,6 +197,10 @@ class ApproveRequest(BaseModel):
     destination: str | None = Field(
         None,
         description="Destination folder for archive action (optional)",
+    )
+    enrichment_approvals: list[EnrichmentApprovalUpdate] | None = Field(
+        None,
+        description="Manual approval overrides for enrichments (optional)",
     )
 
 

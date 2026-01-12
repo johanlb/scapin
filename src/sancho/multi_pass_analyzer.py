@@ -36,6 +36,7 @@ from src.sancho.convergence import (
     AnalysisContext,
     DecomposedConfidence,
     Extraction,
+    ExtractionConfidence,
     MultiPassConfig,
     PassResult,
     PassType,
@@ -789,17 +790,21 @@ class MultiPassAnalyzer:
                 else:
                     required = bool(explicit_required)
 
-                # Get confidence for this extraction
-                # Use global analysis confidence as default if not specified
-                ext_confidence = ext_data.get("confidence")
-                if ext_confidence is None:
-                    ext_confidence = default_confidence
-                elif isinstance(ext_confidence, (int, float)):
-                    ext_confidence = float(ext_confidence)
+                # Get confidence for this extraction (4 dimensions or single score)
+                ext_confidence_data = ext_data.get("confidence")
+                if ext_confidence_data is None:
+                    # Use global confidence as default
+                    ext_confidence = ExtractionConfidence.from_single_score(default_confidence)
+                elif isinstance(ext_confidence_data, dict):
+                    # New format: 4 dimensions
+                    ext_confidence = ExtractionConfidence.from_dict(ext_confidence_data)
+                elif isinstance(ext_confidence_data, (int, float)):
+                    # Backwards compatibility: single score
+                    ext_confidence = ExtractionConfidence.from_single_score(float(ext_confidence_data))
                 else:
-                    ext_confidence = default_confidence
+                    ext_confidence = ExtractionConfidence.from_single_score(default_confidence)
 
-                # Check for past dates (> 30 days ago)
+                # Check for past dates (> 90 days ago)
                 ext_date = ext_data.get("date")
                 has_obsolete_date = False
                 if ext_date:
@@ -808,7 +813,9 @@ class MultiPassAnalyzer:
                         # Don't mark as required if date is obsolete
                         required = False
                         # Set very low confidence to signal "not actionable"
-                        ext_confidence = 0.0
+                        ext_confidence = ExtractionConfidence(
+                            quality=0.0, target_match=0.0, relevance=0.0, completeness=0.0
+                        )
                         logger.debug(f"Extraction with obsolete date ({ext_date}): not required, confidence=0")
 
                 extraction = Extraction(

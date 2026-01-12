@@ -111,6 +111,90 @@ class DecomposedConfidence:
 
 
 @dataclass
+class ExtractionConfidence:
+    """
+    Decomposed confidence for a single extraction.
+
+    4 dimensions evaluated independently:
+    - quality: Is the extracted info accurate and well-parsed?
+    - target_match: Is the target note correct?
+    - relevance: Is this info worth saving?
+    - completeness: Is the extraction complete (no missing details)?
+
+    Overall confidence is calculated using geometric mean, which:
+    - Penalizes weak dimensions (not hidden by strong ones)
+    - Is less brutal than min() (one weakness doesn't kill everything)
+    """
+
+    quality: float = 0.8  # Info accuracy
+    target_match: float = 0.8  # Correct target note
+    relevance: float = 0.8  # Worth saving
+    completeness: float = 0.8  # No missing details
+
+    @property
+    def overall(self) -> float:
+        """Calculate overall confidence using geometric mean of 4 dimensions."""
+        product = self.quality * self.target_match * self.relevance * self.completeness
+        # Geometric mean: 4th root of product
+        return product ** 0.25
+
+    @property
+    def weakest_dimension(self) -> tuple[str, float]:
+        """Return the weakest dimension name and value."""
+        dims = {
+            "quality": self.quality,
+            "target_match": self.target_match,
+            "relevance": self.relevance,
+            "completeness": self.completeness,
+        }
+        weakest = min(dims, key=dims.get)  # type: ignore
+        return weakest, dims[weakest]
+
+    @property
+    def weakness_label(self) -> str | None:
+        """Return a human-readable label for the weakest dimension, if significantly lower."""
+        dim, value = self.weakest_dimension
+        # Only show label if this dimension is notably weaker (> 10% below average)
+        avg = (self.quality + self.target_match + self.relevance + self.completeness) / 4
+        if value < avg - 0.1:
+            labels = {
+                "quality": "extraction incertaine",
+                "target_match": "cible à vérifier",
+                "relevance": "pertinence douteuse",
+                "completeness": "info incomplète",
+            }
+            return labels.get(dim)
+        return None
+
+    def to_dict(self) -> dict[str, float]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "quality": self.quality,
+            "target_match": self.target_match,
+            "relevance": self.relevance,
+            "completeness": self.completeness,
+            "overall": self.overall,
+        }
+
+    @classmethod
+    def from_single_score(cls, score: float) -> "ExtractionConfidence":
+        """Create from a single score (backwards compatibility)."""
+        return cls(quality=score, target_match=score, relevance=score, completeness=score)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ExtractionConfidence":
+        """Create from dictionary."""
+        if isinstance(data, (int, float)):
+            return cls.from_single_score(float(data))
+        return cls(
+            quality=float(data.get("quality", 0.8)),
+            target_match=float(data.get("target_match", 0.8)),
+            relevance=float(data.get("relevance", 0.8)),
+            completeness=float(data.get("completeness", 0.8)),
+        )
+
+
+@dataclass
 class Extraction:
     """A single extracted piece of information"""
 
@@ -125,9 +209,16 @@ class Extraction:
     time: str | None = None
     timezone: str | None = None
     duration: int | None = None
-    # New fields for atomic transaction logic
+    # Fields for atomic transaction logic
     required: bool = False  # If True, this extraction MUST be executed for safe archiving
-    confidence: float = 0.8  # Confidence in this specific extraction (0.0-1.0)
+    confidence: ExtractionConfidence = field(default_factory=ExtractionConfidence)
+    # Manual override
+    manually_approved: bool | None = None  # None=auto, True=forced, False=rejected
+
+    @property
+    def confidence_score(self) -> float:
+        """Get the overall confidence score (geometric mean of 4 dimensions)."""
+        return self.confidence.overall
 
     def is_actionable(self) -> bool:
         """Check if this extraction leads to an action (note, task, calendar)"""
@@ -175,7 +266,10 @@ class PassResult:
                     "timezone": e.timezone,
                     "duration": e.duration,
                     "required": e.required,
-                    "confidence": e.confidence,
+                    "confidence": e.confidence.to_dict(),
+                    "confidence_score": e.confidence_score,
+                    "weakness_label": e.confidence.weakness_label,
+                    "manually_approved": e.manually_approved,
                 }
                 for e in self.extractions
             ],

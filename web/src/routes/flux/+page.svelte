@@ -13,14 +13,19 @@
 
 	// Constants for filtering - synchronized with backend auto-apply thresholds
 	// See src/core/entities.py: AUTO_APPLY_THRESHOLD and AUTO_APPLY_THRESHOLD_REQUIRED
-	const AUTO_APPLY_THRESHOLD_REQUIRED = 0.85; // Required enrichments
-	const AUTO_APPLY_THRESHOLD_OPTIONAL = 0.90; // Optional enrichments
+	// Adjusted for geometric mean confidence (4 dimensions)
+	const AUTO_APPLY_THRESHOLD_REQUIRED = 0.80; // Required enrichments
+	const AUTO_APPLY_THRESHOLD_OPTIONAL = 0.85; // Optional enrichments
 	const DAYS_THRESHOLD = 90; // Days after which a past date is considered obsolete
 
 	/**
-	 * Check if a note will be auto-applied based on its confidence and required status.
+	 * Check if a note will be applied based on its confidence, required status, and manual override.
 	 */
 	function willNoteBeAutoApplied(note: ProposedNote): boolean {
+		// Manual override takes precedence
+		if (note.manually_approved === true) return true;
+		if (note.manually_approved === false) return false;
+		// Otherwise, use confidence threshold
 		const threshold = note.required ? AUTO_APPLY_THRESHOLD_REQUIRED : AUTO_APPLY_THRESHOLD_OPTIONAL;
 		return note.confidence >= threshold;
 	}
@@ -1253,12 +1258,26 @@
 							Notes proposées
 						</h4>
 						<div class="space-y-2">
-							{#each filterNotes(currentItem.analysis.proposed_notes, showLevel3) as note}
+							{#each filterNotes(currentItem.analysis.proposed_notes, showLevel3) as note, noteIndex}
 								{@const noteActionClass = note.action === 'create' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-300'}
 								{@const willApply = willNoteBeAutoApplied(note)}
 								{@const threshold = note.required ? AUTO_APPLY_THRESHOLD_REQUIRED : AUTO_APPLY_THRESHOLD_OPTIONAL}
-								<div class="flex items-center justify-between text-sm {!willApply ? 'opacity-60' : ''}">
+								{@const isManuallySet = note.manually_approved !== null && note.manually_approved !== undefined}
+								<div class="flex items-center justify-between text-sm {!willApply && !isManuallySet ? 'opacity-60' : ''}">
 									<span class="flex items-center gap-2">
+										{#if showLevel3}
+											<!-- Manual approval checkbox in Details mode -->
+											<input
+												type="checkbox"
+												checked={note.manually_approved === true || (note.manually_approved === null && willApply)}
+												class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+												title={note.manually_approved === true ? 'Forcé manuellement' : note.manually_approved === false ? 'Rejeté manuellement' : 'Automatique'}
+												onchange={(e) => {
+													// TODO: Implement API call to update manually_approved
+													console.log('Toggle note approval:', noteIndex, e.currentTarget.checked);
+												}}
+											/>
+										{/if}
 										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
 											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
 										</span>
@@ -1272,17 +1291,28 @@
 										{:else}
 											<span class="text-[var(--color-text-tertiary)] italic">cible non identifiée</span>
 										{/if}
-										{#if willApply}
+										{#if isManuallySet}
+											<span class="text-xs px-1.5 py-0.5 rounded {note.manually_approved ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300'}" title={note.manually_approved ? 'Forcé par utilisateur' : 'Rejeté par utilisateur'}>
+												{note.manually_approved ? '👤 Forcé' : '👤 Rejeté'}
+											</span>
+										{:else if willApply}
 											<span class="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300" title="Sera enregistré automatiquement">
 												✓ Auto
 											</span>
 										{/if}
 									</span>
-									<span
-										class="text-xs font-medium px-1.5 py-0.5 rounded {willApply ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
-										title={willApply ? `Sera enregistré (≥${Math.round(threshold * 100)}%)` : `En attente de validation (<${Math.round(threshold * 100)}%)`}
-									>
-										{Math.round(note.confidence * 100)}%
+									<span class="flex items-center gap-1">
+										{#if showLevel3 && note.weakness_label}
+											<span class="text-xs text-[var(--color-text-tertiary)] italic">
+												· {note.weakness_label}
+											</span>
+										{/if}
+										<span
+											class="text-xs font-medium px-1.5 py-0.5 rounded {willApply || note.manually_approved === true ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}"
+											title={willApply ? `Sera enregistré (≥${Math.round(threshold * 100)}%)` : `En attente de validation (<${Math.round(threshold * 100)}%)`}
+										>
+											{Math.round(note.confidence * 100)}%
+										</span>
 									</span>
 								</div>
 								{#if showLevel3 && note.reasoning}

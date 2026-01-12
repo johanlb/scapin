@@ -714,17 +714,28 @@ interface Entity {
 	metadata: Record<string, unknown>;
 }
 
+interface ExtractionConfidence {
+	quality: number;
+	target_match: number;
+	relevance: number;
+	completeness: number;
+	overall: number;
+}
+
 interface ProposedNote {
 	action: 'create' | 'enrich';
 	note_type: string;
 	title: string;
 	content_summary: string;
-	confidence: number;
+	confidence: number;  // Overall confidence (geometric mean)
+	confidence_details: ExtractionConfidence | null;  // 4-dimension breakdown
+	weakness_label: string | null;  // Label for weakest dimension
 	reasoning: string;
 	target_note_id: string | null;
 	auto_applied: boolean;
 	required: boolean;  // Whether this enrichment is required for safe archiving
 	importance: 'haute' | 'moyenne' | 'basse';  // Importance level
+	manually_approved: boolean | null;  // User override: true=force, false=reject, null=auto
 }
 
 interface ProposedTask {
@@ -2449,6 +2460,7 @@ export type {
 	QueueStats,
 	// Sprint 2: Entity types
 	Entity,
+	ExtractionConfidence,
 	ProposedNote,
 	ProposedTask,
 	// Email types

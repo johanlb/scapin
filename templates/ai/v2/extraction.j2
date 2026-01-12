@@ -119,7 +119,12 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
       "priority": "haute|normale|basse (optionnel, OmniFocus)",
       "project": "Nom du projet OmniFocus (optionnel)",
       "required": false,
-      "confidence": 0.85
+      "confidence": {
+        "quality": 0.90,
+        "target_match": 0.85,
+        "relevance": 0.90,
+        "completeness": 0.95
+      }
     }
   ],
   "action": "archive|flag|queue|delete|rien",
@@ -139,13 +144,27 @@ Tu es Scapin, assistant cognitif personnel de Johan. Ta mission est d'extraire l
   - `priority` : Priorité OmniFocus (haute, normale, basse)
   - `project` : Projet OmniFocus cible pour la tâche
   - `required` : **CRITIQUE** - True si cette extraction DOIT être exécutée pour que l'action email soit sûre (voir règles ci-dessous)
-  - `confidence` : Score de confiance [0.0-1.0] pour CETTE extraction spécifique
+  - `confidence` : **OBJET avec 4 dimensions** (voir section dédiée ci-dessous)
 - **action** : Que faire de l'événement après analyse (voir règles ci-dessous)
 - **confidence** : Score de confiance GLOBAL [0.0-1.0] pour l'action email
   - < 0.7 : Incertain, sera escaladé vers un modèle plus puissant
-  - ≥ 0.85 : Haute confiance, application automatique possible
+  - ≥ 0.80 : Haute confiance, application automatique possible
 - **raisonnement** : Justification courte de l'analyse
 - **draft_reply** : Brouillon de réponse suggéré (optionnel, voir règles détaillées ci-dessous)
+
+### ⚠️ Confidence par extraction : 4 dimensions
+
+Chaque extraction a un objet `confidence` avec 4 scores indépendants [0.0-1.0] :
+
+| Dimension | Question à évaluer | Exemples |
+|-----------|-------------------|----------|
+| **quality** | L'info extraite est-elle correcte et bien parsée ? | Montant bien lu ? Nom complet ? Date au bon format ? |
+| **target_match** | La note cible est-elle la bonne ? | "Projet Alpha" est bien le bon projet ? Pas de confusion avec "Projet Beta" ? |
+| **relevance** | Cette info mérite-t-elle d'être sauvegardée ? | Décision importante vs détail mineur ? Info utile long-terme ? |
+| **completeness** | L'extraction est-elle complète ? | "Réunion mardi" → manque l'heure ? Montant sans devise ? |
+
+Le score global est la **moyenne géométrique** des 4 dimensions.
+Une dimension faible tire le score vers le bas (ex: target_match=0.5 avec les autres à 0.9 → global ≈ 0.78)
 
 ### ⚠️ Règles CRITIQUES pour `required` et `confidence` par extraction
 
@@ -368,7 +387,12 @@ Quand des notes sont fournies dans la section CONTEXTE :
       "omnifocus": false,
       "calendar": false,
       "required": true,
-      "confidence": 0.95
+      "confidence": {
+        "quality": 0.95,
+        "target_match": 0.90,
+        "relevance": 0.95,
+        "completeness": 0.95
+      }
     },
     {
       "info": "MVP à livrer pour le 15 mars (Marc)",
@@ -382,7 +406,12 @@ Quand des notes sont fournies dans la section CONTEXTE :
       "priority": "haute",
       "project": "Projet Alpha",
       "required": true,
-      "confidence": 0.92
+      "confidence": {
+        "quality": 0.95,
+        "target_match": 0.90,
+        "relevance": 0.95,
+        "completeness": 0.85
+      }
     }
   ],
   "action": "archive",
@@ -391,7 +420,7 @@ Quand des notes sont fournies dans la section CONTEXTE :
 }
 ```
 
-**Note** : La confiance globale (0.92) = min(0.95, 0.92) car les deux extractions sont required.
+**Note** : La 2ème extraction a completeness=0.85 car "Marc" est identifié mais pas son rôle exact.
 
 ### Exemple 2 : Newsletter sans valeur permanente
 
