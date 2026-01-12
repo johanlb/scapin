@@ -207,6 +207,7 @@ class MultiPassConfig:
     max_context_notes: int = 5
     max_calendar_events: int = 10
     max_email_history: int = 5
+    max_content_chars: int = 8000  # Max content chars for template rendering
 
     # Optimizations
     skip_context_for_simple: bool = True  # Skip if newsletter/spam

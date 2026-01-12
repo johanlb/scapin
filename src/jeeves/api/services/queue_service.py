@@ -823,7 +823,7 @@ class QueueService:
         user_instruction: str,
     ) -> dict[str, Any] | None:
         """
-        Run reanalysis with user instruction
+        Run reanalysis with user instruction using Multi-Pass v2.2.
 
         Args:
             metadata: Email metadata
@@ -833,83 +833,105 @@ class QueueService:
         Returns:
             New analysis dict or None on failure
         """
-        return await asyncio.to_thread(
-            self._reanalyze_email_sync,
+        return await self._reanalyze_email_multi_pass(
             metadata,
             content,
             user_instruction,
         )
 
-    def _reanalyze_email_sync(
+    async def _reanalyze_email_multi_pass(
         self,
         metadata: dict[str, Any],
         content: dict[str, Any],
         user_instruction: str,
     ) -> dict[str, Any] | None:
-        """Synchronous reanalysis (runs in thread pool)"""
+        """
+        Reanalysis using Multi-Pass v2.2 Analyzer.
+
+        Uses the new MultiPassAnalyzer for intelligent multi-pass analysis
+        with model escalation (Haiku -> Sonnet -> Opus).
+        """
         from src.core.config_manager import get_config
-        from src.core.schemas import EmailContent, EmailMetadata
-        from src.sancho.router import AIModel, get_ai_router
+        from src.sancho.multi_pass_analyzer import MultiPassAnalyzer
+        from src.sancho.router import get_ai_router
 
         try:
             config = get_config()
             ai_router = get_ai_router(config.ai)
 
-            # Reconstruct EmailMetadata
-            email_metadata = EmailMetadata(
-                id=str(metadata.get("id", "")),
-                subject=metadata.get("subject", ""),
-                from_address=metadata.get("from_address", ""),
-                from_name=metadata.get("from_name", ""),
-                date=_parse_datetime(metadata.get("date")),
-                has_attachments=metadata.get("has_attachments", False),
-                folder=metadata.get("folder", "INBOX"),
+            # Create adapter event for templates
+            event = _create_email_event_adapter(metadata, content, user_instruction)
+
+            # Create MultiPassAnalyzer and run analysis
+            analyzer = MultiPassAnalyzer(
+                ai_router=ai_router,
+                context_searcher=None,  # Could add later for context enrichment
             )
 
-            # Reconstruct EmailContent
-            email_content = EmailContent(
-                plain_text=content.get("full_text", content.get("preview", "")),
-                html=content.get("html_body"),
-                attachments=[],
-            )
+            # Run multi-pass analysis
+            result = await analyzer.analyze(event)
 
-            # Call AI with user instruction as context
-            analysis = ai_router.analyze_email(
-                email_metadata,
-                email_content,
-                model=AIModel.CLAUDE_HAIKU,
-                user_instruction=user_instruction,
-            )
-
-            if analysis:
-                return {
-                    "action": analysis.action.value,
-                    "confidence": analysis.confidence,
-                    "category": analysis.category.value if analysis.category else None,
-                    "reasoning": analysis.reasoning,
-                    "destination": analysis.destination,
-                    "summary": getattr(analysis, "summary", None),
-                    "entities": getattr(analysis, "entities", {}),
-                    "proposed_notes": getattr(analysis, "proposed_notes", []),
-                    "proposed_tasks": getattr(analysis, "proposed_tasks", []),
-                    "options": [
-                        {
-                            "action": opt.action.value if hasattr(opt.action, "value") else opt.action,
-                            "destination": opt.destination,
-                            "confidence": opt.confidence,
-                            "reasoning": opt.reasoning,
-                            "reasoning_detailed": getattr(opt, "reasoning_detailed", None),
-                            "is_recommended": getattr(opt, "is_recommended", False),
-                        }
-                        for opt in getattr(analysis, "options", [])
-                    ],
-                }
-
-            return None
+            # Convert MultiPassResult to expected dict format
+            return self._multi_pass_result_to_dict(result)
 
         except Exception as e:
-            logger.error(f"Failed to reanalyze email: {e}")
+            logger.error(f"Failed to reanalyze email with multi-pass: {e}", exc_info=True)
             return None
+
+    def _multi_pass_result_to_dict(self, result: Any) -> dict[str, Any]:
+        """Convert MultiPassResult to queue analysis dict format."""
+        # Build proposed_notes from extractions with note_cible
+        proposed_notes = []
+        proposed_tasks = []
+
+        for ext in result.extractions:
+            if ext.note_cible:
+                proposed_notes.append({
+                    "note_title": ext.note_cible,
+                    "content": ext.info,
+                    "type": ext.type,
+                    "importance": ext.importance,
+                    "action": ext.note_action,
+                })
+            if ext.omnifocus:
+                proposed_tasks.append({
+                    "title": ext.info,
+                    "due_date": ext.date,
+                    "project": ext.note_cible,
+                })
+
+        # Build entities dict from entities_discovered
+        entities = {entity: {"type": "discovered"} for entity in result.entities_discovered}
+
+        # Get reasoning from last pass
+        reasoning = ""
+        if result.pass_history:
+            last_pass = result.pass_history[-1]
+            reasoning = getattr(last_pass, "reasoning", "") or ""
+
+        return {
+            "action": result.action,
+            "confidence": int(result.confidence.overall * 100),  # Convert to 0-100
+            "category": None,  # Multi-pass doesn't use categories
+            "reasoning": reasoning,
+            "destination": None,  # Not used in multi-pass
+            "summary": f"Multi-Pass analysis ({result.passes_count} passes, {result.final_model})",
+            "entities": entities,
+            "proposed_notes": proposed_notes,
+            "proposed_tasks": proposed_tasks,
+            "options": [],  # Multi-pass doesn't generate options
+            # Additional multi-pass metadata
+            "multi_pass": {
+                "passes_count": result.passes_count,
+                "final_model": result.final_model,
+                "escalated": result.escalated,
+                "stop_reason": result.stop_reason,
+                "high_stakes": result.high_stakes,
+                "confidence_details": result.confidence.to_dict(),
+                "total_tokens": result.total_tokens,
+                "duration_ms": result.total_duration_ms,
+            },
+        }
 
     async def reanalyze_all_pending(self) -> dict[str, Any]:
         """
@@ -985,3 +1007,81 @@ def _parse_datetime(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return None
+
+
+class _EmailSender:
+    """Adapter class for email sender info expected by templates."""
+
+    def __init__(self, name: str, email: str):
+        self.name = name
+        self.display_name = name
+        self.email = email
+
+
+class _EmailEventAdapter:
+    """
+    Adapter to wrap email metadata/content for MultiPassAnalyzer templates.
+
+    The Jinja2 templates expect specific attributes:
+    - event.source_type (str)
+    - event.timestamp (str)
+    - event.sender.name, event.sender.email
+    - event.title (str)
+    - event.content (str)
+    - event.entities (list)
+    """
+
+    def __init__(
+        self,
+        metadata: dict[str, Any],
+        content: dict[str, Any],
+        user_instruction: str = "",
+    ):
+        # Basic identification
+        self.event_id = str(metadata.get("id", metadata.get("message_id", "unknown")))
+        self.source_type = "email"
+
+        # Timing
+        self.timestamp = metadata.get("date", now_utc().isoformat())
+
+        # Content
+        self.title = metadata.get("subject", "(No subject)")
+        content_text = content.get("full_text", content.get("preview", ""))
+        if user_instruction:
+            self.content = f"[User instruction: {user_instruction}]\n\n{content_text}"
+        else:
+            self.content = content_text
+
+        # Sender
+        sender_name = metadata.get("from_name", "") or metadata.get("from_address", "Unknown")
+        sender_email = metadata.get("from_address", "")
+        self.sender = _EmailSender(sender_name, sender_email)
+
+        # Entities (empty for reanalysis, will be discovered by pass 1)
+        self.entities: list = []
+
+        # Attachments
+        self.has_attachments = metadata.get("has_attachments", False)
+        self.attachments = metadata.get("attachments", [])
+
+        # Thread info
+        self.thread_id = metadata.get("thread_id")
+
+
+def _create_email_event_adapter(
+    metadata: dict[str, Any],
+    content: dict[str, Any],
+    user_instruction: str = "",
+) -> _EmailEventAdapter:
+    """
+    Create an adapter that wraps email metadata/content for MultiPassAnalyzer.
+
+    Args:
+        metadata: Email metadata dict from queue item
+        content: Email content dict from queue item
+        user_instruction: Optional user instruction to include
+
+    Returns:
+        _EmailEventAdapter instance compatible with Jinja2 templates
+    """
+    return _EmailEventAdapter(metadata, content, user_instruction)
