@@ -26,6 +26,19 @@ from src.utils import now_utc
 logger = get_logger("api.queue_service")
 
 
+class EnrichmentFailedError(Exception):
+    """Raised when required enrichments fail and operation is aborted."""
+
+    def __init__(self, item_id: str, failed_enrichments: list[str], action: str):
+        self.item_id = item_id
+        self.failed_enrichments = failed_enrichments
+        self.action = action
+        super().__init__(
+            f"Required enrichments failed for item {item_id}: {', '.join(failed_enrichments)}. "
+            f"Action '{action}' aborted to prevent data loss."
+        )
+
+
 class QueueService:
     """Async service for queue operations"""
 
@@ -179,8 +192,12 @@ class QueueService:
                         "enrichment_error": f"Failed enrichments: {', '.join(enrichments_failed)}",
                     },
                 )
-                # Return None to signal failure - frontend should show error
-                return None
+                # Raise exception to signal failure - router will return 409 Conflict
+                raise EnrichmentFailedError(
+                    item_id=item_id,
+                    failed_enrichments=enrichments_failed,
+                    action=action,
+                )
 
         # Execute the IMAP action (only after enrichments succeed)
         imap_success = await self._execute_email_action(item, action, dest)

@@ -31,7 +31,7 @@ from src.jeeves.api.models.queue import (
     SnoozeResponse,
 )
 from src.jeeves.api.models.responses import APIResponse, PaginatedResponse
-from src.jeeves.api.services.queue_service import QueueService
+from src.jeeves.api.services.queue_service import EnrichmentFailedError, QueueService
 
 router = APIRouter()
 
@@ -272,6 +272,8 @@ async def approve_queue_item(
     Approve a queue item and execute the IMAP action
 
     Marks the item as approved and executes the action (archive/delete).
+
+    Returns 409 Conflict if required enrichments fail (to prevent data loss).
     """
     try:
         item = await service.approve_item(
@@ -288,6 +290,17 @@ async def approve_queue_item(
             data=_convert_item_to_response(item),
             timestamp=datetime.now(timezone.utc),
         )
+    except EnrichmentFailedError as e:
+        # Required enrichments failed - return 409 Conflict to prevent data loss
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": str(e),
+                "item_id": e.item_id,
+                "failed_enrichments": e.failed_enrichments,
+                "action_aborted": e.action,
+            },
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
