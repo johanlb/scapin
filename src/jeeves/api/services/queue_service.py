@@ -886,12 +886,16 @@ class QueueService:
 
         for ext in result.extractions:
             if ext.note_cible:
+                # Map extraction to proposed_note format expected by router
+                # Router expects: action, note_type, title, content_summary, confidence, reasoning
                 proposed_notes.append({
-                    "note_title": ext.note_cible,
-                    "content": ext.info,
-                    "type": ext.type,
-                    "importance": ext.importance,
-                    "action": ext.note_action,
+                    "action": ext.note_action,  # "enrichir" or "creer"
+                    "note_type": ext.type,  # fait, decision, engagement, deadline, etc.
+                    "title": ext.note_cible,  # Target note title
+                    "content_summary": ext.info,  # The extracted information
+                    "confidence": 0.8 if ext.importance == "haute" else 0.6 if ext.importance == "moyenne" else 0.4,
+                    "reasoning": f"Extraction de type '{ext.type}' (importance: {ext.importance})",
+                    "target_note_id": None,  # Would need lookup to find existing note
                 })
             if ext.omnifocus:
                 proposed_tasks.append({
