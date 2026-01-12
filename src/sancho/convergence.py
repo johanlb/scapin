@@ -206,10 +206,9 @@ class MultiPassConfig:
 
     # Confidence thresholds
     confidence_stop_threshold: float = 0.95  # Stop if reached
-    confidence_acceptable: float = 0.90  # Acceptable for application
+    confidence_minimum: float = 0.85  # Minimum for auto-application and stopping
     confidence_escalate_sonnet: float = 0.80  # Escalate to Sonnet
     confidence_escalate_opus: float = 0.75  # Escalate to Opus
-    confidence_minimum: float = 0.85  # Minimum for auto-application
 
     # Limits
     max_passes: int = 5
@@ -277,9 +276,9 @@ def should_stop(
     if (
         previous
         and current.entities_discovered == previous.entities_discovered
-        and confidence >= config.confidence_acceptable
+        and confidence >= config.confidence_minimum
     ):
-        logger.debug(f"Pass {current.pass_number}: Stopping - no new entities, confidence acceptable")
+        logger.debug(f"Pass {current.pass_number}: Stopping - no new entities, confidence sufficient")
         return True, "no_new_entities"
 
     # Criterion 4: Max passes reached
@@ -440,7 +439,7 @@ def select_model(
             logger.info(f"Pass 4: Escalating to Sonnet (confidence {confidence:.2f} < {config.confidence_escalate_sonnet})")
             return ModelTier.SONNET, "low_confidence"
         # One more chance with Haiku if close
-        if confidence < config.confidence_acceptable:
+        if confidence < config.confidence_minimum:
             return ModelTier.HAIKU, "retry"
         return ModelTier.HAIKU, "confident"
 
