@@ -1572,38 +1572,40 @@
 						</div>
 					</div>
 				{:else}
-					<!-- Fallback for items without options -->
+					<!-- Fallback for items without options - show recommendation, use Approuver button below -->
 					<div class="p-4 rounded-lg bg-[var(--color-bg-tertiary)]">
-						<div class="flex items-center gap-2 mb-2">
-							<span class="text-xl">{getActionIcon(currentItem.analysis.action)}</span>
-							<span class="font-semibold" style="color: {getActionColor(currentItem.analysis.action)}">
-								{getActionLabel(currentItem.analysis.action)}
-							</span>
-							<span class="text-xs" style="color: {getConfidenceColor(currentItem.analysis.confidence)}">
-								{currentItem.analysis.confidence}%
-							</span>
+						<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-3">
+							Recommandation de Scapin
+						</p>
+						<div class="flex items-center gap-3">
+							<div
+								class="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
+								style="background-color: color-mix(in srgb, {getActionColor(currentItem.analysis.action)} 20%, transparent)"
+							>
+								{getActionIcon(currentItem.analysis.action)}
+							</div>
+							<div class="flex-1">
+								<div class="flex items-center gap-2">
+									<span class="font-semibold text-lg" style="color: {getActionColor(currentItem.analysis.action)}">
+										{getActionLabel(currentItem.analysis.action)}
+									</span>
+									<span
+										class="text-sm px-2 py-0.5 rounded-full"
+										style="background-color: color-mix(in srgb, {getConfidenceColor(currentItem.analysis.confidence)} 20%, transparent); color: {getConfidenceColor(currentItem.analysis.confidence)}"
+									>
+										{currentItem.analysis.confidence}%
+									</span>
+								</div>
+								{#if currentItem.analysis.reasoning}
+									<p class="text-sm text-[var(--color-text-secondary)] mt-1">
+										{currentItem.analysis.reasoning}
+									</p>
+								{/if}
+							</div>
 						</div>
-						{#if currentItem.analysis.reasoning}
-							<p class="text-sm text-[var(--color-text-secondary)]">
-								{currentItem.analysis.reasoning}
-							</p>
-						{/if}
-						<Button
-							variant="primary"
-							size="sm"
-							class="mt-3"
-							onclick={() => handleSelectOption(currentItem, {
-								action: currentItem.analysis.action,
-								confidence: currentItem.analysis.confidence,
-								reasoning: currentItem.analysis.reasoning,
-								reasoning_detailed: null,
-								destination: null,
-								is_recommended: true
-							})}
-							disabled={isProcessing}
-						>
-							Valider cette action
-						</Button>
+						<p class="text-xs text-[var(--color-text-tertiary)] mt-3 italic">
+							Utilisez le bouton <span class="font-semibold">Approuver</span> ci-dessous ou appuyez sur <span class="font-mono bg-[var(--color-bg-secondary)] px-1 rounded">A</span>
+						</p>
 					</div>
 				{/if}
 
@@ -1722,7 +1724,7 @@
 						<span class="ml-1">options</span>
 					</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">A</span> approuver</span>
-					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span> rejeter</span>
+					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">R</span> opus</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">E</span> détails</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">D</span> supprimer</span>
 					<span><span class="font-mono bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 rounded">S</span> reporter</span>
