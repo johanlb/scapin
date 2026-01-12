@@ -794,12 +794,12 @@ class QueueService:
 
                 return {
                     "status": "complete",
-                    "analysis": new_analysis,
+                    "new_analysis": new_analysis,
                 }
 
             return {
                 "status": "failed",
-                "analysis": None,
+                "new_analysis": None,
             }
 
         # Background mode: just save the instruction and mark for reanalysis
