@@ -1309,9 +1309,27 @@ class _EmailEventAdapter:
         # Timing
         self.timestamp = metadata.get("date", now_utc().isoformat())
 
-        # Content
+        # Content - try full_text first, then preview, then html_body (strip HTML if needed)
         self.title = metadata.get("subject", "(No subject)")
-        content_text = content.get("full_text", content.get("preview", ""))
+        content_text = content.get("full_text") or content.get("preview") or ""
+
+        # If still empty, try to extract text from html_body
+        if not content_text and content.get("html_body"):
+            # Simple HTML stripping (remove tags, decode entities)
+            import html
+            import re
+
+            html_content = content.get("html_body", "")
+            # Remove script/style tags and their content
+            html_content = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", html_content, flags=re.DOTALL | re.IGNORECASE)
+            # Remove HTML tags
+            text = re.sub(r"<[^>]+>", " ", html_content)
+            # Decode HTML entities
+            text = html.unescape(text)
+            # Normalize whitespace
+            text = re.sub(r"\s+", " ", text).strip()
+            content_text = text[:10000]  # Limit to 10k chars
+
         if user_instruction:
             self.content = f"[User instruction: {user_instruction}]\n\n{content_text}"
         else:

@@ -45,7 +45,7 @@ from src.sancho.convergence import (
     should_stop,
 )
 from src.sancho.model_selector import ModelTier
-from src.sancho.router import AIModel, AIRouter, clean_json_string
+from src.sancho.router import AIModel, AIRouter, _repair_json_with_library, clean_json_string
 from src.sancho.template_renderer import TemplateRenderer, get_template_renderer
 
 logger = get_logger("multi_pass_analyzer")
@@ -608,9 +608,50 @@ class MultiPassAnalyzer:
             # Extract JSON from response
             json_str = self._extract_json(response)
 
-            # Clean and parse
-            cleaned = clean_json_string(json_str)
-            data = json.loads(cleaned)
+            # Multi-level JSON repair strategy (same as router.py)
+            # Level 1: Direct parse (ideal case)
+            # Level 2: json-repair library (robust, handles most issues)
+            # Level 3: Regex cleaning + json-repair (last resort)
+            data = None
+            parse_method = "direct"
+
+            # Level 1: Try direct parse
+            try:
+                data = json.loads(json_str)
+            except json.JSONDecodeError:
+                # Level 2: Try json-repair library first
+                repaired, repair_success = _repair_json_with_library(json_str)
+                if repair_success:
+                    try:
+                        data = json.loads(repaired)
+                        parse_method = "json-repair"
+                        logger.debug("JSON repaired successfully using json-repair library")
+                    except json.JSONDecodeError:
+                        pass
+
+                # Level 3: If json-repair didn't work, try regex + json-repair
+                if data is None:
+                    cleaned = clean_json_string(json_str)
+                    try:
+                        data = json.loads(cleaned)
+                        parse_method = "regex-clean"
+                        logger.debug("JSON parsed after regex cleaning")
+                    except json.JSONDecodeError:
+                        # Last resort: json-repair on regex-cleaned string
+                        repaired2, _ = _repair_json_with_library(cleaned)
+                        try:
+                            data = json.loads(repaired2)
+                            parse_method = "regex+json-repair"
+                            logger.debug("JSON repaired using regex + json-repair")
+                        except json.JSONDecodeError as e:
+                            # All methods failed, raise with details
+                            preview = json_str[:300].replace("\n", "\\n")
+                            raise ParseError(
+                                f"All JSON repair methods failed. Error: {e}. Preview: {preview}"
+                            ) from e
+
+            if parse_method != "direct":
+                logger.info(f"Pass {pass_number} JSON parsed using method: {parse_method}")
 
             # Parse extractions
             extractions = self._parse_extractions(data.get("extractions", []))
@@ -657,6 +698,12 @@ class MultiPassAnalyzer:
         """
         Extract JSON object from response text.
 
+        Uses multiple strategies to find valid JSON:
+        1. Look for ```json code blocks
+        2. Look for ``` code blocks
+        3. Find first { and last }
+        4. Handle edge cases (empty response, text-only response)
+
         Args:
             response: Raw response text
 
@@ -666,25 +713,40 @@ class MultiPassAnalyzer:
         Raises:
             ParseError: If no valid JSON found
         """
+        if not response or not response.strip():
+            raise ParseError("Empty response from AI")
+
         # Handle markdown code blocks
         if "```json" in response:
             start = response.find("```json") + 7
             end = response.find("```", start)
             if end > start:
-                return response[start:end].strip()
+                extracted = response[start:end].strip()
+                if extracted:
+                    return extracted
 
         if "```" in response:
             start = response.find("```") + 3
+            # Skip language identifier if present (e.g., ```javascript)
+            newline_pos = response.find("\n", start)
+            if newline_pos != -1 and newline_pos < start + 20:
+                start = newline_pos + 1
             end = response.find("```", start)
             if end > start:
-                return response[start:end].strip()
+                extracted = response[start:end].strip()
+                if extracted and "{" in extracted:
+                    return extracted
 
         # Find first { and last }
         json_start = response.find("{")
         json_end = response.rfind("}") + 1
 
         if json_start == -1 or json_end <= json_start:
-            raise ParseError("No JSON object found in response")
+            # Last resort: check if the response is just text without JSON
+            # Log the actual response for debugging
+            preview = response[:200].replace("\n", "\\n")
+            logger.warning(f"No JSON braces found in response. Preview: {preview}...")
+            raise ParseError(f"No JSON object found in response. Response starts with: {response[:100]}")
 
         return response[json_start:json_end]
 
