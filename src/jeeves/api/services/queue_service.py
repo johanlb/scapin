@@ -901,7 +901,14 @@ class QueueService:
                 })
 
         # Build entities dict from entities_discovered
-        entities = {entity: {"type": "discovered"} for entity in result.entities_discovered}
+        # Format: {"type": [{"type": "...", "value": "...", "confidence": ...}, ...]}
+        # The router expects entities grouped by type as lists
+        entities: dict[str, list[dict[str, Any]]] = {}
+        if result.entities_discovered:
+            entities["discovered"] = [
+                {"type": "discovered", "value": entity, "confidence": 1.0}
+                for entity in result.entities_discovered
+            ]
 
         # Get reasoning from last pass
         reasoning = ""

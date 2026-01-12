@@ -53,19 +53,39 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
     content = item.get("content", {})
 
     # Convert entities to response format
+    # Handle two formats:
+    # - New format: {"type": [{"type": "...", "value": "...", ...}, ...]}
+    # - Old format: {"entity_name": {"type": "..."}} (from broken multi-pass)
     raw_entities = analysis.get("entities", {})
     entities_by_type: dict[str, list[EntityResponse]] = {}
-    for entity_type, entity_list in raw_entities.items():
-        entities_by_type[entity_type] = [
-            EntityResponse(
-                type=e.get("type", entity_type),
-                value=e.get("value", ""),
-                confidence=e.get("confidence", 0.0),
-                source=e.get("source", "extraction"),
-                metadata=e.get("metadata", {}),
+    for entity_type, entity_data in raw_entities.items():
+        # Check if entity_data is a list (new format) or dict (old format)
+        if isinstance(entity_data, list):
+            # New format: list of entity dicts
+            entities_by_type[entity_type] = [
+                EntityResponse(
+                    type=e.get("type", entity_type) if isinstance(e, dict) else entity_type,
+                    value=e.get("value", "") if isinstance(e, dict) else str(e),
+                    confidence=e.get("confidence", 0.0) if isinstance(e, dict) else 0.0,
+                    source=e.get("source", "extraction") if isinstance(e, dict) else "extraction",
+                    metadata=e.get("metadata", {}) if isinstance(e, dict) else {},
+                )
+                for e in entity_data
+            ]
+        elif isinstance(entity_data, dict):
+            # Old format: entity_type is actually the entity name, entity_data is info
+            # Convert to "discovered" type
+            if "discovered" not in entities_by_type:
+                entities_by_type["discovered"] = []
+            entities_by_type["discovered"].append(
+                EntityResponse(
+                    type=entity_data.get("type", "discovered"),
+                    value=entity_type,  # The key is the entity name
+                    confidence=entity_data.get("confidence", 1.0),
+                    source=entity_data.get("source", "extraction"),
+                    metadata={},
+                )
             )
-            for e in entity_list
-        ]
 
     # Convert proposed_notes to response format
     raw_proposed_notes = analysis.get("proposed_notes", [])
@@ -518,8 +538,8 @@ async def reanalyze_queue_item(
                 item_id=item_id,
                 status=result.get("status", "complete"),
                 analysis_id=result.get("analysis_id"),
-                new_analysis=_convert_analysis_to_response(result.get("analysis"))
-                if result.get("analysis")
+                new_analysis=_convert_analysis_to_response(result.get("new_analysis"))
+                if result.get("new_analysis")
                 else None,
             ),
             timestamp=datetime.now(timezone.utc),
@@ -562,19 +582,39 @@ def _convert_analysis_to_response(analysis: dict | None) -> QueueItemAnalysis | 
         return None
 
     # Convert entities to response format
+    # Handle two formats:
+    # - New format: {"type": [{"type": "...", "value": "...", ...}, ...]}
+    # - Old format: {"entity_name": {"type": "..."}} (from broken multi-pass)
     raw_entities = analysis.get("entities", {})
     entities_by_type: dict[str, list[EntityResponse]] = {}
-    for entity_type, entity_list in raw_entities.items():
-        entities_by_type[entity_type] = [
-            EntityResponse(
-                type=e.get("type", entity_type),
-                value=e.get("value", ""),
-                confidence=e.get("confidence", 0.0),
-                source=e.get("source", "extraction"),
-                metadata=e.get("metadata", {}),
+    for entity_type, entity_data in raw_entities.items():
+        # Check if entity_data is a list (new format) or dict (old format)
+        if isinstance(entity_data, list):
+            # New format: list of entity dicts
+            entities_by_type[entity_type] = [
+                EntityResponse(
+                    type=e.get("type", entity_type) if isinstance(e, dict) else entity_type,
+                    value=e.get("value", "") if isinstance(e, dict) else str(e),
+                    confidence=e.get("confidence", 0.0) if isinstance(e, dict) else 0.0,
+                    source=e.get("source", "extraction") if isinstance(e, dict) else "extraction",
+                    metadata=e.get("metadata", {}) if isinstance(e, dict) else {},
+                )
+                for e in entity_data
+            ]
+        elif isinstance(entity_data, dict):
+            # Old format: entity_type is actually the entity name, entity_data is info
+            # Convert to "discovered" type
+            if "discovered" not in entities_by_type:
+                entities_by_type["discovered"] = []
+            entities_by_type["discovered"].append(
+                EntityResponse(
+                    type=entity_data.get("type", "discovered"),
+                    value=entity_type,  # The key is the entity name
+                    confidence=entity_data.get("confidence", 1.0),
+                    source=entity_data.get("source", "extraction"),
+                    metadata={},
+                )
             )
-            for e in entity_list
-        ]
 
     # Convert proposed_notes to response format
     raw_proposed_notes = analysis.get("proposed_notes", [])
