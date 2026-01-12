@@ -466,13 +466,15 @@
 							<div class="flex flex-wrap gap-1">
 								{#each Object.entries(item.analysis.entities) as [type, entities]}
 									{#each entities as entity}
-										<span class="px-2 py-0.5 text-xs rounded-full
-											{type === 'person' ? 'bg-blue-500/20 text-blue-300' : ''}
-											{type === 'project' ? 'bg-purple-500/20 text-purple-300' : ''}
-											{type === 'date' ? 'bg-orange-500/20 text-orange-300' : ''}
-											{type === 'amount' ? 'bg-green-500/20 text-green-300' : ''}
-											{type === 'organization' ? 'bg-cyan-500/20 text-cyan-300' : ''}
-										">
+										{@const entityClass = {
+											person: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+											project: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
+											date: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+											amount: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+											organization: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300',
+											discovered: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300'
+										}[type] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300'}
+										<span class="px-2 py-0.5 text-xs rounded-full {entityClass}">
 											{entity.value}
 										</span>
 									{/each}
@@ -488,10 +490,11 @@
 								Notes proposées
 							</h4>
 							{#each item.analysis.proposed_notes as note}
+								{@const noteActionClass = note.action === 'create' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-yellow-500/20 dark:text-yellow-300'}
 								<div class="flex items-center justify-between text-sm py-1">
 									<span class="flex items-center gap-2">
-										<span class="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
-											{note.action === 'create' ? '+' : '~'} {note.note_type}
+										<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
+											{note.action === 'create' ? '+ Créer' : '~ Enrichir'} {note.note_type}
 										</span>
 										{note.title}
 									</span>

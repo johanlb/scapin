@@ -462,12 +462,13 @@
 						{#each Object.entries(currentItem.analysis.entities) as [type, entities]}
 							{#each entities as entity}
 								{@const entityClass = {
-									person: 'bg-blue-500/20 text-blue-300',
-									project: 'bg-purple-500/20 text-purple-300',
-									date: 'bg-orange-500/20 text-orange-300',
-									amount: 'bg-green-500/20 text-green-300',
-									organization: 'bg-cyan-500/20 text-cyan-300'
-								}[type] ?? 'bg-gray-500/20 text-gray-300'}
+									person: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+									project: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
+									date: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+									amount: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+									organization: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300',
+									discovered: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300'
+								}[type] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300'}
 								<span class="px-3 py-1 text-sm rounded-full {entityClass}">
 									{entity.value}
 								</span>
