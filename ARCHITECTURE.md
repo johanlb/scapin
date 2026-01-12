@@ -1,6 +1,6 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 2.2.0 (Workflow v2.2: Multi-Pass Extraction)
+**Version**: 2.2.1 (Workflow v2.2: Multi-Pass Extraction + Atomic Transactions)
 **Date**: 2026-01-12
 **Status**: ✅ v1.0.0-rc.1 RELEASED — All features implemented
 
@@ -1040,6 +1040,79 @@ class SendNotificationAction(Action):
     """Alert user"""
     pass
 ```
+
+### Atomic Transaction Logic (v2.2.1)
+
+**Module**: `src/jeeves/api/services/queue_service.py`
+**Purpose**: Ensure email actions and enrichments are treated as one atomic unit.
+
+**Problem Statement**:
+Before v2.2.1, email actions (archive, flag) and enrichments (note updates) were treated as separate operations. This could lead to data loss:
+- If enrichments failed after email was archived, extracted information was lost
+- User had no visibility into which enrichments were critical vs optional
+
+**Solution**: Atomic Transaction Model
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   ATOMIC APPROVAL FLOW                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. Classify Enrichments                                         │
+│     ├── Required: Info would be lost if extraction fails        │
+│     │   • Deadlines (toujours requis)                           │
+│     │   • Haute importance: décisions, engagements, demandes    │
+│     │   • Moyenne importance: engagements, demandes             │
+│     └── Optional: Nice-to-have, best-effort                     │
+│                                                                  │
+│  2. Calculate Global Confidence                                  │
+│     global_conf = min(action_conf, min(required_extraction_confs))
+│                                                                  │
+│  3. Execute Required Enrichments (First)                         │
+│     ├── All must succeed → Continue                             │
+│     └── Any failure → ABORT (don't archive, keep in queue)      │
+│                                                                  │
+│  4. Execute Email Action (After enrichments succeed)             │
+│     • Archive/Flag/Delete only after enrichments are safe       │
+│                                                                  │
+│  5. Execute Optional Enrichments (Best-effort)                   │
+│     • Run in background                                          │
+│     • Failures logged but don't block                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Required vs Optional Classification**:
+
+| Type Extraction | Haute Importance | Moyenne Importance | Basse Importance |
+|-----------------|------------------|--------------------|--------------------|
+| **Deadline** | ✅ Required | ✅ Required | ✅ Required |
+| **Decision** | ✅ Required | ❌ Optional | ❌ Optional |
+| **Engagement** | ✅ Required | ✅ Required | ❌ Optional |
+| **Demande** | ✅ Required | ✅ Required | ❌ Optional |
+| **Montant** | ✅ Required | ❌ Optional | ❌ Optional |
+| **Fait** | ✅ Required | ❌ Optional | ❌ Optional |
+| **Événement** | ✅ Required | ❌ Optional | ❌ Optional |
+| **Autres** | ❌ Optional | ❌ Optional | ❌ Optional |
+
+**Action Downgrade Logic**:
+
+If required enrichments have low confidence but email action has high confidence:
+- Archive → Flag (keep visible for manual review)
+- This prevents data loss while still organizing inbox
+
+**API Response Fields**:
+
+```python
+class ProposedNoteResponse(BaseModel):
+    # ... existing fields ...
+    required: bool = False  # Whether enrichment is required for safe archiving
+    importance: str = "moyenne"  # haute, moyenne, basse
+```
+
+**UI Indication**:
+
+Required enrichments display a "Requis" badge in the Flux interface, allowing users to understand which extractions are critical before approving.
 
 ---
 

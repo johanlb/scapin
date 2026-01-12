@@ -1216,6 +1216,27 @@ Global MVP:        ████████████████████�
 
 ## Historique des Versions
 
+- **v1.0.0-alpha.22** (2026-01-12) : Atomic Transaction Logic for Email + Enrichments
+  - **Refonte architecturale** : Actions email + enrichissements traités comme unité atomique
+  - **Classification Required/Optional** : Extractions critiques vs optionnelles
+    - Deadlines toujours requis
+    - Haute importance : décisions, engagements, demandes, montants, faits, événements
+    - Moyenne importance : engagements, demandes
+  - **Confiance globale** : `min(action_conf, min(required_extraction_confs))`
+  - **Exécution atomique** : Enrichissements requis d'abord, puis action email, puis optionnels
+  - **Action downgrade** : Archive → Flag si enrichissements requis ont faible confiance
+  - **UI "Requis" badge** : Indication visuelle des enrichissements critiques
+  - **Fichiers modifiés** :
+    - `src/sancho/multi_pass_analyzer.py` — `_should_be_required()`, `to_dict()` enrichi
+    - `src/jeeves/api/services/queue_service.py` — `_execute_enrichments()`, `approve_item()` atomique
+    - `src/jeeves/api/models/queue.py` — `required`, `importance` fields
+    - `src/jeeves/api/routers/queue.py` — Parsing nouveaux champs
+    - `web/src/routes/flux/+page.svelte` — Badge "Requis"
+    - `web/src/routes/flux/[id]/+page.svelte` — Badge "Requis"
+    - `web/src/lib/api/client.ts` — Types TypeScript mis à jour
+  - **Tests** : 44 tests convergence + queue API passent
+  - **Commit** : `7ca48b0`
+
 - **v1.0.0-alpha.21** (2026-01-12) : Workflow v2.2 Multi-Pass Architecture Design
   - **Innovation majeure** : Inversion du flux Contexte/Extraction
   - **Architecture Multi-Pass** : 1-5 passes avec convergence par confiance (95%+)

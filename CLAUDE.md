@@ -33,6 +33,7 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **[SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)** | ✅ **Spec Sprint 5** — Complété | Tests E2E, Lighthouse, Guide, Audit |
 | **[WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)** | ✅ **Workflow v2.1** — Complété | Architecture Knowledge Extraction |
 | **[WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)** | ✅ **Plan Implémentation** — Complété | 8 fichiers, ~2500 lignes |
+| **[MULTI_PASS_SPEC.md](docs/specs/MULTI_PASS_SPEC.md)** | ✅ **Spec Multi-Pass v2.2** — Complété | Architecture multi-passes + escalade |
 | **Ce fichier (CLAUDE.md)** | État actuel | Démarrage de session |
 
 ### Les 5 Principes Directeurs
@@ -110,7 +111,7 @@ Feedback via prochain journaling → Amélioration système
 
 ---
 
-## 📊 État Actuel (11 janvier 2026)
+## 📊 État Actuel (12 janvier 2026)
 
 ### Phases Complétées
 
@@ -597,6 +598,66 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-12 (Suite 2) — Atomic Transaction Logic for Email + Enrichments ✅
+
+**Focus** : Refonte architecturale pour traiter email + enrichissements comme unité atomique
+
+**Problème résolu** :
+- Avant : Actions email et enrichissements étaient traités séparément
+- Risque : Informations perdues si enrichissements échouent après archivage
+- Solution : Transaction atomique avec classification required/optional
+
+**Accomplissements** :
+
+1. ✅ **Classification Required/Optional** (`src/sancho/multi_pass_analyzer.py`)
+   - Méthode `_should_be_required()` pour déterminer si extraction est critique
+   - Deadlines toujours requis (information critique)
+   - Haute importance : décisions, engagements, demandes, montants, faits, événements
+   - Moyenne importance : engagements, demandes uniquement
+
+2. ✅ **Exécution atomique** (`src/jeeves/api/services/queue_service.py`)
+   - `_execute_enrichments()` : Exécute les enrichissements via NoteManager
+   - `approve_item()` refactoré pour le flux atomique :
+     1. Exécuter enrichissements requis d'abord
+     2. Si échec → ABORT (pas d'archivage)
+     3. Exécuter action email
+     4. Exécuter enrichissements optionnels (best-effort)
+
+3. ✅ **Confiance globale**
+   - `global_confidence = min(action_confidence, min(required_extraction_confidences))`
+   - Action downgrade : Archive → Flag si enrichissements requis ont faible confiance
+
+4. ✅ **Modèles API enrichis** (`src/jeeves/api/models/queue.py`)
+   - `ProposedNoteResponse.required: bool`
+   - `ProposedNoteResponse.importance: str` (haute, moyenne, basse)
+
+5. ✅ **UI Badge "Requis"**
+   - `web/src/routes/flux/+page.svelte` — Badge rouge/orange pour enrichissements critiques
+   - `web/src/routes/flux/[id]/+page.svelte` — Même badge en vue détail
+   - `web/src/lib/api/client.ts` — Types TypeScript mis à jour
+
+6. ✅ **Documentation mise à jour**
+   - ARCHITECTURE.md → Section "Atomic Transaction Logic (v2.2.1)"
+   - ROADMAP.md → v1.0.0-alpha.22 entry
+   - docs/user-guide/03-flux.md → Section "Badge Requis"
+
+**Fichiers modifiés** :
+```
+src/sancho/multi_pass_analyzer.py          # _should_be_required(), to_dict() enrichi
+src/jeeves/api/services/queue_service.py   # _execute_enrichments(), approve_item()
+src/jeeves/api/models/queue.py             # required, importance fields
+src/jeeves/api/routers/queue.py            # Parsing nouveaux champs
+web/src/routes/flux/+page.svelte           # Badge "Requis"
+web/src/routes/flux/[id]/+page.svelte      # Badge "Requis"
+web/src/lib/api/client.ts                  # Types TypeScript
+web/src/routes/flux/test-performance/+page.svelte  # Mock data
+```
+
+**Tests** : 44 tests convergence + queue API passent
+**Commit** : `7ca48b0`
+
+---
 
 ### Session 2026-01-12 (Suite) — Workflow v2.2 Multi-Pass Architecture ✅
 

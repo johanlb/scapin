@@ -108,6 +108,30 @@ Si une entité n'existe pas dans votre base :
 - Scapin propose de créer une note
 - Badge "Auto" si confiance > 90%
 
+#### Badge "Requis"
+
+Certains enrichissements sont marqués **Requis** (badge rouge/orange) :
+
+| Type | Quand "Requis" ? |
+|------|-----------------|
+| **Deadline** | Toujours requis (information critique) |
+| **Engagement** | Si importance haute ou moyenne |
+| **Demande** | Si importance haute ou moyenne |
+| **Décision** | Si importance haute |
+| **Montant** | Si importance haute |
+| **Fait** | Si importance haute |
+| **Événement** | Si importance haute |
+
+**Pourquoi c'est important ?**
+
+Les enrichissements "Requis" contiennent des informations qui seraient **perdues** si l'email était archivé sans les extraire. Scapin garantit que :
+
+1. Les enrichissements requis sont exécutés **avant** l'archivage
+2. Si un enrichissement requis échoue, l'email reste dans le Flux (pas d'archivage)
+3. Les enrichissements optionnels sont exécutés en arrière-plan (best-effort)
+
+> **Conseil** : Si vous voyez beaucoup de badges "Requis", prenez le temps de vérifier ces enrichissements avant d'approuver.
+
 ### Tâches Proposées
 
 Pour les emails demandant une action :
