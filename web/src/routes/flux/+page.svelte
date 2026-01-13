@@ -1275,20 +1275,86 @@
 		>
 			<LongPressMenu items={getMobileMenuItems(currentItem)}>
 				<Card padding="md">
-					<div class="space-y-4">
-						<!-- SECTION 1: Navigation + Email Header (compact) -->
+					<div class="space-y-3">
+						<!-- SECTION 1: ACTION BAR (fixed at top) -->
+						<div class="flex flex-wrap items-center gap-2 pb-3 border-b border-[var(--color-border)]">
+							<!-- Navigation -->
+							<div class="flex items-center gap-1 text-sm text-[var(--color-text-tertiary)]">
+								<button onclick={navigatePrevious} class="hover:text-[var(--color-accent)] p-1 -ml-1">←</button>
+								<span class="font-medium">{currentIndex + 1}/{queueStore.items.length}</span>
+								<button onclick={navigateNext} class="hover:text-[var(--color-accent)] p-1">→</button>
+							</div>
+							<div class="w-px h-5 bg-[var(--color-border)]"></div>
+							<!-- Main actions -->
+							<Button
+								variant="primary"
+								size="sm"
+								onclick={handleApproveRecommended}
+								disabled={isProcessing}
+								data-testid="approve-button"
+							>
+								✓ <span class="hidden sm:inline">Approuver</span> <span class="opacity-60 font-mono text-xs">A</span>
+							</Button>
+							<Button
+								variant={showOpusPanel ? 'primary' : 'secondary'}
+								size="sm"
+								onclick={toggleOpusPanel}
+								disabled={isProcessing || isReanalyzingOpus}
+								data-testid="reanalyze-opus-button"
+							>
+								{#if isReanalyzingOpus}
+									⏳
+								{:else}
+									🧠 <span class="opacity-60 font-mono text-xs">R</span>
+								{/if}
+							</Button>
+							{#if otherOptions.length > 0}
+								<Button
+									variant="secondary"
+									size="sm"
+									onclick={() => showLevel3 = !showLevel3}
+								>
+									+{otherOptions.length}
+								</Button>
+							{/if}
+							<div class="flex-1"></div>
+							<!-- Secondary actions -->
+							<Button variant="ghost" size="sm" onclick={() => handleArchiveElsewhere(currentItem)} disabled={isProcessing}>
+								📁
+							</Button>
+							<Button variant="ghost" size="sm" onclick={() => handleDelete(currentItem)} disabled={isProcessing}>
+								🗑️
+							</Button>
+							<div class="relative">
+								<Button variant="ghost" size="sm" onclick={toggleSnoozeMenu} disabled={isProcessing} data-testid="snooze-button">
+									💤
+								</Button>
+								{#if showSnoozeMenu}
+									<button type="button" class="fixed inset-0 z-40" onclick={() => showSnoozeMenu = false} aria-label="Fermer"></button>
+									<div class="absolute top-full right-0 mt-1 z-50 min-w-[160px] py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] shadow-lg">
+										{#each snoozeOptions as option}
+											<button
+												type="button"
+												class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-secondary)]"
+												onclick={() => handleSnoozeOption(option.value)}
+												disabled={isSnoozing}
+											>{option.label}</button>
+										{/each}
+									</div>
+								{/if}
+							</div>
+							<Button
+								variant={showLevel3 ? 'primary' : 'ghost'}
+								size="sm"
+								onclick={() => showLevel3 = !showLevel3}
+							>
+								{showLevel3 ? '📖' : '📋'}
+							</Button>
+						</div>
+
+						<!-- SECTION 2: EMAIL HEADER -->
 						<div class="flex items-start justify-between gap-3">
 							<div class="flex-1 min-w-0">
-								<div class="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)] mb-1">
-									<button onclick={navigatePrevious} class="hover:text-[var(--color-accent)] p-1">←</button>
-									<span>{currentIndex + 1}/{queueStore.items.length}</span>
-									<button onclick={navigateNext} class="hover:text-[var(--color-accent)] p-1">→</button>
-									{#if currentItem.analysis.category}
-										<span class="px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)]">
-											{getCategoryLabel(currentItem.analysis.category)}
-										</span>
-									{/if}
-								</div>
 								<h2 class="text-lg font-bold text-[var(--color-text-primary)] leading-tight">
 									{currentItem.metadata.subject}
 								</h2>
@@ -1301,11 +1367,17 @@
 									{#if currentItem.metadata.has_attachments}
 										<span class="text-[var(--color-text-tertiary)]">• 📎</span>
 									{/if}
+									{#if currentItem.analysis.category}
+										<span class="text-[var(--color-text-tertiary)]">•</span>
+										<span class="text-xs px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)]">
+											{getCategoryLabel(currentItem.analysis.category)}
+										</span>
+									{/if}
 								</p>
 							</div>
 						</div>
 
-						<!-- SECTION 2: RECOMMENDATION -->
+						<!-- SECTION 3: RECOMMENDATION -->
 						{#if hasOptions && recommendedOption}
 							<div class="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[var(--color-bg-secondary)] to-[var(--color-bg-tertiary)] border border-[var(--color-accent)]/30">
 								<div
@@ -1368,7 +1440,7 @@
 							</div>
 						{/if}
 
-						<!-- SECTION 3: ENRICHMENTS (visible by default) -->
+						<!-- SECTION 4: ENRICHMENTS (visible by default) -->
 						{#if enrichmentsCount > 0}
 							<div class="space-y-2">
 								<div class="flex items-center gap-2">
@@ -1382,73 +1454,6 @@
 								{@render enrichmentsSection()}
 							</div>
 						{/if}
-
-						<!-- SECTION 4: ALL BUTTONS (unified row) -->
-						<div class="flex flex-wrap items-center gap-2 py-2 border-y border-[var(--color-border)]">
-							<Button
-								variant="primary"
-								size="sm"
-								onclick={handleApproveRecommended}
-								disabled={isProcessing}
-								data-testid="approve-button"
-							>
-								✓ Approuver <span class="ml-1 opacity-60 font-mono text-xs">A</span>
-							</Button>
-							<Button
-								variant={showOpusPanel ? 'primary' : 'secondary'}
-								size="sm"
-								onclick={toggleOpusPanel}
-								disabled={isProcessing || isReanalyzingOpus}
-								data-testid="reanalyze-opus-button"
-							>
-								{#if isReanalyzingOpus}
-									⏳ Opus...
-								{:else}
-									🧠 Opus <span class="ml-1 opacity-60 font-mono text-xs">R</span>
-								{/if}
-							</Button>
-							{#if otherOptions.length > 0}
-								<Button
-									variant="secondary"
-									size="sm"
-									onclick={() => showLevel3 = !showLevel3}
-								>
-									Autres ({otherOptions.length}) <span class="ml-1 opacity-60">▾</span>
-								</Button>
-							{/if}
-							<div class="flex-1"></div>
-							<Button variant="ghost" size="sm" onclick={() => handleArchiveElsewhere(currentItem)} disabled={isProcessing}>
-								📁 Classer
-							</Button>
-							<Button variant="ghost" size="sm" onclick={() => handleDelete(currentItem)} disabled={isProcessing}>
-								🗑️ <span class="ml-1 opacity-60 font-mono text-xs">D</span>
-							</Button>
-							<div class="relative">
-								<Button variant="ghost" size="sm" onclick={toggleSnoozeMenu} disabled={isProcessing} data-testid="snooze-button">
-									💤 <span class="ml-1 opacity-60 font-mono text-xs">S</span>
-								</Button>
-								{#if showSnoozeMenu}
-									<button type="button" class="fixed inset-0 z-40" onclick={() => showSnoozeMenu = false} aria-label="Fermer"></button>
-									<div class="absolute bottom-full right-0 mb-2 z-50 min-w-[160px] py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] shadow-lg">
-										{#each snoozeOptions as option}
-											<button
-												type="button"
-												class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-secondary)]"
-												onclick={() => handleSnoozeOption(option.value)}
-												disabled={isSnoozing}
-											>{option.label}</button>
-										{/each}
-									</div>
-								{/if}
-							</div>
-							<Button
-								variant={showLevel3 ? 'primary' : 'ghost'}
-								size="sm"
-								onclick={() => showLevel3 = !showLevel3}
-							>
-								{showLevel3 ? '📖' : '📋'} <span class="ml-1 opacity-60 font-mono text-xs">E</span>
-							</Button>
-						</div>
 
 						<!-- SECTION 5: OPUS INSTRUCTION PANEL (when visible) -->
 						{#if showOpusPanel}
