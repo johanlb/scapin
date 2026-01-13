@@ -897,7 +897,7 @@
 			delete: '🗑️',
 			reply: '✉️',
 			forward: '⬆️',
-			flag: '🚩',
+			flag: '⚠️',
 			task: '✅',
 			defer: '⏰',
 			ignore: '🚫',
