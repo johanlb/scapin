@@ -244,7 +244,16 @@ class NotesService:
         pinned_responses = [_note_to_response(n) for n in pinned]
 
         # Get recent notes (sorted by updated_at)
-        sorted_notes = sorted(all_notes, key=lambda n: n.updated_at, reverse=True)
+        # Handle mixed offset-naive and offset-aware datetimes
+        def safe_updated_at(note):
+            dt = note.updated_at
+            if dt is None:
+                return datetime.min.replace(tzinfo=timezone.utc)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
+
+        sorted_notes = sorted(all_notes, key=safe_updated_at, reverse=True)
         recent = sorted_notes[:recent_limit]
         recent_responses = [_note_to_response(n) for n in recent]
 
@@ -303,7 +312,16 @@ class NotesService:
             filtered = [n for n in filtered if n.metadata.get("pinned", False)]
 
         # Sort by updated_at descending
-        filtered = sorted(filtered, key=lambda n: n.updated_at, reverse=True)
+        # Handle mixed offset-naive and offset-aware datetimes
+        def safe_dt(note):
+            dt = note.updated_at
+            if dt is None:
+                return datetime.min.replace(tzinfo=timezone.utc)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
+
+        filtered = sorted(filtered, key=safe_dt, reverse=True)
 
         # Paginate
         total = len(filtered)
