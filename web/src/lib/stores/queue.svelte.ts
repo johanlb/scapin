@@ -136,11 +136,12 @@ function moveToEnd(itemId: string): void {
 }
 
 // Bug #53 fix: Restore an item to the list (for optimistic update rollback)
+// Modified: Add to END of list to not disrupt user's current focus
 function restoreItem(item: QueueItem): void {
 	// Only restore if not already in list
 	if (!state.items.some((i) => i.id === item.id)) {
-		// Add at the beginning of the list
-		state.items = [item, ...state.items];
+		// Add at the END of the list so it doesn't interrupt the current item
+		state.items = [...state.items, item];
 		state.total = state.total + 1;
 	}
 }

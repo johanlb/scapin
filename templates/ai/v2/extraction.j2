@@ -312,6 +312,27 @@ Exemple :
 - **Coordonnées** → Note de la personne, pas de l'entreprise
 - **Décision de projet** → Note du projet
 
+#### ⚠️ RÈGLE CRITIQUE : NE JAMAIS cibler la note du propriétaire (Johan)
+
+**Johan est le propriétaire du système.** Son nom apparaît fréquemment dans les emails (destinataire, "cher Johan", etc.). Ces mentions ne sont PAS des informations à extraire vers une note "Johan".
+
+**Ne JAMAIS créer/enrichir une note "Johan"** pour :
+- Commandes à son nom (Amazon, etc.) → Note de l'entreprise ("Amazon")
+- Factures à son adresse → Note de l'entreprise/service
+- Rendez-vous "avec Johan" → Note du sujet/projet
+- Emails adressés à Johan → L'info va vers l'entité concernée, pas vers "Johan"
+
+**Exemples corrects** :
+
+| Email | ❌ Mauvais ciblage | ✅ Bon ciblage |
+|-------|-------------------|----------------|
+| Confirmation commande Amazon pour Johan | "Johan" | "Amazon" ou "Admin Achats" |
+| Facture EDF pour Johan Leblanc | "Johan Leblanc" | "EDF" ou "Admin Factures" |
+| "Bonjour Johan, RDV mercredi avec Marc" | "Johan" | "Marc Dupont" ou "Projet X" |
+| Newsletter sportive de Decathlon | "Johan" | "Decathlon" ou AUCUNE extraction |
+
+**Principe** : Johan est le centre de gravité de toutes les informations. Son nom n'est jamais la bonne cible car TOUT concerne Johan. Cibler l'entité EXTERNE pertinente.
+
 #### Matrice type d'extraction → note_cible recommandée
 
 | Type extraction | Note_cible prioritaire | Alternative | Exemple |

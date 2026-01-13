@@ -5,6 +5,7 @@ Provides version control capabilities for notes using Git.
 Each note change is tracked as a commit with meaningful messages.
 """
 
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,10 @@ from gitdb.exc import BadName
 from src.monitoring.logger import get_logger
 
 logger = get_logger("passepartout.git_versioning")
+
+# Global lock for Git operations to prevent concurrent index.lock conflicts
+# This is necessary when multiple NoteManager instances run in parallel threads
+_git_lock = threading.Lock()
 
 
 @dataclass
@@ -198,45 +203,47 @@ class GitVersionManager:
             logger.warning(f"Note file not found: {note_filename}")
             return None
 
-        try:
-            # Stage the file
-            self.repo.index.add([note_filename])
+        # Use global lock to prevent concurrent Git index operations
+        with _git_lock:
+            try:
+                # Stage the file
+                self.repo.index.add([note_filename])
 
-            # Check if there are staged changes
-            if not self.repo.index.diff("HEAD"):
-                # Check for untracked files
-                untracked = [
-                    f for f in self.repo.untracked_files if f == note_filename
-                ]
-                if not untracked:
-                    logger.debug(f"No changes to commit for {note_filename}")
-                    return None
+                # Check if there are staged changes
+                if not self.repo.index.diff("HEAD"):
+                    # Check for untracked files
+                    untracked = [
+                        f for f in self.repo.untracked_files if f == note_filename
+                    ]
+                    if not untracked:
+                        logger.debug(f"No changes to commit for {note_filename}")
+                        return None
 
-            # Build commit message
-            title_part = f" ({note_title})" if note_title else ""
-            full_message = f"{message}{title_part}"
+                # Build commit message
+                title_part = f" ({note_title})" if note_title else ""
+                full_message = f"{message}{title_part}"
 
-            # Commit
-            commit = self.repo.index.commit(
-                full_message,
-                author=self.author,
-                committer=self.author,
-            )
+                # Commit
+                commit = self.repo.index.commit(
+                    full_message,
+                    author=self.author,
+                    committer=self.author,
+                )
 
-            short_hash = commit.hexsha[:7]
-            logger.info(
-                "Committed note changes",
-                extra={
-                    "note": note_filename,
-                    "commit": short_hash,
-                    "commit_message": full_message[:50],
-                },
-            )
-            return short_hash
+                short_hash = commit.hexsha[:7]
+                logger.info(
+                    "Committed note changes",
+                    extra={
+                        "note": note_filename,
+                        "commit": short_hash,
+                        "commit_message": full_message[:50],
+                    },
+                )
+                return short_hash
 
-        except GitCommandError as e:
-            logger.error(f"Git commit failed: {e}")
-            return None
+            except GitCommandError as e:
+                logger.error(f"Git commit failed: {e}")
+                return None
 
     def commit_delete(
         self,
@@ -256,25 +263,27 @@ class GitVersionManager:
         if self.repo is None:
             return None
 
-        try:
-            # Stage deletion
-            self.repo.index.remove([note_filename])
+        # Use global lock to prevent concurrent Git index operations
+        with _git_lock:
+            try:
+                # Stage deletion
+                self.repo.index.remove([note_filename])
 
-            # Commit
-            title_part = f": {note_title}" if note_title else ""
-            commit = self.repo.index.commit(
-                f"Delete note{title_part}",
-                author=self.author,
-                committer=self.author,
-            )
+                # Commit
+                title_part = f": {note_title}" if note_title else ""
+                commit = self.repo.index.commit(
+                    f"Delete note{title_part}",
+                    author=self.author,
+                    committer=self.author,
+                )
 
-            short_hash = commit.hexsha[:7]
-            logger.info(f"Committed note deletion: {note_filename} ({short_hash})")
-            return short_hash
+                short_hash = commit.hexsha[:7]
+                logger.info(f"Committed note deletion: {note_filename} ({short_hash})")
+                return short_hash
 
-        except GitCommandError as e:
-            logger.error(f"Git delete commit failed: {e}")
-            return None
+            except GitCommandError as e:
+                logger.error(f"Git delete commit failed: {e}")
+                return None
 
     def list_versions(
         self,
