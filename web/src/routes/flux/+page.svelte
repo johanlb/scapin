@@ -183,7 +183,7 @@
 	let customInstruction: string = $state('');
 	let isProcessing: boolean = $state(false);
 	let showLevel3: boolean = $state(false);
-	let showHtmlContent: boolean = $state(false);
+	let showHtmlContent: boolean = $state(true);
 
 	// Current item in single-item view
 	const currentItem = $derived(
@@ -874,13 +874,14 @@
 			reply: '✉️',
 			forward: '⬆️',
 			flag: '🚩',
+			signaler: '🚩',
 			task: '✅',
 			defer: '⏰',
 			ignore: '🚫',
 			queue: '❓',
 			review: '👁️'
 		};
-		return icons[action] || '❓';
+		return icons[action.toLowerCase()] || '📋';
 	}
 
 	function getActionColor(action: string): string {
@@ -888,12 +889,14 @@
 			archive: 'var(--color-success)',
 			delete: 'var(--color-urgency-urgent)',
 			reply: 'var(--color-accent)',
+			flag: 'var(--color-warning)',
+			signaler: 'var(--color-warning)',
 			task: 'var(--color-event-omnifocus)',
 			queue: 'var(--color-warning)',
 			review: 'var(--color-warning)',
 			pending: 'var(--color-warning)'
 		};
-		return colors[action] || 'var(--color-text-secondary)';
+		return colors[action.toLowerCase()] || 'var(--color-text-secondary)';
 	}
 
 	function getCategoryLabel(category: string | null): string {
@@ -1423,9 +1426,9 @@
 							{/if}
 						</div>
 
-						<!-- SECTION 5: Enrichments (collapsible summary) -->
+						<!-- SECTION 5: Enrichments (visible by default) -->
 						{#if enrichmentsCount > 0}
-							<details class="group">
+							<details class="group" open>
 								<summary class="flex items-center justify-between cursor-pointer p-2 rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors">
 									<span class="text-sm font-medium text-[var(--color-text-primary)]">
 										📝 {enrichmentsCount} enrichissement{enrichmentsCount > 1 ? 's' : ''}
@@ -1527,14 +1530,14 @@
 							</Button>
 							<div class="flex-1"></div>
 							<Button variant="ghost" size="sm" onclick={() => handleArchiveElsewhere(currentItem)} disabled={isProcessing}>
-								📁
+								📁 Classer
 							</Button>
 							<Button variant="ghost" size="sm" onclick={() => handleDelete(currentItem)} disabled={isProcessing}>
-								🗑️ <span class="ml-1 opacity-60 font-mono text-xs">D</span>
+								🗑️ Suppr <span class="ml-1 opacity-60 font-mono text-xs">D</span>
 							</Button>
 							<div class="relative">
 								<Button variant="ghost" size="sm" onclick={toggleSnoozeMenu} disabled={isProcessing} data-testid="snooze-button">
-									💤 <span class="ml-1 opacity-60 font-mono text-xs">S</span>
+									💤 Reporter <span class="ml-1 opacity-60 font-mono text-xs">S</span>
 								</Button>
 								{#if showSnoozeMenu}
 									<button type="button" class="fixed inset-0 z-40" onclick={() => showSnoozeMenu = false} aria-label="Fermer"></button>
