@@ -378,6 +378,15 @@ class EventAnalyzer:
                     logger.warning(f"Skipping extraction with empty note_cible: {info}")
                     continue
 
+                # CRITICAL: Reject extractions targeting the owner "Johan"
+                # Johan is the system owner - his name appears everywhere but should never be a target
+                note_cible_lower = note_cible.lower()
+                if note_cible_lower in ("johan", "johan leblanc", "johan l.", "johan l"):
+                    logger.warning(
+                        f"Rejecting extraction targeting owner 'Johan': {info} -> {note_cible}"
+                    )
+                    continue
+
                 # Parse enums with fallbacks
                 ext_type = self._parse_extraction_type(ext_data.get("type", "fait"))
                 importance = self._parse_importance(
