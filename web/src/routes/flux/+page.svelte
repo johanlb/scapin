@@ -885,9 +885,10 @@
 			ignore: 'Ignorer',
 			queue: 'À décider',
 			review: 'À revoir',
-			pending: 'En attente'
+			pending: 'En attente',
+			rien: 'Aucune action'
 		};
-		return labels[action] || action;
+		return labels[action.toLowerCase()] || action;
 	}
 
 	function getActionIcon(action: string): string {
@@ -897,12 +898,13 @@
 			reply: '✉️',
 			forward: '⬆️',
 			flag: '🚩',
-			signaler: '🚩',
 			task: '✅',
 			defer: '⏰',
 			ignore: '🚫',
 			queue: '❓',
-			review: '👁️'
+			review: '👁️',
+			rien: '➖',
+			pending: '⏳'
 		};
 		return icons[action.toLowerCase()] || '📋';
 	}
@@ -913,11 +915,11 @@
 			delete: 'var(--color-urgency-urgent)',
 			reply: 'var(--color-accent)',
 			flag: 'var(--color-warning)',
-			signaler: 'var(--color-warning)',
 			task: 'var(--color-event-omnifocus)',
 			queue: 'var(--color-warning)',
 			review: 'var(--color-warning)',
-			pending: 'var(--color-warning)'
+			pending: 'var(--color-warning)',
+			rien: 'var(--color-text-tertiary)'
 		};
 		return colors[action.toLowerCase()] || 'var(--color-text-secondary)';
 	}
