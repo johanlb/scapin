@@ -572,40 +572,55 @@ class QueueService:
             note_manager = NoteManager(notes_dir=config.storage.notes_path)
 
             if action == "creer":
-                # Create a new note
-                note = note_manager.create_note(
+                # Create a new note with content
+                formatted_content = f"## {note_type.capitalize()}\n\n{content}"
+                if importance:
+                    formatted_content += f"\n\n**Importance**: {importance}"
+
+                note_id = note_manager.create_note(
                     title=note_title,
-                    content=f"# {note_title}\n\n",
+                    content=formatted_content,
                     tags=[note_type],
+                    metadata={
+                        "note_type": note_type,
+                        "importance": importance,
+                        "source_id": source_id,
+                        "created_from": "email_enrichment",
+                    }
                 )
-                if note:
-                    # Add the info to the new note
-                    return note_manager.add_info(
-                        note_id=note.note_id,
-                        info=content,
-                        info_type=note_type,
-                        importance=importance,
-                        source_id=source_id,
-                    )
-                return False
+                return bool(note_id)
             else:
                 # Enrichir: find existing note by title
                 notes = note_manager.search_notes(note_title, top_k=5)
                 matching_note = None
 
-                for note, _score in notes:
+                for note in notes:
                     if note.title.lower() == note_title.lower():
                         matching_note = note
                         break
 
                 if not matching_note:
-                    # Note not found - log and return success (non-blocking)
-                    logger.warning(
-                        f"Note '{note_title}' not found for enrichment, skipping",
+                    # Note not found - create it instead of skipping
+                    logger.info(
+                        f"Note '{note_title}' not found for enrichment, creating new note",
                         extra={"note_title": note_title, "note_type": note_type}
                     )
-                    # Return True because we don't want to block on missing notes
-                    # The user can still review and create the note manually
+                    # Create a new note with the enrichment content
+                    # Format the content with metadata
+                    formatted_content = f"## {note_type.capitalize()}\n\n{content}"
+                    if importance:
+                        formatted_content += f"\n\n**Importance**: {importance}"
+
+                    note_manager.create_note(
+                        title=note_title,
+                        content=formatted_content,
+                        metadata={
+                            "note_type": note_type,
+                            "importance": importance,
+                            "source_id": source_id,
+                            "created_from": "email_enrichment",
+                        }
+                    )
                     return True
 
                 # Add info to existing note
