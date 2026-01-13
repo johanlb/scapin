@@ -26,6 +26,7 @@ class TestVectorStoreInit:
     def test_init_with_defaults(self):
         """Test default initialization"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
         embedder.embed_text.return_value = np.random.rand(384).astype(np.float32)
 
         store = VectorStore(dimension=384, embedder=embedder)
@@ -39,6 +40,7 @@ class TestVectorStoreInit:
     def test_init_with_cosine_metric(self):
         """Test initialization with cosine similarity"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
         store = VectorStore(dimension=384, embedder=embedder, metric="cosine")
 
         assert store.metric == "cosine"
@@ -46,6 +48,7 @@ class TestVectorStoreInit:
     def test_init_invalid_dimension(self):
         """Test error on invalid dimension"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
 
         with pytest.raises(ValueError, match="Dimension must be positive"):
             VectorStore(dimension=0, embedder=embedder)
@@ -56,6 +59,7 @@ class TestVectorStoreInit:
     def test_init_invalid_metric(self):
         """Test error on unsupported metric"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
 
         with pytest.raises(ValueError, match="Unsupported metric"):
             VectorStore(dimension=384, embedder=embedder, metric="manhattan")
@@ -67,6 +71,7 @@ class TestAddDocument:
     @pytest.fixture
     def store(self):
         embedder = Mock()
+        embedder.model_name = "mock-model"
         embedder.embed_text.return_value = np.random.rand(384).astype(np.float32)
         return VectorStore(dimension=384, embedder=embedder)
 
@@ -121,6 +126,7 @@ class TestSearch:
     @pytest.fixture
     def populated_store(self):
         embedder = Mock()
+        embedder.model_name = "mock-model"
         # Return different embeddings for different texts
         def mock_embed(text, **kwargs):
             # Simple hash-based embedding for reproducibility
@@ -169,6 +175,7 @@ class TestSearch:
     def test_search_empty_store(self):
         """Test search on empty store returns empty list"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
         embedder.embed_text.return_value = np.random.rand(384).astype(np.float32)
         store = VectorStore(dimension=384, embedder=embedder)
 
@@ -192,7 +199,9 @@ class TestRemoveAndRebuild:
     @pytest.fixture
     def store(self):
         embedder = Mock()
+        embedder.model_name = "mock-model"
         embedder.embed_text.return_value = np.random.rand(384).astype(np.float32)
+        embedder.model_name = "mock-model"
         s = VectorStore(dimension=384, embedder=embedder)
         s.add("doc1", "Text 1")
         s.add("doc2", "Text 2")
@@ -203,9 +212,14 @@ class TestRemoveAndRebuild:
         success = store.remove("doc1")
         assert success is True
 
-        # Document marked as deleted
+        # Document no longer accessible via get_document
         doc = store.get_document("doc1")
-        assert doc["_deleted"] is True
+        assert doc is None
+
+        # But internally tracked as deleted (for stats and rebuild)
+        stats = store.get_stats()
+        assert stats["deleted_docs"] == 1
+        assert stats["active_docs"] == 1  # doc2 still active
 
     def test_remove_nonexistent_returns_false(self, store):
         """Test removing nonexistent document returns False"""
@@ -235,6 +249,7 @@ class TestPersistence:
     def test_save_and_load(self, tmp_path):
         """Test saving and loading vector store"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
         embedder.embed_text.return_value = np.random.rand(384).astype(np.float32)
 
         # Create and populate store
@@ -262,6 +277,7 @@ class TestPersistence:
     def test_load_nonexistent_raises(self):
         """Test loading from nonexistent path raises error"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
         store = VectorStore(dimension=384, embedder=embedder)
 
         with pytest.raises(FileNotFoundError):
@@ -274,6 +290,7 @@ class TestGetDocument:
     @pytest.fixture
     def store(self):
         embedder = Mock()
+        embedder.model_name = "mock-model"
         embedder.embed_text.return_value = np.random.rand(384).astype(np.float32)
         s = VectorStore(dimension=384, embedder=embedder)
         s.add("doc1", "Test text", {"key": "value"})
@@ -300,6 +317,7 @@ class TestStats:
     def test_stats_empty_store(self):
         """Test stats on empty store"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
         store = VectorStore(dimension=384, embedder=embedder)
 
         stats = store.get_stats()
@@ -311,6 +329,7 @@ class TestStats:
     def test_stats_with_documents(self):
         """Test stats with documents"""
         embedder = Mock()
+        embedder.model_name = "mock-model"
         embedder.embed_text.return_value = np.random.rand(384).astype(np.float32)
         store = VectorStore(dimension=384, embedder=embedder)
 
@@ -332,6 +351,7 @@ class TestThreadSafety:
         import threading
 
         embedder = Mock()
+        embedder.model_name = "mock-model"
         embedder.embed_text.return_value = np.random.rand(384).astype(np.float32)
         store = VectorStore(dimension=384, embedder=embedder)
 
