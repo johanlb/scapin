@@ -1303,203 +1303,194 @@
 							</div>
 						</div>
 
-						<!-- SECTION 2: ACTION CARD (prominent, at top) -->
+						<!-- SECTION 2: RECOMMENDATION -->
 						{#if hasOptions && recommendedOption}
-							<div class="p-4 rounded-xl bg-gradient-to-r from-[var(--color-bg-secondary)] to-[var(--color-bg-tertiary)] border-2 border-[var(--color-accent)]/30">
-								<div class="flex items-center gap-3 mb-3">
-									<div
-										class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm"
-										style="background-color: color-mix(in srgb, {getActionColor(recommendedOption.action)} 25%, transparent)"
-									>
-										{getActionIcon(recommendedOption.action)}
-									</div>
-									<div class="flex-1">
-										<div class="flex items-center gap-2">
-											<span class="text-lg font-bold" style="color: {getActionColor(recommendedOption.action)}">
-												{getActionLabel(recommendedOption.action)}
-											</span>
-											<!-- Confidence bar -->
-											<div class="flex-1 max-w-[100px] h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-												<div
-													class="h-full rounded-full transition-all"
-													style="width: {recommendedOption.confidence}%; background-color: {getConfidenceColor(recommendedOption.confidence)}"
-												></div>
-											</div>
-											<span class="text-xs font-medium" style="color: {getConfidenceColor(recommendedOption.confidence)}">
-												{recommendedOption.confidence}%
-											</span>
+							<div class="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[var(--color-bg-secondary)] to-[var(--color-bg-tertiary)] border border-[var(--color-accent)]/30">
+								<div
+									class="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
+									style="background-color: color-mix(in srgb, {getActionColor(recommendedOption.action)} 25%, transparent)"
+								>
+									{getActionIcon(recommendedOption.action)}
+								</div>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-2">
+										<span class="font-bold" style="color: {getActionColor(recommendedOption.action)}">
+											{getActionLabel(recommendedOption.action)}
+										</span>
+										<div class="flex-1 max-w-[80px] h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+											<div
+												class="h-full rounded-full"
+												style="width: {recommendedOption.confidence}%; background-color: {getConfidenceColor(recommendedOption.confidence)}"
+											></div>
 										</div>
-										<p class="text-sm text-[var(--color-text-secondary)] mt-0.5 line-clamp-2">
-											{recommendedOption.reasoning}
-										</p>
+										<span class="text-xs font-medium" style="color: {getConfidenceColor(recommendedOption.confidence)}">
+											{recommendedOption.confidence}%
+										</span>
 										{#if recommendedOption.destination}
-											<p class="text-xs text-[var(--color-text-tertiary)] mt-0.5">→ {recommendedOption.destination}</p>
+											<span class="text-xs text-[var(--color-text-tertiary)]">→ {recommendedOption.destination}</span>
 										{/if}
 									</div>
+									<p class="text-sm text-[var(--color-text-secondary)] mt-0.5">
+										{recommendedOption.reasoning}
+									</p>
 								</div>
-								<!-- Action buttons integrated -->
-								<div class="flex flex-wrap gap-2">
+							</div>
+						{:else}
+							<!-- Fallback when no options -->
+							<div class="flex items-center gap-3 p-3 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
+								<div
+									class="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
+									style="background-color: color-mix(in srgb, {getActionColor(currentItem.analysis.action)} 25%, transparent)"
+								>
+									{getActionIcon(currentItem.analysis.action)}
+								</div>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-2">
+										<span class="font-bold" style="color: {getActionColor(currentItem.analysis.action)}">
+											{getActionLabel(currentItem.analysis.action)}
+										</span>
+										<div class="flex-1 max-w-[80px] h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+											<div
+												class="h-full rounded-full"
+												style="width: {currentItem.analysis.confidence}%; background-color: {getConfidenceColor(currentItem.analysis.confidence)}"
+											></div>
+										</div>
+										<span class="text-xs font-medium" style="color: {getConfidenceColor(currentItem.analysis.confidence)}">
+											{currentItem.analysis.confidence}%
+										</span>
+									</div>
+									{#if currentItem.analysis.reasoning}
+										<p class="text-sm text-[var(--color-text-secondary)] mt-0.5">{currentItem.analysis.reasoning}</p>
+									{/if}
+								</div>
+							</div>
+						{/if}
+
+						<!-- SECTION 3: ENRICHMENTS (visible by default) -->
+						{#if enrichmentsCount > 0}
+							<div class="space-y-2">
+								<div class="flex items-center gap-2">
+									<span class="text-sm font-medium text-[var(--color-text-primary)]">
+										📝 {enrichmentsCount} enrichissement{enrichmentsCount > 1 ? 's' : ''}
+									</span>
+									{#if filterNotes(currentItem.analysis.proposed_notes, false).some(n => n.required)}
+										<span class="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300">requis</span>
+									{/if}
+								</div>
+								{@render enrichmentsSection()}
+							</div>
+						{/if}
+
+						<!-- SECTION 4: ALL BUTTONS (unified row) -->
+						<div class="flex flex-wrap items-center gap-2 py-2 border-y border-[var(--color-border)]">
+							<Button
+								variant="primary"
+								size="sm"
+								onclick={handleApproveRecommended}
+								disabled={isProcessing}
+								data-testid="approve-button"
+							>
+								✓ Approuver <span class="ml-1 opacity-60 font-mono text-xs">A</span>
+							</Button>
+							<Button
+								variant={showOpusPanel ? 'primary' : 'secondary'}
+								size="sm"
+								onclick={toggleOpusPanel}
+								disabled={isProcessing || isReanalyzingOpus}
+								data-testid="reanalyze-opus-button"
+							>
+								{#if isReanalyzingOpus}
+									⏳ Opus...
+								{:else}
+									🧠 Opus <span class="ml-1 opacity-60 font-mono text-xs">R</span>
+								{/if}
+							</Button>
+							{#if otherOptions.length > 0}
+								<Button
+									variant="secondary"
+									size="sm"
+									onclick={() => showLevel3 = !showLevel3}
+								>
+									Autres ({otherOptions.length}) <span class="ml-1 opacity-60">▾</span>
+								</Button>
+							{/if}
+							<div class="flex-1"></div>
+							<Button variant="ghost" size="sm" onclick={() => handleArchiveElsewhere(currentItem)} disabled={isProcessing}>
+								📁 Classer
+							</Button>
+							<Button variant="ghost" size="sm" onclick={() => handleDelete(currentItem)} disabled={isProcessing}>
+								🗑️ <span class="ml-1 opacity-60 font-mono text-xs">D</span>
+							</Button>
+							<div class="relative">
+								<Button variant="ghost" size="sm" onclick={toggleSnoozeMenu} disabled={isProcessing} data-testid="snooze-button">
+									💤 <span class="ml-1 opacity-60 font-mono text-xs">S</span>
+								</Button>
+								{#if showSnoozeMenu}
+									<button type="button" class="fixed inset-0 z-40" onclick={() => showSnoozeMenu = false} aria-label="Fermer"></button>
+									<div class="absolute bottom-full right-0 mb-2 z-50 min-w-[160px] py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] shadow-lg">
+										{#each snoozeOptions as option}
+											<button
+												type="button"
+												class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-secondary)]"
+												onclick={() => handleSnoozeOption(option.value)}
+												disabled={isSnoozing}
+											>{option.label}</button>
+										{/each}
+									</div>
+								{/if}
+							</div>
+							<Button
+								variant={showLevel3 ? 'primary' : 'ghost'}
+								size="sm"
+								onclick={() => showLevel3 = !showLevel3}
+							>
+								{showLevel3 ? '📖' : '📋'} <span class="ml-1 opacity-60 font-mono text-xs">E</span>
+							</Button>
+						</div>
+
+						<!-- SECTION 5: OPUS INSTRUCTION PANEL (when visible) -->
+						{#if showOpusPanel}
+							<div class="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+								<div class="flex items-center gap-2 mb-2">
+									<span class="text-lg">🧠</span>
+									<span class="text-sm font-medium text-purple-800 dark:text-purple-200">Réanalyse avec Opus</span>
+								</div>
+								<textarea
+									bind:value={opusInstruction}
+									placeholder="Instruction personnalisée (optionnel) : ex. Classer dans Archive/2025/Relevés..."
+									class="w-full p-2 text-sm rounded border border-purple-200 dark:border-purple-700 bg-white dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+									rows="2"
+								></textarea>
+								<div class="flex gap-2 mt-2">
 									<Button
 										variant="primary"
 										size="sm"
-										onclick={handleApproveRecommended}
-										disabled={isProcessing}
-										data-testid="approve-button"
+										onclick={() => handleReanalyzeOpus(currentItem, 'immediate')}
+										disabled={isReanalyzingOpus}
 									>
-										✓ Approuver <span class="ml-1 opacity-60 font-mono text-xs">A</span>
+										▶️ Maintenant
 									</Button>
-									{#if otherOptions.length > 0}
-										<div class="relative">
-											<Button
-												variant="secondary"
-												size="sm"
-												onclick={() => showLevel3 = !showLevel3}
-											>
-												Autres ({otherOptions.length}) <span class="ml-1 opacity-60">▾</span>
-											</Button>
-										</div>
-									{/if}
 									<Button
-										variant={showOpusPanel ? 'primary' : 'secondary'}
+										variant="secondary"
+										size="sm"
+										onclick={() => handleReanalyzeOpus(currentItem, 'background')}
+										disabled={isReanalyzingOpus}
+									>
+										📥 Plus tard
+									</Button>
+									<div class="flex-1"></div>
+									<Button
+										variant="ghost"
 										size="sm"
 										onclick={toggleOpusPanel}
-										disabled={isProcessing || isReanalyzingOpus}
-										data-testid="reanalyze-opus-button"
 									>
-										{#if isReanalyzingOpus}
-											⏳ Opus...
-										{:else}
-											🧠 Opus <span class="ml-1 opacity-60 font-mono text-xs">R</span>
-										{/if}
+										Annuler
 									</Button>
 								</div>
 							</div>
-
-							<!-- OPUS INSTRUCTION PANEL (appears when Opus clicked) -->
-							{#if showOpusPanel}
-								<div class="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-									<div class="flex items-center gap-2 mb-2">
-										<span class="text-lg">🧠</span>
-										<span class="text-sm font-medium text-purple-800 dark:text-purple-200">Réanalyse avec Opus</span>
-									</div>
-									<textarea
-										bind:value={opusInstruction}
-										placeholder="Instruction personnalisée (optionnel) : ex. Classer dans Archive/2025/Relevés..."
-										class="w-full p-2 text-sm rounded border border-purple-200 dark:border-purple-700 bg-white dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
-										rows="2"
-									></textarea>
-									<div class="flex gap-2 mt-2">
-										<Button
-											variant="primary"
-											size="sm"
-											onclick={() => handleReanalyzeOpus(currentItem, 'immediate')}
-											disabled={isReanalyzingOpus}
-										>
-											▶️ Maintenant
-										</Button>
-										<Button
-											variant="secondary"
-											size="sm"
-											onclick={() => handleReanalyzeOpus(currentItem, 'background')}
-											disabled={isReanalyzingOpus}
-										>
-											📥 Plus tard
-										</Button>
-										<div class="flex-1"></div>
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={toggleOpusPanel}
-										>
-											Annuler
-										</Button>
-									</div>
-								</div>
-							{/if}
-						{:else}
-							<!-- Fallback when no options -->
-							<div class="p-4 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
-								<div class="flex items-center gap-3">
-									<div
-										class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-										style="background-color: color-mix(in srgb, {getActionColor(currentItem.analysis.action)} 25%, transparent)"
-									>
-										{getActionIcon(currentItem.analysis.action)}
-									</div>
-									<div class="flex-1">
-										<div class="flex items-center gap-2">
-											<span class="text-lg font-bold" style="color: {getActionColor(currentItem.analysis.action)}">
-												{getActionLabel(currentItem.analysis.action)}
-											</span>
-											<div class="flex-1 max-w-[100px] h-2 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
-												<div
-													class="h-full rounded-full"
-													style="width: {currentItem.analysis.confidence}%; background-color: {getConfidenceColor(currentItem.analysis.confidence)}"
-												></div>
-											</div>
-											<span class="text-xs font-medium" style="color: {getConfidenceColor(currentItem.analysis.confidence)}">
-												{currentItem.analysis.confidence}%
-											</span>
-										</div>
-										{#if currentItem.analysis.reasoning}
-											<p class="text-sm text-[var(--color-text-secondary)] mt-0.5">{currentItem.analysis.reasoning}</p>
-										{/if}
-									</div>
-								</div>
-								<div class="flex gap-2 mt-3">
-									<Button variant="primary" size="sm" onclick={handleApproveRecommended} disabled={isProcessing}>
-										✓ Approuver <span class="ml-1 opacity-60 font-mono text-xs">A</span>
-									</Button>
-									<Button variant={showOpusPanel ? 'primary' : 'secondary'} size="sm" onclick={toggleOpusPanel} disabled={isProcessing || isReanalyzingOpus}>
-										{isReanalyzingOpus ? '⏳' : '🧠'} Opus <span class="ml-1 opacity-60 font-mono text-xs">R</span>
-									</Button>
-								</div>
-							</div>
-
-							<!-- OPUS INSTRUCTION PANEL (fallback section) -->
-							{#if showOpusPanel}
-								<div class="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-									<div class="flex items-center gap-2 mb-2">
-										<span class="text-lg">🧠</span>
-										<span class="text-sm font-medium text-purple-800 dark:text-purple-200">Réanalyse avec Opus</span>
-									</div>
-									<textarea
-										bind:value={opusInstruction}
-										placeholder="Instruction personnalisée (optionnel) : ex. Classer dans Archive/2025/Relevés..."
-										class="w-full p-2 text-sm rounded border border-purple-200 dark:border-purple-700 bg-white dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
-										rows="2"
-									></textarea>
-									<div class="flex gap-2 mt-2">
-										<Button
-											variant="primary"
-											size="sm"
-											onclick={() => handleReanalyzeOpus(currentItem, 'immediate')}
-											disabled={isReanalyzingOpus}
-										>
-											▶️ Maintenant
-										</Button>
-										<Button
-											variant="secondary"
-											size="sm"
-											onclick={() => handleReanalyzeOpus(currentItem, 'background')}
-											disabled={isReanalyzingOpus}
-										>
-											📥 Plus tard
-										</Button>
-										<div class="flex-1"></div>
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={toggleOpusPanel}
-										>
-											Annuler
-										</Button>
-									</div>
-								</div>
-							{/if}
 						{/if}
 
-						<!-- SECTION 3: Other options (shown when expanded) -->
+						<!-- SECTION 6: Other options (Details mode) -->
 						{#if showLevel3 && otherOptions.length > 0}
 							<div class="space-y-2">
 								<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase">Autres options</p>
@@ -1521,56 +1512,7 @@
 							</div>
 						{/if}
 
-						<!-- SECTION 4: EMAIL PREVIEW (HTML, visible, limited height) -->
-						<div class="rounded-lg border border-[var(--color-border)] overflow-hidden">
-							<div class="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
-								<span class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase">Email</span>
-								{#if currentItem.content?.html_body}
-									<div class="flex gap-1">
-										<button
-											class="text-xs px-2 py-0.5 rounded {!showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
-											onclick={() => showHtmlContent = false}
-										>Texte</button>
-										<button
-											class="text-xs px-2 py-0.5 rounded {showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
-											onclick={() => showHtmlContent = true}
-										>HTML</button>
-									</div>
-								{/if}
-							</div>
-							{#if showHtmlContent && currentItem.content?.html_body}
-								<iframe
-									srcdoc={currentItem.content.html_body}
-									sandbox=""
-									class="w-full h-64 bg-white"
-									title="Email HTML"
-								></iframe>
-							{:else}
-								<div class="p-3 text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-64 overflow-y-auto bg-[var(--color-bg-primary)]">
-									{currentItem.content?.full_text || currentItem.content?.preview || 'Aucun contenu'}
-								</div>
-							{/if}
-						</div>
-
-						<!-- SECTION 5: Enrichments (visible by default) -->
-						{#if enrichmentsCount > 0}
-							<details class="group" open>
-								<summary class="flex items-center justify-between cursor-pointer p-2 rounded-lg hover:bg-[var(--color-bg-secondary)] transition-colors">
-									<span class="text-sm font-medium text-[var(--color-text-primary)]">
-										📝 {enrichmentsCount} enrichissement{enrichmentsCount > 1 ? 's' : ''}
-										{#if filterNotes(currentItem.analysis.proposed_notes, false).some(n => n.required)}
-											<span class="text-xs px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 ml-1">requis</span>
-										{/if}
-									</span>
-									<span class="text-[var(--color-text-tertiary)] group-open:rotate-180 transition-transform">▼</span>
-								</summary>
-								<div class="pt-2 pl-2">
-									{@render enrichmentsSection()}
-								</div>
-							</details>
-						{/if}
-
-						<!-- SECTION 6: Entities (only in Details mode) -->
+						<!-- SECTION 7: Entities (Details mode) -->
 						{#if showLevel3 && currentItem.analysis.entities && Object.keys(currentItem.analysis.entities).length > 0}
 							<div class="p-2 rounded-lg bg-[var(--color-bg-secondary)]">
 								<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase mb-2">Entités extraites</p>
@@ -1591,7 +1533,7 @@
 							</div>
 						{/if}
 
-						<!-- SECTION 7: Context & Metadata (only in Details mode) -->
+						<!-- SECTION 8: Context & Metadata (Details mode) -->
 						{#if showLevel3}
 							{#if currentItem.analysis.context_used && currentItem.analysis.context_used.length > 0}
 								<div class="p-2 rounded-lg bg-[var(--color-bg-secondary)]">
@@ -1612,7 +1554,7 @@
 							</div>
 						{/if}
 
-						<!-- SECTION 8: Custom instruction -->
+						<!-- SECTION 9: Custom instruction (Details mode) -->
 						{#if showLevel3}
 							<div class="p-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)]/50">
 								<div class="flex items-center gap-2 mb-2">
@@ -1645,40 +1587,35 @@
 							</div>
 						{/if}
 
-						<!-- SECTION 9: Secondary actions (bottom bar) -->
-						<div class="flex flex-wrap items-center gap-2 pt-3 border-t border-[var(--color-border)]">
-							<Button
-								variant={showLevel3 ? 'primary' : 'ghost'}
-								size="sm"
-								onclick={() => showLevel3 = !showLevel3}
-							>
-								{showLevel3 ? '📖 Simple' : '📋 Détails'} <span class="ml-1 opacity-60 font-mono text-xs">E</span>
-							</Button>
-							<div class="flex-1"></div>
-							<Button variant="ghost" size="sm" onclick={() => handleArchiveElsewhere(currentItem)} disabled={isProcessing}>
-								📁 Classer
-							</Button>
-							<Button variant="ghost" size="sm" onclick={() => handleDelete(currentItem)} disabled={isProcessing}>
-								🗑️ Suppr <span class="ml-1 opacity-60 font-mono text-xs">D</span>
-							</Button>
-							<div class="relative">
-								<Button variant="ghost" size="sm" onclick={toggleSnoozeMenu} disabled={isProcessing} data-testid="snooze-button">
-									💤 Reporter <span class="ml-1 opacity-60 font-mono text-xs">S</span>
-								</Button>
-								{#if showSnoozeMenu}
-									<button type="button" class="fixed inset-0 z-40" onclick={() => showSnoozeMenu = false} aria-label="Fermer"></button>
-									<div class="absolute bottom-full right-0 mb-2 z-50 min-w-[160px] py-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] shadow-lg">
-										{#each snoozeOptions as option}
-											<button
-												type="button"
-												class="w-full text-left px-3 py-2 text-sm hover:bg-[var(--color-bg-secondary)]"
-												onclick={() => handleSnoozeOption(option.value)}
-												disabled={isSnoozing}
-											>{option.label}</button>
-										{/each}
+						<!-- SECTION 10: EMAIL (at bottom, larger height) -->
+						<div class="rounded-lg border border-[var(--color-border)] overflow-hidden">
+							<div class="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
+								<span class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase">Email</span>
+								{#if currentItem.content?.html_body}
+									<div class="flex gap-1">
+										<button
+											class="text-xs px-2 py-0.5 rounded {!showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+											onclick={() => showHtmlContent = false}
+										>Texte</button>
+										<button
+											class="text-xs px-2 py-0.5 rounded {showHtmlContent ? 'bg-[var(--color-accent)] text-white' : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+											onclick={() => showHtmlContent = true}
+										>HTML</button>
 									</div>
 								{/if}
 							</div>
+							{#if showHtmlContent && currentItem.content?.html_body}
+								<iframe
+									srcdoc={currentItem.content.html_body}
+									sandbox=""
+									class="w-full h-96 bg-white"
+									title="Email HTML"
+								></iframe>
+							{:else}
+								<div class="p-3 text-sm text-[var(--color-text-secondary)] whitespace-pre-wrap max-h-96 overflow-y-auto bg-[var(--color-bg-primary)]">
+									{currentItem.content?.full_text || currentItem.content?.preview || 'Aucun contenu'}
+								</div>
+							{/if}
 						</div>
 
 						<!-- Keyboard help (compact) -->
