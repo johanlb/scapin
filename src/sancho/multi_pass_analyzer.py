@@ -778,6 +778,17 @@ class MultiPassAnalyzer:
                     logger.warning("Skipping extraction with empty info")
                     continue
 
+                # CRITICAL: Reject extractions targeting the owner "Johan"
+                # Johan Le Bail is the system owner - his name appears everywhere but should never be a target
+                note_cible = ext_data.get("note_cible", "").strip()
+                if note_cible:
+                    note_cible_lower = note_cible.lower()
+                    if note_cible_lower in ("johan", "johan le bail", "johan l.", "johanlb"):
+                        logger.warning(
+                            f"Rejecting extraction targeting owner 'Johan': {info} -> {note_cible}"
+                        )
+                        continue
+
                 # Determine if this extraction should be required based on type/importance
                 # if not explicitly set
                 ext_type = ext_data.get("type", "fait")
