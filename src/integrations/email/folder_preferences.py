@@ -17,10 +17,10 @@ from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 from src.monitoring.logger import get_logger
+from src.utils import get_data_dir
 
 logger = get_logger("folder_preferences")
 
@@ -76,7 +76,8 @@ class FolderPreferencesStore:
             db_path: Path to SQLite database. Defaults to data/folder_preferences.db
         """
         if db_path is None:
-            data_dir = Path("data")
+            # Use absolute path to ensure correct location regardless of working directory
+            data_dir = get_data_dir()
             data_dir.mkdir(exist_ok=True)
             db_path = str(data_dir / "folder_preferences.db")
 

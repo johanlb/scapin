@@ -15,7 +15,9 @@ from .date_utils import (
 from .file_utils import (
     atomic_write,
     ensure_dir,
+    get_data_dir,
     get_file_hash,
+    get_project_root,
     list_files,
     safe_read_file,
     safe_write_file,
@@ -37,6 +39,8 @@ __all__ = [
     "atomic_write",
     "list_files",
     "get_file_hash",
+    "get_project_root",
+    "get_data_dir",
     # String utils
     "truncate",
     "sanitize_filename",

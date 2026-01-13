@@ -12,10 +12,10 @@ but the actual filtering is done locally.
 import sqlite3
 import threading
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Optional
 
 from src.monitoring.logger import get_logger
+from src.utils import get_data_dir
 
 logger = get_logger("processed_tracker")
 
@@ -36,8 +36,8 @@ class ProcessedEmailTracker:
             db_path: Path to SQLite database. Defaults to data/processed_emails.db
         """
         if db_path is None:
-            # Use default path in data directory
-            data_dir = Path("data")
+            # Use absolute path to ensure correct location regardless of working directory
+            data_dir = get_data_dir()
             data_dir.mkdir(exist_ok=True)
             db_path = str(data_dir / "processed_emails.db")
 

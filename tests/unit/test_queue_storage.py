@@ -104,10 +104,13 @@ class TestQueueStorageInit:
         assert queue_dir.is_dir()
 
     def test_init_default_directory(self):
-        """Test initialization with default directory"""
+        """Test initialization with default directory (absolute path)"""
+        from src.utils import get_data_dir
         storage = QueueStorage()
 
-        assert storage.queue_dir == Path("data/queue")
+        # Should use absolute path from get_data_dir()
+        assert storage.queue_dir == get_data_dir() / "queue"
+        assert storage.queue_dir.is_absolute()
 
 
 class TestQueueStorageSaveItem:

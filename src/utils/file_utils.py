@@ -7,8 +7,50 @@ Helper functions for file operations.
 import hashlib
 import shutil
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
+
+
+@lru_cache(maxsize=1)
+def get_project_root() -> Path:
+    """
+    Get the absolute path to the project root directory.
+
+    Detects the project root by looking for marker files/directories
+    that indicate the root of the Scapin project.
+
+    Returns:
+        Absolute path to project root
+
+    Note:
+        This function is cached since the project root never changes during runtime.
+    """
+    # Start from this file's directory and walk up
+    current = Path(__file__).resolve().parent
+
+    # Walk up until we find a marker
+    markers = ["pyproject.toml", "CLAUDE.md", ".git"]
+
+    while current != current.parent:
+        for marker in markers:
+            if (current / marker).exists():
+                return current
+        current = current.parent
+
+    # Fallback to current working directory if no marker found
+    # This shouldn't happen in normal operation
+    return Path.cwd()
+
+
+def get_data_dir() -> Path:
+    """
+    Get the absolute path to the data directory.
+
+    Returns:
+        Absolute path to data/ directory
+    """
+    return get_project_root() / "data"
 
 
 def ensure_dir(path: Path) -> Path:

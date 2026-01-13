@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from src.monitoring.logger import get_logger
-from src.utils import now_utc
+from src.utils import get_data_dir, now_utc
 
 logger = get_logger("action_history")
 
@@ -119,7 +119,8 @@ class ActionHistoryStorage:
         Args:
             actions_dir: Directory for action files (default: data/actions)
         """
-        self.actions_dir = Path(actions_dir) if actions_dir else Path("data/actions")
+        # Use absolute path to ensure correct location regardless of working directory
+        self.actions_dir = Path(actions_dir) if actions_dir else get_data_dir() / "actions"
         self.actions_dir.mkdir(parents=True, exist_ok=True)
 
         # Thread lock for file operations

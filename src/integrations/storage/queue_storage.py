@@ -35,7 +35,7 @@ from typing import Any, Optional
 
 from src.core.schemas import EmailAnalysis, EmailMetadata
 from src.monitoring.logger import get_logger
-from src.utils import now_utc
+from src.utils import get_data_dir, now_utc
 
 logger = get_logger("queue_storage")
 
@@ -54,7 +54,8 @@ class QueueStorage:
         Args:
             queue_dir: Directory for queue files (default: data/queue)
         """
-        self.queue_dir = Path(queue_dir) if queue_dir else Path("data/queue")
+        # Use absolute path to ensure correct location regardless of working directory
+        self.queue_dir = Path(queue_dir) if queue_dir else get_data_dir() / "queue"
         self.queue_dir.mkdir(parents=True, exist_ok=True)
 
         # File to track processed message_ids (Bug #60 fix)

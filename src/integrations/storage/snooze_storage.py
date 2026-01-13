@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from src.monitoring.logger import get_logger
-from src.utils import now_utc
+from src.utils import get_data_dir, now_utc
 
 logger = get_logger("snooze_storage")
 
@@ -77,7 +77,8 @@ class SnoozeStorage:
         Args:
             snoozes_dir: Directory for snooze files (default: data/snoozes)
         """
-        self.snoozes_dir = Path(snoozes_dir) if snoozes_dir else Path("data/snoozes")
+        # Use absolute path to ensure correct location regardless of working directory
+        self.snoozes_dir = Path(snoozes_dir) if snoozes_dir else get_data_dir() / "snoozes"
         self.snoozes_dir.mkdir(parents=True, exist_ok=True)
 
         # Thread lock for file operations
