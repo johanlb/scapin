@@ -1191,51 +1191,70 @@
 						{@const threshold = note.required ? AUTO_APPLY_THRESHOLD_REQUIRED : AUTO_APPLY_THRESHOLD_OPTIONAL}
 						{@const isManuallySet = note.manually_approved !== null && note.manually_approved !== undefined}
 						{@const isChecked = note.manually_approved === true || (note.manually_approved !== false && willApply)}
-						<div class="flex items-center justify-between text-sm {!isChecked ? 'opacity-60' : ''}">
-							<span class="flex items-center gap-2">
-								<input
-									type="checkbox"
-									checked={isChecked}
-									class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-									title={isManuallySet ? (note.manually_approved ? 'Forcé' : 'Rejeté') : (willApply ? 'Auto' : 'Manuel')}
-									onchange={() => console.log('Toggle note:', noteIndex)}
-								/>
-								<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
-									{note.action === 'create' ? '+' : '~'} {note.note_type}
+						<div class="rounded-lg border border-[var(--color-border)] p-2 {!isChecked ? 'opacity-60' : ''}">
+							<div class="flex items-center justify-between text-sm">
+								<span class="flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={isChecked}
+										class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+										title={isManuallySet ? (note.manually_approved ? 'Forcé' : 'Rejeté') : (willApply ? 'Auto' : 'Manuel')}
+										onchange={() => console.log('Toggle note:', noteIndex)}
+									/>
+									<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
+										{note.action === 'create' ? '+' : '~'} {note.note_type}
+									</span>
+									{#if note.required}
+										<span class="text-xs px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300">!</span>
+									{/if}
+									<span class="text-[var(--color-text-primary)] font-medium">{note.title || 'Sans titre'}</span>
 								</span>
-								{#if note.required}
-									<span class="text-xs px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300">!</span>
-								{/if}
-								<span class="text-[var(--color-text-primary)] truncate max-w-[200px]">{note.title || 'Sans titre'}</span>
-							</span>
-							<span class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}">
-								{Math.round(note.confidence * 100)}%
-							</span>
+								<span class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}">
+									{Math.round(note.confidence * 100)}%
+								</span>
+							</div>
+							{#if note.content_summary}
+								<p class="mt-1.5 text-xs text-[var(--color-text-secondary)] pl-6 border-l-2 border-[var(--color-border)] ml-2">
+									{note.content_summary}
+								</p>
+							{/if}
 						</div>
 					{/each}
 					{#each tasks as task, taskIndex}
 						{@const willApply = willTaskBeAutoApplied(task)}
 						{@const isPastDue = isDateObsolete(task.due_date)}
 						{@const isChecked = willApply && !isPastDue}
-						<div class="flex items-center justify-between text-sm {!isChecked ? 'opacity-60' : ''}">
-							<span class="flex items-center gap-2">
-								<input
-									type="checkbox"
-									checked={isChecked}
-									class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-									onchange={() => console.log('Toggle task:', taskIndex)}
-								/>
-								<span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300">📋</span>
-								<span class="text-[var(--color-text-primary)] truncate max-w-[200px]">{task.title}</span>
-								{#if task.due_date}
-									<span class="text-xs {isDatePast(task.due_date) ? 'text-red-500 line-through' : 'text-orange-500'}">
-										{task.due_date}
-									</span>
+						<div class="rounded-lg border border-[var(--color-border)] p-2 {!isChecked ? 'opacity-60' : ''}">
+							<div class="flex items-center justify-between text-sm">
+								<span class="flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={isChecked}
+										class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+										onchange={() => console.log('Toggle task:', taskIndex)}
+									/>
+									<span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300">📋 OmniFocus</span>
+									<span class="text-[var(--color-text-primary)] font-medium">{task.title}</span>
+								</span>
+								<span class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}">
+									{Math.round(task.confidence * 100)}%
+								</span>
+							</div>
+							<div class="mt-1.5 text-xs text-[var(--color-text-secondary)] pl-6 border-l-2 border-[var(--color-border)] ml-2 space-y-0.5">
+								{#if task.note}
+									<p>{task.note}</p>
 								{/if}
-							</span>
-							<span class="text-xs font-medium px-1.5 py-0.5 rounded {isChecked ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'}">
-								{Math.round(task.confidence * 100)}%
-							</span>
+								<p class="flex items-center gap-2">
+									{#if task.project}
+										<span>📁 {task.project}</span>
+									{/if}
+									{#if task.due_date}
+										<span class="{isDatePast(task.due_date) ? 'text-red-500 line-through' : 'text-orange-500'}">
+											📅 {task.due_date}
+										</span>
+									{/if}
+								</p>
+							</div>
 						</div>
 					{/each}
 				</div>
