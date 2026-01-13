@@ -157,10 +157,9 @@ class NoteManager:
         )
 
         # Index existing notes (try to load from disk first)
-        if auto_index:
-            if not self._try_load_index():
-                self._index_all_notes()
-                self._save_index()
+        if auto_index and not self._try_load_index():
+            self._index_all_notes()
+            self._save_index()
 
     def _cache_put(self, note_id: str, note: Note) -> None:
         """
@@ -247,7 +246,8 @@ class NoteManager:
         content: str,
         tags: Optional[list[str]] = None,
         entities: Optional[list[Entity]] = None,
-        metadata: Optional[dict[str, Any]] = None
+        metadata: Optional[dict[str, Any]] = None,
+        subfolder: Optional[str] = None
     ) -> str:
         """
         Create new note
@@ -258,6 +258,8 @@ class NoteManager:
             tags: Optional tags
             entities: Optional entities
             metadata: Optional additional metadata
+            subfolder: Optional subfolder path relative to notes_dir
+                       (e.g., "Personal Knowledge Management/Entités")
 
         Returns:
             note_id: Generated note identifier
@@ -287,8 +289,14 @@ class NoteManager:
             metadata=metadata or {}
         )
 
-        # Write to file
-        file_path = self._get_note_path(note_id)
+        # Write to file (with optional subfolder)
+        if subfolder:
+            # Create subfolder if it doesn't exist
+            folder_path = self.notes_dir / subfolder
+            folder_path.mkdir(parents=True, exist_ok=True)
+            file_path = folder_path / f"{note_id}.md"
+        else:
+            file_path = self._get_note_path(note_id)
         self._write_note_file(note, file_path)
         note.file_path = file_path
 
@@ -309,9 +317,10 @@ class NoteManager:
         with self._cache_lock:
             self._cache_put(note_id, note)
 
-        # Git commit
+        # Git commit (include subfolder in path)
         if self.git:
-            self.git.commit(f"{note_id}.md", "Create note", note_title=title)
+            relative_path = f"{subfolder}/{note_id}.md" if subfolder else f"{note_id}.md"
+            self.git.commit(relative_path, "Create note", note_title=title)
 
         logger.info(
             "Created note",
@@ -504,7 +513,7 @@ class NoteManager:
             section_found = False
             entry_added = False
 
-            for i, line in enumerate(lines):
+            for _i, line in enumerate(lines):
                 new_lines.append(line)
                 if line.strip() == section_header and not entry_added:
                     section_found = True

@@ -608,7 +608,7 @@ class QueueService:
                     source_id=source_id,
                 )
             else:
-                # Note not found - create new note
+                # Note not found - create new note in appropriate PKM subfolder
                 logger.info(
                     f"Note '{note_title}' not found, creating new note",
                     extra={"note_title": note_title, "note_type": note_type}
@@ -616,6 +616,22 @@ class QueueService:
                 formatted_content = f"## {note_type.capitalize()}\n\n{content}"
                 if importance:
                     formatted_content += f"\n\n**Importance**: {importance}"
+
+                # Determine PKM subfolder based on note_type
+                # People-related types go to Personnes
+                # Events go to Réunions
+                # Goals/objectives go to Projets
+                # Everything else goes to Entités
+                pkm_subfolder_map = {
+                    "relation": "Personnes",
+                    "coordonnees": "Personnes",
+                    "competence": "Personnes",
+                    "preference": "Personnes",
+                    "evenement": "Réunions",
+                    "objectif": "Projets",
+                }
+                subfolder_name = pkm_subfolder_map.get(note_type, "Entités")
+                subfolder = f"Personal Knowledge Management/{subfolder_name}"
 
                 note_id = note_manager.create_note(
                     title=note_title,
@@ -626,7 +642,8 @@ class QueueService:
                         "importance": importance,
                         "source_id": source_id,
                         "created_from": "email_enrichment",
-                    }
+                    },
+                    subfolder=subfolder,
                 )
                 return bool(note_id)
 
