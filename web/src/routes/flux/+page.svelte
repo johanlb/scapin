@@ -496,15 +496,13 @@
 	}
 
 	async function executeAction(item: QueueItem, option: ActionOption, destination?: string) {
-		isProcessing = true;
-
 		// Save item info for undo and potential restore
 		const itemId = item.id;
 		const itemSubject = item.metadata.subject;
 		const actionLabel = getActionLabel(option.action);
 		const savedItem = { ...item }; // Deep copy for restore on error
 
-		// Bug #53 fix: Optimistic update - immediately update UI
+		// Optimistic update - immediately update UI and move to next item
 		queueStore.removeFromList(item.id);
 
 		// Move to next or reset
@@ -512,39 +510,37 @@
 			currentIndex = Math.max(0, queueStore.items.length - 1);
 		}
 		customInstruction = '';
+		showOpusPanel = false;
+		showLevel3 = false;
 
-		// Execute action first, then show undo toast
-		// This ensures the action is recorded before undo can be triggered
-		try {
-			await approveQueueItem(item.id, option.action, item.analysis.category || undefined, destination);
+		// Show immediate feedback toast with undo option
+		toastStore.undo(
+			`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
+			async () => {
+				await undoQueueItem(itemId);
+				await queueStore.fetchQueue('pending');
+				await queueStore.fetchStats();
+			},
+			{ itemId, title: 'Action effectuée' }
+		);
 
-			// Action succeeded - now show undo toast
-			toastStore.undo(
-				`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
-				async () => {
-					await undoQueueItem(itemId);
-					await queueStore.fetchQueue('pending');
-					await queueStore.fetchStats();
-				},
-				{ itemId, title: 'Action effectuée' }
-			);
-
-			// Update stats
-			await queueStore.fetchStats();
-			// Bug #49: Check if we need to auto-fetch
-			checkAutoFetch();
-		} catch (e) {
-			// Bug #52 fix: Restore item if action failed
-			console.error('Action failed:', e);
-			// Restore item to queue
-			queueStore.restoreItem(savedItem);
-			toastStore.error(
-				`Échec de l'action "${actionLabel}". L'email a été restauré.`,
-				{ title: 'Erreur IMAP' }
-			);
-		} finally {
-			isProcessing = false;
-		}
+		// Execute action in background (fire and forget)
+		approveQueueItem(item.id, option.action, item.analysis.category || undefined, destination)
+			.then(() => {
+				// Update stats in background
+				queueStore.fetchStats();
+				// Check if we need to auto-fetch
+				checkAutoFetch();
+			})
+			.catch((e) => {
+				// Restore item if action failed
+				console.error('Action failed:', e);
+				queueStore.restoreItem(savedItem);
+				toastStore.error(
+					`Échec de l'action "${actionLabel}". L'email a été restauré.`,
+					{ title: 'Erreur IMAP' }
+				);
+			});
 	}
 
 	function handleFolderSelect(folder: string) {
@@ -669,52 +665,47 @@
 		}
 	}
 
-	async function handleDelete(item: QueueItem) {
-		if (isProcessing) return;
-		isProcessing = true;
-
+	function handleDelete(item: QueueItem) {
 		// Save item info for undo and potential restore
 		const itemId = item.id;
 		const itemSubject = item.metadata.subject;
 		const savedItem = { ...item };
 
-		// Bug #53 fix: Optimistic update
+		// Optimistic update - immediately update UI
 		queueStore.removeFromList(item.id);
 
 		if (currentIndex >= queueStore.items.length) {
 			currentIndex = Math.max(0, queueStore.items.length - 1);
 		}
 		customInstruction = '';
+		showOpusPanel = false;
+		showLevel3 = false;
 
-		// Execute action first, then show undo toast
-		try {
-			await approveQueueItem(item.id, 'delete', item.analysis.category || undefined);
+		// Show immediate feedback toast with undo option
+		toastStore.undo(
+			`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
+			async () => {
+				await undoQueueItem(itemId);
+				await queueStore.fetchQueue('pending');
+				await queueStore.fetchStats();
+			},
+			{ itemId, title: 'Email déplacé vers la corbeille' }
+		);
 
-			// Action succeeded - now show undo toast
-			toastStore.undo(
-				`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
-				async () => {
-					await undoQueueItem(itemId);
-					await queueStore.fetchQueue('pending');
-					await queueStore.fetchStats();
-				},
-				{ itemId, title: 'Email déplacé vers la corbeille' }
-			);
-
-			// Update stats
-			await queueStore.fetchStats();
-			// Bug #49: Check if we need to auto-fetch
-			checkAutoFetch();
-		} catch (e) {
-			console.error('Delete failed:', e);
-			queueStore.restoreItem(savedItem);
-			toastStore.error(
-				`Échec de la suppression. L'email a été restauré.`,
-				{ title: 'Erreur IMAP' }
-			);
-		} finally {
-			isProcessing = false;
-		}
+		// Execute action in background (fire and forget)
+		approveQueueItem(item.id, 'delete', item.analysis.category || undefined)
+			.then(() => {
+				queueStore.fetchStats();
+				checkAutoFetch();
+			})
+			.catch((e) => {
+				console.error('Delete failed:', e);
+				queueStore.restoreItem(savedItem);
+				toastStore.error(
+					`Échec de la suppression. L'email a été restauré.`,
+					{ title: 'Erreur IMAP' }
+				);
+			});
 	}
 
 	function handleSkip() {
