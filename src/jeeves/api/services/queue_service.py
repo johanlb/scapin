@@ -164,18 +164,19 @@ class QueueService:
         email_id = metadata.get("id")
 
         # ATOMIC TRANSACTION: Execute required enrichments FIRST
-        # If the action is archive/delete and there are required enrichments,
-        # we MUST execute them successfully before proceeding
+        # For any action with proposed enrichments, we should capture the information.
+        # Required enrichments MUST succeed before proceeding with archive/delete.
         enrichments_executed = []
         enrichments_failed = []
 
-        if execute_enrichments and action in ("archive", "delete", "ARCHIVE", "DELETE"):
+        if execute_enrichments:
             enrichment_success, enrichments_executed, enrichments_failed = await self._execute_enrichments(
                 item, only_required=True
             )
 
-            if not enrichment_success:
-                # Required enrichments failed - abort the operation
+            # Only abort for archive/delete if required enrichments fail
+            # For other actions (flag, task, etc.), log warning but continue
+            if not enrichment_success and action in ("archive", "delete", "ARCHIVE", "DELETE"):
                 logger.error(
                     f"Required enrichments failed for item {item_id}, aborting",
                     extra={
@@ -197,6 +198,12 @@ class QueueService:
                     item_id=item_id,
                     failed_enrichments=enrichments_failed,
                     action=action,
+                )
+            elif not enrichment_success:
+                # Non-blocking warning for other actions
+                logger.warning(
+                    f"Some enrichments failed for item {item_id}, continuing with action",
+                    extra={"action": action, "failed": enrichments_failed}
                 )
 
         # Execute the IMAP action (only after enrichments succeed)
