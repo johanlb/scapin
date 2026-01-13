@@ -418,7 +418,7 @@ class DiscussionService:
 
             # Try to use Sancho for AI generation
             try:
-                from src.sancho.router import AIRouter, AIModel
+                from src.sancho.router import AIModel, AIRouter
 
                 ai_config = self.config.ai
                 router = AIRouter(ai_config)
