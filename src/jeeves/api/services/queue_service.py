@@ -474,7 +474,6 @@ class QueueService:
             content = note_proposal.get("content_summary") or note_proposal.get("content")
             note_type = note_proposal.get("note_type") or note_proposal.get("type", "fait")
             importance = note_proposal.get("importance", "moyenne")
-            action = note_proposal.get("action", "enrichir")
 
             if not note_title or not content:
                 logger.warning(f"Skipping enrichment with missing title or content: {note_proposal}")
@@ -486,7 +485,6 @@ class QueueService:
                     content=content,
                     note_type=note_type,
                     importance=importance,
-                    action=action,
                     source_id=source_id,
                 )
 
@@ -526,7 +524,6 @@ class QueueService:
         content: str,
         note_type: str,
         importance: str,
-        action: str,
         source_id: str,
     ) -> bool:
         """
@@ -537,7 +534,6 @@ class QueueService:
             content: Information to add
             note_type: Type of information (fait, decision, engagement, etc.)
             importance: Importance level (haute, moyenne, basse)
-            action: Action to perform (enrichir or creer)
             source_id: Source event ID for traceability
 
         Returns:
@@ -549,7 +545,6 @@ class QueueService:
             content,
             note_type,
             importance,
-            action,
             source_id,
         )
 
@@ -559,7 +554,6 @@ class QueueService:
         content: str,
         note_type: str,
         importance: str,
-        action: str,
         source_id: str,
     ) -> bool:
         """Synchronous enrichment execution (runs in thread pool)"""
@@ -571,8 +565,54 @@ class QueueService:
             config = get_config()
             note_manager = NoteManager(notes_dir=config.storage.notes_path)
 
-            if action == "creer":
-                # Create a new note with content
+            # CONSOLIDATION: Always search for existing note first (regardless of action)
+            # This ensures we don't create duplicates like "Free Mobile Tarifs Maroc"
+            # when a "Free Mobile" note already exists
+            matching_note = None
+            note_title_lower = note_title.lower().strip()
+
+            # Strategy 1: Exact match using get_note_by_title (uses cache)
+            matching_note = note_manager.get_note_by_title(note_title)
+
+            # Strategy 2: If no exact match, find existing notes whose title is a prefix
+            # e.g., "Free Mobile Tarifs Maroc" should match "Free Mobile"
+            # Scan all notes (cached) to find prefix matches
+            if not matching_note:
+                candidates = []
+                for note in note_manager.get_all_notes():
+                    existing_title_lower = note.title.lower().strip()
+                    # Check if requested title starts with existing note title
+                    # Minimum 3 chars to avoid matching too broadly (e.g., "A" or "Le")
+                    if len(existing_title_lower) >= 3 and note_title_lower.startswith(existing_title_lower):
+                        candidates.append(note)
+
+                if candidates:
+                    # Pick the note with the longest matching title (most specific match)
+                    matching_note = max(candidates, key=lambda n: len(n.title))
+                    logger.info(
+                        f"Fuzzy matched '{note_title}' to existing note '{matching_note.title}'",
+                        extra={"strategy": "prefix_match", "matched_title": matching_note.title}
+                    )
+
+            if matching_note:
+                # Note exists - add info to existing note
+                logger.info(
+                    f"Found existing note '{matching_note.title}', adding info",
+                    extra={"note_id": matching_note.note_id, "note_type": note_type}
+                )
+                return note_manager.add_info(
+                    note_id=matching_note.note_id,
+                    info=content,
+                    info_type=note_type,
+                    importance=importance,
+                    source_id=source_id,
+                )
+            else:
+                # Note not found - create new note
+                logger.info(
+                    f"Note '{note_title}' not found, creating new note",
+                    extra={"note_title": note_title, "note_type": note_type}
+                )
                 formatted_content = f"## {note_type.capitalize()}\n\n{content}"
                 if importance:
                     formatted_content += f"\n\n**Importance**: {importance}"
@@ -589,48 +629,6 @@ class QueueService:
                     }
                 )
                 return bool(note_id)
-            else:
-                # Enrichir: find existing note by title
-                notes = note_manager.search_notes(note_title, top_k=5)
-                matching_note = None
-
-                for note in notes:
-                    if note.title.lower() == note_title.lower():
-                        matching_note = note
-                        break
-
-                if not matching_note:
-                    # Note not found - create it instead of skipping
-                    logger.info(
-                        f"Note '{note_title}' not found for enrichment, creating new note",
-                        extra={"note_title": note_title, "note_type": note_type}
-                    )
-                    # Create a new note with the enrichment content
-                    # Format the content with metadata
-                    formatted_content = f"## {note_type.capitalize()}\n\n{content}"
-                    if importance:
-                        formatted_content += f"\n\n**Importance**: {importance}"
-
-                    note_manager.create_note(
-                        title=note_title,
-                        content=formatted_content,
-                        metadata={
-                            "note_type": note_type,
-                            "importance": importance,
-                            "source_id": source_id,
-                            "created_from": "email_enrichment",
-                        }
-                    )
-                    return True
-
-                # Add info to existing note
-                return note_manager.add_info(
-                    note_id=matching_note.note_id,
-                    info=content,
-                    info_type=note_type,
-                    importance=importance,
-                    source_id=source_id,
-                )
 
         except Exception as e:
             logger.error(f"Failed to execute enrichment for '{note_title}': {e}", exc_info=True)
