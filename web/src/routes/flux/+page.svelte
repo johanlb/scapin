@@ -159,7 +159,7 @@
 
 		const actionShortcuts = createQueueActionShortcuts(
 			() => handleApproveRecommended(),
-			() => currentItem && handleReanalyzeOpus(currentItem),  // R = Reanalyze with Opus
+			() => toggleOpusPanel(),  // R = Toggle Opus panel
 			() => toggleSnoozeMenu(),
 			() => { showLevel3 = !showLevel3; },
 			'/flux'
@@ -604,22 +604,45 @@
 
 	// Reanalyze with Opus state
 	let isReanalyzingOpus = $state(false);
+	let showOpusPanel = $state(false);
+	let opusInstruction = $state('');
 
-	async function handleReanalyzeOpus(item: QueueItem) {
+	function toggleOpusPanel() {
+		showOpusPanel = !showOpusPanel;
+		if (!showOpusPanel) {
+			opusInstruction = '';
+		}
+	}
+
+	async function handleReanalyzeOpus(item: QueueItem, mode: 'immediate' | 'background' = 'immediate') {
 		if (isReanalyzingOpus || isProcessing) return;
 		isReanalyzingOpus = true;
+		showOpusPanel = false;
 
-		const processingToastId = toastStore.info(
-			'Réanalyse en cours avec Opus...',
-			{ title: 'Analyse approfondie', duration: 120000 }
-		);
+		const instruction = opusInstruction.trim();
+		opusInstruction = '';
+
+		const processingToastId = mode === 'immediate'
+			? toastStore.info(
+				instruction ? `Réanalyse avec instruction: "${instruction.slice(0, 50)}..."` : 'Réanalyse en cours avec Opus...',
+				{ title: 'Analyse approfondie', duration: 120000 }
+			)
+			: toastStore.info(
+				'Réanalyse en file d\'attente',
+				{ title: 'Analyse Opus', duration: 3000 }
+			);
 
 		try {
-			const result = await reanalyzeQueueItem(item.id, '', 'immediate', 'opus');
+			const result = await reanalyzeQueueItem(item.id, instruction, mode, 'opus');
 
 			toastStore.dismiss(processingToastId);
 
-			if (result.status === 'complete' && result.new_analysis) {
+			if (mode === 'background') {
+				toastStore.success(
+					'L\'analyse sera effectuée en arrière-plan.',
+					{ title: 'Analyse programmée' }
+				);
+			} else if (result.status === 'complete' && result.new_analysis) {
 				// Refresh queue to get updated item
 				await queueStore.fetchQueue('pending');
 				await queueStore.fetchStats();
@@ -953,7 +976,7 @@
 			id: 'reanalyze-opus',
 			label: 'Réanalyser (Opus)',
 			icon: '🧠',
-			handler: () => handleReanalyzeOpus(item)
+			handler: () => toggleOpusPanel()
 		});
 
 		// View details
@@ -979,7 +1002,7 @@
 		icon: '🧠',
 		label: 'Opus',
 		color: 'var(--color-accent)',
-		action: () => currentItem && handleReanalyzeOpus(currentItem)
+		action: () => toggleOpusPanel()
 	} : undefined);
 
 	const stats = $derived(queueStore.stats);
@@ -1318,9 +1341,9 @@
 										</div>
 									{/if}
 									<Button
-										variant="secondary"
+										variant={showOpusPanel ? 'primary' : 'secondary'}
 										size="sm"
-										onclick={() => handleReanalyzeOpus(currentItem)}
+										onclick={toggleOpusPanel}
 										disabled={isProcessing || isReanalyzingOpus}
 										data-testid="reanalyze-opus-button"
 									>
@@ -1332,6 +1355,48 @@
 									</Button>
 								</div>
 							</div>
+
+							<!-- OPUS INSTRUCTION PANEL (appears when Opus clicked) -->
+							{#if showOpusPanel}
+								<div class="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+									<div class="flex items-center gap-2 mb-2">
+										<span class="text-lg">🧠</span>
+										<span class="text-sm font-medium text-purple-800 dark:text-purple-200">Réanalyse avec Opus</span>
+									</div>
+									<textarea
+										bind:value={opusInstruction}
+										placeholder="Instruction personnalisée (optionnel) : ex. Classer dans Archive/2025/Relevés..."
+										class="w-full p-2 text-sm rounded border border-purple-200 dark:border-purple-700 bg-white dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+										rows="2"
+									></textarea>
+									<div class="flex gap-2 mt-2">
+										<Button
+											variant="primary"
+											size="sm"
+											onclick={() => handleReanalyzeOpus(currentItem, 'immediate')}
+											disabled={isReanalyzingOpus}
+										>
+											▶️ Maintenant
+										</Button>
+										<Button
+											variant="secondary"
+											size="sm"
+											onclick={() => handleReanalyzeOpus(currentItem, 'background')}
+											disabled={isReanalyzingOpus}
+										>
+											📥 Plus tard
+										</Button>
+										<div class="flex-1"></div>
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={toggleOpusPanel}
+										>
+											Annuler
+										</Button>
+									</div>
+								</div>
+							{/if}
 						{:else}
 							<!-- Fallback when no options -->
 							<div class="p-4 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
@@ -1366,11 +1431,53 @@
 									<Button variant="primary" size="sm" onclick={handleApproveRecommended} disabled={isProcessing}>
 										✓ Approuver <span class="ml-1 opacity-60 font-mono text-xs">A</span>
 									</Button>
-									<Button variant="secondary" size="sm" onclick={() => handleReanalyzeOpus(currentItem)} disabled={isProcessing || isReanalyzingOpus}>
-										{isReanalyzingOpus ? '⏳' : '🧠'} Opus
+									<Button variant={showOpusPanel ? 'primary' : 'secondary'} size="sm" onclick={toggleOpusPanel} disabled={isProcessing || isReanalyzingOpus}>
+										{isReanalyzingOpus ? '⏳' : '🧠'} Opus <span class="ml-1 opacity-60 font-mono text-xs">R</span>
 									</Button>
 								</div>
 							</div>
+
+							<!-- OPUS INSTRUCTION PANEL (fallback section) -->
+							{#if showOpusPanel}
+								<div class="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+									<div class="flex items-center gap-2 mb-2">
+										<span class="text-lg">🧠</span>
+										<span class="text-sm font-medium text-purple-800 dark:text-purple-200">Réanalyse avec Opus</span>
+									</div>
+									<textarea
+										bind:value={opusInstruction}
+										placeholder="Instruction personnalisée (optionnel) : ex. Classer dans Archive/2025/Relevés..."
+										class="w-full p-2 text-sm rounded border border-purple-200 dark:border-purple-700 bg-white dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+										rows="2"
+									></textarea>
+									<div class="flex gap-2 mt-2">
+										<Button
+											variant="primary"
+											size="sm"
+											onclick={() => handleReanalyzeOpus(currentItem, 'immediate')}
+											disabled={isReanalyzingOpus}
+										>
+											▶️ Maintenant
+										</Button>
+										<Button
+											variant="secondary"
+											size="sm"
+											onclick={() => handleReanalyzeOpus(currentItem, 'background')}
+											disabled={isReanalyzingOpus}
+										>
+											📥 Plus tard
+										</Button>
+										<div class="flex-1"></div>
+										<Button
+											variant="ghost"
+											size="sm"
+											onclick={toggleOpusPanel}
+										>
+											Annuler
+										</Button>
+									</div>
+								</div>
+							{/if}
 						{/if}
 
 						<!-- SECTION 3: Other options (shown when expanded) -->
