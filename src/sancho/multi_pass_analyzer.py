@@ -58,30 +58,6 @@ OLD_EMAIL_THRESHOLD_DAYS = 90  # 3 months
 # Emails older than this don't get OmniFocus tasks created
 VERY_OLD_EMAIL_THRESHOLD_DAYS = 365  # 1 year
 
-# Promotional/marketing email detection patterns
-PROMO_EMAIL_PATTERNS = {
-    # Email prefixes that indicate promotional content
-    "prefixes": [
-        "newsletter@", "noreply@", "no-reply@", "marketing@", "promo@",
-        "info@", "news@", "campaign@", "notifications@", "hello@",
-        "contact@", "support@", "mailer@", "bulk@", "updates@",
-    ],
-    # Domains known for promotional emails
-    "domains": [
-        "airfrance.com", "airfrance.fr", "klm.com", "amazon.com", "amazon.fr",
-        "linkedin.com", "facebook.com", "twitter.com", "x.com",
-        "mailchimp.com", "sendgrid.net", "constantcontact.com",
-        "hubspot.com", "salesforce.com", "marketo.com",
-        "booking.com", "hotels.com", "expedia.com", "kayak.com",
-        "netflix.com", "spotify.com", "apple.com", "google.com",
-        "uber.com", "deliveroo.com", "ubereats.com",
-    ],
-    # Keywords in sender name that suggest promotional
-    "sender_keywords": [
-        "newsletter", "promo", "marketing", "news", "update",
-        "notification", "alert", "digest", "weekly", "daily",
-    ],
-}
 
 
 class MultiPassAnalyzerError(Exception):
@@ -996,50 +972,140 @@ class MultiPassAnalyzer:
         age = now - event_date
         return max(0, age.days)
 
-    def _is_promotional_email(self, event: PerceivedEvent) -> bool:
+    def _is_ephemeral_content(
+        self,
+        extractions: list[Extraction],
+        event: PerceivedEvent,
+    ) -> tuple[bool, str | None]:
         """
-        Detect if an email is promotional/marketing based on sender patterns.
+        Check if email contains ephemeral content with no lasting value.
 
-        Checks:
-        - Email prefix (newsletter@, noreply@, etc.)
-        - Domain (airfrance.com, amazon.com, etc.)
-        - Sender name keywords (newsletter, promo, etc.)
+        Detects:
+        1. Event invitations with dates that have passed
+        2. Time-limited offers that have expired
+        3. Newsletters/digests (periodic content aggregations)
 
         Args:
-            event: The event to check
+            extractions: List of extractions from the email
+            event: The event being analyzed (for email date context)
 
         Returns:
-            True if the email appears to be promotional
+            Tuple of (is_ephemeral, reason)
         """
+        # First check: Is this a newsletter/digest?
         sender = getattr(event, "sender", None)
-        if not sender:
-            return False
+        sender_name = (getattr(sender, "name", "") or "").lower() if sender else ""
+        sender_email = (getattr(sender, "email", "") or "").lower() if sender else ""
+        title = (getattr(event, "title", "") or "").lower()
 
-        sender_email = getattr(sender, "email", "") or ""
-        sender_name = getattr(sender, "name", "") or ""
+        newsletter_indicators = [
+            "newsletter", "digest", "daily", "weekly", "monthly",
+            "highlights", "roundup", "recap", "summary", "bulletin",
+            "noreply", "no-reply", "mailer", "news@", "updates@",
+        ]
 
-        sender_email_lower = sender_email.lower()
-        sender_name_lower = sender_name.lower()
+        is_newsletter = any(
+            ind in sender_name or ind in sender_email or ind in title
+            for ind in newsletter_indicators
+        )
 
-        # Check email prefix patterns
-        for prefix in PROMO_EMAIL_PATTERNS["prefixes"]:
-            if sender_email_lower.startswith(prefix):
-                logger.debug(f"Promotional email detected (prefix): {sender_email}")
-                return True
+        if is_newsletter:
+            return True, "newsletter/digest (periodic content, no lasting value)"
 
-        # Check domain patterns
-        for domain in PROMO_EMAIL_PATTERNS["domains"]:
-            if domain in sender_email_lower:
-                logger.debug(f"Promotional email detected (domain): {sender_email}")
-                return True
+        # Second check: Does email contain past events/invitations?
+        import re
 
-        # Check sender name keywords
-        for keyword in PROMO_EMAIL_PATTERNS["sender_keywords"]:
-            if keyword in sender_name_lower:
-                logger.debug(f"Promotional email detected (sender name): {sender_name}")
-                return True
+        from dateutil import parser as date_parser
 
-        return False
+        now = datetime.now(timezone.utc)
+        event_date = getattr(event, "occurred_at", None) or getattr(event, "received_at", now)
+
+        # Types that indicate time-bound content
+        time_bound_types = {"evenement", "deadline", "fait"}
+
+        # Look for dates in extractions
+        dates_found = []
+        has_time_bound_content = False
+
+        for ext in extractions:
+            # Check if extraction type suggests time-bound content
+            if ext.type in time_bound_types:
+                has_time_bound_content = True
+
+            # Try to extract dates from the extraction info
+            info = ext.info or ""
+
+            # Common date patterns in French/English
+            # Examples: "30 septembre", "31 mars 2022", "September 30", "2021-09-30"
+            date_patterns = [
+                r'\d{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s*\d{0,4}',
+                r'\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{0,4}',
+                r'\d{1,2}/\d{1,2}/\d{2,4}',
+                r'\d{4}-\d{2}-\d{2}',
+                r"jusqu'au\s+\d{1,2}\s+\w+\s*\d{0,4}",
+                r"until\s+\d{1,2}\s+\w+\s*\d{0,4}",
+            ]
+
+            for pattern in date_patterns:
+                matches = re.findall(pattern, info.lower())
+                for match in matches:
+                    try:
+                        # Try to parse the date
+                        # Add year from email if not present
+                        date_str = match
+                        if not re.search(r'\d{4}', date_str):
+                            # Add year from email date
+                            date_str = f"{date_str} {event_date.year}"
+
+                        parsed = date_parser.parse(date_str, fuzzy=True, dayfirst=True)
+                        if parsed.tzinfo is None:
+                            parsed = parsed.replace(tzinfo=timezone.utc)
+                        dates_found.append(parsed)
+                    except (ValueError, TypeError):
+                        pass
+
+            # Also check the extraction's explicit date field
+            if ext.date:
+                try:
+                    parsed = date_parser.parse(ext.date, fuzzy=True)
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    dates_found.append(parsed)
+                except (ValueError, TypeError):
+                    pass
+
+        # If we found time-bound content and dates, check if all dates are past
+        if has_time_bound_content and dates_found:
+            all_past = all(d < now for d in dates_found)
+            if all_past:
+                oldest = min(dates_found)
+                days_ago = (now - oldest).days
+                return True, f"event/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)"
+
+        # Also check the email content directly for event indicators
+        content = getattr(event, "content", "") or ""
+        title = getattr(event, "title", "") or ""
+        full_text = f"{title} {content}".lower()
+
+        # Event/invitation indicators
+        event_indicators = [
+            "vous invite", "invitation", "événement", "event",
+            "rendez-vous", "rencontrer", "découvrir",
+            "jeudi", "vendredi", "samedi", "dimanche", "lundi", "mardi", "mercredi",
+            "à 17h", "à 18h", "à 19h", "à 20h",
+            "offre valable", "jusqu'au", "expire", "limited time",
+        ]
+
+        has_event_indicator = any(ind in full_text for ind in event_indicators)
+
+        if has_event_indicator and dates_found:
+            all_past = all(d < now for d in dates_found)
+            if all_past:
+                oldest = min(dates_found)
+                days_ago = (now - oldest).days
+                return True, f"invitation/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)"
+
+        return False, None
 
     def _apply_age_adjustments(
         self,
@@ -1094,22 +1160,24 @@ class MultiPassAnalyzer:
                 )
             logger.info(adjustment_reason)
 
-        # Rule 2: Delete old promotional emails
-        # - Promotional/marketing emails have no lasting historical value
-        # - Even if the AI extracts "information" from offers, it's not worth keeping
-        # - Delete if: promo email + old + action is archive
-        is_promo = self._is_promotional_email(event)
+        # Rule 2: Delete emails with ephemeral content (past events, newsletters)
+        # - Event invitations with dates in the past
+        # - Newsletters/digests (periodic content with no lasting value)
+        # - Time-limited offers that have expired
+        is_ephemeral, ephemeral_reason = self._is_ephemeral_content(
+            adjusted_extractions, event
+        )
         if (
             age_days > OLD_EMAIL_THRESHOLD_DAYS
             and adjusted_action == "archive"
-            and is_promo
+            and is_ephemeral
         ):
             adjusted_action = "delete"
-            # Also clear extractions since they have no value
+            # Clear extractions since ephemeral content has no lasting value
             adjusted_extractions = []
             adjustment_reason = (
-                f"Promotional email upgraded to 'delete' "
-                f"(email is {age_days} days old, promotional content has no lasting value)"
+                f"Ephemeral content upgraded to 'delete' "
+                f"(email is {age_days} days old, {ephemeral_reason})"
             )
             logger.info(adjustment_reason)
 
