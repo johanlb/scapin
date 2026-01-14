@@ -87,7 +87,7 @@ Analyse cet email et propose PLUSIEURS options d'action. Réponds en JSON avec c
   "options": [
     {
       "action": "ARCHIVE",
-      "destination": "Archive/2021/Factures & Achats",
+      "destination": "Archive",
       "confidence": 95,
       "reasoning": "Explication courte (1-2 phrases)",
       "reasoning_detailed": "Explication détaillée : contexte de l'expéditeur, pourquoi cette action est pertinente, éléments clés de l'email pris en compte, risques potentiels si autre action choisie, etc.",
@@ -177,35 +177,13 @@ Ces dossiers ont été utilisés précédemment pour des emails similaires. UTIL
 {% endfor %}
 {% endif %}
 
-**DOSSIERS CANONIQUES (UTILISER CES CATÉGORIES) :**
-⚠️ Ces catégories sont LARGES par conception pour éviter la fragmentation.
+**DOSSIER D'ARCHIVE :**
+⚠️ **RÈGLE SIMPLE : TOUS les emails archivés vont dans "Archive"** — pas de sous-dossiers.
 
-- Travail — Tout ce qui est professionnel (projets, RH, clients, équipe)
-- Amis et Famille — Échanges personnels (amis ET famille ensemble)
-- Finances & Banque — Relevés, notifications bancaires, investissements
-- Factures & Achats — Factures, reçus d'achat, commandes
-- Impôts — Documents fiscaux uniquement
-- Assurances — Contrats et sinistres
-- Abonnements — SaaS, streaming, services numériques
-- Médical — Santé, médecin, mutuelle
-- Administratif — Administrations, CAF, préfecture
-- Voyages — Billets, réservations, hôtels
-- Newsletters — Newsletters gardées pour référence
-- Notifications — Alertes importantes gardées
-- Divers — Si aucune autre catégorie ne convient
+- Pour action ARCHIVE → destination = **"Archive"**
+- Pour action DELETE → destination = **"Corbeille"**
 
-⚠️ **RÈGLES DE NOMMAGE DES DOSSIERS :**
-1. **Réutiliser** : TOUJOURS utiliser un dossier existant si pertinent
-2. **Français** : Noms en FRANÇAIS uniquement (pas d'anglais)
-3. **UN SEUL niveau après Archive/ANNÉE/** :
-   - ✅ "Archive/2021/Factures & Achats" (correct)
-   - ❌ "Archive/2021/Factures/Amazon" (trop profond)
-   - Archive/ANNÉE/ NE COMPTE PAS dans la profondeur
-4. **Catégories LARGES** : Regrouper plutôt que séparer
-   - ✅ "Amis et Famille" (PAS "Amis" et "Famille" séparés)
-   - ✅ "Factures & Achats" (PAS "Factures" et "Achats" séparés)
-   - ✅ "Finances & Banque" (PAS "Finances" et "Banque" séparés)
-5. **Cohérence** : Si un dossier similaire existe, l'utiliser
+La catégorisation se fait via le champ "category", PAS via le dossier de destination.
 
 **CATÉGORIES (OBLIGATOIRE - choisir UNE valeur exacte) :**
 - **work** : Professionnel, collègues, projets
@@ -234,10 +212,7 @@ Ces dossiers ont été utilisés précédemment pour des emails similaires. UTIL
 6. N'inclus "omnifocus_task" que si une option est TASK
 
 **RÈGLES POUR LES DESTINATIONS D'ARCHIVE :**
-⚠️ IMPORTANT : L'année dans le chemin d'archive DOIT correspondre à la DATE DE L'EMAIL, pas à l'année actuelle.
-- Email de 2021 → Archive/2021/...
-- Email de 2024 → Archive/2024/...
-- JAMAIS utiliser 2025 pour un email ancien !
+⚠️ TOUJOURS utiliser "Archive" comme destination — pas de sous-dossiers, pas d'année.
 
 **RÈGLES POUR LES EMAILS PROMOTIONNELS/NEWSLETTERS :**
 Pour les emails commerciaux, promotionnels ou newsletters sans valeur informative :
