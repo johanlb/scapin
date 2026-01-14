@@ -58,6 +58,31 @@ OLD_EMAIL_THRESHOLD_DAYS = 90  # 3 months
 # Emails older than this don't get OmniFocus tasks created
 VERY_OLD_EMAIL_THRESHOLD_DAYS = 365  # 1 year
 
+# Promotional/marketing email detection patterns
+PROMO_EMAIL_PATTERNS = {
+    # Email prefixes that indicate promotional content
+    "prefixes": [
+        "newsletter@", "noreply@", "no-reply@", "marketing@", "promo@",
+        "info@", "news@", "campaign@", "notifications@", "hello@",
+        "contact@", "support@", "mailer@", "bulk@", "updates@",
+    ],
+    # Domains known for promotional emails
+    "domains": [
+        "airfrance.com", "airfrance.fr", "klm.com", "amazon.com", "amazon.fr",
+        "linkedin.com", "facebook.com", "twitter.com", "x.com",
+        "mailchimp.com", "sendgrid.net", "constantcontact.com",
+        "hubspot.com", "salesforce.com", "marketo.com",
+        "booking.com", "hotels.com", "expedia.com", "kayak.com",
+        "netflix.com", "spotify.com", "apple.com", "google.com",
+        "uber.com", "deliveroo.com", "ubereats.com",
+    ],
+    # Keywords in sender name that suggest promotional
+    "sender_keywords": [
+        "newsletter", "promo", "marketing", "news", "update",
+        "notification", "alert", "digest", "weekly", "daily",
+    ],
+}
+
 
 class MultiPassAnalyzerError(Exception):
     """Base exception for multi-pass analyzer errors"""
@@ -971,17 +996,64 @@ class MultiPassAnalyzer:
         age = now - event_date
         return max(0, age.days)
 
+    def _is_promotional_email(self, event: PerceivedEvent) -> bool:
+        """
+        Detect if an email is promotional/marketing based on sender patterns.
+
+        Checks:
+        - Email prefix (newsletter@, noreply@, etc.)
+        - Domain (airfrance.com, amazon.com, etc.)
+        - Sender name keywords (newsletter, promo, etc.)
+
+        Args:
+            event: The event to check
+
+        Returns:
+            True if the email appears to be promotional
+        """
+        sender = getattr(event, "sender", None)
+        if not sender:
+            return False
+
+        sender_email = getattr(sender, "email", "") or ""
+        sender_name = getattr(sender, "name", "") or ""
+
+        sender_email_lower = sender_email.lower()
+        sender_name_lower = sender_name.lower()
+
+        # Check email prefix patterns
+        for prefix in PROMO_EMAIL_PATTERNS["prefixes"]:
+            if sender_email_lower.startswith(prefix):
+                logger.debug(f"Promotional email detected (prefix): {sender_email}")
+                return True
+
+        # Check domain patterns
+        for domain in PROMO_EMAIL_PATTERNS["domains"]:
+            if domain in sender_email_lower:
+                logger.debug(f"Promotional email detected (domain): {sender_email}")
+                return True
+
+        # Check sender name keywords
+        for keyword in PROMO_EMAIL_PATTERNS["sender_keywords"]:
+            if keyword in sender_name_lower:
+                logger.debug(f"Promotional email detected (sender name): {sender_name}")
+                return True
+
+        return False
+
     def _apply_age_adjustments(
         self,
         action: str,
         extractions: list[Extraction],
         age_days: int,
+        event: PerceivedEvent,
     ) -> tuple[str, list[Extraction], str | None]:
         """
         Apply age-based adjustments to action and extractions.
 
         Rules:
-        - Emails > 90 days: "flag" → "archive" (follow-up no longer relevant)
+        - Emails > 90 days with flag/queue: downgrade to archive/delete
+        - Promotional emails > 90 days without extractions: delete
         - Emails > 365 days: Remove OmniFocus tasks (too old for follow-up)
         - Note enrichments are always kept (historical value)
 
@@ -989,6 +1061,7 @@ class MultiPassAnalyzer:
             action: Proposed action
             extractions: Proposed extractions
             age_days: Event age in days
+            event: The event being analyzed (for sender detection)
 
         Returns:
             Tuple of (adjusted_action, adjusted_extractions, adjustment_reason)
@@ -997,14 +1070,16 @@ class MultiPassAnalyzer:
         adjusted_action = action
         adjusted_extractions = extractions
 
+        # Check for valuable extractions (note enrichments, not just OmniFocus tasks)
+        has_valuable_extractions = any(
+            ext.note_cible and not ext.omnifocus for ext in extractions
+        )
+
         # Rule 1: Downgrade "flag" or "queue" for old emails
         # - Both require active follow-up which is inappropriate for old emails
         # - If has valuable extractions → archive (historical value)
         # - If no extractions → delete (truly obsolete, no point keeping)
         if age_days > OLD_EMAIL_THRESHOLD_DAYS and action in ("flag", "queue"):
-            has_valuable_extractions = any(
-                not ext.omnifocus for ext in extractions  # Note enrichments are valuable
-            )
             if has_valuable_extractions:
                 adjusted_action = "archive"
                 adjustment_reason = (
@@ -1019,7 +1094,26 @@ class MultiPassAnalyzer:
                 )
             logger.info(adjustment_reason)
 
-        # Rule 2: Remove OmniFocus tasks for very old emails
+        # Rule 2: Delete old promotional emails
+        # - Promotional/marketing emails have no lasting historical value
+        # - Even if the AI extracts "information" from offers, it's not worth keeping
+        # - Delete if: promo email + old + action is archive
+        is_promo = self._is_promotional_email(event)
+        if (
+            age_days > OLD_EMAIL_THRESHOLD_DAYS
+            and adjusted_action == "archive"
+            and is_promo
+        ):
+            adjusted_action = "delete"
+            # Also clear extractions since they have no value
+            adjusted_extractions = []
+            adjustment_reason = (
+                f"Promotional email upgraded to 'delete' "
+                f"(email is {age_days} days old, promotional content has no lasting value)"
+            )
+            logger.info(adjustment_reason)
+
+        # Rule 3: Remove OmniFocus tasks for very old emails
         if age_days > VERY_OLD_EMAIL_THRESHOLD_DAYS:
             original_count = len(extractions)
             adjusted_extractions = []
@@ -1106,6 +1200,7 @@ class MultiPassAnalyzer:
             last_pass.action,
             last_pass.extractions,
             age_days,
+            event,
         )
 
         # Update stop reason if adjustments were made
