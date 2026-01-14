@@ -426,7 +426,7 @@ def calculate_global_confidence(result: PassResult) -> float:
     # Extractions with confidence < 10% are "rejections", not "uncertainties"
     required_extractions = [
         e for e in result.extractions
-        if e.required and e.is_actionable() and e.confidence >= REJECTION_THRESHOLD
+        if e.required and e.is_actionable() and e.confidence.overall >= REJECTION_THRESHOLD
     ]
 
     if not required_extractions:
@@ -442,7 +442,7 @@ def calculate_global_confidence(result: PassResult) -> float:
     # Count rejected extractions for logging
     rejected_count = len([
         e for e in result.extractions
-        if e.required and e.is_actionable() and e.confidence < REJECTION_THRESHOLD
+        if e.required and e.is_actionable() and e.confidence.overall < REJECTION_THRESHOLD
     ])
 
     logger.debug(
@@ -473,7 +473,7 @@ def get_required_extractions(result: PassResult, exclude_rejections: bool = True
     extractions = [e for e in result.extractions if e.required and e.is_actionable()]
 
     if exclude_rejections:
-        extractions = [e for e in extractions if e.confidence >= REJECTION_THRESHOLD]
+        extractions = [e for e in extractions if e.confidence.overall >= REJECTION_THRESHOLD]
 
     return extractions
 
