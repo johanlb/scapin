@@ -8,6 +8,7 @@ Part of Sancho's multi-pass extraction system (v2.2).
 See ADR-005 in MULTI_PASS_SPEC.md for design decisions.
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -99,6 +100,9 @@ class TemplateRenderer:
         # Add .j2 extension if not present
         if not template_name.endswith(".j2"):
             template_name = f"{template_name}.j2"
+
+        # Add 'now' to context for age calculations
+        context["now"] = datetime.now(timezone.utc)
 
         try:
             template = self._env.get_template(template_name)

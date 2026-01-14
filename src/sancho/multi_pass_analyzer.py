@@ -27,6 +27,7 @@ See ADR-005 in MULTI_PASS_SPEC.md for design decisions.
 import json
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from src.core.events.universal_event import PerceivedEvent
@@ -50,6 +51,12 @@ from src.sancho.router import AIModel, AIRouter, _repair_json_with_library, clea
 from src.sancho.template_renderer import TemplateRenderer, get_template_renderer
 
 logger = get_logger("multi_pass_analyzer")
+
+# Age thresholds for action adjustments
+# Emails older than this get "flag" downgraded to "archive"
+OLD_EMAIL_THRESHOLD_DAYS = 90  # 3 months
+# Emails older than this don't get OmniFocus tasks created
+VERY_OLD_EMAIL_THRESHOLD_DAYS = 365  # 1 year
 
 
 class MultiPassAnalyzerError(Exception):
@@ -270,6 +277,7 @@ class MultiPassAnalyzer:
                 reason,
                 escalated,
                 analysis_context,
+                event,
             )
 
         # Get context for subsequent passes
@@ -338,6 +346,7 @@ class MultiPassAnalyzer:
                     reason,
                     escalated,
                     analysis_context,
+                    event,
                 )
 
             # Search for new entities discovered in this pass
@@ -364,6 +373,7 @@ class MultiPassAnalyzer:
             f"max_passes_reached ({self.config.max_passes})",
             escalated,
             analysis_context,
+            event,
         )
 
     async def _run_pass1(self, event: PerceivedEvent) -> PassResult:
@@ -943,6 +953,112 @@ class MultiPassAnalyzer:
             logger.warning(f"Could not parse date: {date_str}")
             return False
 
+    def _calculate_event_age_days(self, event: PerceivedEvent) -> int:
+        """
+        Calculate the age of an event in days.
+
+        Uses occurred_at (original event date) if available,
+        otherwise falls back to received_at.
+
+        Args:
+            event: The event to check
+
+        Returns:
+            Age in days (0 if event is from today)
+        """
+        now = datetime.now(timezone.utc)
+        event_date = getattr(event, "occurred_at", None) or event.received_at
+        age = now - event_date
+        return max(0, age.days)
+
+    def _apply_age_adjustments(
+        self,
+        action: str,
+        extractions: list[Extraction],
+        age_days: int,
+    ) -> tuple[str, list[Extraction], str | None]:
+        """
+        Apply age-based adjustments to action and extractions.
+
+        Rules:
+        - Emails > 90 days: "flag" → "archive" (follow-up no longer relevant)
+        - Emails > 365 days: Remove OmniFocus tasks (too old for follow-up)
+        - Note enrichments are always kept (historical value)
+
+        Args:
+            action: Proposed action
+            extractions: Proposed extractions
+            age_days: Event age in days
+
+        Returns:
+            Tuple of (adjusted_action, adjusted_extractions, adjustment_reason)
+        """
+        adjustment_reason = None
+        adjusted_action = action
+        adjusted_extractions = extractions
+
+        # Rule 1: Downgrade "flag" for old emails
+        # - If has valuable extractions → archive (historical value)
+        # - If no extractions → delete (truly obsolete, no point keeping)
+        if age_days > OLD_EMAIL_THRESHOLD_DAYS and action == "flag":
+            has_valuable_extractions = any(
+                not ext.omnifocus for ext in extractions  # Note enrichments are valuable
+            )
+            if has_valuable_extractions:
+                adjusted_action = "archive"
+                adjustment_reason = (
+                    f"Action downgraded from 'flag' to 'archive' "
+                    f"(email is {age_days} days old, but has historical value)"
+                )
+            else:
+                adjusted_action = "delete"
+                adjustment_reason = (
+                    f"Action downgraded from 'flag' to 'delete' "
+                    f"(email is {age_days} days old, no valuable extractions)"
+                )
+            logger.info(adjustment_reason)
+
+        # Rule 2: Remove OmniFocus tasks for very old emails
+        if age_days > VERY_OLD_EMAIL_THRESHOLD_DAYS:
+            original_count = len(extractions)
+            adjusted_extractions = []
+            for ext in extractions:
+                if ext.omnifocus:
+                    logger.info(
+                        f"Removing OmniFocus task for old email ({age_days} days): "
+                        f"{ext.info[:50]}..."
+                    )
+                    # Keep the extraction but remove OmniFocus flag
+                    adjusted_extractions.append(
+                        Extraction(
+                            info=ext.info,
+                            type=ext.type,
+                            importance=ext.importance,
+                            note_cible=ext.note_cible,
+                            note_action=ext.note_action,
+                            omnifocus=False,  # Remove OmniFocus
+                            calendar=ext.calendar,
+                            date=ext.date,
+                            time=ext.time,
+                            timezone=ext.timezone,
+                            duration=ext.duration,
+                            required=ext.required,
+                            confidence=ext.confidence,
+                        )
+                    )
+                else:
+                    adjusted_extractions.append(ext)
+
+            if adjustment_reason:
+                adjustment_reason += f"; OmniFocus tasks disabled for {original_count - len([e for e in adjusted_extractions if e.omnifocus])} extractions"
+            elif original_count != len([e for e in adjusted_extractions if e.omnifocus]):
+                adjustment_reason = (
+                    f"OmniFocus tasks disabled (email is {age_days} days old, "
+                    f"threshold: {VERY_OLD_EMAIL_THRESHOLD_DAYS})"
+                )
+
+        return adjusted_action, adjusted_extractions, adjustment_reason
+
     def _build_result(
         self,
         pass_history: list[PassResult],
@@ -951,6 +1067,7 @@ class MultiPassAnalyzer:
         stop_reason: str,
         escalated: bool,
         analysis_context: AnalysisContext,
+        event: PerceivedEvent,
     ) -> MultiPassResult:
         """
         Build the final MultiPassResult.
@@ -962,6 +1079,7 @@ class MultiPassAnalyzer:
             stop_reason: Reason for stopping
             escalated: Whether model was escalated
             analysis_context: Analysis context
+            event: Original event (for age-based adjustments)
 
         Returns:
             MultiPassResult
@@ -981,9 +1099,22 @@ class MultiPassAnalyzer:
         for p in pass_history:
             all_entities.update(p.entities_discovered)
 
+        # Apply age-based adjustments
+        age_days = self._calculate_event_age_days(event)
+        adjusted_action, adjusted_extractions, age_adjustment = self._apply_age_adjustments(
+            last_pass.action,
+            last_pass.extractions,
+            age_days,
+        )
+
+        # Update stop reason if adjustments were made
+        final_stop_reason = stop_reason
+        if age_adjustment:
+            final_stop_reason = f"{stop_reason}; {age_adjustment}"
+
         return MultiPassResult(
-            extractions=last_pass.extractions,
-            action=last_pass.action,
+            extractions=adjusted_extractions,
+            action=adjusted_action,
             confidence=last_pass.confidence,
             entities_discovered=all_entities,
             passes_count=len(pass_history),
@@ -992,7 +1123,7 @@ class MultiPassAnalyzer:
             final_model=last_pass.model_used,
             escalated=escalated,
             pass_history=pass_history,
-            stop_reason=stop_reason,
+            stop_reason=final_stop_reason,
             high_stakes=high_stakes_detected or analysis_context.high_stakes,
         )
 

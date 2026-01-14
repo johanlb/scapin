@@ -110,6 +110,32 @@ Johan est le PROPRIÉTAIRE du système. Son nom apparaît partout (destinataire,
 - Liens de visioconférence expirés (Zoom, Teams, Meet)
 - Détails logistiques ponctuels sans valeur future
 
+### 📅 EMAILS ANCIENS — Règles d'ancienneté
+
+**Date de l'email** : {{ event.occurred_at.strftime('%Y-%m-%d') }}
+**Aujourd'hui** : {{ now.strftime('%Y-%m-%d') }}
+
+{% set age_days = (now - event.occurred_at).days %}
+{% if age_days > 90 %}
+⚠️ **EMAIL ANCIEN ({{ age_days }} jours)** — Appliquer les règles suivantes :
+
+1. **Action "flag" → "archive" ou "delete"** :
+   - Si l'email contient des informations à conserver (faits, décisions, relations) → **"archive"** après extraction
+   - Si l'email n'a plus aucune valeur (suivi obsolète, problème résolu) → **"delete"** (supprimer)
+   - Un email de plus de 3 mois ne nécessite JAMAIS de suivi actif ("flag")
+
+2. **PAS de tâches OmniFocus** : Ne pas créer de tâches de suivi pour des emails anciens. L'information peut enrichir les notes, mais créer une tâche "Répondre à X" pour un email de {{ age_days }} jours n'a pas de sens.
+
+3. **Enrichissement notes OK** : L'extraction d'informations factuelles pour enrichir les notes reste utile (faits historiques, décisions passées, relations établies).
+
+**Exemples pour cet email de {{ age_days }} jours :**
+- ❌ action: "flag" (suivi inutile) → ✅ action: "archive" (si valeur historique) ou "delete" (si obsolète)
+- ❌ omnifocus: true (tâche obsolète) → ✅ omnifocus: false
+- ✅ note enrichment avec fait/decision/relation (valeur historique)
+{% elif age_days > 30 %}
+ℹ️ **Email de {{ age_days }} jours** : Attention à la pertinence des actions de suivi.
+{% endif %}
+
 ---
 
 ## FORMAT DE RÉPONSE (JSON strict)
