@@ -1411,8 +1411,22 @@ class _EmailEventAdapter:
         self.event_id = str(metadata.get("id", metadata.get("message_id", "unknown")))
         self.source_type = "email"
 
-        # Timing
-        self.timestamp = metadata.get("date", now_utc().isoformat())
+        # Timing - parse the date for age calculations
+        date_str = metadata.get("date", now_utc().isoformat())
+        self.timestamp = date_str
+
+        # Parse date for age-aware analysis (MultiPassAnalyzer expects datetime)
+        try:
+            if isinstance(date_str, str):
+                # Handle ISO format with timezone
+                self.received_at = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            else:
+                self.received_at = date_str
+        except (ValueError, TypeError):
+            self.received_at = now_utc()
+
+        # occurred_at alias for event-style access
+        self.occurred_at = self.received_at
 
         # Content - try full_text first, then preview, then html_body (strip HTML if needed)
         self.title = metadata.get("subject", "(No subject)")

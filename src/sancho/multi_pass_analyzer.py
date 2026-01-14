@@ -997,23 +997,24 @@ class MultiPassAnalyzer:
         adjusted_action = action
         adjusted_extractions = extractions
 
-        # Rule 1: Downgrade "flag" for old emails
+        # Rule 1: Downgrade "flag" or "queue" for old emails
+        # - Both require active follow-up which is inappropriate for old emails
         # - If has valuable extractions → archive (historical value)
         # - If no extractions → delete (truly obsolete, no point keeping)
-        if age_days > OLD_EMAIL_THRESHOLD_DAYS and action == "flag":
+        if age_days > OLD_EMAIL_THRESHOLD_DAYS and action in ("flag", "queue"):
             has_valuable_extractions = any(
                 not ext.omnifocus for ext in extractions  # Note enrichments are valuable
             )
             if has_valuable_extractions:
                 adjusted_action = "archive"
                 adjustment_reason = (
-                    f"Action downgraded from 'flag' to 'archive' "
+                    f"Action downgraded from '{action}' to 'archive' "
                     f"(email is {age_days} days old, but has historical value)"
                 )
             else:
                 adjusted_action = "delete"
                 adjustment_reason = (
-                    f"Action downgraded from 'flag' to 'delete' "
+                    f"Action downgraded from '{action}' to 'delete' "
                     f"(email is {age_days} days old, no valuable extractions)"
                 )
             logger.info(adjustment_reason)
