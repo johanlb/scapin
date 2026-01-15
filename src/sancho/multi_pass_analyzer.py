@@ -28,7 +28,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.core.events.universal_event import PerceivedEvent
 from src.monitoring.logger import get_logger
@@ -49,6 +49,11 @@ from src.sancho.convergence import (
 from src.sancho.model_selector import ModelTier
 from src.sancho.router import AIModel, AIRouter, _repair_json_with_library, clean_json_string
 from src.sancho.template_renderer import TemplateRenderer, get_template_renderer
+
+if TYPE_CHECKING:
+    from src.passepartout.entity_search import EntitySearcher
+    from src.passepartout.note_manager import NoteManager
+    from src.sancho.coherence_validator import CoherenceResult, CoherenceService
 
 logger = get_logger("multi_pass_analyzer")
 
@@ -119,6 +124,13 @@ class MultiPassResult:
     # Draft reply (if action is reply)
     draft_reply: str | None = None
 
+    # Coherence validation metadata (v2.2+)
+    coherence_validated: bool = False
+    coherence_corrections: int = 0
+    coherence_duplicates_detected: int = 0
+    coherence_confidence: float = 1.0
+    coherence_warnings: list[dict] = field(default_factory=list)
+
     @property
     def high_confidence(self) -> bool:
         """Check if result is high confidence (>= 90%)"""
@@ -158,6 +170,12 @@ class MultiPassResult:
             "high_confidence": self.high_confidence,
             "pass_history": [p.to_dict() for p in self.pass_history],
             "draft_reply": self.draft_reply,
+            # Coherence validation (v2.2+)
+            "coherence_validated": self.coherence_validated,
+            "coherence_corrections": self.coherence_corrections,
+            "coherence_duplicates_detected": self.coherence_duplicates_detected,
+            "coherence_confidence": self.coherence_confidence,
+            "coherence_warnings": self.coherence_warnings,
         }
 
 
@@ -198,6 +216,9 @@ class MultiPassAnalyzer:
         context_searcher: "ContextSearcher | None" = None,
         template_renderer: TemplateRenderer | None = None,
         config: MultiPassConfig | None = None,
+        note_manager: "NoteManager | None" = None,
+        entity_searcher: "EntitySearcher | None" = None,
+        enable_coherence_pass: bool = True,
     ):
         """
         Initialize the multi-pass analyzer.
@@ -207,11 +228,18 @@ class MultiPassAnalyzer:
             context_searcher: ContextSearcher for PKM context (optional)
             template_renderer: TemplateRenderer for prompts (optional, uses singleton)
             config: MultiPassConfig (uses defaults if None)
+            note_manager: NoteManager for coherence validation (optional, enables coherence pass)
+            entity_searcher: EntitySearcher for finding similar notes (optional)
+            enable_coherence_pass: Whether to run coherence validation (default: True)
         """
         self.ai_router = ai_router
         self._context_searcher = context_searcher
         self._template_renderer = template_renderer
         self.config = config or MultiPassConfig()
+        self._note_manager = note_manager
+        self._entity_searcher = entity_searcher
+        self._enable_coherence_pass = enable_coherence_pass
+        self._coherence_service: "CoherenceService | None" = None  # noqa: UP037
 
     @property
     def context_searcher(self) -> "ContextSearcher | None":
@@ -224,6 +252,27 @@ class MultiPassAnalyzer:
         if self._template_renderer is None:
             self._template_renderer = get_template_renderer()
         return self._template_renderer
+
+    @property
+    def coherence_service(self) -> "CoherenceService | None":
+        """
+        Get coherence service (lazy initialization).
+
+        Returns None if note_manager is not configured or coherence pass is disabled.
+        """
+        if not self._enable_coherence_pass or self._note_manager is None:
+            return None
+
+        if self._coherence_service is None:
+            from src.sancho.coherence_validator import CoherenceService
+
+            self._coherence_service = CoherenceService(
+                note_manager=self._note_manager,
+                ai_router=self.ai_router,
+                entity_searcher=self._entity_searcher,
+                template_renderer=self.template_renderer,
+            )
+        return self._coherence_service
 
     async def analyze(
         self,
@@ -486,6 +535,138 @@ class MultiPassAnalyzer:
             pass_number=pass_number,
             pass_type=pass_type,
         )
+
+    def _run_coherence_pass(
+        self,
+        extractions: list[Extraction],
+        event: PerceivedEvent,
+    ) -> tuple[list[Extraction], "CoherenceResult | None"]:
+        """
+        Run the coherence validation pass on extractions.
+
+        This pass:
+        1. Loads FULL content of target notes (not snippets)
+        2. Validates enrichir vs creer decisions
+        3. Detects duplicates
+        4. Suggests appropriate sections
+        5. Corrects note targets when needed
+
+        Args:
+            extractions: Extractions to validate
+            event: Original event for context
+
+        Returns:
+            Tuple of (validated_extractions, coherence_result)
+            If coherence service is not available, returns original extractions
+            and None for coherence_result.
+        """
+        if not self.coherence_service or not extractions:
+            return extractions, None
+
+        # Only validate extractions that have a note target
+        extractions_with_targets = [e for e in extractions if e.note_cible]
+        if not extractions_with_targets:
+            return extractions, None
+
+        logger.info(
+            f"Running coherence pass on {len(extractions_with_targets)} extractions"
+        )
+
+        try:
+            # Run coherence validation (synchronous)
+            coherence_result = self.coherence_service.validate_extractions(
+                extractions_with_targets, event
+            )
+
+            # Convert validated extractions back to Extraction objects
+            validated_extractions = self._apply_coherence_validations(
+                extractions, coherence_result
+            )
+
+            logger.info(
+                f"Coherence pass completed: {coherence_result.coherence_summary.corrected} corrected, "
+                f"{coherence_result.coherence_summary.duplicates_detected} duplicates"
+            )
+
+            return validated_extractions, coherence_result
+
+        except Exception as e:
+            logger.error(f"Coherence pass failed: {e}", exc_info=True)
+            # Return original extractions on failure
+            return extractions, None
+
+    def _apply_coherence_validations(
+        self,
+        original_extractions: list[Extraction],
+        coherence_result: "CoherenceResult",
+    ) -> list[Extraction]:
+        """
+        Apply coherence validations to create updated Extraction list.
+
+        Maps validated extractions back to Extraction objects,
+        updating note targets and filtering duplicates.
+
+        Args:
+            original_extractions: Original extraction list
+            coherence_result: Result from coherence validation
+
+        Returns:
+            Updated list of Extraction objects
+        """
+
+        # Create a map of original extractions by info for matching
+        original_map: dict[str, Extraction] = {e.info: e for e in original_extractions}
+
+        validated_extractions = []
+        validated_set = set()  # Track which originals were validated
+
+        for ve in coherence_result.validated_extractions:
+            # Skip duplicates
+            if ve.is_duplicate:
+                logger.debug(f"Skipping duplicate extraction: {ve.info[:50]}...")
+                continue
+
+            # Find the original extraction
+            original = original_map.get(ve.info)
+            if not original:
+                # Try to find by fuzzy match if exact match fails
+                for key, ext in original_map.items():
+                    if key not in validated_set and ve.info[:30] in key:
+                        original = ext
+                        break
+
+            if original:
+                validated_set.add(original.info)
+
+                # Create updated extraction with validated values
+                updated = Extraction(
+                    info=original.info,
+                    type=original.type,
+                    importance=original.importance,
+                    note_cible=ve.validated_note_cible or original.note_cible,
+                    note_action=ve.note_action or original.note_action,
+                    omnifocus=original.omnifocus,
+                    calendar=original.calendar,
+                    date=original.date,
+                    time=original.time,
+                    timezone=original.timezone,
+                    duration=original.duration,
+                    required=original.required,
+                    confidence=original.confidence,
+                    # Add suggested section if available (store in generic_title field for now)
+                    generic_title=original.generic_title,
+                )
+                validated_extractions.append(updated)
+            else:
+                logger.warning(f"Could not match validated extraction: {ve.info[:50]}...")
+
+        # Add extractions that weren't part of coherence validation
+        # (those without note targets)
+        for ext in original_extractions:
+            if ext.info not in validated_set and not ext.note_cible:
+                validated_extractions.append(ext)
+
+        return validated_extractions
 
     def _identify_unresolved_issues(self, pass_history: list[PassResult]) -> list[str]:
         """
@@ -1290,10 +1471,36 @@ class MultiPassAnalyzer:
             event,
         )
 
+        # Run coherence pass on adjusted extractions
+        # This validates note targets, detects duplicates, and suggests sections
+        coherence_validated = False
+        coherence_corrections = 0
+        coherence_duplicates = 0
+        coherence_confidence = 1.0
+        coherence_warnings: list[dict] = []
+
+        if adjusted_extractions:
+            validated_extractions, coherence_result = self._run_coherence_pass(
+                adjusted_extractions, event
+            )
+            if coherence_result is not None:
+                adjusted_extractions = validated_extractions
+                coherence_validated = True
+                coherence_corrections = coherence_result.coherence_summary.corrected
+                coherence_duplicates = coherence_result.coherence_summary.duplicates_detected
+                coherence_confidence = coherence_result.coherence_confidence
+                coherence_warnings = [
+                    {"type": w.type, "index": w.extraction_index, "message": w.message}
+                    for w in coherence_result.warnings
+                ]
+                total_tokens += coherence_result.tokens_used
+
         # Update stop reason if adjustments were made
         final_stop_reason = stop_reason
         if age_adjustment:
             final_stop_reason = f"{stop_reason}; {age_adjustment}"
+        if coherence_validated and coherence_corrections > 0:
+            final_stop_reason = f"{final_stop_reason}; coherence_pass: {coherence_corrections} corrected"
 
         return MultiPassResult(
             extractions=adjusted_extractions,
@@ -1308,6 +1515,12 @@ class MultiPassAnalyzer:
             pass_history=pass_history,
             stop_reason=final_stop_reason,
             high_stakes=high_stakes_detected or analysis_context.high_stakes,
+            # Coherence validation metadata
+            coherence_validated=coherence_validated,
+            coherence_corrections=coherence_corrections,
+            coherence_duplicates_detected=coherence_duplicates,
+            coherence_confidence=coherence_confidence,
+            coherence_warnings=coherence_warnings,
         )
 
 
@@ -1316,6 +1529,9 @@ def create_multi_pass_analyzer(
     ai_router: AIRouter | None = None,
     context_searcher: "ContextSearcher | None" = None,
     config: MultiPassConfig | None = None,
+    note_manager: "NoteManager | None" = None,
+    entity_searcher: "EntitySearcher | None" = None,
+    enable_coherence_pass: bool = True,
 ) -> MultiPassAnalyzer:
     """
     Create a MultiPassAnalyzer with default or provided dependencies.
@@ -1324,6 +1540,9 @@ def create_multi_pass_analyzer(
         ai_router: AIRouter instance (creates default if None)
         context_searcher: ContextSearcher instance (optional)
         config: MultiPassConfig (uses defaults if None)
+        note_manager: NoteManager for coherence validation (optional)
+        entity_searcher: EntitySearcher for finding similar notes (optional)
+        enable_coherence_pass: Whether to run coherence validation (default: True)
 
     Returns:
         Configured MultiPassAnalyzer instance
@@ -1338,4 +1557,7 @@ def create_multi_pass_analyzer(
         ai_router=ai_router,
         context_searcher=context_searcher,
         config=config,
+        note_manager=note_manager,
+        entity_searcher=entity_searcher,
+        enable_coherence_pass=enable_coherence_pass,
     )
