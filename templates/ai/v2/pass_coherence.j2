@@ -96,6 +96,31 @@ Ce pass est CRITIQUE pour éviter :
 
 ## REGLES DE VALIDATION
 
+### REGLE 0 : PROJECT-FIRST (PRIORITAIRE)
+
+**CRITIQUE** : Les informations sur un PROJET doivent aller dans la note PROJET, pas dans les notes personnelles.
+
+```
+SI l'email concerne un projet/transaction/initiative:
+    ALORS chercher une note "Projet ..." correspondante
+    ET rediriger les enrichissements vers cette note projet
+    ET ne PAS enrichir les notes personnelles avec les détails du projet
+```
+
+**Indices d'un email "projet"** :
+- Termes : projet, transaction, achat, vente, négociation, offre, contrat, investissement
+- Contexte : plusieurs parties impliquées, enjeux financiers, décisions stratégiques
+- Structure : discussions avec vendeurs/acheteurs/prestataires sur un même sujet
+
+**Application** :
+- Johan/Damien veulent acheter Ocean River Villa 9 → Enrichir "Projet Immobilier Maurice"
+- Hugues Lagesse est le vendeur → Simple mention, PAS d'enrichissement détaillé sur sa note
+- Espérance Compagnie est la holding → Simple mention dans le contexte du projet
+
+**Notes personnelles vs Notes projet** :
+- Note personne = coordonnées, rôle, relations, interactions directes avec Johan
+- Note projet = timeline, décisions, enjeux, parties prenantes, documents, finances
+
 ### REGLE 1 : TOUJOURS PREFERER ENRICHIR
 
 ```

@@ -1195,6 +1195,7 @@ class QueueService:
             force_model: Force a specific model ('opus', 'sonnet', 'haiku') or None
         """
         from src.core.config_manager import get_config
+        from src.passepartout.note_manager import NoteManager
         from src.sancho.convergence import MultiPassConfig
         from src.sancho.model_selector import ModelTier
         from src.sancho.multi_pass_analyzer import MultiPassAnalyzer
@@ -1218,11 +1219,19 @@ class QueueService:
                 mp_config.force_model = model_map.get(force_model.lower())
                 logger.info(f"Reanalysis with forced model: {force_model}")
 
-            # Create MultiPassAnalyzer and run analysis
+            # Initialize NoteManager for coherence pass
+            note_manager = NoteManager(
+                notes_dir=str(config.storage.notes_path),
+                auto_index=False,  # Don't re-index on every analysis
+            )
+
+            # Create MultiPassAnalyzer with coherence pass enabled
             analyzer = MultiPassAnalyzer(
                 ai_router=ai_router,
+                note_manager=note_manager,
                 context_searcher=None,  # Could add later for context enrichment
                 config=mp_config,
+                enable_coherence_pass=True,
             )
 
             # Run multi-pass analysis
@@ -1290,6 +1299,12 @@ class QueueService:
             "proposed_notes": proposed_notes,
             "proposed_tasks": proposed_tasks,
             "options": [],  # Multi-pass doesn't generate options
+            # Coherence pass metadata
+            "coherence_validated": result.coherence_validated,
+            "coherence_corrections": result.coherence_corrections,
+            "coherence_duplicates_detected": result.coherence_duplicates_detected,
+            "coherence_confidence": result.coherence_confidence,
+            "coherence_warnings": result.coherence_warnings,
             # Additional multi-pass metadata
             "multi_pass": {
                 "passes_count": result.passes_count,

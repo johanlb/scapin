@@ -378,8 +378,8 @@ class CoherenceService:
         # 2. Load full content of target notes
         target_notes = self._load_target_notes(unique_targets)
 
-        # 3. Find similar notes (alternatives)
-        similar_notes = self._find_similar_notes(unique_targets)
+        # 3. Find similar notes (alternatives) - includes PROJECT-FIRST search
+        similar_notes = self._find_similar_notes(unique_targets, event)
 
         # 4. Get index of existing notes
         existing_notes = self._get_existing_notes_index()
@@ -451,20 +451,30 @@ class CoherenceService:
         return target_notes
 
     def _find_similar_notes(
-        self, targets: set[str]
+        self, targets: set[str], event: "PerceivedEvent | None" = None
     ) -> list[SimilarNote]:
-        """Find similar notes that could be alternatives."""
+        """Find similar notes that could be alternatives.
+
+        Also proactively searches for PROJECT notes based on email content
+        to support Project-First prioritization.
+        """
         similar_notes = []
+        seen_titles: set[str] = set()
 
         if not self._entity_searcher:
             return similar_notes
 
+        # 1. Search based on extraction targets
         for target in targets:
             results = self._entity_searcher.search_entities([target])
             for result in results[:3]:  # Top 3 matches per target
                 # Skip exact matches (already in target_notes)
                 if result.match_type == "exact":
                     continue
+
+                if result.note.title in seen_titles:
+                    continue
+                seen_titles.add(result.note.title)
 
                 content = result.note.content or ""
                 sections = FullNoteContext._extract_sections(content)
@@ -479,7 +489,78 @@ class CoherenceService:
                     )
                 )
 
+        # 2. PROJECT-FIRST: Proactively search for project notes based on email content
+        if event:
+            project_notes = self._find_project_notes_for_event(event, seen_titles)
+            similar_notes.extend(project_notes)
+
         return similar_notes
+
+    def _find_project_notes_for_event(
+        self, event: "PerceivedEvent", seen_titles: set[str]
+    ) -> list[SimilarNote]:
+        """Find PROJECT notes that might be related to this email.
+
+        Searches for notes starting with "Projet" that contain keywords
+        from the email content (locations, topics, parties).
+        """
+        project_notes = []
+
+        # Get all project notes
+        all_notes = self._note_manager.get_all_notes()
+        projet_notes = [n for n in all_notes if n.title.lower().startswith("projet")]
+
+        if not projet_notes:
+            return project_notes
+
+        # Extract keywords from email
+        title = getattr(event, "title", "") or ""
+        content = getattr(event, "content", "") or ""
+        full_text = f"{title} {content}".lower()
+
+        # Keywords that suggest specific project contexts
+        # Real estate keywords
+        immo_keywords = [
+            "immobilier", "villa", "maison", "appartement", "terrain",
+            "achat", "vente", "offre", "acquisition", "propriété",
+            "maurice", "mauritius", "azuri", "valriche", "anahita",
+            "ocean river", "bluelife", "esperance",
+        ]
+
+        for note in projet_notes:
+            if note.title in seen_titles:
+                continue
+
+            note_content = (note.content or "").lower()
+            note_title_lower = note.title.lower()
+
+            # Check if project note is related to email content
+            match_score = 0.0
+            matching_keywords = []
+
+            for keyword in immo_keywords:
+                # Keyword in both email and project note
+                if keyword in full_text and (keyword in note_content or keyword in note_title_lower):
+                    match_score += 0.15
+                    matching_keywords.append(keyword)
+
+            # If we have a significant match, add as similar note
+            if match_score >= 0.3 and matching_keywords:
+                seen_titles.add(note.title)
+                content = note.content or ""
+                sections = FullNoteContext._extract_sections(content)
+
+                project_notes.append(
+                    SimilarNote(
+                        title=note.title,
+                        match_score=min(match_score, 0.95),
+                        match_type="keyword",
+                        sections=sections,
+                        snippet=content[:200] if content else "",
+                    )
+                )
+
+        return project_notes
 
     def _get_existing_notes_index(self) -> list[str]:
         """Get list of all existing note titles."""

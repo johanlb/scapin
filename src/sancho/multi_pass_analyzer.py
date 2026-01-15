@@ -1167,6 +1167,11 @@ class MultiPassAnalyzer:
         2. Time-limited offers that have expired
         3. Newsletters/digests (periodic content aggregations)
 
+        NEVER marks as ephemeral:
+        - Financial documents (bilans, rapports financiers, etc.)
+        - Legal documents (contrats, factures, etc.)
+        - Corporate documents (statuts, PV, etc.)
+
         Args:
             extractions: List of extractions from the email
             event: The event being analyzed (for email date context)
@@ -1174,12 +1179,45 @@ class MultiPassAnalyzer:
         Returns:
             Tuple of (is_ephemeral, reason)
         """
-        # First check: Is this a newsletter/digest?
+        # Get text for analysis
         sender = getattr(event, "sender", None)
         sender_name = (getattr(sender, "name", "") or "").lower() if sender else ""
         sender_email = (getattr(sender, "email", "") or "").lower() if sender else ""
         title = (getattr(event, "title", "") or "").lower()
+        content = getattr(event, "content", "") or ""
+        full_text = f"{title} {content}".lower()
 
+        # FIRST: Check for protected document types (NEVER ephemeral)
+        # Financial documents that must ALWAYS be archived
+        financial_indicators = [
+            "bilan", "bilan financier", "bilan annuel", "annual report",
+            "financial statement", "financial report", "rapport financier",
+            "comptes annuels", "états financiers", "compte de résultat",
+            "résumé financier", "financial summary", "audit", "comptes",
+            "rapport annuel", "yearly report", "fiscal year",
+            "clôture comptable", "exercice comptable", "year end",
+        ]
+
+        # Legal/corporate documents that must ALWAYS be archived
+        legal_indicators = [
+            "contrat", "contract", "facture", "invoice", "bon de commande",
+            "purchase order", "devis", "quote", "procès-verbal", "pv",
+            "procuration", "power of attorney", "statuts", "bylaws",
+            "certificat", "certificate", "attestation", "déclaration",
+            "companies act", "accord", "agreement", "convention",
+            "avenant", "amendment", "résiliation", "termination",
+            "licence", "license", "permis", "permit",
+        ]
+
+        # Check if this is a protected document type
+        is_financial = any(ind in full_text for ind in financial_indicators)
+        is_legal = any(ind in full_text for ind in legal_indicators)
+
+        if is_financial or is_legal:
+            # Not ephemeral - this is an important document
+            return False, None
+
+        # Now proceed with ephemeral content detection
         newsletter_indicators = [
             "newsletter", "digest", "daily", "weekly", "monthly",
             "highlights", "roundup", "recap", "summary", "bulletin",
@@ -1195,9 +1233,6 @@ class MultiPassAnalyzer:
             return True, "newsletter/digest (periodic content, no lasting value)"
 
         # Second check: OTP/verification codes (always ephemeral)
-        content = getattr(event, "content", "") or ""
-        full_text = f"{title} {content}".lower()
-
         otp_indicators = [
             "otp", "one-time password", "code de vérification", "verification code",
             "code d'authentification", "authentication code", "code de sécurité",
