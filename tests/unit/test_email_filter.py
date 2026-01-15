@@ -32,7 +32,7 @@ def create_mock_event(
     content: str = "Test content",
 ):
     """Helper to create mock email events"""
-    # Create mock sender
+    # Create mock sender (for backward compatibility)
     sender = MagicMock()
     sender.email = sender_email
     sender.name = sender_name
@@ -42,6 +42,8 @@ def create_mock_event(
     event.sender = sender
     event.title = subject
     event.content = content
+    # Use from_person like real PerceivedEvent
+    event.from_person = sender_email
 
     return event
 
@@ -259,7 +261,8 @@ class TestEdgeCases:
         """Test handling of None sender"""
         # Create mock event with no sender
         event = MagicMock()
-        event.sender = None
+        event.from_person = None  # Real PerceivedEvent field
+        event.sender = None  # For backward compat
         event.title = "Test subject"
         event.content = "Test content"
 

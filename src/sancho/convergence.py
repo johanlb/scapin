@@ -437,7 +437,7 @@ def calculate_global_confidence(result: PassResult) -> float:
         return action_confidence
 
     # Global confidence = min(action, all required extractions)
-    extraction_confidences = [e.confidence for e in required_extractions]
+    extraction_confidences = [e.confidence.overall for e in required_extractions]
     min_extraction_conf = min(extraction_confidences)
 
     global_conf = min(action_confidence, min_extraction_conf)

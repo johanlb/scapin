@@ -155,6 +155,39 @@ TRANSACTIONAL_SUBJECT_PATTERNS = [
     "password",
     "connexion",
     "login",
+    # Banking/Financial
+    "votre carte",
+    "your card",
+    "virement",
+    "transfer",
+    "prélèvement",
+    "direct debit",
+    "relevé",
+    "statement",
+]
+
+# Protected sender domains - NEVER skip these (financial, banking, etc.)
+PROTECTED_SENDER_DOMAINS = [
+    # French banks
+    "ca-paris.fr",
+    "credit-agricole.fr",
+    "bnpparibas.fr",
+    "societegenerale.fr",
+    "banquepopulaire.fr",
+    "lcl.fr",
+    "labanquepostale.fr",
+    "cic.fr",
+    "hsbc.fr",
+    # Mauritian banks
+    "afrasiabank.com",
+    "mcb.mu",
+    "sbmbank.mu",
+    "absa.mu",
+    # International
+    "paypal.com",
+    "stripe.com",
+    "wise.com",
+    "revolut.com",
 ]
 
 
@@ -222,9 +255,13 @@ class EmailFilter:
         patterns_matched: list[str] = []
 
         # Get sender email (lowercase)
+        # Handle both PerceivedEvent.from_person (str) and mock sender.email
         sender_email = ""
-        if event.sender and event.sender.email:
-            sender_email = event.sender.email.lower()
+        if hasattr(event, "from_person") and event.from_person:
+            sender_email = event.from_person.lower()
+        elif hasattr(event, "sender") and event.sender:
+            # For mocks in tests
+            sender_email = (event.sender.email or "").lower()
 
         # Get subject (lowercase)
         subject = (event.title or "").lower()
@@ -243,24 +280,32 @@ class EmailFilter:
 
         # If we matched skip patterns, decide based on count and type
         if patterns_matched:
-            # Multiple patterns = high confidence skip
-            if len(patterns_matched) >= 2:
-                return FilterDecision(
-                    result=FilterResult.SKIP,
-                    reason=f"Marketing email detected ({len(patterns_matched)} patterns)",
-                    confidence=0.95,
-                    patterns_matched=patterns_matched,
+            # NEVER skip protected domains (banks, financial services)
+            if self._is_protected_sender(sender_email):
+                logger.info(
+                    "Protected sender detected - not skipping",
+                    extra={"sender": sender_email, "patterns_matched": patterns_matched},
                 )
+                # Fall through to transactional check below
+            else:
+                # Multiple patterns = high confidence skip
+                if len(patterns_matched) >= 2:
+                    return FilterDecision(
+                        result=FilterResult.SKIP,
+                        reason=f"Marketing email detected ({len(patterns_matched)} patterns)",
+                        confidence=0.95,
+                        patterns_matched=patterns_matched,
+                    )
 
-            # Single pattern = moderate confidence
-            # Check if it might be transactional (don't skip invoices!)
-            if not self._is_transactional(sender_email, subject):
-                return FilterDecision(
-                    result=FilterResult.SKIP,
-                    reason="Likely marketing email",
-                    confidence=0.75,
-                    patterns_matched=patterns_matched,
-                )
+                # Single pattern = moderate confidence
+                # Check if it might be transactional (don't skip invoices!)
+                if not self._is_transactional(sender_email, subject):
+                    return FilterDecision(
+                        result=FilterResult.SKIP,
+                        reason="Likely marketing email",
+                        confidence=0.75,
+                        patterns_matched=patterns_matched,
+                    )
 
         # Check for transactional patterns
         transactional_patterns: list[str] = []
@@ -295,6 +340,12 @@ class EmailFilter:
         if any(pattern.lower() in sender_email for pattern in self.transactional_patterns):
             return True
         return any(pattern.lower() in subject for pattern in TRANSACTIONAL_SUBJECT_PATTERNS)
+
+    def _is_protected_sender(self, sender_email: str) -> bool:
+        """Check if sender is from a protected domain (banks, financial services)"""
+        return any(
+            domain.lower() in sender_email for domain in PROTECTED_SENDER_DOMAINS
+        )
 
 
 # Singleton instance

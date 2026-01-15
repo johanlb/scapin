@@ -783,15 +783,15 @@ class MultiPassAnalyzer:
 
         for ext_data in extractions_data:
             try:
-                # Validate required fields
-                info = ext_data.get("info", "").strip()
+                # Validate required fields (handle None values)
+                info = (ext_data.get("info") or "").strip()
                 if not info:
                     logger.warning("Skipping extraction with empty info")
                     continue
 
                 # CRITICAL: Reject extractions targeting the owner "Johan"
                 # Johan Le Bail is the system owner - his name appears everywhere but should never be a target
-                note_cible = ext_data.get("note_cible", "").strip()
+                note_cible = (ext_data.get("note_cible") or "").strip()
                 if note_cible:
                     note_cible_lower = note_cible.lower()
                     if note_cible_lower in ("johan", "johan le bail", "johan l.", "johanlb"):
