@@ -16,7 +16,7 @@ Après analyse de plusieurs emails réels, nous avons défini une nouvelle strat
 2. **Trois catégories** : Projets, Domaines/Actifs, Contacts stratégiques
 3. **Opérations vs Projets** : Les opérations continues vont dans l'actif, les projets temporaires ont leur note
 4. **Extraction sélective** : N'extraire que si l'info sera utile
-5. **Condensation** : Un email = une entrée résumée, pas N extractions atomiques
+5. **Condensation** : Privilégier les entrées résumées (1-2 extractions), éviter la fragmentation
 
 ---
 
@@ -223,9 +223,10 @@ Pour chaque extraction :
 
 ## 6. Condensation des extractions
 
-### 6.1 Règle
+### 6.1 Orientation
 
-> **Un email = une entrée résumée**, pas N extractions atomiques.
+> **Privilégier une entrée résumée** plutôt que N extractions atomiques.
+> **Flexibilité** : 2-3 extractions acceptables si vraiment distinctes (types différents, cibles différentes).
 
 ### 6.2 Avant / Après
 

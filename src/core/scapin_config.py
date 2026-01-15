@@ -187,11 +187,8 @@ class ScapinConfigReader:
             return True
 
         # People from my companies get their own note
-        if company_name and self.is_my_entity(company_name):
-            return True
-
         # External contacts → company note
-        return False
+        return bool(company_name and self.is_my_entity(company_name))
 
 
 # Singleton instance
