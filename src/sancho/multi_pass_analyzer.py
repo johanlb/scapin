@@ -1012,7 +1012,27 @@ class MultiPassAnalyzer:
         if is_newsletter:
             return True, "newsletter/digest (periodic content, no lasting value)"
 
-        # Second check: Does email contain past events/invitations?
+        # Second check: OTP/verification codes (always ephemeral)
+        content = getattr(event, "content", "") or ""
+        full_text = f"{title} {content}".lower()
+
+        otp_indicators = [
+            "otp", "one-time password", "code de vérification", "verification code",
+            "code d'authentification", "authentication code", "code de sécurité",
+            "security code", "code de confirmation", "confirmation code",
+            "code à usage unique", "single-use code", "2fa", "two-factor",
+            "mot de passe temporaire", "temporary password", "code pin",
+            "entrer le code", "enter the code", "saisissez le code",
+            "pour vous authentifier", "to authenticate", "pour confirmer",
+            "code suivant", "following code", "voici votre code",
+        ]
+
+        is_otp = any(ind in full_text or ind in sender_email for ind in otp_indicators)
+
+        if is_otp:
+            return True, "OTP/verification code (expired, no lasting value)"
+
+        # Third check: Does email contain past events/invitations?
         import re
 
         from dateutil import parser as date_parser
@@ -1083,9 +1103,7 @@ class MultiPassAnalyzer:
                 return True, f"event/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)"
 
         # Also check the email content directly for event indicators
-        content = getattr(event, "content", "") or ""
-        title = getattr(event, "title", "") or ""
-        full_text = f"{title} {content}".lower()
+        # (full_text already set above for OTP check)
 
         # Event/invitation indicators
         event_indicators = [
