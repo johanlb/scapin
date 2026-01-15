@@ -461,35 +461,34 @@ class CoherenceService:
         similar_notes = []
         seen_titles: set[str] = set()
 
-        if not self._entity_searcher:
-            return similar_notes
+        # 1. Search based on extraction targets (only if entity_searcher available)
+        if self._entity_searcher:
+            for target in targets:
+                results = self._entity_searcher.search_entities([target])
+                for result in results[:3]:  # Top 3 matches per target
+                    # Skip exact matches (already in target_notes)
+                    if result.match_type == "exact":
+                        continue
 
-        # 1. Search based on extraction targets
-        for target in targets:
-            results = self._entity_searcher.search_entities([target])
-            for result in results[:3]:  # Top 3 matches per target
-                # Skip exact matches (already in target_notes)
-                if result.match_type == "exact":
-                    continue
+                    if result.note.title in seen_titles:
+                        continue
+                    seen_titles.add(result.note.title)
 
-                if result.note.title in seen_titles:
-                    continue
-                seen_titles.add(result.note.title)
+                    content = result.note.content or ""
+                    sections = FullNoteContext._extract_sections(content)
 
-                content = result.note.content or ""
-                sections = FullNoteContext._extract_sections(content)
-
-                similar_notes.append(
-                    SimilarNote(
-                        title=result.note.title,
-                        match_score=result.match_score,
-                        match_type=result.match_type,
-                        sections=sections,
-                        snippet=content[:200] if content else "",
+                    similar_notes.append(
+                        SimilarNote(
+                            title=result.note.title,
+                            match_score=result.match_score,
+                            match_type=result.match_type,
+                            sections=sections,
+                            snippet=content[:200] if content else "",
+                        )
                     )
-                )
 
         # 2. PROJECT-FIRST: Proactively search for project notes based on email content
+        # This runs regardless of entity_searcher availability
         if event:
             project_notes = self._find_project_notes_for_event(event, seen_titles)
             similar_notes.extend(project_notes)
@@ -504,35 +503,52 @@ class CoherenceService:
         Searches for notes starting with "Projet" that contain keywords
         from the email content (locations, topics, parties).
         """
+        import unicodedata
+
+        def normalize(text: str) -> str:
+            """Normalize text: lowercase and remove accents."""
+            text = text.lower()
+            # NFD decomposition separates accents from base characters
+            # Then filter out combining characters (accents)
+            return "".join(
+                c for c in unicodedata.normalize("NFD", text)
+                if unicodedata.category(c) != "Mn"
+            )
+
         project_notes = []
 
         # Get all project notes
         all_notes = self._note_manager.get_all_notes()
         projet_notes = [n for n in all_notes if n.title.lower().startswith("projet")]
 
+        logger.info(f"PROJECT-FIRST: Found {len(projet_notes)} project notes")
+
         if not projet_notes:
             return project_notes
 
-        # Extract keywords from email
+        # Extract keywords from email - include both title and content
         title = getattr(event, "title", "") or ""
         content = getattr(event, "content", "") or ""
-        full_text = f"{title} {content}".lower()
+        full_text = normalize(f"{title} {content}")
+
+        logger.debug(f"PROJECT-FIRST: Email title={title[:100]}, content length={len(content)}")
 
         # Keywords that suggest specific project contexts
-        # Real estate keywords
+        # Real estate keywords (already normalized - no accents)
         immo_keywords = [
             "immobilier", "villa", "maison", "appartement", "terrain",
-            "achat", "vente", "offre", "acquisition", "propriété",
+            "achat", "vente", "offre", "acquisition", "propriete",
             "maurice", "mauritius", "azuri", "valriche", "anahita",
-            "ocean river", "bluelife", "esperance",
+            "ocean river", "bluelife", "esperance", "lagesse",
+            "piscine", "location", "loyer", "bail",
         ]
 
         for note in projet_notes:
             if note.title in seen_titles:
                 continue
 
-            note_content = (note.content or "").lower()
-            note_title_lower = note.title.lower()
+            note_content = normalize(note.content or "")
+            note_title_norm = normalize(note.title)
 
             # Check if project note is related to email content
             match_score = 0.0
@@ -540,15 +556,25 @@ class CoherenceService:
 
             for keyword in immo_keywords:
                 # Keyword in both email and project note
-                if keyword in full_text and (keyword in note_content or keyword in note_title_lower):
+                if keyword in full_text and (keyword in note_content or keyword in note_title_norm):
                     match_score += 0.15
                     matching_keywords.append(keyword)
+
+            logger.debug(
+                f"PROJECT-FIRST: Note '{note.title}' - "
+                f"score={match_score:.2f}, keywords={matching_keywords}"
+            )
 
             # If we have a significant match, add as similar note
             if match_score >= 0.3 and matching_keywords:
                 seen_titles.add(note.title)
-                content = note.content or ""
-                sections = FullNoteContext._extract_sections(content)
+                raw_content = note.content or ""
+                sections = FullNoteContext._extract_sections(raw_content)
+
+                logger.info(
+                    f"PROJECT-FIRST: Matched '{note.title}' "
+                    f"(score={match_score:.2f}, keywords={matching_keywords})"
+                )
 
                 project_notes.append(
                     SimilarNote(
@@ -556,7 +582,7 @@ class CoherenceService:
                         match_score=min(match_score, 0.95),
                         match_type="keyword",
                         sections=sections,
-                        snippet=content[:200] if content else "",
+                        snippet=raw_content[:200] if raw_content else "",
                     )
                 )
 
