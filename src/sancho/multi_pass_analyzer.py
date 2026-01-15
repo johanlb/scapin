@@ -1180,9 +1180,8 @@ class MultiPassAnalyzer:
             Tuple of (is_ephemeral, reason)
         """
         # Get text for analysis
-        sender = getattr(event, "sender", None)
-        sender_name = (getattr(sender, "name", "") or "").lower() if sender else ""
-        sender_email = (getattr(sender, "email", "") or "").lower() if sender else ""
+        # PerceivedEvent uses from_person (string), not sender object
+        from_person = (getattr(event, "from_person", "") or "").lower()
         title = (getattr(event, "title", "") or "").lower()
         content = getattr(event, "content", "") or ""
         full_text = f"{title} {content}".lower()
@@ -1199,14 +1198,15 @@ class MultiPassAnalyzer:
         ]
 
         # Legal/corporate documents that must ALWAYS be archived
+        # NOTE: Avoid short words that could match common text (e.g., "accord" matches "according")
         legal_indicators = [
             "contrat", "contract", "facture", "invoice", "bon de commande",
-            "purchase order", "devis", "quote", "procès-verbal", "pv",
-            "procuration", "power of attorney", "statuts", "bylaws",
-            "certificat", "certificate", "attestation", "déclaration",
-            "companies act", "accord", "agreement", "convention",
-            "avenant", "amendment", "résiliation", "termination",
-            "licence", "license", "permis", "permit",
+            "purchase order", "devis signé", "procès-verbal", "pv de réunion",
+            "procuration", "power of attorney", "statuts sociaux", "bylaws",
+            "certificat", "certificate", "attestation officielle", "déclaration fiscale",
+            "companies act", "accord commercial", "accord signé", "legal agreement",
+            "avenant au contrat", "amendment", "résiliation", "termination notice",
+            "licence commerciale", "business license", "permis de construire",
         ]
 
         # Check if this is a protected document type
@@ -1214,7 +1214,15 @@ class MultiPassAnalyzer:
         is_legal = any(ind in full_text for ind in legal_indicators)
 
         if is_financial or is_legal:
-            # Not ephemeral - this is an important document
+            # Find which indicator matched
+            matched_ind = next(
+                (ind for ind in financial_indicators + legal_indicators if ind in full_text),
+                "unknown"
+            )
+            logger.info(
+                f"Protected document detected (NOT ephemeral): matched='{matched_ind}' "
+                f"in from='{from_person}'"
+            )
             return False, None
 
         # Now proceed with ephemeral content detection
@@ -1222,14 +1230,21 @@ class MultiPassAnalyzer:
             "newsletter", "digest", "daily", "weekly", "monthly",
             "highlights", "roundup", "recap", "summary", "bulletin",
             "noreply", "no-reply", "mailer", "news@", "updates@",
+            "medium", "substack", "mailchimp", "sendinblue",
         ]
 
         is_newsletter = any(
-            ind in sender_name or ind in sender_email or ind in title
+            ind in from_person or ind in title
             for ind in newsletter_indicators
         )
 
+        logger.info(
+            f"Ephemeral check: from_person='{from_person}', title='{title[:50]}', "
+            f"is_newsletter={is_newsletter}"
+        )
+
         if is_newsletter:
+            logger.info(f"Detected newsletter/digest: from_person='{from_person}'")
             return True, "newsletter/digest (periodic content, no lasting value)"
 
         # Second check: OTP/verification codes (always ephemeral)
@@ -1499,12 +1514,15 @@ class MultiPassAnalyzer:
 
         # Apply age-based adjustments
         age_days = self._calculate_event_age_days(event)
+        logger.info(f"Age-based check: age_days={age_days}, action={last_pass.action}")
         adjusted_action, adjusted_extractions, age_adjustment = self._apply_age_adjustments(
             last_pass.action,
             last_pass.extractions,
             age_days,
             event,
         )
+        if age_adjustment:
+            logger.info(f"Age adjustment applied: {age_adjustment}")
 
         # Run coherence pass on adjusted extractions
         # This validates note targets, detects duplicates, and suggests sections

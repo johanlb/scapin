@@ -1473,6 +1473,8 @@ class _EmailEventAdapter:
         sender_name = metadata.get("from_name", "") or metadata.get("from_address", "Unknown")
         sender_email = metadata.get("from_address", "")
         self.sender = _EmailSender(sender_name, sender_email)
+        # Also expose from_person for compatibility with PerceivedEvent-style access
+        self.from_person = sender_name
 
         # Entities (empty for reanalysis, will be discovered by pass 1)
         self.entities: list = []
