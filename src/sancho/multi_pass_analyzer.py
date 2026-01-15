@@ -854,6 +854,7 @@ class MultiPassAnalyzer:
                     duration=ext_data.get("duration"),
                     required=required,
                     confidence=ext_confidence,
+                    generic_title=bool(ext_data.get("generic_title", False)),
                 )
                 extractions.append(extraction)
 

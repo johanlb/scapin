@@ -14,6 +14,12 @@ Trivelin handles:
 """
 
 from src.trivelin.action_factory import ActionFactory
+from src.trivelin.email_filter import (
+    EmailFilter,
+    FilterDecision,
+    FilterResult,
+    get_email_filter,
+)
 from src.trivelin.omnifocus_processor import OmniFocusProcessor
 from src.trivelin.processor import EmailProcessor
 from src.trivelin.v2_processor import (
@@ -26,6 +32,11 @@ __all__ = [
     "ActionFactory",
     "EmailProcessor",
     "OmniFocusProcessor",
+    # Email pre-filtering
+    "EmailFilter",
+    "FilterDecision",
+    "FilterResult",
+    "get_email_filter",
     # V2 Workflow (recommended)
     "V2EmailProcessor",
     "V2ProcessingResult",

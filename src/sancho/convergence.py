@@ -214,6 +214,8 @@ class Extraction:
     confidence: ExtractionConfidence = field(default_factory=ExtractionConfidence)
     # Manual override
     manually_approved: bool | None = None  # None=auto, True=forced, False=rejected
+    # Flag for generic titles that couldn't be resolved to real names
+    generic_title: bool = False  # If True, note_cible is generic (e.g., "Promoteur") - needs review
 
     @property
     def confidence_score(self) -> float:
@@ -270,6 +272,7 @@ class PassResult:
                     "confidence_score": e.confidence_score,
                     "weakness_label": e.confidence.weakness_label,
                     "manually_approved": e.manually_approved,
+                    "generic_title": e.generic_title,
                 }
                 for e in self.extractions
             ],

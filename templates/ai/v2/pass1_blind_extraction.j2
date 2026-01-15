@@ -62,10 +62,29 @@ Pour chaque information pertinente, determine son type parmi :
 - **relation** : Lien entre personnes/projets ("Marc rejoint Projet Alpha")
 - **coordonnees** : Tel, email, adresse ("Nouveau numero: 06...")
 - **montant** : Chiffres financiers ("Contrat de 50k/an")
-- **reference** : Document, spec, lien ("Voir doc technique v2")
+- **reference** : Document, spec, lien, numero de facture ("Facture #12345", "Dossier REF-2024-001")
 - **demande** : Requete explicite ("Peux-tu m'envoyer le rapport ?")
 - **citation** : Propos rapportes ("Le CEO a dit : on double le budget")
 - **objectif** : But, cible ("Objectif Q1 : 100k utilisateurs")
+
+**⚠️ REGLES OBLIGATOIRES D'EXTRACTION ⚠️**
+
+1. **DATES** : Toute date mentionnee DOIT etre extraite avec le champ `date` au format YYYY-MM-DD.
+   - Exemples : "15 janvier 2026" → "2026-01-15", "vendredi prochain" → calculer la date exacte
+   - Si l'annee n'est pas precisee, utiliser l'annee de l'email
+
+2. **MONTANTS** : Tout montant financier DOIT etre extrait comme type "montant".
+   - Exemples : "50 000€", "12.5k", "$100", "budget de 25K"
+   - Inclure la devise et le montant exact dans le champ `info`
+
+3. **REFERENCES** : Tout numero de reference DOIT etre extrait comme type "reference".
+   - Exemples : "Facture #12345", "Dossier REF-2024-001", "Commande N°789456"
+   - Ces references sont critiques pour le suivi
+
+4. **TITRES GENERIQUES INTERDITS** : Ne JAMAIS utiliser de titre generique comme `note_cible`.
+   - ❌ INTERDIT : "Promoteur", "Commercial", "Conseiller", "Agent"
+   - ✅ REQUIS : Utiliser le nom reel de la personne ou de l'entreprise
+   - Si le nom reel n'est pas disponible, mettre `note_cible: null` et `generic_title: true`
 
 ### 3. ACTION RECOMMANDEE
 
@@ -103,7 +122,8 @@ Reponds UNIQUEMENT avec ce JSON (pas de texte avant/apres) :
       "calendar": false,
       "date": "YYYY-MM-DD ou null",
       "time": "HH:MM ou null",
-      "duration": null
+      "duration": null,
+      "generic_title": false
     }
   ],
   "action": "archive|flag|queue|delete|rien",

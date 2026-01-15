@@ -33,6 +33,12 @@ from src.passepartout.enricher import (
     PKMEnricher,
     create_enricher,
 )
+from src.passepartout.entity_search import (
+    EntitySearcher,
+    EntitySearchResult,
+    EntitySearchStats,
+    create_entity_searcher,
+)
 from src.passepartout.note_enricher import (
     Enrichment,
     EnrichmentContext,
@@ -86,6 +92,11 @@ __all__ = [
     "Note",
     "ContextEngine",
     "ContextRetrievalResult",
+    # Entity search (Option D)
+    "EntitySearcher",
+    "EntitySearchResult",
+    "EntitySearchStats",
+    "create_entity_searcher",
     # Note types
     "NoteType",
     "ImportanceLevel",

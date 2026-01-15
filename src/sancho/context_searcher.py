@@ -23,6 +23,7 @@ from src.monitoring.logger import get_logger
 
 if TYPE_CHECKING:
     from src.passepartout.cross_source.engine import CrossSourceEngine
+    from src.passepartout.entity_search import EntitySearcher
     from src.passepartout.note_manager import Note, NoteManager
 
 logger = get_logger("context_searcher")
@@ -236,7 +237,7 @@ class StructuredContext:
 class ContextSearchConfig:
     """Configuration for context search"""
 
-    max_notes: int = 5
+    max_notes: int = 10  # Increased from 5 for better context (Option D)
     max_calendar_events: int = 10
     max_tasks: int = 5
     max_emails: int = 5
@@ -246,20 +247,28 @@ class ContextSearchConfig:
     include_emails: bool = True
     calendar_days_behind: int = 30
     calendar_days_ahead: int = 14
+    # Option D: Entity-based search before semantic search
+    use_entity_search: bool = True
+    entity_fuzzy_threshold: float = 0.70
 
 
 class ContextSearcher:
     """
     Context searcher for multi-pass analysis.
 
-    Coordinates searches across NoteManager and CrossSourceEngine
+    Coordinates searches across NoteManager, EntitySearcher and CrossSourceEngine
     to build structured context for prompt injection.
+
+    Option D Enhancement (v2.2+):
+    - First uses EntitySearcher for exact/fuzzy name matching on note titles
+    - Then falls back to semantic search for additional context
+    - Applies ScapinConfig rules for entity resolution
 
     Usage:
         searcher = ContextSearcher(note_manager, cross_source_engine)
         context = await searcher.search_for_entities(
             ["Marc Dupont", "Projet Alpha"],
-            config=ContextSearchConfig(max_notes=5)
+            config=ContextSearchConfig(max_notes=10)
         )
         prompt_context = context.to_prompt_format()
     """
@@ -268,6 +277,7 @@ class ContextSearcher:
         self,
         note_manager: "NoteManager | None" = None,
         cross_source_engine: "CrossSourceEngine | None" = None,
+        entity_searcher: "EntitySearcher | None" = None,
     ) -> None:
         """
         Initialize the context searcher.
@@ -275,14 +285,20 @@ class ContextSearcher:
         Args:
             note_manager: NoteManager instance for PKM search
             cross_source_engine: CrossSourceEngine for cross-source search
+            entity_searcher: EntitySearcher for entity-based search (Option D)
         """
         self._note_manager = note_manager
         self._cross_source = cross_source_engine
+        self._entity_searcher = entity_searcher
+
+        # Lazy-load EntitySearcher if note_manager is available but no searcher provided
+        self._entity_searcher_loaded = entity_searcher is not None
 
         logger.info(
-            "ContextSearcher initialized (notes=%s, cross_source=%s)",
+            "ContextSearcher initialized (notes=%s, cross_source=%s, entity_search=%s)",
             note_manager is not None,
             cross_source_engine is not None,
+            entity_searcher is not None,
         )
 
     @property
@@ -294,6 +310,24 @@ class ContextSearcher:
     def has_cross_source(self) -> bool:
         """Check if cross source engine is available"""
         return self._cross_source is not None
+
+    @property
+    def entity_searcher(self) -> "EntitySearcher | None":
+        """Get or lazy-load EntitySearcher (Option D)"""
+        if not self._entity_searcher_loaded and self._note_manager is not None:
+            try:
+                from src.passepartout.entity_search import EntitySearcher
+
+                self._entity_searcher = EntitySearcher(
+                    note_manager=self._note_manager,
+                )
+                self._entity_searcher_loaded = True
+                logger.debug("EntitySearcher lazy-loaded for Option D")
+            except Exception as e:
+                logger.warning("Could not load EntitySearcher: %s", e)
+                self._entity_searcher_loaded = True  # Don't retry
+
+        return self._entity_searcher
 
     async def search_for_entities(
         self,
@@ -325,11 +359,11 @@ class ContextSearcher:
         emails: list[EmailContextBlock] = []
         entity_profiles: dict[str, EntityProfile] = {}
 
-        # 1. Search notes by entity names
+        # 1. Search notes by entity names (Option D: entity search + semantic)
         if self._note_manager is not None:
             sources_searched.append("notes")
             notes, entity_profiles = await self._search_notes(
-                entities, config.max_notes, config.min_relevance
+                entities, config
             )
 
         # 2. Search cross-source if available
@@ -383,59 +417,135 @@ class ContextSearcher:
     async def _search_notes(
         self,
         entities: list[str],
-        max_results: int,
-        min_relevance: float,
+        config: ContextSearchConfig,
     ) -> tuple[list[NoteContextBlock], dict[str, EntityProfile]]:
-        """Search notes for entities and build profiles"""
+        """
+        Search notes for entities using Option D approach.
+
+        Option D: Entity-based search FIRST, then semantic search for additional results.
+        This gives better precision for known entities while still finding related context.
+
+        Args:
+            entities: List of entity names to search for
+            config: Search configuration with max_notes, min_relevance, etc.
+
+        Returns:
+            Tuple of (note_blocks, entity_profiles)
+        """
         notes: list[NoteContextBlock] = []
         profiles: dict[str, EntityProfile] = {}
+        seen_ids: set[str] = set()
 
         if self._note_manager is None:
             return notes, profiles
 
-        for entity in entities:
-            try:
-                # Search for notes matching this entity
-                results = self._note_manager.search_notes(
-                    query=entity,
-                    top_k=max_results,
-                    return_scores=True,
-                )
+        max_results = config.max_notes
+        min_relevance = config.min_relevance
 
-                for note, score in results:
-                    if score < min_relevance:
+        # STEP 1: Entity-based search (Option D) - exact/fuzzy matching on titles
+        if config.use_entity_search and self.entity_searcher is not None:
+            try:
+                entity_results = self.entity_searcher.search_entities(entities)
+
+                for result in entity_results:
+                    if result.note.note_id in seen_ids:
                         continue
 
-                    # Create note context block
+                    note = result.note
+                    seen_ids.add(note.note_id)
+
+                    # Create note context block with entity match info
                     note_block = NoteContextBlock(
-                        note_id=note.id,
+                        note_id=note.note_id,
                         title=note.title,
-                        note_type=note.type or "note",
-                        summary=note.summary or note.content[:200] if note.content else "",
-                        relevance=score,
-                        last_modified=note.modified_at,
+                        note_type=getattr(note, "type", None) or "note",
+                        summary=(note.content[:200] if note.content else ""),
+                        relevance=result.match_score,
+                        last_modified=getattr(note, "modified_at", None),
                         tags=note.tags or [],
                     )
                     notes.append(note_block)
 
-                    # Build entity profile if note is about a person/project
-                    if note.type in ["personne", "projet", "entreprise"]:
-                        profile = self._build_profile_from_note(entity, note, score)
-                        if profile and entity not in profiles:
-                            profiles[entity] = profile
+                    # Build entity profile if note is about a person/project/company
+                    note_type = getattr(note, "type", None)
+                    if note_type in ["personne", "projet", "entreprise"]:
+                        profile = self._build_profile_from_note(
+                            result.entity_name, note, result.match_score
+                        )
+                        if profile and result.entity_name not in profiles:
+                            # Add is_my_entity info to profile
+                            if result.is_my_entity:
+                                profile.relationship = "Mon équipe"
+                            profiles[result.entity_name] = profile
+
+                logger.debug(
+                    "Entity search found %d notes for %d entities",
+                    len(notes),
+                    len(entities),
+                )
 
             except Exception as e:
-                logger.warning("Error searching notes for entity %s: %s", entity, e)
+                logger.warning("Entity search failed, falling back to semantic: %s", e)
 
-        # Deduplicate and sort by relevance
-        seen_ids = set()
-        unique_notes = []
-        for note in sorted(notes, key=lambda n: n.relevance, reverse=True):
-            if note.note_id not in seen_ids:
-                seen_ids.add(note.note_id)
-                unique_notes.append(note)
+        # STEP 2: Semantic search for additional results (if we need more)
+        remaining_slots = max_results - len(notes)
+        if remaining_slots > 0:
+            for entity in entities:
+                try:
+                    # Semantic search for notes matching this entity
+                    results = self._note_manager.search_notes(
+                        query=entity,
+                        top_k=remaining_slots,
+                        return_scores=True,
+                    )
 
-        return unique_notes[:max_results], profiles
+                    for note, score in results:
+                        if note.note_id in seen_ids:
+                            continue
+                        if score < min_relevance:
+                            continue
+
+                        seen_ids.add(note.note_id)
+
+                        # Create note context block
+                        note_block = NoteContextBlock(
+                            note_id=note.note_id,
+                            title=note.title,
+                            note_type=getattr(note, "type", None) or "note",
+                            summary=(note.content[:200] if note.content else ""),
+                            relevance=score,
+                            last_modified=getattr(note, "modified_at", None),
+                            tags=note.tags or [],
+                        )
+                        notes.append(note_block)
+
+                        # Build entity profile if note is about a person/project
+                        note_type = getattr(note, "type", None)
+                        if note_type in ["personne", "projet", "entreprise"]:
+                            profile = self._build_profile_from_note(entity, note, score)
+                            if profile and entity not in profiles:
+                                profiles[entity] = profile
+
+                        if len(notes) >= max_results:
+                            break
+
+                except Exception as e:
+                    logger.warning("Semantic search failed for entity %s: %s", entity, e)
+
+                if len(notes) >= max_results:
+                    break
+
+        # Sort by relevance (entity matches typically have higher scores)
+        notes.sort(key=lambda n: n.relevance, reverse=True)
+
+        logger.info(
+            "Note search completed: %d entity matches + %d semantic = %d total",
+            len([n for n in notes if n.relevance >= 0.7]),
+            len([n for n in notes if n.relevance < 0.7]),
+            len(notes),
+        )
+
+        return notes[:max_results], profiles
 
     def _build_profile_from_note(
         self,
@@ -445,6 +555,8 @@ class ContextSearcher:
     ) -> EntityProfile | None:
         """Build an entity profile from a note"""
         try:
+            import re
+
             # Extract key facts from note content
             key_facts = []
             if note.content:
@@ -459,20 +571,22 @@ class ContextSearcher:
             # Extract related entities from wikilinks
             related = []
             if note.content:
-                import re
                 wikilinks = re.findall(r"\[\[([^\]]+)\]\]", note.content)
                 related = [link for link in wikilinks if link != note.title][:5]
+
+            # Get note type from metadata (Note class doesn't have .type attribute)
+            note_type = note.metadata.get("type", "entity") if note.metadata else "entity"
 
             return EntityProfile(
                 name=entity_name,
                 canonical_name=note.title,
-                entity_type=note.type or "entity",
+                entity_type=note_type,
                 role=note.metadata.get("role") if note.metadata else None,
                 relationship=note.metadata.get("relationship") if note.metadata else None,
-                last_interaction=note.modified_at,
+                last_interaction=note.updated_at,  # Note uses updated_at, not modified_at
                 key_facts=key_facts,
                 related_entities=related,
-                source_note_id=note.id,
+                source_note_id=note.note_id,  # Note uses note_id, not id
             )
         except Exception as e:
             logger.warning("Error building profile from note: %s", e)

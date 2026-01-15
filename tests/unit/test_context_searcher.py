@@ -322,11 +322,13 @@ class TestContextSearchConfig:
     def test_defaults(self):
         """Check default values"""
         config = ContextSearchConfig()
-        assert config.max_notes == 5
+        assert config.max_notes == 10  # Increased from 5 for Option D
         assert config.max_calendar_events == 10
         assert config.max_tasks == 5
         assert config.min_relevance == 0.3
         assert config.include_calendar is True
+        assert config.use_entity_search is True  # Option D enabled by default
+        assert config.entity_fuzzy_threshold == 0.70
 
     def test_custom_values(self):
         """Override default values"""
