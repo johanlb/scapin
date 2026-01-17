@@ -63,18 +63,14 @@ class EmailAccountConfig(BaseModel):
             "YOUR_PASSWORD",
             "password",
             "changeme",
-            ""
+            "",
         ]
         if v.lower() in [p.lower() for p in placeholders]:
-            raise ValueError(
-                "IMAP password must be configured with a real password"
-            )
+            raise ValueError("IMAP password must be configured with a real password")
 
         # Check minimum length (app-specific passwords are typically 16+ chars)
         if len(v) < 8:
-            raise ValueError(
-                "IMAP password too short (minimum 8 characters)"
-            )
+            raise ValueError("IMAP password too short (minimum 8 characters)")
 
         return v
 
@@ -86,9 +82,7 @@ class EmailAccountConfig(BaseModel):
         v_str = str(v).strip()
 
         if not v_str or "@" not in v_str:
-            raise ValueError(
-                "IMAP username must be a valid email address"
-            )
+            raise ValueError("IMAP username must be a valid email address")
 
         return v
 
@@ -97,9 +91,7 @@ class EmailAccountConfig(BaseModel):
     def account_id_valid(cls, v: str) -> str:
         """Validate account ID is alphanumeric + underscore/dash"""
         if not v.replace("_", "").replace("-", "").isalnum():
-            raise ValueError(
-                "account_id must be alphanumeric (can include _ and -)"
-            )
+            raise ValueError("account_id must be alphanumeric (can include _ and -)")
         return v
 
     @field_validator("imap_port")
@@ -107,15 +99,13 @@ class EmailAccountConfig(BaseModel):
     def port_valid(cls, v: int) -> int:
         """Validate IMAP port is in valid range"""
         if not (1 <= v <= 65535):
-            raise ValueError(
-                f"Invalid IMAP port {v} (must be 1-65535)"
-            )
+            raise ValueError(f"Invalid IMAP port {v} (must be 1-65535)")
         # Warn if not using standard ports
         if v not in [143, 993]:
             import warnings
+
             warnings.warn(
-                f"Non-standard IMAP port {v} (standard: 143 or 993)",
-                UserWarning, stacklevel=2
+                f"Non-standard IMAP port {v} (standard: 143 or 993)", UserWarning, stacklevel=2
             )
         return v
 
@@ -130,13 +120,9 @@ class EmailConfig(BaseModel):
 
     # Multi-account configuration
     accounts: list[EmailAccountConfig] = Field(
-        default_factory=list,
-        description="List of email accounts"
+        default_factory=list, description="List of email accounts"
     )
-    default_account_id: Optional[str] = Field(
-        None,
-        description="Default account ID to use"
-    )
+    default_account_id: Optional[str] = Field(None, description="Default account ID to use")
 
     # Legacy single-account fields (for backward compatibility)
     # These will be auto-migrated to accounts[0] if accounts is empty
@@ -153,7 +139,7 @@ class EmailConfig(BaseModel):
     max_workers: Optional[int] = None
     batch_size: Optional[int] = None
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def migrate_legacy_format(self):
         """
         Migrate legacy single-account format to multi-account
@@ -186,9 +172,7 @@ class EmailConfig(BaseModel):
             # Validate at least one enabled account
             enabled_count = sum(1 for acc in self.accounts if acc.enabled)
             if enabled_count == 0:
-                raise ValueError(
-                    "At least one account must be enabled"
-                )
+                raise ValueError("At least one account must be enabled")
 
             # Validate default_account_id if set
             if self.default_account_id:
@@ -299,9 +283,7 @@ class AIConfig(BaseModel):
     @classmethod
     def anthropic_key_not_placeholder(cls, v: str) -> str:
         if v == "your_anthropic_api_key_here":
-            raise ValueError(
-                "ANTHROPIC_API_KEY must be configured in .env with your real API key"
-            )
+            raise ValueError("ANTHROPIC_API_KEY must be configured in .env with your real API key")
         return v
 
 
@@ -310,25 +292,26 @@ class StorageConfig(BaseModel):
 
     database_path: Path = Field(Path("data/pkm.db"), description="SQLite database path")
     notes_path: Path = Field(
-        Path.home() / "Documents/Scapin/Notes", description="Notes directory"
+        Path.home() / "Documents/Scapin/Notes",
+        description="Notes directory",
+        alias="notes_dir",  # Support for older code expecting notes_dir
     )
-    github_repo_url: Optional[str] = Field(
-        None, description="GitHub remote repository URL"
-    )
+    github_repo_url: Optional[str] = Field(None, description="GitHub remote repository URL")
     backup_enabled: bool = Field(True, description="Enable automatic backups")
     backup_retention_days: int = Field(30, ge=1, le=365, description="Backup retention")
+
+    @property
+    def notes_dir(self) -> Path:
+        """Alias for backward compatibility"""
+        return self.notes_path
 
 
 class IntegrationsConfig(BaseModel):
     """Configuration intégrations externes"""
 
     omnifocus_enabled: bool = Field(True, description="Enable OmniFocus integration")
-    apple_notes_sync_enabled: bool = Field(
-        False, description="Enable Apple Notes sync (Phase 6)"
-    )
-    sync_interval_minutes: int = Field(
-        30, ge=1, le=1440, description="Sync interval in minutes"
-    )
+    apple_notes_sync_enabled: bool = Field(False, description="Enable Apple Notes sync (Phase 6)")
+    sync_interval_minutes: int = Field(30, ge=1, le=1440, description="Sync interval in minutes")
     calendar_enabled: bool = Field(False, description="Enable Calendar integration")
 
 
@@ -352,48 +335,34 @@ class ProcessingConfig(BaseModel):
     """
 
     enable_cognitive_reasoning: bool = Field(
-        False,
-        description="Enable multi-pass cognitive reasoning (opt-in, default OFF for safety)"
+        False, description="Enable multi-pass cognitive reasoning (opt-in, default OFF for safety)"
     )
     cognitive_confidence_threshold: float = Field(
         0.85,
         ge=0.0,
         le=1.0,
-        description="Confidence threshold for auto-execution (below = review queue)"
+        description="Confidence threshold for auto-execution (below = review queue)",
     )
     cognitive_timeout_seconds: int = Field(
-        20,
-        ge=5,
-        le=120,
-        description="Maximum time for cognitive processing per email"
+        20, ge=5, le=120, description="Maximum time for cognitive processing per email"
     )
     cognitive_max_passes: int = Field(
-        5,
-        ge=1,
-        le=10,
-        description="Maximum reasoning passes before forcing decision"
+        5, ge=1, le=10, description="Maximum reasoning passes before forcing decision"
     )
     fallback_on_failure: bool = Field(
-        True,
-        description="Fall back to legacy single-pass if cognitive pipeline fails"
+        True, description="Fall back to legacy single-pass if cognitive pipeline fails"
     )
 
     # Context enrichment (Pass 2) - Uses Passepartout knowledge base
     enable_context_enrichment: bool = Field(
         True,
-        description="Enable Pass 2 context enrichment from knowledge base (requires NoteManager)"
+        description="Enable Pass 2 context enrichment from knowledge base (requires NoteManager)",
     )
     context_top_k: int = Field(
-        5,
-        ge=1,
-        le=20,
-        description="Number of context items to retrieve from knowledge base"
+        5, ge=1, le=20, description="Number of context items to retrieve from knowledge base"
     )
     context_min_relevance: float = Field(
-        0.3,
-        ge=0.0,
-        le=1.0,
-        description="Minimum relevance score for context items (0-1)"
+        0.3, ge=0.0, le=1.0, description="Minimum relevance score for context items (0-1)"
     )
 
     # Background processing (SC-14)
@@ -401,25 +370,14 @@ class ProcessingConfig(BaseModel):
         0.85,
         ge=0.0,
         le=1.0,
-        description="Confidence threshold for auto-execution without user review"
+        description="Confidence threshold for auto-execution without user review",
     )
-    batch_size: int = Field(
-        20,
-        ge=1,
-        le=100,
-        description="Number of emails to process per batch"
-    )
+    batch_size: int = Field(20, ge=1, le=100, description="Number of emails to process per batch")
     max_queue_size: int = Field(
-        30,
-        ge=1,
-        le=200,
-        description="Maximum items in review queue before pausing fetch"
+        30, ge=1, le=200, description="Maximum items in review queue before pausing fetch"
     )
     polling_interval_seconds: int = Field(
-        300,
-        ge=60,
-        le=3600,
-        description="Interval between email polling (5 minutes default)"
+        300, ge=60, le=3600, description="Interval between email polling (5 minutes default)"
     )
 
 
@@ -434,13 +392,9 @@ class MicrosoftAccountConfig(BaseModel):
     client_id: str = Field(..., description="Azure AD application client ID")
     tenant_id: str = Field(..., description="Azure AD tenant ID")
     client_secret: Optional[str] = Field(
-        None,
-        description="Client secret for confidential apps (optional for public apps)"
+        None, description="Client secret for confidential apps (optional for public apps)"
     )
-    redirect_uri: str = Field(
-        "http://localhost:8080",
-        description="OAuth redirect URI"
-    )
+    redirect_uri: str = Field("http://localhost:8080", description="OAuth redirect URI")
     scopes: tuple[str, ...] = Field(
         (
             "User.Read",
@@ -451,7 +405,7 @@ class MicrosoftAccountConfig(BaseModel):
             "Calendars.Read",
             "Calendars.ReadWrite",
         ),
-        description="Microsoft Graph API scopes"
+        description="Microsoft Graph API scopes",
     )
 
     @field_validator("client_id")
@@ -469,9 +423,7 @@ class MicrosoftAccountConfig(BaseModel):
     def tenant_id_not_placeholder(cls, v: str) -> str:
         """Validate tenant ID is configured"""
         if not v or v in ("your-tenant-id", "YOUR_TENANT_ID", "common", ""):
-            raise ValueError(
-                "Microsoft tenant_id must be configured with your Azure AD tenant ID"
-            )
+            raise ValueError("Microsoft tenant_id must be configured with your Azure AD tenant ID")
         return v
 
 
@@ -483,36 +435,20 @@ class TeamsConfig(BaseModel):
     Requires MicrosoftAccountConfig with appropriate Teams permissions.
     """
 
-    enabled: bool = Field(
-        False,
-        description="Enable Teams integration (opt-in, default OFF)"
-    )
+    enabled: bool = Field(False, description="Enable Teams integration (opt-in, default OFF)")
     account: Optional[MicrosoftAccountConfig] = Field(
-        None,
-        description="Microsoft account configuration"
+        None, description="Microsoft account configuration"
     )
     poll_interval_seconds: int = Field(
-        60,
-        ge=10,
-        le=3600,
-        description="Polling interval for new messages (seconds)"
+        60, ge=10, le=3600, description="Polling interval for new messages (seconds)"
     )
     max_messages_per_poll: int = Field(
-        50,
-        ge=1,
-        le=500,
-        description="Maximum messages to fetch per poll"
+        50, ge=1, le=500, description="Maximum messages to fetch per poll"
     )
-    process_channels: bool = Field(
-        True,
-        description="Process messages from Teams channels"
-    )
-    process_chats: bool = Field(
-        True,
-        description="Process messages from 1:1 and group chats"
-    )
+    process_channels: bool = Field(True, description="Process messages from Teams channels")
+    process_chats: bool = Field(True, description="Process messages from 1:1 and group chats")
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_account_when_enabled(self):
         """Ensure account is configured when Teams is enabled"""
         if self.enabled and self.account is None:
@@ -531,48 +467,27 @@ class CalendarConfig(BaseModel):
     Requires MicrosoftAccountConfig with Calendars.Read/ReadWrite permissions.
     """
 
-    enabled: bool = Field(
-        False,
-        description="Enable Calendar integration (opt-in, default OFF)"
-    )
+    enabled: bool = Field(False, description="Enable Calendar integration (opt-in, default OFF)")
     account: Optional[MicrosoftAccountConfig] = Field(
-        None,
-        description="Microsoft account configuration (can reuse Teams account)"
+        None, description="Microsoft account configuration (can reuse Teams account)"
     )
     poll_interval_seconds: int = Field(
         300,
         ge=60,
         le=3600,
-        description="Polling interval for calendar updates (seconds, default 5 min)"
+        description="Polling interval for calendar updates (seconds, default 5 min)",
     )
-    days_ahead: int = Field(
-        7,
-        ge=1,
-        le=30,
-        description="Number of days ahead to fetch events"
-    )
+    days_ahead: int = Field(7, ge=1, le=30, description="Number of days ahead to fetch events")
     days_behind: int = Field(
-        1,
-        ge=0,
-        le=7,
-        description="Number of days behind to include (for recent events)"
+        1, ge=0, le=7, description="Number of days behind to include (for recent events)"
     )
-    include_declined: bool = Field(
-        False,
-        description="Include events the user has declined"
-    )
-    include_tentative: bool = Field(
-        True,
-        description="Include tentatively accepted events"
-    )
+    include_declined: bool = Field(False, description="Include events the user has declined")
+    include_tentative: bool = Field(True, description="Include tentatively accepted events")
     briefing_hours_ahead: int = Field(
-        24,
-        ge=1,
-        le=72,
-        description="Hours ahead for briefing (default: next 24 hours)"
+        24, ge=1, le=72, description="Hours ahead for briefing (default: next 24 hours)"
     )
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_account_when_enabled(self):
         """Ensure account is configured when Calendar is enabled"""
         if self.enabled and self.account is None:
@@ -592,45 +507,27 @@ class ICloudCalendarConfig(BaseModel):
     """
 
     enabled: bool = Field(
-        False,
-        description="Enable iCloud Calendar integration (opt-in, default OFF)"
+        False, description="Enable iCloud Calendar integration (opt-in, default OFF)"
     )
-    username: str = Field(
-        "",
-        description="Apple ID email address"
-    )
+    username: str = Field("", description="Apple ID email address")
     app_specific_password: str = Field(
-        "",
-        description="App-specific password from appleid.apple.com"
+        "", description="App-specific password from appleid.apple.com"
     )
-    server_url: str = Field(
-        "https://caldav.icloud.com",
-        description="iCloud CalDAV server URL"
-    )
+    server_url: str = Field("https://caldav.icloud.com", description="iCloud CalDAV server URL")
     past_days: int = Field(
-        365,
-        ge=0,
-        le=730,
-        description="Number of days in the past to search (default: 1 year)"
+        365, ge=0, le=730, description="Number of days in the past to search (default: 1 year)"
     )
     future_days: int = Field(
-        90,
-        ge=1,
-        le=365,
-        description="Number of days in the future to search (default: 3 months)"
+        90, ge=1, le=365, description="Number of days in the future to search (default: 3 months)"
     )
     max_results: int = Field(
-        20,
-        ge=1,
-        le=100,
-        description="Maximum number of results to return per search"
+        20, ge=1, le=100, description="Maximum number of results to return per search"
     )
     calendar_names: Optional[list[str]] = Field(
-        None,
-        description="List of calendar names to include (None = all calendars)"
+        None, description="List of calendar names to include (None = all calendars)"
     )
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_credentials_when_enabled(self):
         """Ensure credentials are configured when iCloud Calendar is enabled"""
         if self.enabled:
@@ -655,70 +552,37 @@ class BriefingConfig(BaseModel):
     Supports morning briefings and pre-meeting briefings with contextual information.
     """
 
-    enabled: bool = Field(
-        True,
-        description="Enable briefing system"
-    )
+    enabled: bool = Field(True, description="Enable briefing system")
 
     # Morning briefing settings
     morning_hours_behind: int = Field(
-        12,
-        ge=1,
-        le=48,
-        description="Hours behind to look for emails/teams messages"
+        12, ge=1, le=48, description="Hours behind to look for emails/teams messages"
     )
     morning_hours_ahead: int = Field(
-        24,
-        ge=1,
-        le=72,
-        description="Hours ahead to look for calendar events"
+        24, ge=1, le=72, description="Hours ahead to look for calendar events"
     )
 
     # Pre-meeting briefing settings
     pre_meeting_minutes_before: int = Field(
-        15,
-        ge=5,
-        le=60,
-        description="Minutes before meeting to generate pre-meeting briefing"
+        15, ge=5, le=60, description="Minutes before meeting to generate pre-meeting briefing"
     )
     pre_meeting_context_days: int = Field(
-        7,
-        ge=1,
-        le=30,
-        description="Days of context to fetch for attendee communications"
+        7, ge=1, le=30, description="Days of context to fetch for attendee communications"
     )
 
     # Display settings
     max_urgent_items: int = Field(
-        5,
-        ge=1,
-        le=20,
-        description="Maximum urgent items to show in briefing"
+        5, ge=1, le=20, description="Maximum urgent items to show in briefing"
     )
     max_standard_items: int = Field(
-        10,
-        ge=1,
-        le=50,
-        description="Maximum standard items per category"
+        10, ge=1, le=50, description="Maximum standard items per category"
     )
-    show_confidence: bool = Field(
-        True,
-        description="Show confidence scores and AI summaries"
-    )
+    show_confidence: bool = Field(True, description="Show confidence scores and AI summaries")
 
     # Source toggles
-    include_emails: bool = Field(
-        True,
-        description="Include emails in briefings"
-    )
-    include_calendar: bool = Field(
-        True,
-        description="Include calendar events in briefings"
-    )
-    include_teams: bool = Field(
-        True,
-        description="Include Teams messages in briefings"
-    )
+    include_emails: bool = Field(True, description="Include emails in briefings")
+    include_calendar: bool = Field(True, description="Include calendar events in briefings")
+    include_teams: bool = Field(True, description="Include Teams messages in briefings")
 
 
 class WorkflowV2Config(BaseModel):
@@ -739,44 +603,32 @@ class WorkflowV2Config(BaseModel):
 
     # Activation
     enabled: bool = Field(
-        False,
-        description="Enable Workflow v2.1 knowledge extraction (opt-in, default OFF)"
+        False, description="Enable Workflow v2.1 knowledge extraction (opt-in, default OFF)"
     )
 
     # Modèles AI
     default_model: str = Field(
-        "haiku",
-        description="Default model for analysis (haiku = fast/cheap)"
+        "haiku", description="Default model for analysis (haiku = fast/cheap)"
     )
     escalation_model: str = Field(
-        "sonnet",
-        description="Escalation model for low confidence cases (sonnet = more capable)"
+        "sonnet", description="Escalation model for low confidence cases (sonnet = more capable)"
     )
     escalation_threshold: float = Field(
         0.7,
         ge=0.0,
         le=1.0,
-        description="Confidence threshold below which to escalate to stronger model"
+        description="Confidence threshold below which to escalate to stronger model",
     )
 
     # Contexte (what context to provide to AI)
     context_notes_count: int = Field(
-        3,
-        ge=0,
-        le=10,
-        description="Maximum number of context notes to include in prompt"
+        3, ge=0, le=10, description="Maximum number of context notes to include in prompt"
     )
     context_note_max_chars: int = Field(
-        300,
-        ge=50,
-        le=1000,
-        description="Maximum characters per context note summary"
+        300, ge=50, le=1000, description="Maximum characters per context note summary"
     )
     event_content_max_chars: int = Field(
-        2000,
-        ge=500,
-        le=10000,
-        description="Maximum characters of event content to include"
+        2000, ge=500, le=10000, description="Maximum characters of event content to include"
     )
 
     # Application automatique
@@ -784,50 +636,33 @@ class WorkflowV2Config(BaseModel):
         0.85,
         ge=0.0,
         le=1.0,
-        description="Confidence threshold for automatic application (no human review)"
+        description="Confidence threshold for automatic application (no human review)",
     )
     notify_threshold: float = Field(
-        0.7,
-        ge=0.0,
-        le=1.0,
-        description="Confidence threshold below which to notify user"
+        0.7, ge=0.0, le=1.0, description="Confidence threshold below which to notify user"
     )
 
     # OmniFocus integration
     omnifocus_enabled: bool = Field(
-        True,
-        description="Enable OmniFocus task creation for deadlines"
+        True, description="Enable OmniFocus task creation for deadlines"
     )
     omnifocus_default_project: str = Field(
-        "Inbox",
-        description="Default OmniFocus project for new tasks"
+        "Inbox", description="Default OmniFocus project for new tasks"
     )
 
     # Extraction rules
     min_extraction_importance: str = Field(
-        "moyenne",
-        description="Minimum importance level to extract (haute or moyenne)"
+        "moyenne", description="Minimum importance level to extract (haute or moyenne)"
     )
-    extract_decisions: bool = Field(
-        True,
-        description="Extract decisions from events"
-    )
+    extract_decisions: bool = Field(True, description="Extract decisions from events")
     extract_engagements: bool = Field(
-        True,
-        description="Extract engagements/commitments from events"
+        True, description="Extract engagements/commitments from events"
     )
-    extract_deadlines: bool = Field(
-        True,
-        description="Extract deadlines from events"
-    )
+    extract_deadlines: bool = Field(True, description="Extract deadlines from events")
     extract_relations: bool = Field(
-        True,
-        description="Extract relationship information from events"
+        True, description="Extract relationship information from events"
     )
-    extract_facts: bool = Field(
-        True,
-        description="Extract important facts from events"
-    )
+    extract_facts: bool = Field(True, description="Extract important facts from events")
 
 
 class APIConfig(BaseModel):
@@ -837,15 +672,15 @@ class APIConfig(BaseModel):
 
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://localhost:5173"],
-        description="Allowed CORS origins"
+        description="Allowed CORS origins",
     )
     cors_methods: list[str] = Field(
         default_factory=lambda: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-        description="Allowed CORS methods"
+        description="Allowed CORS methods",
     )
     cors_headers: list[str] = Field(
         default_factory=lambda: ["Authorization", "Content-Type", "X-Request-ID"],
-        description="Allowed CORS headers"
+        description="Allowed CORS headers",
     )
 
 
@@ -856,36 +691,26 @@ class AuthConfig(BaseModel):
     Single-user system using PIN code (4-6 digits) for quick mobile access.
     """
 
-    enabled: bool = Field(
-        True,
-        description="Enable authentication (disable for development)"
-    )
+    enabled: bool = Field(True, description="Enable authentication (disable for development)")
     warn_disabled_in_production: bool = Field(
-        True,
-        description="Log warning if auth disabled in production environment"
+        True, description="Log warning if auth disabled in production environment"
     )
     jwt_secret_key: str = Field(
         ...,  # Required - no default for security
         min_length=32,
         description=(
             "Secret key for JWT signing (min 32 characters). "
-            "Generate with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
-        )
+            'Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+        ),
     )
-    jwt_algorithm: str = Field(
-        "HS256",
-        description="JWT signing algorithm"
-    )
+    jwt_algorithm: str = Field("HS256", description="JWT signing algorithm")
     jwt_expire_minutes: int = Field(
         60 * 24 * 7,  # 7 days
         ge=60,
         le=60 * 24 * 30,
-        description="JWT token expiration in minutes (default: 7 days)"
+        description="JWT token expiration in minutes (default: 7 days)",
     )
-    pin_hash: str = Field(
-        "",
-        description="Bcrypt hash of the PIN code (4-6 digits)"
-    )
+    pin_hash: str = Field("", description="Bcrypt hash of the PIN code (4-6 digits)")
 
 
 class ScapinConfig(BaseSettings):
@@ -978,7 +803,7 @@ class ConfigManager:
                     # Remove nested configs from defaults to let Pydantic Settings
                     # load them from environment variables (EMAIL__, AI__, etc.)
                     # If we pass them as dicts, Pydantic won't check env vars
-                    for key in ['email', 'ai', 'storage', 'integrations', 'monitoring']:
+                    for key in ["email", "ai", "storage", "integrations", "monitoring"]:
                         yaml_defaults.pop(key, None)
 
                     defaults = yaml_defaults

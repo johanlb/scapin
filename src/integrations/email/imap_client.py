@@ -476,6 +476,12 @@ class IMAPClient:
             # Get message UIDs (already in ascending order)
             id_list = message_ids[0].split()
 
+            # Process newest emails first (reverse order)
+            # This is important because:
+            # 1. Users want to see/process recent emails first
+            # 2. Old emails (from years ago) might be archived/slow/broken
+            id_list.reverse()
+
             logger.info(
                 "Found emails in folder",
                 extra={
@@ -493,8 +499,13 @@ class IMAPClient:
                 id_list = self._filter_unprocessed_emails(id_list, folder, limit)
                 logger.info(f"After local tracking filter: {len(id_list)} unprocessed emails")
             elif limit:
-                # Apply limit (take first N = oldest N emails)
+                # Apply limit (take first N = newest N emails)
                 id_list = id_list[:limit]
+
+            # Sort back to ascending order (oldest first) for fetching and returning
+            # This maintains the contract of returning sorted list and optimizes IMAP fetch
+            # (servers generally prefer increasing sequences)
+            id_list.sort(key=lambda x: int(x))
 
             if not id_list:
                 logger.info(f"No emails to fetch from {folder}")
@@ -548,7 +559,7 @@ class IMAPClient:
         try:
             tracker = get_processed_tracker()
             unprocessed_ids: list[bytes] = []
-            batch_size = 200  # Fetch headers in batches of 200
+            batch_size = 10  # Fetch headers in batches of 10
 
             # Process in batches, stopping early when we have enough
             for batch_start in range(0, len(msg_ids), batch_size):
@@ -556,9 +567,15 @@ class IMAPClient:
                 batch_ids = msg_ids[batch_start:batch_end]
 
                 # Fetch Message-ID headers for this batch using UIDs
-                msg_set = b",".join(batch_ids)
+                # IMPORTANT: Sort UIDs ascending for the FETCH command as some servers
+                # optimize for or require ascending order.
+                sorted_batch = sorted(batch_ids, key=lambda x: int(x))
+                msg_set = b",".join(sorted_batch)
+                msg_set_str = msg_set.decode()
+                logger.info(f"Fetching headers for {len(batch_ids)} UIDs: {msg_set_str}")
+
                 status, response = self._connection.uid(
-                    "FETCH", msg_set.decode(), "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
+                    "FETCH", msg_set_str, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
                 )
 
                 if status != "OK":
@@ -569,6 +586,7 @@ class IMAPClient:
 
                 # Parse response to get UID -> Message-ID mapping
                 uid_to_message_id: dict[bytes, str] = {}
+                debug_first_item = None
 
                 for item in response:
                     if item is None or item == b")":
@@ -578,19 +596,21 @@ class IMAPClient:
                         header = item[0]
                         header_data = item[1]
 
+                        if not debug_first_item:
+                            debug_first_item = header
+
                         if isinstance(header, bytes) and isinstance(header_data, bytes):
                             try:
                                 # Extract UID from header string (format: b'123 (UID 456 BODY[HEADER...])')
-                                parts = header.split()
-                                current_uid = None
-                                for j, part in enumerate(parts):
-                                    if part.upper() == b"UID":
-                                        current_uid = parts[j + 1]
-                                        break
+                                import re
 
-                                if not current_uid:
+                                match = re.search(b"UID\\s+(\\d+)", header, re.IGNORECASE)
+                                if match:
+                                    current_uid = match.group(1)
+                                else:
                                     continue
 
+                                # ... existing parsing ...
                                 header_str = header_data.decode("utf-8", errors="replace")
                                 message_id = None
                                 for line in header_str.split("\n"):
@@ -612,6 +632,10 @@ class IMAPClient:
 
                 # Get Message-IDs for this batch
                 batch_message_ids = list(uid_to_message_id.values())
+
+                logger.info(
+                    f"Batch parsed {len(uid_to_message_id)}/{len(batch_ids)} UIDs. First header: {debug_first_item}"
+                )
 
                 if not batch_message_ids:
                     continue
@@ -672,8 +696,8 @@ class IMAPClient:
             )
             # Select folder in write mode and add flag
             self._connection.select(folder, readonly=False)
-            result = self._connection.store(
-                str(msg_id_int).encode(), "+FLAGS", f"({SCAPIN_PROCESSED_FLAG})"
+            result = self._connection.uid(
+                "STORE", str(msg_id_int).encode(), "+FLAGS", f"({SCAPIN_PROCESSED_FLAG})"
             )
             if result[0] == "OK":
                 logger.info(f"Successfully flagged failed email {msg_id_int}")
@@ -972,12 +996,27 @@ class IMAPClient:
         subject_raw = msg.get("Subject", "(No Subject)")
         subject_decoded = decode_mime_header(subject_raw)
 
+        # Fallback for empty subject string (even if header existed)
+        if not subject_decoded or not subject_decoded.strip():
+            subject_decoded = "(No Subject)"
+
         from_name_decoded = decode_mime_header(from_name) if from_name else ""
+
+        # Extract Message-ID or generate robust fallback
+        message_id = msg.get("Message-ID", "").strip()
+        if message_id.startswith("<") and message_id.endswith(">"):
+            message_id = message_id[1:-1]
+
+        if not message_id:
+            # Generate fallback ID using UID + Account ID
+            # This ensures stable IDs even for emails without standard headers (drafts etc)
+            uid_str = str(int(msg_id)) if msg_id else "unknown"
+            message_id = f"UID-{uid_str}@{self.account_id}.scapin.local"
 
         return EmailMetadata(
             id=int(msg_id.decode()),
             folder=folder,
-            message_id=msg.get("Message-ID", ""),
+            message_id=message_id,
             from_address=from_address or "unknown@unknown.com",
             from_name=from_name_decoded,
             to_addresses=to_addresses,
@@ -998,7 +1037,6 @@ class IMAPClient:
         Returns:
             EmailContent object with metadata about decoding issues
         """
-        import chardet
 
         plain_text = ""
         html = ""
@@ -1031,36 +1069,31 @@ class IMAPClient:
                 except (UnicodeDecodeError, LookupError):
                     pass
 
-            # Use chardet for automatic detection
+            # Use chardet for automatic detection if available
             try:
+                import chardet
+
                 detected = chardet.detect(payload)
                 detected_encoding = detected.get("encoding")
                 confidence = detected.get("confidence", 0)
 
                 if detected_encoding:
                     try:
-                        text = payload.decode(detected_encoding, errors="replace")
-
-                        # Log if confidence is low or encoding wasn't UTF-8
-                        if confidence < 0.9 or detected_encoding.lower() not in ["utf-8", "ascii"]:
-                            decoding_errors.append(
-                                {
-                                    "content_type": content_name,
-                                    "detected_encoding": detected_encoding,
-                                    "confidence": confidence,
-                                    "fallback_used": True,
-                                }
-                            )
-                            logger.warning(
-                                f"Email content used fallback encoding: {detected_encoding} "
-                                f"(confidence: {confidence:.2f})"
-                            )
-
-                        return text
+                        logger.debug(
+                            f"Chardet detected encoding {detected_encoding} with confidence {confidence}"
+                        )
+                        return payload.decode(detected_encoding)
                     except (UnicodeDecodeError, LookupError):
                         pass
-            except Exception as e:
-                logger.warning(f"Chardet detection failed: {e}")
+            except ImportError:
+                # chardet not installed, skip auto-detection
+                pass
+            # Fallback to latin-1 (always works but may produce mojibake)
+            try:
+                return payload.decode("latin-1")
+            except Exception:
+                # Last resort: replace errors
+                return payload.decode("utf-8", errors="replace")
 
             # Last resort: latin-1 (never fails but may be incorrect)
             decoding_errors.append(

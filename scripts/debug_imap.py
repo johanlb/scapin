@@ -49,6 +49,8 @@ def test_fetch():
             print("--- Fetching UNSEEN ---")
             emails_unseen = client.fetch_emails(limit=5, unread_only=True)
             print(f"Fetched {len(emails_unseen)} unseen emails")
+            for i, (meta, content) in enumerate(emails_unseen):
+                print(f"  {i + 1}. [{meta.message_id}] {meta.subject}")
 
             print("\n--- Fetching UNPROCESSED (default) ---")
             emails = client.fetch_emails(limit=5, unprocessed_only=True)

@@ -576,23 +576,25 @@ class QueueService:
 
             # Strategy 2: If no exact match, find existing notes whose title is a prefix
             # e.g., "Free Mobile Tarifs Maroc" should match "Free Mobile"
-            # Scan all notes (cached) to find prefix matches
+            # OPTIMIZATION: Use lightweight summaries for searching, then load full note
             if not matching_note:
-                candidates = []
-                for note in note_manager.get_all_notes():
-                    existing_title_lower = note.title.lower().strip()
+                candidate_summaries = []
+                for summary in note_manager.get_notes_summary():
+                    existing_title_lower = summary.get("title", "").lower().strip()
                     # Check if requested title starts with existing note title
                     # Minimum 3 chars to avoid matching too broadly (e.g., "A" or "Le")
                     if len(existing_title_lower) >= 3 and note_title_lower.startswith(existing_title_lower):
-                        candidates.append(note)
+                        candidate_summaries.append(summary)
 
-                if candidates:
+                if candidate_summaries:
                     # Pick the note with the longest matching title (most specific match)
-                    matching_note = max(candidates, key=lambda n: len(n.title))
-                    logger.info(
-                        f"Fuzzy matched '{note_title}' to existing note '{matching_note.title}'",
-                        extra={"strategy": "prefix_match", "matched_title": matching_note.title}
-                    )
+                    best_match = max(candidate_summaries, key=lambda s: len(s.get("title", "")))
+                    matching_note = note_manager.get_note(best_match["note_id"])
+                    if matching_note:
+                        logger.info(
+                            f"Fuzzy matched '{note_title}' to existing note '{matching_note.title}'",
+                            extra={"strategy": "prefix_match", "matched_title": matching_note.title}
+                        )
 
             if matching_note:
                 # Note exists - add info to existing note

@@ -123,8 +123,13 @@ class NoteManager:
         self.notes_dir = Path(notes_dir).expanduser()
         self.notes_dir.mkdir(parents=True, exist_ok=True)
 
-        # Index persistence path
+        # Index persistence paths
         self._index_path = self.notes_dir / ".scapin_index"
+        self._metadata_index_path = self.notes_dir / ".scapin_notes_meta.json"
+
+        # Lightweight metadata index for fast tree building
+        # { note_id: { title, path, updated_at, pinned, tags } }
+        self._notes_metadata: dict[str, dict[str, Any]] = {}
 
         # Initialize embedder and vector store
         self.embedder = embedder if embedder is not None else EmbeddingGenerator()
@@ -300,8 +305,13 @@ class NoteManager:
                 extra={"path": str(self._index_path), "documents": doc_count},
             )
 
-            # Populate note cache from indexed files
-            self._populate_cache_from_files()
+            # Load metadata index for fast tree building
+            if not self._load_metadata_index():
+                # Rebuild if metadata index doesn't exist
+                self._rebuild_metadata_index()
+
+            # OPTIMIZATION: Skip cache population at startup - load notes lazily on demand
+            # The cache will be populated as notes are accessed via get_note() or get_all_notes()
             return True
 
         except Exception as e:
@@ -320,6 +330,165 @@ class NoteManager:
             logger.warning(
                 "Failed to save index cache", extra={"path": str(self._index_path), "error": str(e)}
             )
+
+    def _load_metadata_index(self) -> bool:
+        """
+        Load lightweight metadata index from disk
+
+        Returns:
+            True if loaded successfully, False otherwise
+        """
+        import json
+
+        if not self._metadata_index_path.exists():
+            return False
+
+        try:
+            with open(self._metadata_index_path, encoding="utf-8") as f:
+                self._notes_metadata = json.load(f)
+            logger.info(
+                "Loaded metadata index",
+                extra={"count": len(self._notes_metadata)},
+            )
+            return True
+        except Exception as e:
+            logger.warning(
+                "Failed to load metadata index",
+                extra={"error": str(e)},
+            )
+            return False
+
+    def _save_metadata_index(self) -> None:
+        """Save lightweight metadata index to disk"""
+        import json
+
+        try:
+            with open(self._metadata_index_path, "w", encoding="utf-8") as f:
+                json.dump(self._notes_metadata, f, default=str, indent=2)
+            logger.debug(
+                "Saved metadata index",
+                extra={"count": len(self._notes_metadata)},
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to save metadata index",
+                extra={"error": str(e)},
+            )
+
+    def _update_metadata_index(self, note: Note) -> None:
+        """Update metadata index entry for a note"""
+        # Extract path from file_path relative to notes_dir
+        path = ""
+        if note.file_path:
+            try:
+                rel_path = note.file_path.relative_to(self.notes_dir)
+                # Path is the parent folder(s), not the filename
+                if rel_path.parent != Path("."):
+                    path = str(rel_path.parent)
+            except ValueError:
+                pass
+
+        self._notes_metadata[note.note_id] = {
+            "title": note.title,
+            "path": path,
+            "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+            "pinned": note.metadata.get("pinned", False),
+            "tags": note.tags or [],
+        }
+
+    def _remove_from_metadata_index(self, note_id: str) -> None:
+        """Remove note from metadata index"""
+        self._notes_metadata.pop(note_id, None)
+
+    def _rebuild_metadata_index(self) -> int:
+        """
+        Rebuild metadata index from filesystem
+
+        Scans all .md files and extracts lightweight metadata.
+        Much faster than loading full notes since we only read frontmatter.
+
+        Returns:
+            Number of notes indexed
+        """
+        import json
+
+        files = list(self.notes_dir.rglob("*.md"))
+        visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+
+        self._notes_metadata.clear()
+        count = 0
+
+        for file_path in visible_files:
+            try:
+                # Read only the frontmatter (first few lines)
+                note_id = file_path.stem
+                content = file_path.read_text(encoding="utf-8")
+
+                # Extract frontmatter
+                title = note_id
+                tags: list[str] = []
+                pinned = False
+
+                match = FRONTMATTER_PATTERN.match(content)
+                if match:
+                    try:
+                        frontmatter_raw = match.group(1)
+                        frontmatter = yaml.safe_load(frontmatter_raw) or {}
+                        title = frontmatter.get("title", note_id)
+                        tags = frontmatter.get("tags", []) or []
+                        pinned = frontmatter.get("pinned", False)
+                    except Exception:
+                        pass
+
+                # Get path from file location
+                try:
+                    rel_path = file_path.relative_to(self.notes_dir)
+                    path = str(rel_path.parent) if rel_path.parent != Path(".") else ""
+                except ValueError:
+                    path = ""
+
+                # Get updated_at from file mtime
+                mtime = file_path.stat().st_mtime
+                updated_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+
+                self._notes_metadata[note_id] = {
+                    "title": title,
+                    "path": path,
+                    "updated_at": updated_at,
+                    "pinned": pinned,
+                    "tags": tags,
+                }
+                count += 1
+
+            except Exception as e:
+                logger.warning(
+                    "Failed to index note metadata",
+                    extra={"file": str(file_path), "error": str(e)},
+                )
+
+        self._save_metadata_index()
+        logger.info("Rebuilt metadata index", extra={"count": count})
+        return count
+
+    def get_notes_summary(self) -> list[dict[str, Any]]:
+        """
+        Get lightweight note summaries for tree building (very fast)
+
+        Uses the metadata index instead of reading all files.
+        Falls back to rebuilding index if empty.
+
+        Returns:
+            List of note summary dicts with: note_id, title, path, updated_at, pinned, tags
+        """
+        # Rebuild index if empty
+        if not self._notes_metadata:
+            if not self._load_metadata_index():
+                self._rebuild_metadata_index()
+
+        return [
+            {"note_id": note_id, **meta}
+            for note_id, meta in self._notes_metadata.items()
+        ]
 
     def _populate_cache_from_files(self) -> None:
         """Populate note cache from files (after loading index)"""
@@ -452,6 +621,10 @@ class NoteManager:
             relative_path = f"{subfolder}/{note_id}.md" if subfolder else f"{note_id}.md"
             self.git.commit(relative_path, "Create note", note_title=title)
 
+        # Update metadata index for fast tree building
+        self._update_metadata_index(note)
+        self._save_metadata_index()
+
         logger.info(
             "Created note",
             extra={
@@ -574,6 +747,10 @@ class NoteManager:
         # Git commit
         if self.git:
             self.git.commit(f"{note_id}.md", "Update note", note_title=note.title)
+
+        # Update metadata index for fast tree building
+        self._update_metadata_index(note)
+        self._save_metadata_index()
 
         logger.info("Updated note", extra={"note_id": note_id})
         return True
@@ -737,6 +914,10 @@ class NoteManager:
             if self.git:
                 self.git.commit_delete(f"{note_id}.md", note_title=note.title)
 
+        # Remove from metadata index
+        self._remove_from_metadata_index(note_id)
+        self._save_metadata_index()
+
         logger.info("Deleted note", extra={"note_id": note_id})
         return True
 
@@ -884,8 +1065,8 @@ class NoteManager:
         """
         Get all notes with optional pagination
 
-        Uses parallel execution for fast retrieval from disk.
-        Updates cache as side effect.
+        OPTIMIZATION: Uses cache when available, only reads disk for missing notes.
+        Falls back to parallel disk read if cache is cold.
 
         Args:
             limit: Maximum number of notes to return (None = all)
@@ -895,23 +1076,40 @@ class NoteManager:
         """
         # Get all file paths first
         files = list(self.notes_dir.rglob("*.md"))
+        visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+
         notes: list[Note] = []
+        files_to_load: list[Path] = []
 
-        # Use parallel execution for faster I/O
-        # IO bound, so we can use more threads
-        max_workers = min(32, len(files) + 1)
+        # OPTIMIZATION: Check cache first for each file
+        with self._cache_lock:
+            for file_path in visible_files:
+                note_id = file_path.stem
+                if note_id in self._note_cache:
+                    # Move to end (most recently used)
+                    self._note_cache.move_to_end(note_id)
+                    notes.append(self._note_cache[note_id])
+                    self._cache_hits += 1
+                else:
+                    files_to_load.append(file_path)
+                    self._cache_misses += 1
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # We filter hidden files first to avoid unnecessary work
-            visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+        # Only read files that weren't in cache
+        if files_to_load:
+            logger.debug(
+                "Loading notes from disk",
+                extra={"cached": len(notes), "to_load": len(files_to_load)},
+            )
+            # Use parallel execution for faster I/O
+            max_workers = min(32, len(files_to_load) + 1)
 
-            # Map returns results. We use map to keep it simple.
-            for note in executor.map(self._read_note_file, visible_files):
-                if note:
-                    notes.append(note)
-                    # Update cache
-                    with self._cache_lock:
-                        self._cache_put(note.note_id, note)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                for note in executor.map(self._read_note_file, files_to_load):
+                    if note:
+                        notes.append(note)
+                        # Update cache
+                        with self._cache_lock:
+                            self._cache_put(note.note_id, note)
 
         # Apply limit if specified (post-loading)
         if limit is not None:

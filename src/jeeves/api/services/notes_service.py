@@ -135,6 +135,27 @@ def _build_folder_tree(notes: list[Note]) -> list[FolderNode]:
                 partial_path = "/".join(parts[: i + 1])
                 path_counts[partial_path] += 1
 
+    return _build_folder_tree_from_path_counts(path_counts)
+
+
+def _build_folder_tree_from_summaries(summaries: list[dict[str, Any]]) -> list[FolderNode]:
+    """Build hierarchical folder tree from note summaries (optimized version)"""
+    # Count notes per path
+    path_counts: dict[str, int] = defaultdict(int)
+    for summary in summaries:
+        path = summary.get("path", "")
+        if path:
+            # Count for this path and all parent paths
+            parts = path.split("/")
+            for i in range(len(parts)):
+                partial_path = "/".join(parts[: i + 1])
+                path_counts[partial_path] += 1
+
+    return _build_folder_tree_from_path_counts(path_counts)
+
+
+def _build_folder_tree_from_path_counts(path_counts: dict[str, int]) -> list[FolderNode]:
+    """Build folder tree structure from path counts"""
     # Build tree structure
     root_folders: dict[str, dict[str, Any]] = {}
 
@@ -222,7 +243,10 @@ class NotesService:
         recent_limit: int = 10,
     ) -> NotesTreeResponse:
         """
-        Get notes organized in folder tree
+        Get notes organized in folder tree (OPTIMIZED)
+
+        Uses lightweight summaries for tree building, only loads full notes
+        for pinned and recent sections.
 
         Args:
             recent_limit: Number of recent notes to include
@@ -230,36 +254,42 @@ class NotesService:
         Returns:
             NotesTreeResponse with folders, pinned, and recent notes
         """
-        logger.info("Building notes tree")
+        logger.info("Building notes tree (optimized)")
         manager = self._get_manager()
 
-        # Get all notes
-        all_notes = manager.get_all_notes()
+        # OPTIMIZATION: Use lightweight summaries instead of loading all notes
+        summaries = manager.get_notes_summary()
+        total_notes = len(summaries)
 
-        # Build folder tree
-        folders = _build_folder_tree(all_notes)
+        # Build folder tree from summaries (very fast)
+        folders = _build_folder_tree_from_summaries(summaries)
 
-        # Get pinned notes
-        pinned = [n for n in all_notes if n.metadata.get("pinned", False)]
-        pinned_responses = [_note_to_response(n) for n in pinned]
+        # Get pinned note IDs from summaries
+        pinned_ids = [s["note_id"] for s in summaries if s.get("pinned", False)]
+        pinned_notes = [manager.get_note(note_id) for note_id in pinned_ids]
+        pinned_responses = [_note_to_response(n) for n in pinned_notes if n]
 
-        # Get recent notes (sorted by updated_at)
-        # Handle mixed offset-naive and offset-aware datetimes
-        def safe_updated_at(note):
-            dt = note.updated_at
-            if dt is None:
+        # Get recent note IDs from summaries (sorted by updated_at)
+        def safe_updated_at(summary: dict[str, Any]) -> datetime:
+            dt_str = summary.get("updated_at")
+            if not dt_str:
                 return datetime.min.replace(tzinfo=timezone.utc)
-            if dt.tzinfo is None:
-                return dt.replace(tzinfo=timezone.utc)
-            return dt
+            try:
+                dt = datetime.fromisoformat(dt_str)
+                if dt.tzinfo is None:
+                    return dt.replace(tzinfo=timezone.utc)
+                return dt
+            except (ValueError, TypeError):
+                return datetime.min.replace(tzinfo=timezone.utc)
 
-        sorted_notes = sorted(all_notes, key=safe_updated_at, reverse=True)
-        recent = sorted_notes[:recent_limit]
-        recent_responses = [_note_to_response(n) for n in recent]
+        sorted_summaries = sorted(summaries, key=safe_updated_at, reverse=True)
+        recent_ids = [s["note_id"] for s in sorted_summaries[:recent_limit]]
+        recent_notes = [manager.get_note(note_id) for note_id in recent_ids]
+        recent_responses = [_note_to_response(n) for n in recent_notes if n]
 
         logger.info(
-            f"Notes tree built: {len(all_notes)} total, "
-            f"{len(pinned)} pinned, {len(folders)} root folders"
+            f"Notes tree built: {total_notes} total, "
+            f"{len(pinned_responses)} pinned, {len(folders)} root folders"
         )
 
         return NotesTreeResponse(
@@ -278,7 +308,10 @@ class NotesService:
         offset: int = 0,
     ) -> tuple[list[NoteResponse], int]:
         """
-        List notes with optional filtering
+        List notes with optional filtering (OPTIMIZED)
+
+        Uses lightweight summaries for filtering and pagination,
+        only loads full notes for the final result set.
 
         Args:
             path: Filter by folder path
@@ -295,39 +328,46 @@ class NotesService:
         )
         manager = self._get_manager()
 
-        # Get all notes
-        all_notes = manager.get_all_notes()
+        # OPTIMIZATION: Use lightweight summaries for filtering
+        summaries = manager.get_notes_summary()
 
-        # Apply filters
-        filtered = all_notes
+        # Apply filters on summaries
+        filtered = summaries
         if path:
             filtered = [
-                n for n in filtered
-                if n.metadata.get("path", "").startswith(path)
+                s for s in filtered
+                if s.get("path", "").startswith(path)
             ]
         if tags:
             tag_set = set(tags)
-            filtered = [n for n in filtered if tag_set.intersection(n.tags)]
+            filtered = [s for s in filtered if tag_set.intersection(s.get("tags", []))]
         if pinned_only:
-            filtered = [n for n in filtered if n.metadata.get("pinned", False)]
+            filtered = [s for s in filtered if s.get("pinned", False)]
 
         # Sort by updated_at descending
-        # Handle mixed offset-naive and offset-aware datetimes
-        def safe_dt(note):
-            dt = note.updated_at
-            if dt is None:
+        def safe_dt(summary: dict[str, Any]) -> datetime:
+            dt_str = summary.get("updated_at")
+            if not dt_str:
                 return datetime.min.replace(tzinfo=timezone.utc)
-            if dt.tzinfo is None:
-                return dt.replace(tzinfo=timezone.utc)
-            return dt
+            try:
+                dt = datetime.fromisoformat(dt_str)
+                if dt.tzinfo is None:
+                    return dt.replace(tzinfo=timezone.utc)
+                return dt
+            except (ValueError, TypeError):
+                return datetime.min.replace(tzinfo=timezone.utc)
 
         filtered = sorted(filtered, key=safe_dt, reverse=True)
 
-        # Paginate
+        # Paginate on summaries
         total = len(filtered)
-        paginated = filtered[offset : offset + limit]
+        paginated_summaries = filtered[offset : offset + limit]
 
-        return [_note_to_response(n) for n in paginated], total
+        # Only load full notes for paginated subset
+        paginated_ids = [s["note_id"] for s in paginated_summaries]
+        paginated_notes = [manager.get_note(note_id) for note_id in paginated_ids]
+
+        return [_note_to_response(n) for n in paginated_notes if n], total
 
     async def get_note(self, note_id: str) -> NoteResponse | None:
         """
