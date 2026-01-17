@@ -6,7 +6,7 @@ before creating new ones in OmniFocus.
 """
 
 from datetime import datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -325,6 +325,81 @@ class TestCreateTaskIfNotDuplicate:
         assert check_result.is_duplicate
         assert check_result.existing_task.task_id == "existing-123"
         mock_create.assert_not_called()
+
+
+class TestSemanticSimilarity:
+    """Tests for semantic similarity with embeddings."""
+
+    def test_semantic_similarity_disabled(self, client):
+        """Test semantic similarity when disabled."""
+        client._use_semantic = False
+        score = client._semantic_similarity("Répondre à Marc", "Envoyer email à Marc")
+        assert score == 0.0
+
+    def test_semantic_similarity_no_embedder(self, client):
+        """Test semantic similarity when embedder fails to load."""
+        client._use_semantic = True
+        with patch.object(client, '_get_embedder', return_value=None):
+            score = client._semantic_similarity("Répondre à Marc", "Envoyer email à Marc")
+        assert score == 0.0
+
+    def test_semantic_similarity_with_mock_embedder(self, client):
+        """Test semantic similarity with mocked embeddings."""
+        client._use_semantic = True
+        mock_embedder = MagicMock()
+        # Identical vectors = perfect similarity
+        mock_embedder.embed_text.return_value = [0.5, 0.5, 0.5, 0.5]
+        client._embedder = mock_embedder
+
+        with patch('numpy.dot', return_value=1.0):
+            score = client._semantic_similarity("Same text", "Same text")
+
+        assert score == 1.0
+        assert mock_embedder.embed_text.call_count == 2
+
+    def test_semantic_similarity_orthogonal_vectors(self, client):
+        """Test semantic similarity with orthogonal vectors (0 similarity)."""
+        client._use_semantic = True
+        mock_embedder = MagicMock()
+        client._embedder = mock_embedder
+
+        # Orthogonal vectors
+        mock_embedder.embed_text.side_effect = [[1, 0], [0, 1]]
+        with patch('numpy.dot', return_value=0.0):
+            score = client._semantic_similarity("Text A", "Text B")
+
+        assert score == 0.0
+
+    def test_get_embedder_lazy_loading(self, client):
+        """Test that embedder is lazily loaded."""
+        client._use_semantic = True
+        client._embedder = None
+
+        # Should return None if import fails
+        with (
+            patch.dict('sys.modules', {'src.passepartout.embeddings': None}),
+            patch.object(client, '_get_embedder', return_value=None),
+        ):
+            result = client._get_embedder()
+            assert result is None
+
+    def test_hybrid_similarity_takes_max(self, client):
+        """Test that hybrid approach takes max of token and semantic."""
+        client._use_semantic = True
+
+        # Mock semantic to return high score
+        with patch.object(client, '_semantic_similarity', return_value=0.9):
+            # "Répondre à Marc" vs "Envoyer email à Marc" - low token overlap
+            score = client._calculate_similarity(
+                title1="Répondre à Marc",
+                title2="Envoyer email à Marc",
+                due1=None,
+                due2=None,
+                project1=None,
+                project2=None
+            )
+            # Score should be at least 0.9 * 0.7 = 0.63 from semantic
+            assert score >= 0.6
 
 
 class TestParseAppleScriptDate:

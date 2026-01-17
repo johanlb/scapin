@@ -21,9 +21,14 @@ import contextlib
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+import numpy as np
 
 from src.monitoring.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.passepartout.embeddings import EmbeddingGenerator
 
 logger = get_logger("omnifocus")
 
@@ -98,6 +103,7 @@ class OmniFocusClient:
         self,
         default_project: str = "Inbox",
         timeout: int = 30,
+        use_semantic_similarity: bool = True,
     ):
         """
         Initialize the OmniFocus client.
@@ -105,10 +111,35 @@ class OmniFocusClient:
         Args:
             default_project: Default project for tasks without explicit project
             timeout: AppleScript execution timeout in seconds
+            use_semantic_similarity: Use embeddings for semantic duplicate detection
         """
         self.default_project = default_project
         self.timeout = timeout
         self._is_available: Optional[bool] = None
+        self._use_semantic = use_semantic_similarity
+        self._embedder: Optional[EmbeddingGenerator] = None
+
+    def _get_embedder(self) -> Optional["EmbeddingGenerator"]:
+        """
+        Lazy-load the embedding generator.
+
+        Returns:
+            EmbeddingGenerator instance or None if not available/disabled
+        """
+        if not self._use_semantic:
+            return None
+
+        if self._embedder is None:
+            try:
+                from src.passepartout.embeddings import EmbeddingGenerator
+                self._embedder = EmbeddingGenerator()
+                logger.info("Loaded embedding generator for semantic similarity")
+            except Exception as e:
+                logger.warning(f"Failed to load embeddings, falling back to token-only: {e}")
+                self._use_semantic = False
+                return None
+
+        return self._embedder
 
     async def is_available(self) -> bool:
         """
@@ -542,6 +573,11 @@ class OmniFocusClient:
         """
         Calculate similarity score between two tasks.
 
+        Uses hybrid approach:
+        - Semantic similarity (embeddings) if available
+        - Token-based (Jaccard) as fallback
+        - Takes the MAX of both for best detection
+
         Weights:
         - Title similarity: 70%
         - Due date match: 20%
@@ -556,8 +592,20 @@ class OmniFocusClient:
         Returns:
             Similarity score (0.0-1.0)
         """
-        # Title similarity using token overlap
-        title_score = self._token_similarity(title1.lower(), title2.lower())
+        # Token-based similarity (always available)
+        token_score = self._token_similarity(title1.lower(), title2.lower())
+
+        # Semantic similarity (if embeddings available)
+        semantic_score = self._semantic_similarity(title1, title2)
+
+        # Take the MAX of token and semantic for title score
+        # This catches both exact matches AND semantic equivalents
+        title_score = max(token_score, semantic_score)
+
+        logger.debug(
+            f"Title similarity: token={token_score:.2f}, semantic={semantic_score:.2f}, "
+            f"final={title_score:.2f}"
+        )
 
         # Due date match (20% weight)
         due_score = 0.0
@@ -583,6 +631,38 @@ class OmniFocusClient:
 
         # Weighted combination
         return title_score * 0.7 + due_score * 0.2 + project_score * 0.1
+
+    def _semantic_similarity(self, text1: str, text2: str) -> float:
+        """
+        Calculate semantic similarity using embeddings.
+
+        Uses cosine similarity between embedding vectors.
+        Falls back to 0.0 if embeddings are not available.
+
+        Args:
+            text1, text2: Texts to compare
+
+        Returns:
+            Similarity score (0.0-1.0)
+        """
+        embedder = self._get_embedder()
+        if embedder is None:
+            return 0.0
+
+        try:
+            # Generate embeddings (normalized by default)
+            emb1 = embedder.embed_text(text1)
+            emb2 = embedder.embed_text(text2)
+
+            # Cosine similarity (embeddings are already normalized)
+            similarity = float(np.dot(emb1, emb2))
+
+            # Clamp to [0, 1] (in case of numerical errors)
+            return max(0.0, min(1.0, similarity))
+
+        except Exception as e:
+            logger.warning(f"Semantic similarity failed: {e}")
+            return 0.0
 
     def _token_similarity(self, s1: str, s2: str) -> float:
         """
