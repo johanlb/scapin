@@ -16,6 +16,7 @@ Usage:
 
 import json
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 from src.core.config_manager import WorkflowV2Config
@@ -144,9 +145,7 @@ class EventAnalyzer:
         prompt = self._render_prompt(event, context_notes)
 
         # Try with default model (Haiku)
-        default_model = self.MODEL_MAP.get(
-            self.config.default_model, AIModel.CLAUDE_HAIKU
-        )
+        default_model = self.MODEL_MAP.get(self.config.default_model, AIModel.CLAUDE_HAIKU)
         result = await self._call_model(prompt, default_model)
 
         # Check if escalation is needed
@@ -204,6 +203,7 @@ class EventAnalyzer:
                 max_content_chars=self.config.event_content_max_chars,
                 max_context_notes=self.config.context_notes_count,
                 max_note_chars=self.config.context_note_max_chars,
+                now=datetime.now(timezone.utc),
             )
         except Exception as e:
             logger.error(f"Failed to render extraction prompt: {e}", exc_info=True)
@@ -389,12 +389,8 @@ class EventAnalyzer:
 
                 # Parse enums with fallbacks
                 ext_type = self._parse_extraction_type(ext_data.get("type", "fait"))
-                importance = self._parse_importance(
-                    ext_data.get("importance", "moyenne")
-                )
-                note_action = self._parse_note_action(
-                    ext_data.get("note_action", "enrichir")
-                )
+                importance = self._parse_importance(ext_data.get("importance", "moyenne"))
+                note_action = self._parse_note_action(ext_data.get("note_action", "enrichir"))
 
                 # Parse optional date/time fields
                 date_str = ext_data.get("date")
@@ -444,9 +440,7 @@ class EventAnalyzer:
         try:
             return ImportanceLevel(importance_str.lower().strip())
         except ValueError:
-            logger.warning(
-                f"Unknown importance '{importance_str}', defaulting to 'moyenne'"
-            )
+            logger.warning(f"Unknown importance '{importance_str}', defaulting to 'moyenne'")
             return ImportanceLevel.MOYENNE
 
     def _parse_note_action(self, action_str: str) -> NoteAction:
@@ -454,9 +448,7 @@ class EventAnalyzer:
         try:
             return NoteAction(action_str.lower())
         except ValueError:
-            logger.warning(
-                f"Unknown note action '{action_str}', defaulting to 'enrichir'"
-            )
+            logger.warning(f"Unknown note action '{action_str}', defaulting to 'enrichir'")
             return NoteAction.ENRICHIR
 
 
