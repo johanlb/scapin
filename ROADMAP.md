@@ -1,7 +1,7 @@
 # Scapin — Feuille de Route Produit
 
 **Dernière mise à jour** : 17 janvier 2026
-**Version** : 1.0.0-alpha.24
+**Version** : 1.0.0-alpha.25
 **Phase actuelle** : ✅ Release Candidate 1 | ✅ Sprint 7 (Multi-Pass v2.2) COMPLÉTÉ (11/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
@@ -1215,6 +1215,17 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.25** (2026-01-17) : Task Checkbox Toggle for OmniFocus Proposals
+  - **Checkboxes interactives** : Les tâches OmniFocus proposées peuvent être cochées/décochées
+  - **Nouveau champ** : `manually_approved: boolean | null` dans `ProposedTask`
+  - **Logique tri-état** : `null` = auto (≥90% confiance), `true` = forcé, `false` = rejeté
+  - **Store queue** : Nouvelles fonctions `toggleNoteApproval()` et `toggleTaskApproval()`
+  - **Fichiers modifiés** :
+    - `web/src/lib/api/client.ts` — Interface TypeScript mise à jour
+    - `web/src/lib/stores/queue.svelte.ts` — Fonctions de toggle ajoutées
+    - `web/src/routes/flux/+page.svelte` — Handlers de checkbox connectés
+  - **Commit** : `f35658e`
 
 - **v1.0.0-alpha.24** (2026-01-17) : Alias Matching in ContextEngine (Phase 2)
   - **Matching par aliases** : ContextEngine utilise maintenant les aliases pour trouver les notes

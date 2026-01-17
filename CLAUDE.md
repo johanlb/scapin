@@ -701,6 +701,45 @@ tests/unit/test_context_engine.py        # MODIFIED (+80 lignes, 2 tests)
 
 ---
 
+### Session 2026-01-17 (Suite 2) — Task Checkbox Toggle for OmniFocus Proposals ✅
+
+**Focus** : Permettre aux utilisateurs de cocher/décocher les tâches OmniFocus proposées avant approbation
+
+**Accomplissements** :
+
+1. ✅ **Interface TypeScript mise à jour** (`web/src/lib/api/client.ts`)
+   - Ajout `manually_approved: boolean | null` à l'interface `ProposedTask`
+   - Alignement avec `ProposedNote` qui avait déjà ce champ
+
+2. ✅ **Store queue enrichi** (`web/src/lib/stores/queue.svelte.ts`)
+   - `toggleNoteApproval(itemId, noteIndex)` : Toggle pour notes
+   - `toggleTaskApproval(itemId, taskIndex)` : Toggle pour tâches OmniFocus
+   - Logique tri-état : `null` → auto, `true` → forcé, `false` → rejeté
+   - Seuil auto-apply : confiance ≥ 90%
+
+3. ✅ **UI Flux connectée** (`web/src/routes/flux/+page.svelte`)
+   - Checkbox notes : `onchange={() => queueStore.toggleNoteApproval(...)}`
+   - Checkbox tâches : `onchange={() => queueStore.toggleTaskApproval(...)}`
+   - Tooltip indique l'état : "Auto", "Forcé", "Rejeté"
+   - `isChecked` calculé selon `manually_approved` et confiance
+
+4. ✅ **Mock data corrigé** (`web/src/routes/flux/test-performance/+page.svelte`)
+   - Ajout `manually_approved: null` pour éviter erreur TypeScript
+
+**Fichiers modifiés** :
+```
+web/src/lib/api/client.ts                          # +1 ligne (interface)
+web/src/lib/stores/queue.svelte.ts                 # +35 lignes (toggle functions)
+web/src/routes/flux/+page.svelte                   # ~5 lignes (handlers)
+web/src/routes/flux/test-performance/+page.svelte  # +1 ligne (mock)
+```
+
+**Tests** : svelte-check 0 errors
+
+**Commit** : `f35658e`
+
+---
+
 ### Session 2026-01-12 (Suite 2) — Atomic Transaction Logic for Email + Enrichments ✅
 
 **Focus** : Refonte architecturale pour traiter email + enrichissements comme unité atomique
