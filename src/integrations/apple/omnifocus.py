@@ -17,6 +17,7 @@ Usage:
 """
 
 import asyncio
+import contextlib
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -55,10 +56,21 @@ class OmniFocusTask:
     due_date: Optional[datetime] = None
     note: Optional[str] = None
     created_at: datetime = None
+    completed: bool = False
 
     def __post_init__(self):
         if self.created_at is None:
             self.created_at = datetime.now()
+
+
+@dataclass
+class DuplicateCheckResult:
+    """Result of duplicate task check"""
+
+    is_duplicate: bool
+    existing_task: Optional[OmniFocusTask] = None
+    similarity_score: float = 0.0
+    reason: str = ""
 
 
 class OmniFocusClient:
@@ -258,6 +270,372 @@ class OmniFocusClient:
         except Exception as e:
             logger.warning(f"Failed to get OmniFocus tags: {e}")
             return []
+
+    async def search_tasks(
+        self,
+        query: str,
+        include_completed: bool = False,
+        limit: int = 50,
+    ) -> list[OmniFocusTask]:
+        """
+        Search for tasks matching a query string.
+
+        Args:
+            query: Search string (matches title)
+            include_completed: Whether to include completed tasks
+            limit: Maximum number of results
+
+        Returns:
+            List of matching OmniFocusTask objects
+        """
+        if not await self.is_available():
+            return []
+
+        query_escaped = self._escape_applescript_string(query.lower())
+        completed_filter = "" if include_completed else "and completed of t is false"
+
+        script = f'''
+        tell application "OmniFocus"
+            set matchingTasks to {{}}
+            set taskCount to 0
+            repeat with t in (flattened tasks of default document)
+                if taskCount >= {limit} then exit repeat
+                set taskName to name of t
+                if taskName contains "{query_escaped}" {completed_filter} then
+                    set taskId to id of t
+                    set taskProject to ""
+                    try
+                        set taskProject to name of containing project of t
+                    end try
+                    set taskDue to ""
+                    try
+                        set taskDue to due date of t as string
+                    end try
+                    set taskCompleted to completed of t
+                    set end of matchingTasks to taskId & "|||" & taskName & "|||" & taskProject & "|||" & taskDue & "|||" & taskCompleted
+                    set taskCount to taskCount + 1
+                end if
+            end repeat
+            set AppleScript's text item delimiters to ":::"
+            return matchingTasks as string
+        end tell
+        '''
+
+        try:
+            result = await self._run_applescript(script)
+            if not result.strip():
+                return []
+
+            tasks = []
+            for task_str in result.split(":::"):
+                task_str = task_str.strip()
+                if not task_str:
+                    continue
+                parts = task_str.split("|||")
+                if len(parts) >= 5:
+                    task_id, title, project, due_str, completed_str = parts[:5]
+                    due_date = None
+                    if due_str and due_str != "missing value":
+                        with contextlib.suppress(Exception):
+                            due_date = self._parse_applescript_date(due_str)
+                    tasks.append(OmniFocusTask(
+                        task_id=task_id,
+                        title=title,
+                        project=project if project else None,
+                        due_date=due_date,
+                        completed=completed_str.lower() == "true",
+                    ))
+            return tasks
+        except Exception as e:
+            logger.warning(f"Failed to search OmniFocus tasks: {e}")
+            return []
+
+    async def check_duplicate(
+        self,
+        title: str,
+        due_date: Optional[str] = None,
+        project: Optional[str] = None,
+        similarity_threshold: float = 0.8,
+    ) -> DuplicateCheckResult:
+        """
+        Check if a similar task already exists in OmniFocus.
+
+        Uses fuzzy matching to detect potential duplicates based on:
+        - Title similarity (primary)
+        - Same due date (if provided)
+        - Same project (if provided)
+
+        Args:
+            title: Proposed task title
+            due_date: Proposed due date (YYYY-MM-DD)
+            project: Proposed project name
+            similarity_threshold: Minimum similarity score (0.0-1.0) to consider duplicate
+
+        Returns:
+            DuplicateCheckResult with is_duplicate flag and details
+        """
+        if not await self.is_available():
+            return DuplicateCheckResult(
+                is_duplicate=False,
+                reason="OmniFocus not available"
+            )
+
+        # Extract keywords from title for search
+        keywords = self._extract_keywords(title)
+        if not keywords:
+            return DuplicateCheckResult(
+                is_duplicate=False,
+                reason="No keywords extracted from title"
+            )
+
+        # Search for tasks containing any keyword
+        all_matches: list[OmniFocusTask] = []
+        for keyword in keywords[:3]:  # Limit to 3 keywords to avoid too many searches
+            matches = await self.search_tasks(keyword, include_completed=False)
+            all_matches.extend(matches)
+
+        # Deduplicate by task_id
+        seen_ids: set[str] = set()
+        unique_matches: list[OmniFocusTask] = []
+        for task in all_matches:
+            if task.task_id not in seen_ids:
+                seen_ids.add(task.task_id)
+                unique_matches.append(task)
+
+        if not unique_matches:
+            return DuplicateCheckResult(
+                is_duplicate=False,
+                reason="No similar tasks found"
+            )
+
+        # Check each match for similarity
+        best_match: Optional[OmniFocusTask] = None
+        best_score = 0.0
+
+        for task in unique_matches:
+            score = self._calculate_similarity(
+                title, task.title, due_date, task.due_date, project, task.project
+            )
+            if score > best_score:
+                best_score = score
+                best_match = task
+
+        if best_score >= similarity_threshold and best_match:
+            return DuplicateCheckResult(
+                is_duplicate=True,
+                existing_task=best_match,
+                similarity_score=best_score,
+                reason=f"Similar task found: '{best_match.title}' (score: {best_score:.2f})"
+            )
+
+        return DuplicateCheckResult(
+            is_duplicate=False,
+            similarity_score=best_score,
+            reason=f"No duplicate found (best score: {best_score:.2f})"
+        )
+
+    async def create_task_if_not_duplicate(
+        self,
+        title: str,
+        project: Optional[str] = None,
+        due_date: Optional[str] = None,
+        note: Optional[str] = None,
+        defer_date: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        similarity_threshold: float = 0.8,
+    ) -> tuple[Optional[OmniFocusTask], DuplicateCheckResult]:
+        """
+        Create a task only if no duplicate exists.
+
+        First checks for duplicates, then creates the task if none found.
+
+        Args:
+            title: Task title
+            project: Project name
+            due_date: Due date (YYYY-MM-DD)
+            note: Task note
+            defer_date: Defer date (YYYY-MM-DD)
+            tags: Tag names
+            similarity_threshold: Minimum similarity to consider duplicate
+
+        Returns:
+            Tuple of (created_task or None, DuplicateCheckResult)
+        """
+        # Check for duplicates first
+        check_result = await self.check_duplicate(
+            title=title,
+            due_date=due_date,
+            project=project,
+            similarity_threshold=similarity_threshold,
+        )
+
+        if check_result.is_duplicate:
+            logger.info(
+                f"Skipping duplicate task: '{title}' - {check_result.reason}"
+            )
+            return None, check_result
+
+        # No duplicate found, create the task
+        task = await self.create_task(
+            title=title,
+            project=project,
+            due_date=due_date,
+            note=note,
+            defer_date=defer_date,
+            tags=tags,
+        )
+
+        return task, check_result
+
+    def _extract_keywords(self, title: str) -> list[str]:
+        """
+        Extract meaningful keywords from a task title for search.
+
+        Filters out common stop words and short words.
+
+        Args:
+            title: Task title
+
+        Returns:
+            List of keywords (longest first)
+        """
+        # French and English stop words
+        stop_words = {
+            # French
+            "le", "la", "les", "un", "une", "des", "du", "de", "à", "au", "aux",
+            "et", "ou", "mais", "donc", "car", "ni", "que", "qui", "quoi",
+            "pour", "par", "sur", "sous", "avec", "sans", "dans", "en",
+            "ce", "cette", "ces", "mon", "ma", "mes", "ton", "ta", "tes",
+            "son", "sa", "ses", "notre", "nos", "votre", "vos", "leur", "leurs",
+            "je", "tu", "il", "elle", "nous", "vous", "ils", "elles",
+            "être", "avoir", "faire", "dire", "aller", "voir", "pouvoir",
+            # English
+            "the", "a", "an", "and", "or", "but", "if", "then", "else",
+            "for", "to", "from", "with", "without", "in", "on", "at", "by",
+            "this", "that", "these", "those", "my", "your", "his", "her",
+            "its", "our", "their", "is", "are", "was", "were", "be", "been",
+            "have", "has", "had", "do", "does", "did", "will", "would",
+            "can", "could", "should", "may", "might", "must",
+        }
+
+        # Tokenize and filter
+        words = title.lower().split()
+        keywords = [
+            w for w in words
+            if len(w) >= 3 and w not in stop_words and w.isalnum()
+        ]
+
+        # Sort by length (longer words are more specific)
+        keywords.sort(key=len, reverse=True)
+
+        return keywords
+
+    def _calculate_similarity(
+        self,
+        title1: str,
+        title2: str,
+        due1: Optional[str],
+        due2: Optional[datetime],
+        project1: Optional[str],
+        project2: Optional[str],
+    ) -> float:
+        """
+        Calculate similarity score between two tasks.
+
+        Weights:
+        - Title similarity: 70%
+        - Due date match: 20%
+        - Project match: 10%
+
+        Args:
+            title1, title2: Task titles
+            due1: First task due date (YYYY-MM-DD string)
+            due2: Second task due date (datetime)
+            project1, project2: Project names
+
+        Returns:
+            Similarity score (0.0-1.0)
+        """
+        # Title similarity using token overlap
+        title_score = self._token_similarity(title1.lower(), title2.lower())
+
+        # Due date match (20% weight)
+        due_score = 0.0
+        if due1 and due2:
+            try:
+                due1_dt = datetime.strptime(due1, "%Y-%m-%d")
+                # Check if same day
+                if due1_dt.date() == due2.date():
+                    due_score = 1.0
+                # Check if within 1 day
+                elif abs((due1_dt.date() - due2.date()).days) <= 1:
+                    due_score = 0.5
+            except (ValueError, AttributeError):
+                pass
+
+        # Project match (10% weight)
+        project_score = 0.0
+        if project1 and project2:
+            if project1.lower() == project2.lower():
+                project_score = 1.0
+            elif project1.lower() in project2.lower() or project2.lower() in project1.lower():
+                project_score = 0.5
+
+        # Weighted combination
+        return title_score * 0.7 + due_score * 0.2 + project_score * 0.1
+
+    def _token_similarity(self, s1: str, s2: str) -> float:
+        """
+        Calculate token-based similarity between two strings.
+
+        Uses Jaccard similarity on word tokens.
+
+        Args:
+            s1, s2: Strings to compare
+
+        Returns:
+            Similarity score (0.0-1.0)
+        """
+        tokens1 = set(s1.split())
+        tokens2 = set(s2.split())
+
+        if not tokens1 or not tokens2:
+            return 0.0
+
+        intersection = tokens1 & tokens2
+        union = tokens1 | tokens2
+
+        return len(intersection) / len(union)
+
+    def _parse_applescript_date(self, date_str: str) -> Optional[datetime]:
+        """
+        Parse AppleScript date string to datetime.
+
+        AppleScript dates vary by locale, try common formats.
+
+        Args:
+            date_str: Date string from AppleScript
+
+        Returns:
+            Parsed datetime or None
+        """
+        # Common formats to try
+        formats = [
+            "%Y-%m-%d %H:%M:%S",
+            "%d/%m/%Y %H:%M:%S",
+            "%m/%d/%Y %H:%M:%S",
+            "%d %B %Y %H:%M:%S",
+            "%B %d, %Y %H:%M:%S",
+            "%A %d %B %Y à %H:%M:%S",  # French locale
+        ]
+
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+
+        return None
 
     def _build_create_task_script(
         self,
