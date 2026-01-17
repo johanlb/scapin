@@ -1641,7 +1641,7 @@ def notes_review(
                                 "enrich": "🌟",
                             }.get(action.action_type, "•")
                             console.print(
-                                f"  {action_icon} [cyan][{action.action_type.upper()}][/cyan] {action.description} "
+                                f"  {action_icon} [cyan][{action.action_type.upper()}][/cyan] {action.reasoning} "
                                 f"[dim](confidence: {action.confidence:.0%})[/dim]"
                             )
                         console.print()
@@ -1655,7 +1655,7 @@ def notes_review(
                                 "refactor": "🔄",
                             }.get(action.action_type, "•")
                             console.print(
-                                f"  {action_icon} [yellow][{action.action_type.upper()}][/yellow] {action.description} "
+                                f"  {action_icon} [yellow][{action.action_type.upper()}][/yellow] {action.reasoning} "
                                 f"[dim](confidence: {action.confidence:.0%})[/dim]"
                             )
                         console.print()
