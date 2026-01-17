@@ -784,6 +784,53 @@ tests/unit/test_apple_notes_sync.py        # NEW (~280 lignes, 14 tests)
 
 ---
 
+### Session 2026-01-17 (Suite 4) — OmniFocus Duplicate Detection (Coherence Pass) ✅
+
+**Focus** : Implémenter une vérification de doublons avant la création de tâches OmniFocus
+
+**Problème résolu** :
+- Avant : Les tâches OmniFocus étaient créées sans vérifier les doublons
+- Risque : Création de tâches redondantes (ex: "Répondre à Marc" créé 3 fois)
+- Solution : Pass de cohérence avec détection fuzzy des doublons
+
+**Accomplissements** :
+
+1. ✅ **Nouvelles méthodes OmniFocusClient** (`src/integrations/apple/omnifocus.py`)
+   - `search_tasks(query, include_completed, limit)` : Recherche via AppleScript
+   - `check_duplicate(title, due_date, project, threshold)` : Détection de doublons
+   - `create_task_if_not_duplicate()` : Création sécurisée avec vérification préalable
+
+2. ✅ **Algorithme de similarité**
+   - `_extract_keywords()` : Extraction de mots-clés (filtrage stop words FR/EN)
+   - `_token_similarity()` : Similarité Jaccard sur les tokens
+   - `_calculate_similarity()` : Score pondéré (titre 70%, date 20%, projet 10%)
+   - Seuil configurable (défaut 0.8)
+
+3. ✅ **Nouveaux types**
+   - `DuplicateCheckResult` : Résultat avec `is_duplicate`, `existing_task`, `similarity_score`
+   - `OmniFocusTask.completed` : Nouveau champ pour filtrer les tâches complétées
+
+4. ✅ **Suite de tests complète** (`tests/unit/test_omnifocus_duplicates.py` ~360 lignes)
+   - TestDuplicateCheckResult : 2 tests
+   - TestKeywordExtraction : 5 tests
+   - TestTokenSimilarity : 4 tests
+   - TestCalculateSimilarity : 4 tests
+   - TestCheckDuplicate : 5 tests
+   - TestCreateTaskIfNotDuplicate : 2 tests
+   - TestParseAppleScriptDate : 4 tests
+
+**Fichiers modifiés** :
+```
+src/integrations/apple/omnifocus.py        # +370 lignes (nouvelles méthodes)
+tests/unit/test_omnifocus_duplicates.py    # NEW (~360 lignes, 26 tests)
+```
+
+**Tests** : 26 tests passent, ruff 0 warnings
+
+**Commit** : `60553d4`
+
+---
+
 ### Session 2026-01-12 (Suite 2) — Atomic Transaction Logic for Email + Enrichments ✅
 
 **Focus** : Refonte architecturale pour traiter email + enrichissements comme unité atomique

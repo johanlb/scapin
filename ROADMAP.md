@@ -1,7 +1,7 @@
 # Scapin — Feuille de Route Produit
 
 **Dernière mise à jour** : 17 janvier 2026
-**Version** : 1.0.0-alpha.26
+**Version** : 1.0.0-alpha.27
 **Phase actuelle** : ✅ Release Candidate 1 | ✅ Sprint 7 (Multi-Pass v2.2) COMPLÉTÉ (11/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
@@ -1215,6 +1215,23 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.27** (2026-01-17) : OmniFocus Duplicate Detection (Coherence Pass)
+  - **Détection de doublons** : Vérifie l'existence de tâches similaires avant création
+  - **Nouvelles méthodes** :
+    - `search_tasks(query)` — Recherche par mots-clés via AppleScript
+    - `check_duplicate(title, due_date, project)` — Fuzzy matching multi-critères
+    - `create_task_if_not_duplicate()` — Création sécurisée avec vérification
+  - **Algorithme de similarité** :
+    - Extraction mots-clés (filtrage stop words FR/EN)
+    - Similarité Jaccard sur tokens
+    - Pondération : titre 70%, date 20%, projet 10%
+  - **Nouveaux types** : `DuplicateCheckResult`, `OmniFocusTask.completed`
+  - **Tests** : 26 tests pour la détection de doublons
+  - **Fichiers modifiés** :
+    - `src/integrations/apple/omnifocus.py` — +370 lignes
+    - `tests/unit/test_omnifocus_duplicates.py` — NEW (~360 lignes)
+  - **Commit** : `60553d4`
 
 - **v1.0.0-alpha.26** (2026-01-17) : Protected Scapin Fields in Apple Notes Sync (Phase 3)
   - **Protection des champs Scapin** : Les champs enrichis par l'IA ne sont plus écrasés lors de la sync
