@@ -29,8 +29,19 @@ RÈGLES D'HYGIÈNE STRUCTURELLE:
   * Si plusieurs notes similaires existent, choisis la plus pertinente selon le contexte.
   * Si aucune note similaire n'existe, propose "create" pour créer la note manquante.
   * Utilise `action.target` pour le lien cassé et `action.content` pour le lien corrigé.
+- **Doublons**: 
+  * Si des notes très similaires (>80% de similarité) existent, propose "merge" pour les fusionner.
+  * Identifie quelle note est la plus complète et propose de fusionner l'autre dans celle-ci.
+  * Explique clairement pourquoi ces notes sont des doublons (contenu similaire, même sujet, redondance).
+  * Propose un plan de fusion : quelle information garder, quelle note sera la principale.
 - **Hiérarchie des titres**: Vérifie que les titres suivent une hiérarchie logique (# → ## → ### sans sauts). Propose "format" si nécessaire.
 - **Formatage Markdown**: Vérifie la cohérence du style (listes, code blocks, emphases). Propose "format" pour normaliser.
+- **Refactoring intelligent**:
+  * Analyse les notes liées pour identifier les informations mal placées.
+  * Si une note contient des informations qui appartiennent mieux à une note liée, propose "refactor".
+  * Exemples : détails sur une personne dans une note de réunion → déplacer vers la note de la personne.
+  * Utilise `action.target` pour le contenu à déplacer et `action.target_note_id` pour la destination.
+  * Explique clairement pourquoi le refactoring améliore l'organisation.
 
 RÈGLES DE RÉFLEXION (Briefing):
 - Identifie les informations qui impactent le PROFIL de l'utilisateur (nouveaux rôles, compétences, valeurs, changements de vie).

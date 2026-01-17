@@ -101,6 +101,9 @@ class HygieneMetrics:
     frontmatter_issues: list[str] = field(default_factory=list)
     broken_links: list[str] = field(default_factory=list)
     heading_issues: list[str] = field(default_factory=list)
+    duplicate_candidates: list[tuple[str, float]] = field(
+        default_factory=list
+    )  # (note_id, similarity_score)
     formatting_score: float = 1.0  # 0-1, 1 = perfect
 
 
@@ -494,6 +497,25 @@ class NoteReviewer:
             formatting_score -= 0.1 * min(len(broken_links), 5)
         formatting_score = max(0.0, formatting_score)
 
+        # Detect duplicate candidates using vector similarity
+        duplicate_candidates = []
+        try:
+            # Use vector store to find similar notes
+            similar_notes = self.notes.search_notes(query=note.content[:500], top_k=5)
+            for result in similar_notes:
+                if isinstance(result, tuple):
+                    similar_note, score = result[0], result[1] if len(result) > 1 else 0.0
+                else:
+                    similar_note, score = result, 0.0
+
+                # Skip self and low similarity
+                if similar_note.note_id == note.note_id:
+                    continue
+                if score > 0.8:  # High similarity threshold for duplicates
+                    duplicate_candidates.append((similar_note.note_id, score))
+        except Exception as e:
+            logger.debug(f"Duplicate detection failed: {e}")
+
         return HygieneMetrics(
             word_count=word_count,
             is_too_short=is_too_short,
@@ -502,6 +524,7 @@ class NoteReviewer:
             frontmatter_issues=frontmatter_issues,
             broken_links=broken_links,
             heading_issues=heading_issues,
+            duplicate_candidates=duplicate_candidates,
             formatting_score=formatting_score,
         )
 
@@ -929,6 +952,21 @@ class NoteReviewer:
                 # More sophisticated implementation would parse and update YAML
                 logger.info(f"Frontmatter validation: {action.description}")
                 # For now, just log - full implementation would update YAML frontmatter
+            return content
+
+        if action.action_type == ActionType.REFACTOR:
+            # Reorganize content between linked notes
+            # action.target = content to move, action.target_note_id = destination note
+            if action.target and action.target_note_id:
+                # Remove content from current note
+                content = content.replace(action.target, "", 1)
+                # Add a reference to where the content was moved
+                reference = f"\n\n> [Déplacé vers [[{action.target_note_id}]]]\n"
+                content += reference
+                logger.info(
+                    f"Refactored content to {action.target_note_id}: {action.target[:50]}..."
+                )
+                # Note: The actual addition to the target note is handled by _apply_external_action
             return content
 
         if action.action_type == ActionType.UPDATE:
