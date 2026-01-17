@@ -110,12 +110,12 @@ Amélioration du système → Répéter
 | **Architecture Cognitive** | ✅ | Sancho (Multi-pass), Passepartout (Context), Trivelin (V2) |
 | **Sync Apple Notes** | ✅ | "Smart Merge" (Protection des méta-données Scapin) |
 
-**Qualité** : 967 tests, 95% couverture, 100% pass rate
+**Qualité** : 2346+ tests backend + 660 E2E, 95% couverture, 100% pass rate
 **Code** : Score 10/10 (0 ruff warnings)
 
 ### Architecture Cognitive (Phase 0.5 — ✅ Complète)
 
-Scapin utilise une **boucle cognitive itérative** — pas une IA one-shot, mais un raisonnement multi-étapes véritable :
+Scapin utilise une **boucle cognitive itérative** — pas une IA one-shot, mais un raisonnement multi-étapes véritable (Multi-Pass v2.2) :
 
 ```
 Événement → Trivelin → Sancho ↔ Passepartout → Planchet → Figaro → Sganarelle
@@ -123,25 +123,16 @@ Scapin utilise une **boucle cognitive itérative** — pas une IA one-shot, mais
                          └─────────── Boucle d'Apprentissage ─────────┘
 ```
 
-**Raisonnement Multi-Passes de Sancho** (jusqu'à 5 itérations) :
+**Raisonnement Multi-Passes de Sancho** (v2.2) :
 
-| Passe | Processus | Confiance Cible | Temps |
-|-------|-----------|-----------------|-------|
-| **1. Analyse Initiale** | Comprendre l'événement | ~60-70% | 2-3s |
-| **2. Enrichissement Contexte** | Interroger Passepartout | ~75-85% | 3-5s |
-| **3. Raisonnement Profond** | Inférence multi-étapes, chaînes "si X alors Y" | ~85-92% | 2-4s |
-| **4. Validation** | Consensus multi-provider (Claude + GPT-4o) | ~90-96% | 3-5s |
-| **5. Clarification Utilisateur** | Demander quand incertain | ~95-99% | async |
+| Passe | Processus | Modèle | Confiance Cible |
+|-------|-----------|--------|-----------------|
+| **1-3** | Analyse & Contexte | Haiku | ~80% |
+| **4** | Raffinement | Sonnet | ~90% |
+| **5** | Expertise (si besoin) | Opus | ~95%+ |
 
-**Arrêt** : Confiance ≥ 95% OU maximum d'itérations atteint
-
-**Exemple concret** : Email du comptable avec tableur
-- Passe 1 : "Email de Marie avec pièce jointe" (65%)
-- Passe 2 : Passepartout trouve "Marie = Comptable, projet Budget Q2" (82%)
-- Passe 3 : Infère deadline des notes, planifie actions (89%)
-- Passe 4 : GPT-4o valide, suggère emplacement fichier (94.5%)
-- Passe 5 : Demande "Marquer prioritaire ?" → "Non" (97%)
-- Résultat : 5 actions exécutées parfaitement
+**Arrêt** : Confiance ≥ 95% OU convergence atteinte (0 changement).
+**Atomicité** : L'email n'est archivé que si l'enrichissement de la base de connaissances (PKM) réussit.
 
 ---
 
@@ -252,7 +243,7 @@ python3 scapin.py review      # Réviser les décisions en attente
 | Document | Description |
 |----------|-------------|
 | **[CLAUDE.md](CLAUDE.md)** | Contexte de session pour Claude Code — État actuel du projet |
-| **[MIGRATION.md](MIGRATION.md)** | Migration depuis PKM System vers Scapin |
+| **[MIGRATION.md](docs/archive/MIGRATION.md)** | Migration depuis PKM System vers Scapin (Archive) |
 | **[BREAKING_CHANGES.md](docs/archive/historical/BREAKING_CHANGES.md)** | Changements d'API et guides de migration (Archive) |
 | **[docs/api/](docs/api/)** | Documentation de référence API |
 
@@ -268,43 +259,37 @@ python3 scapin.py review      # Réviser les décisions en attente
 
 ## 🛣️ Feuille de Route
 
-### Phases Complétées ✅
+### Phases Complétées ✅ (v1.0 RC-1)
 
 | Phase | Nom | Statut | Focus |
 |-------|-----|--------|-------|
-| **0** | Fondations | ✅ | Structure, config, logging, CLI |
-| **0.5** | Architecture Cognitive | ✅ | Modules valets complets (Trivelin, Sancho, etc.) |
-| **0.6** | Refactoring Valet | ✅ | Migration src/ai/ → sancho, src/cli/ → jeeves |
-| **3** | Sagesse & Connaissance | ✅ | Sancho (Multi-pass), Passepartout (Context Engine) |
-| **4** | Intégration & Sync | ✅ | Sync Apple Notes (Smart Merge), Email V2.2 |
+| 1 | Fondations & Email | ✅ | Structure, IMAP, Triage, Tâches |
+| 2 | Sagesse & Connaissance | ✅ | Sancho (Multi-pass), Passepartout (Context) |
+| 3 | Intégration & Sync | ✅ | Teams, Calendar, Apple Notes Sync |
+| 4 | Intelligence Cross-Source | ✅ | WhatsApp, Files, Web Search Adapters |
+| 5 | Interfaces & Temps Réel | ✅ | SvelteKit UI, WebSockets, PWA Mobile |
+| 6 | Qualité & Release | ✅ | E2E Tests, Performance, Documentation |
 
-### Phases en Cours et Planifiées 📅
+### Futur (Phase 2.0) 📅
 
 | Phase | Nom | Période | Focus |
 |-------|-----|---------|-------|
-| **5** | Interaction | Q1 2026 | 🏗️ Jeeves CLI, révision humaine augmentée |
-| **6** | Orchestration | Q2 2026 | Figaro (Actions complexes), Planchet (Scheduling) |
-| **0.7** | API Jeeves | Q3 2026 | FastAPI REST + WebSockets |
-| **0.8** | Interface Web | Q3 2026 | SvelteKit + TailwindCSS |
-| **0.9** | PWA Mobile | Q4 2026 | Progressive Web App |
+| **2.1** | IA Multi-Provider | 2026 | Consensus entre différents LLMs |
+| **2.2** | Proactivité Avancée | 2026 | Planification autonome multi-jours |
 
 ---
 
 ## 🧪 Tests
 
 ```bash
-# Tous les tests
+# Tous les tests backend
 pytest tests/ -v
 
-# Par module
-pytest tests/unit/ -v
-pytest tests/integration/ -v
-
-# Avec couverture
-pytest tests/ --cov=src --cov-report=html
+# Tests E2E Playwright
+cd web && npx playwright test
 ```
 
-**Couverture actuelle** : 95%+ (967 tests)
+**Couverture actuelle** : 95%+ (2346+ tests)
 
 ---
 
@@ -389,7 +374,7 @@ Les valets de la comédie classique qui ont inspiré l'architecture :
 | **Dépôt** | [Archivé](https://github.com/johanlb/pkm-system) | [Actif](https://github.com/johanlb/scapin) |
 | **Données** | ✅ Compatible | ✅ Copier `.env` et `data/` |
 
-Voir **[MIGRATION.md](MIGRATION.md)** pour les détails.
+Voir **[MIGRATION.md](docs/archive/MIGRATION.md)** pour les détails.
 
 ---
 
