@@ -1,7 +1,7 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 12 janvier 2026
-**Version** : 1.0.0-rc.1
+**Dernière mise à jour** : 17 janvier 2026
+**Version** : 1.0.0-alpha.23
 **Phase actuelle** : ✅ Release Candidate 1 | ✅ Sprint 7 (Multi-Pass v2.2) COMPLÉTÉ (11/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
@@ -1215,6 +1215,30 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.23** (2026-01-17) : Enriched Frontmatter Schema (Phase 1)
+  - **Schéma frontmatter enrichi** : Dataclasses typées pour meilleure compréhension IA
+  - **5 nouveaux enums** : Relation, RelationshipStrength, ProjectStatus, EntityType, Category
+  - **Dataclasses par type** :
+    - PersonneFrontmatter : relation, organization, email, phone, projects, last_contact
+    - ProjetFrontmatter : status, stakeholders, budget_range, target_date
+    - EntiteFrontmatter : entity_type, contacts, website, country
+    - ReunionFrontmatter : participants, agenda, decisions, action_items
+    - ActifFrontmatter : asset_type, location, acquisition_date, current_status
+  - **Helper classes** : PendingUpdate, Stakeholder, LinkedSource, Contact
+  - **FrontmatterParser** : YAML → dataclasses typées avec détection automatique du type
+  - **Index d'aliases** : Recherche rapide par alias (ex: "Marc" → "Marc Dupont")
+  - **Nouvelles méthodes NoteManager** :
+    - `get_typed_frontmatter()`, `get_note_with_typed_frontmatter()`
+    - `find_note_by_alias()`, `get_aliases_index()`, `get_all_aliases()`
+    - `get_persons_with_relation()`
+  - **Fichiers créés** :
+    - `docs/specs/FRONTMATTER_ENRICHED_SPEC.md` (~400 lignes)
+    - `src/passepartout/frontmatter_schema.py` (~555 lignes)
+    - `src/passepartout/frontmatter_parser.py` (~454 lignes)
+    - `tests/unit/test_frontmatter_parser.py` (23 tests)
+  - **Tests** : 49 tests (26 NoteManager + 23 FrontmatterParser)
+  - **Commit** : `e2ec6ea`
 
 - **v1.0.0-alpha.22** (2026-01-12) : Atomic Transaction Logic for Email + Enrichments
   - **Refonte architecturale** : Actions email + enrichissements traités comme unité atomique

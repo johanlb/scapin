@@ -175,6 +175,7 @@ class NoteScheduler:
         self,
         note_id: str,
         quality: int,
+        metadata: Optional[NoteMetadata] = None,
     ) -> Optional[NoteMetadata]:
         """
         Record a review and update scheduling
@@ -182,21 +183,20 @@ class NoteScheduler:
         Args:
             note_id: Note identifier
             quality: Review quality (0-5)
+            metadata: Optional pre-loaded NoteMetadata object
 
         Returns:
             Updated NoteMetadata or None if not found
-
-        Raises:
-            ValueError: If quality is not in range 0-5
         """
         # Validate quality bounds early with note context
         if not 0 <= quality <= 5:
             raise ValueError(f"Quality must be 0-5, got {quality} for note {note_id}")
 
-        metadata = self.store.get(note_id)
         if metadata is None:
-            logger.warning(f"Cannot record review: note {note_id} not found")
-            return None
+            metadata = self.store.get(note_id)
+            if metadata is None:
+                logger.warning(f"Cannot record review: note {note_id} not found")
+                return None
 
         result = self.calculate_next_review(metadata, quality)
 

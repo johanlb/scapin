@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 12 janvier 2026
+**Dernière mise à jour** : 17 janvier 2026
 **Projet** : Scapin (anciennement PKM System)
 **Dépôt** : https://github.com/johanlb/scapin
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -111,7 +111,7 @@ Feedback via prochain journaling → Amélioration système
 
 ---
 
-## 📊 État Actuel (12 janvier 2026)
+## 📊 État Actuel (17 janvier 2026)
 
 ### Phases Complétées
 
@@ -598,6 +598,71 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
 ---
 
 ## 📝 Notes de Session
+
+### Session 2026-01-17 — Enriched Frontmatter Schema (Phase 1) ✅
+
+**Focus** : Implémentation du schéma frontmatter enrichi pour meilleure compréhension IA du contexte
+
+**Accomplissements** :
+
+1. ✅ **Spec FRONTMATTER_ENRICHED_SPEC.md** (~400 lignes)
+   - Définition des 3 catégories de champs : Auto-update, Propose & Validate, Manual only
+   - Champs par type de note (PERSONNE, PROJET, ENTITE, REUNION, ACTIF)
+   - Concept `pending_updates` pour propositions IA en attente de validation
+   - Workflows background pour enrichissement continu
+
+2. ✅ **5 nouveaux enums** (`src/passepartout/note_types.py`)
+   - `Relation` : ami, famille, collègue, client, partenaire, fournisseur, connaissance, administration
+   - `RelationshipStrength` : forte, moyenne, faible, nouvelle
+   - `ProjectStatus` : actif, en_pause, terminé, annulé
+   - `EntityType` : entreprise, administration, association, institution, autre
+   - `Category` : work, personal, finance, health, family, other
+
+3. ✅ **Dataclasses frontmatter** (`src/passepartout/frontmatter_schema.py` ~555 lignes)
+   - Helper classes : PendingUpdate, Stakeholder, LinkedSource, Contact
+   - BaseFrontmatter : champs communs (title, type, aliases, tags, importance...)
+   - PersonneFrontmatter : relation, organization, email, phone, projects, last_contact
+   - ProjetFrontmatter : status, stakeholders, budget_range, target_date
+   - EntiteFrontmatter : entity_type, contacts, website, country
+   - ReunionFrontmatter : participants, agenda, decisions, action_items
+   - ActifFrontmatter : asset_type, location, acquisition_date, current_status
+
+4. ✅ **FrontmatterParser** (`src/passepartout/frontmatter_parser.py` ~454 lignes)
+   - `parse()` : YAML dict → dataclass typée
+   - `to_dict()` : dataclass → YAML dict
+   - Détection automatique du type depuis champ explicite ou chemin metadata
+   - Parsing robuste des dates, enums, listes, objets imbriqués
+
+5. ✅ **Nouvelles méthodes NoteManager** (`src/passepartout/note_manager.py`)
+   - `get_typed_frontmatter(note_id)` → AnyFrontmatter
+   - `get_note_with_typed_frontmatter(note_id)` → tuple[Note, AnyFrontmatter]
+   - `get_aliases_index()` → dict[alias, note_id] avec cache
+   - `find_note_by_alias(alias)` → Note | None
+   - `get_all_aliases()` → dict[note_id, list[aliases]]
+   - `get_persons_with_relation(relation)` → list[tuple[Note, PersonneFrontmatter]]
+
+6. ✅ **Tests complets** (`tests/unit/test_frontmatter_parser.py` 23 tests)
+   - Parsing de chaque type de note
+   - Formats datetime variés
+   - Valeurs françaises d'importance
+   - Roundtrip sérialisation
+   - Enums from_string()
+
+**Fichiers créés/modifiés** :
+```
+docs/specs/FRONTMATTER_ENRICHED_SPEC.md      # NEW (~400 lignes)
+src/passepartout/note_types.py               # MODIFIED (+90 lignes)
+src/passepartout/frontmatter_schema.py       # NEW (~555 lignes)
+src/passepartout/frontmatter_parser.py       # NEW (~454 lignes)
+src/passepartout/note_manager.py             # MODIFIED (+80 lignes)
+tests/unit/test_frontmatter_parser.py        # NEW (23 tests)
+```
+
+**Tests** : 49 tests passent (26 NoteManager + 23 FrontmatterParser)
+
+**Commit** : `e2ec6ea`
+
+---
 
 ### Session 2026-01-12 (Suite 2) — Atomic Transaction Logic for Email + Enrichments ✅
 
@@ -1778,5 +1843,5 @@ Tous les bugs sont résolus (#41-#46). Le projet est prêt pour le tag v1.0.0-rc
 
 ---
 
-**Dernière mise à jour** : 12 janvier 2026 par Claude
-**Prochaine révision** : Tag v1.0.0-rc.1
+**Dernière mise à jour** : 17 janvier 2026 par Claude
+**Prochaine révision** : Tag v1.0.0-alpha.23

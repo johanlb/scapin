@@ -292,7 +292,7 @@ class NoteReviewer:
             )
 
         # Update metadata and schedule
-        self.scheduler.record_review(note_id, quality)
+        self.scheduler.record_review(note_id, quality, metadata=metadata)
 
         logger.info(
             f"Completed review for {note_id}: "
