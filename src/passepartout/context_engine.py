@@ -458,6 +458,10 @@ class ContextEngine:
         """
         Retrieve context based on entities
 
+        Uses a two-phase approach:
+        1. Exact alias matching (high precision)
+        2. Semantic vector search (broader coverage)
+
         Args:
             entities: List of entities to search for
             top_k: Maximum results per entity
@@ -466,15 +470,51 @@ class ContextEngine:
             List of ContextItem objects
         """
         context_items = []
+        seen_note_ids: set[str] = set()  # Track seen notes to avoid duplicates
 
         for entity in entities:
             try:
+                # Phase 1: Try exact alias matching first (high precision)
+                # This catches cases like "Marc" -> "Marc Dupont" via aliases
+                alias_match = self.note_manager.find_note_by_alias(entity.value)
+                if alias_match and alias_match.note_id not in seen_note_ids:
+                    seen_note_ids.add(alias_match.note_id)
+                    context_item = ContextItem(
+                        source=CONTEXT_SOURCE_KB,
+                        type=CONTEXT_TYPE_ENTITY,
+                        content=f"# {alias_match.title}\n\n{alias_match.content}",
+                        relevance_score=entity.confidence,  # High relevance for exact match
+                        metadata={
+                            "note_id": alias_match.note_id,
+                            "entity_type": entity.type,
+                            "entity_value": entity.value,
+                            "entity_confidence": entity.confidence,
+                            "match_type": "alias_exact",
+                            "matched_alias": entity.value,
+                            "tags": alias_match.tags,
+                            "created_at": alias_match.created_at.isoformat(),
+                        },
+                    )
+                    context_items.append(context_item)
+                    logger.debug(
+                        "Alias match found",
+                        extra={
+                            "entity": entity.value,
+                            "matched_note": alias_match.title,
+                        },
+                    )
+
+                # Phase 2: Semantic vector search (broader coverage)
                 # Get notes with similarity scores
                 notes_with_scores = self.note_manager.get_notes_by_entity(
                     entity, top_k=top_k, return_scores=True
                 )
 
                 for note, distance in notes_with_scores:
+                    # Skip if already added via alias match
+                    if note.note_id in seen_note_ids:
+                        continue
+                    seen_note_ids.add(note.note_id)
                     # Combine entity confidence with similarity score
                     similarity_relevance = self._distance_to_relevance(distance)
                     combined_relevance = entity.confidence * similarity_relevance
@@ -489,6 +529,7 @@ class ContextEngine:
                             "entity_type": entity.type,
                             "entity_value": entity.value,
                             "entity_confidence": entity.confidence,
+                            "match_type": "semantic",
                             "similarity_score": similarity_relevance,
                             "tags": note.tags,
                             "created_at": note.created_at.isoformat(),
@@ -502,9 +543,18 @@ class ContextEngine:
                 )
                 continue
 
+        # Count alias vs semantic matches for logging
+        alias_matches = sum(1 for c in context_items if c.metadata.get("match_type") == "alias_exact")
+        semantic_matches = len(context_items) - alias_matches
+
         logger.debug(
             "Entity retrieval complete",
-            extra={"items_found": len(context_items), "entities": [e.value for e in entities]},
+            extra={
+                "items_found": len(context_items),
+                "alias_matches": alias_matches,
+                "semantic_matches": semantic_matches,
+                "entities": [e.value for e in entities],
+            },
         )
 
         return context_items

@@ -115,6 +115,8 @@ class TestEntityRetrieval:
     @pytest.fixture
     def engine(self):
         note_manager = Mock()
+        # By default, no alias matches
+        note_manager.find_note_by_alias.return_value = None
         return ContextEngine(note_manager)
 
     def test_retrieve_by_entities(self, engine):
@@ -197,6 +199,83 @@ class TestEntityRetrieval:
         context_items = engine._retrieve_by_entities([entity], top_k=10)
 
         assert len(context_items) == 0
+
+    def test_retrieve_by_entities_alias_match(self, engine):
+        """Test alias matching takes priority over semantic search"""
+        # Create a note that will be found by alias
+        alias_note = Note(
+            note_id="alias_note",
+            title="Marc Dupont",
+            content="Contact information for Marc",
+            created_at=datetime(2025, 1, 15),
+            updated_at=datetime(2025, 1, 15),
+            tags=["contact"],
+            entities=[]
+        )
+
+        # Create another note that would be found by semantic search
+        semantic_note = Note(
+            note_id="semantic_note",
+            title="Meeting with Marc",
+            content="Discussion about project",
+            created_at=datetime(2025, 1, 10),
+            updated_at=datetime(2025, 1, 10),
+            tags=["work"],
+            entities=[]
+        )
+
+        entity = Entity(type="person", value="Marc", confidence=0.9)
+
+        # Mock alias match returns the alias_note
+        engine.note_manager.find_note_by_alias.return_value = alias_note
+
+        # Mock semantic search returns both notes
+        engine.note_manager.get_notes_by_entity.return_value = [
+            (alias_note, 0.5),  # Would also be found by semantic
+            (semantic_note, 0.8),
+        ]
+
+        context_items = engine._retrieve_by_entities([entity], top_k=10)
+
+        # Should have 2 items: alias match + semantic match (alias_note deduplicated)
+        assert len(context_items) == 2
+
+        # First item should be the alias match with high relevance
+        alias_item = next(c for c in context_items if c.metadata.get("match_type") == "alias_exact")
+        assert alias_item.metadata["note_id"] == "alias_note"
+        assert alias_item.relevance_score == 0.9  # entity.confidence
+        assert alias_item.metadata["matched_alias"] == "Marc"
+
+        # Semantic item should also be present
+        semantic_item = next(c for c in context_items if c.metadata.get("match_type") == "semantic")
+        assert semantic_item.metadata["note_id"] == "semantic_note"
+
+    def test_retrieve_by_entities_alias_deduplication(self, engine):
+        """Test that alias match prevents duplicate from semantic search"""
+        note = Note(
+            note_id="note1",
+            title="Marc Dupont",
+            content="Contact info",
+            created_at=datetime(2025, 1, 15),
+            updated_at=datetime(2025, 1, 15),
+            tags=[],
+            entities=[]
+        )
+
+        entity = Entity(type="person", value="Marc", confidence=0.9)
+
+        # Alias match finds the note
+        engine.note_manager.find_note_by_alias.return_value = note
+
+        # Semantic search also finds the same note
+        engine.note_manager.get_notes_by_entity.return_value = [(note, 0.3)]
+
+        context_items = engine._retrieve_by_entities([entity], top_k=10)
+
+        # Should have only 1 item (deduplicated)
+        assert len(context_items) == 1
+        assert context_items[0].metadata["match_type"] == "alias_exact"
+        assert context_items[0].metadata["note_id"] == "note1"
 
 
 class TestSemanticRetrieval:
