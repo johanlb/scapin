@@ -1,7 +1,7 @@
 # Scapin — Feuille de Route Produit
 
 **Dernière mise à jour** : 17 janvier 2026
-**Version** : 1.0.0-alpha.23
+**Version** : 1.0.0-alpha.24
 **Phase actuelle** : ✅ Release Candidate 1 | ✅ Sprint 7 (Multi-Pass v2.2) COMPLÉTÉ (11/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
@@ -1215,6 +1215,18 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.24** (2026-01-17) : Alias Matching in ContextEngine (Phase 2)
+  - **Matching par aliases** : ContextEngine utilise maintenant les aliases pour trouver les notes
+  - **Approche en 2 phases** :
+    1. Matching exact par alias (haute précision) via `find_note_by_alias()`
+    2. Recherche sémantique vectorielle (couverture large) - comportement existant
+  - **Exemple** : "Marc" dans un email → trouve "Marc Dupont" si alias défini
+  - **Déduplication** : Évite les doublons entre alias et sémantique
+  - **Metadata enrichi** : Nouveau champ `match_type`: `alias_exact` ou `semantic`
+  - **Logging amélioré** : Compteurs alias_matches vs semantic_matches
+  - **Tests** : 26 tests ContextEngine (+2 nouveaux pour alias)
+  - **Commit** : `28b0212`
 
 - **v1.0.0-alpha.23** (2026-01-17) : Enriched Frontmatter Schema (Phase 1)
   - **Schéma frontmatter enrichi** : Dataclasses typées pour meilleure compréhension IA

@@ -664,6 +664,43 @@ tests/unit/test_frontmatter_parser.py        # NEW (23 tests)
 
 ---
 
+### Session 2026-01-17 (Suite) — Alias Matching in ContextEngine (Phase 2) ✅
+
+**Focus** : Intégration du matching par aliases dans ContextEngine pour améliorer la récupération de contexte
+
+**Accomplissements** :
+
+1. ✅ **Analyse du ContextEngine existant**
+   - 4 stratégies existantes : Entity, Semantic, Thread, Graph expansion
+   - `_retrieve_by_entities()` utilisait uniquement la recherche vectorielle
+   - Problème : "Marc" dans un email ne trouvait pas forcément "Marc Dupont"
+
+2. ✅ **Implémentation matching par aliases** (`src/passepartout/context_engine.py`)
+   - Approche en 2 phases dans `_retrieve_by_entities()` :
+     1. **Phase 1** : Matching exact par alias via `find_note_by_alias()`
+     2. **Phase 2** : Recherche sémantique vectorielle (comportement existant)
+   - Déduplication : `seen_note_ids` évite les doublons
+   - Metadata enrichi : `match_type`: `"alias_exact"` ou `"semantic"`
+   - Alias match a haute relevance (= entity.confidence)
+
+3. ✅ **Tests mis à jour** (`tests/unit/test_context_engine.py`)
+   - Fixture mocke `find_note_by_alias.return_value = None` par défaut
+   - 2 nouveaux tests :
+     - `test_retrieve_by_entities_alias_match` : vérifie priorité alias
+     - `test_retrieve_by_entities_alias_deduplication` : vérifie pas de doublons
+
+**Fichiers modifiés** :
+```
+src/passepartout/context_engine.py       # MODIFIED (+50 lignes)
+tests/unit/test_context_engine.py        # MODIFIED (+80 lignes, 2 tests)
+```
+
+**Tests** : 26 tests ContextEngine passent
+
+**Commit** : `28b0212`
+
+---
+
 ### Session 2026-01-12 (Suite 2) — Atomic Transaction Logic for Email + Enrichments ✅
 
 **Focus** : Refonte architecturale pour traiter email + enrichissements comme unité atomique
@@ -1844,4 +1881,4 @@ Tous les bugs sont résolus (#41-#46). Le projet est prêt pour le tag v1.0.0-rc
 ---
 
 **Dernière mise à jour** : 17 janvier 2026 par Claude
-**Prochaine révision** : Tag v1.0.0-alpha.23
+**Prochaine révision** : Tag v1.0.0-alpha.24
