@@ -408,11 +408,16 @@ class TestNotesReviewEndpoints:
         assert data["data"]["note_id"] == "test-001"
 
     def test_get_note_metadata_not_found(self, mock_client, mock_service):
-        """GET /api/notes/{id}/metadata should return 404 for missing note"""
+        """GET /api/notes/{id}/metadata should return 200 with null data for missing note"""
         mock_service.get_note_metadata.return_value = None
 
         response = mock_client.get("/api/notes/nonexistent/metadata")
-        assert response.status_code == 404
+        # Changed behavior: returns 200 with null data instead of 404
+        # This is normal for unscheduled notes
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"] is None
 
     def test_record_review(self, mock_client, mock_service):
         """POST /api/notes/{id}/review should record review"""
