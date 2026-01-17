@@ -8,32 +8,34 @@ Les **Notes** sont le cœur de votre base de connaissances. Scapin utilise vos n
 
 ### Organisation
 
+### Organisation : Stratégie "Project-First"
+
+Scapin privilégie une organisation **centralisée** pour éviter la fragmentation. Au lieu de dizaines de petites notes atomiques, l'information est regroupée dans des notes "piliers" :
+
 ```
 notes/
-├── personnes/
-│   ├── Jean_Dupont.md
-│   └── Marie_Martin.md
-├── projets/
+├── projets/           # Notes centrales pour chaque projet actif
 │   ├── Projet_Alpha.md
 │   └── Projet_Beta.md
-├── concepts/
-│   └── Machine_Learning.md
-├── meetings/
-│   └── 2026-01-09_Reunion_Hebdo.md
-└── references/
-    └── Documentation_API.md
+├── domaines/          # Actifs, finances, santé, administration
+│   ├── Maison.md      # Tout ce qui concerne le domicile
+│   └── Fiscalité.md
+├── relations/         # Fiches détaillées des contacts clés
+│   ├── Jean_Dupont.md
+│   └── Marie_Martin.md
+└── journal/           # Entrées quotidiennes fusionnées
+    └── 2026-01.md     # Journal mensuel
 ```
 
 ### Types de Notes
 
 | Type | Usage | Icône |
 |------|-------|-------|
-| **Personne** | Collègues, contacts | 👤 |
-| **Projet** | Initiatives, dossiers | 📁 |
-| **Concept** | Idées, savoirs | 💡 |
-| **Souvenir** | Événements passés | 🎭 |
-| **Référence** | Documentation | 📚 |
-| **Meeting** | Compte-rendus | 📅 |
+| **Projet** | Initiatives, dossiers, chantiers | 📁 |
+| **Personne** | Contacts clés, partenaires | 👤 |
+| **Actif** | Biens, investissements, lieux | 🏠 |
+| **Domaine** | Sujets transverses (Santé, Finance) | 🛡️ |
+| **Réunion** | Comptes-rendus (souvent liés à un Projet) | 📅 |
 
 ---
 

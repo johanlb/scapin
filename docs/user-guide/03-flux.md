@@ -57,6 +57,13 @@ L'email est traité selon l'action proposée.
 
 L'email reste dans l'inbox, non traité.
 
+### Ré-analyser (Autre)
+
+- **Bouton** : 💡 Autre / Ré-analyser
+- Permet de donner une **instruction spécifique** (ex: "Extrais aussi le numéro de facture")
+- Déclenche un second passage de l'IA (Passe de Raffinement)
+- Utile quand l'analyse automatique a manqué un détail important.
+
 ### Modifier
 
 - **Bouton** : ✎ Modifier
@@ -80,8 +87,8 @@ Après approbation, un toast apparaît :
 
 | Action | Description |
 |--------|-------------|
-| **Archive** | Déplacer vers Archive/[Année]/[Catégorie] |
-| **Delete** | Déplacer vers Corbeille |
+| **Archive** | Déplacer vers le dossier **Archive** unique. Scapin utilise des métadonnées (catégories) pour le classement au lieu de dossiers imbriqués complexes. |
+| **Delete** | Déplacer vers la Corbeille |
 | **Reply** | Créer un brouillon de réponse |
 | **Task** | Créer une tâche (OmniFocus si configuré) |
 | **Flag** | Marquer comme important |
@@ -93,14 +100,22 @@ Après approbation, un toast apparaît :
 
 Scapin identifie automatiquement :
 
-| Type | Exemple | Badge |
-|------|---------|-------|
-| **Personne** | Jean Dupont | 👤 bleu |
-| **Date** | 15 janvier 2026 | 📅 orange |
-| **Projet** | Projet Alpha | 📁 violet |
-| **Montant** | 1 500 € | 💰 vert |
-| **Organisation** | Acme Inc. | 🏢 gris |
-| **URL** | https://... | 🔗 cyan |
+| Type | Description | Badge |
+|------|-------------|-------|
+| **Personne** | Nom ou email d'un contact | 👤 bleu |
+| **Date** | Échéance, rappel ou événement | 📅 orange |
+| **Projet** | Nom d'un projet actif ou passé | 📁 violet |
+| **Engagement** | Promesse ou action à faire | ✅ bleu |
+| **Demande** | Requête formulée par l'expéditeur | 🙋 violet |
+| **Décision** | Arbitrage ou choix acté | ⚖️ jaune |
+| **Fait** | Information factuelle importante | 📌 gris |
+| **Montant** | Prix, facture, devis | 💰 vert |
+| **Événement** | Réunion, appel, rendez-vous | 🍕 rouge |
+| **Lieu** | Adresse, ville, bureau | 📍 rouge |
+| **Organisation** | Entreprise ou institution | 🏢 gris |
+| **Logiciel** | Outil technique mentionné | 💻 bleu |
+| **Lien** | URL ou ressource externe | 🔗 cyan |
+| **Contact** | Coordonnées de contact | 📞 vert |
 
 ### Notes Proposées
 

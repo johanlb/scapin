@@ -82,40 +82,31 @@ Sancho utilise une architecture multi-pass avec escalade intelligente :
 
 ### Pass 1 : Extraction Aveugle (Haiku)
 
-- Analyse SANS contexte (évite les biais)
-- Extraction des entités mentionnées (personnes, projets, dates...)
-- Action suggérée initiale
-- Confiance typique : 60-80%
+- **Objectif** : Analyse SANS contexte pour éviter les biais.
+- **Rôle** : Extraction brute des entités, propositions initiales.
+- **Modèle** : Claude 3.5 Haiku (rapide et précis pour la syntaxe).
 
-### Recherche Contextuelle
+### Pass 2-3 : Raffinement Contextuel (Haiku)
 
-Si confiance < 95%, recherche PRÉCISE par entités :
-- Notes PKM contenant ces personnes/projets
-- Événements calendrier liés
-- Tâches OmniFocus existantes
-- Emails précédents avec ces contacts
+- **Objectif** : Utiliser la connaissance du passé pour corriger le présent.
+- **Rôle** : Scapin interroge **Passepartout** sur les entités trouvées.
+- **Modèle** : Claude 3.5 Haiku.
 
-### Pass 2-3 : Raffinement (Haiku)
+### Pass de Cohérence (Validation Intégrée)
 
-- Re-analyse avec contexte trouvé
-- Corrections : "Marc" → "Marc Dupont (CFO)"
-- Détection doublons : "info déjà dans note X"
-- Confiance typique : 80-95%
+- **Rôle** : Vérifie que les nouvelles extractions ne créent pas de doublons et restent cohérentes avec les notes existantes.
+- **Action** : Aligne les noms de projets, les relations et les formats.
 
-### Pass 4 : Escalade Sonnet (si nécessaire)
+### Pass 4 : Escalade Sonnet (Raisonnement Complexe)
 
-Si confiance < 80% après pass 3 :
-- Raisonnement plus profond
-- Résolution d'ambiguïtés complexes
-- Confiance typique : 85-95%
+- **Objectif** : Résoudre les ambiguïtés que Haiku ne peut pas trancher.
+- **Rôle** : Utilisé si la confiance reste < 80% ou pour des emails denses.
+- **Modèle** : Claude 3.5 Sonnet.
 
-### Pass 5 : Escalade Opus (cas complexes)
+### Pass 5 : Escalade Opus (Expertise / Haute Importance)
 
-Si confiance < 75% OU cas "high-stakes" :
-- Montant > 10,000€
-- Deadline < 48 heures
-- Expéditeur VIP (CEO, partenaire clé)
-- Raisonnement expert, confiance : 90-99%
+- **Objectif** : Rigueur maximale pour les enjeux critiques.
+- **Modèle** : Claude 3 Opus.
 
 ### Convergence
 

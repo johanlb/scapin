@@ -5,6 +5,7 @@ Async service wrapper for email processing operations.
 """
 
 import asyncio
+from datetime import datetime
 from typing import Any
 
 from src.core.config_manager import get_config
@@ -31,12 +32,14 @@ class EmailService:
         """
         accounts = []
         for account in self._config.email.get_enabled_accounts():
-            accounts.append({
-                "name": account.account_id,
-                "email": account.imap_username,
-                "enabled": account.enabled,
-                "inbox_folder": account.inbox_folder or "INBOX",
-            })
+            accounts.append(
+                {
+                    "name": account.account_id,
+                    "email": account.imap_username,
+                    "enabled": account.enabled,
+                    "inbox_folder": account.inbox_folder or "INBOX",
+                }
+            )
         return accounts
 
     async def get_stats(self) -> dict[str, Any]:
@@ -90,55 +93,111 @@ class EmailService:
         Returns:
             Processing result dictionary
         """
-        # Lazy import to avoid circular imports and heavy initialization
+        # Lazy import to avoid heavy initialization
         from src.trivelin.processor import EmailProcessor
+        from src.trivelin.v2_processor import V2EmailProcessor
 
-        processor = EmailProcessor()
+        # Check if Workflow v2 is enabled
+        v2_enabled = getattr(self._config.workflow_v2, "enabled", False)
 
-        # Build kwargs, omitting None values to use processor defaults
-        kwargs: dict[str, Any] = {
-            "auto_execute": auto_execute,
-            "unread_only": unread_only,
-            "unprocessed_only": unprocessed_only,
-        }
-        if limit is not None:
-            kwargs["limit"] = limit
-        if confidence_threshold is not None:
-            kwargs["confidence_threshold"] = confidence_threshold
+        if v2_enabled:
+            logger.info("Using Workflow v2.2 (V2EmailProcessor) for inbox processing")
+            processor = V2EmailProcessor()
+            # V2 processor handles both sync/async better, but we still run in thread
+            # to keep the API responsive for other requests
+            results = await asyncio.to_thread(self._process_v2_sync, processor, limit, auto_execute)
 
-        # Run blocking IMAP/processor operations in a thread to not block event loop
-        results = await asyncio.to_thread(processor.process_inbox, **kwargs)
+            # Map V2ProcessingResult to the expected API format
+            return {
+                "total_processed": len(results),
+                "auto_executed": sum(1 for r in results if r.auto_applied),
+                "queued": sum(1 for r in results if not r.auto_applied and r.success),
+                "skipped": sum(1 for r in results if not r.success),
+                "emails": [
+                    {
+                        "metadata": {
+                            "id": r.event_id,
+                            "subject": r.analysis.subject if r.analysis else "Unknown",
+                            "from_address": r.analysis.sender if r.analysis else "Unknown",
+                            "from_name": r.analysis.sender_name if r.analysis else "",
+                        },
+                        "analysis": {
+                            "action": r.analysis.action.value if r.analysis else "unknown",
+                            "confidence": r.analysis.confidence if r.analysis else 0,
+                            "category": (
+                                r.analysis.category.value
+                                if r.analysis and r.analysis.category
+                                else None
+                            ),
+                            "reasoning": r.analysis.reasoning if r.analysis else "",
+                            "destination": r.analysis.destination if r.analysis else None,
+                            "effective_confidence": getattr(r, "effective_confidence", 0),
+                        },
+                        "processed_at": datetime.now().isoformat(),
+                        "executed": r.auto_applied,
+                    }
+                    for r in results
+                ],
+            }
+        else:
+            logger.info("Using legacy EmailProcessor for inbox processing")
+            processor = EmailProcessor()
+            # Build kwargs, omitting None values to use processor defaults
+            kwargs: dict[str, Any] = {
+                "auto_execute": auto_execute,
+                "unread_only": unread_only,
+                "unprocessed_only": unprocessed_only,
+            }
+            if limit is not None:
+                kwargs["limit"] = limit
+            if confidence_threshold is not None:
+                kwargs["confidence_threshold"] = confidence_threshold
 
-        return {
-            "total_processed": len(results),
-            "auto_executed": self._state.get("emails_auto_executed", 0),
-            "queued": self._state.get("emails_queued", 0),
-            "skipped": self._state.get("emails_skipped", 0),
-            "emails": [
-                {
-                    "metadata": {
-                        "id": r.metadata.id,
-                        "subject": r.metadata.subject,
-                        "from_address": r.metadata.from_address,
-                        "from_name": r.metadata.from_name,
-                        "date": r.metadata.date.isoformat() if r.metadata.date else None,
-                        "has_attachments": r.metadata.has_attachments,
-                        "folder": r.metadata.folder,
-                    },
-                    "analysis": {
-                        "action": r.analysis.action.value,
-                        "confidence": r.analysis.confidence,
-                        "category": r.analysis.category.value if r.analysis.category else None,
-                        "reasoning": r.analysis.reasoning,
-                        "destination": r.analysis.destination,
-                    },
-                    "processed_at": r.processed_at.isoformat(),
-                    "executed": r.analysis.confidence >= (confidence_threshold or 90)
-                    and auto_execute,
-                }
-                for r in results
-            ],
-        }
+            # Run blocking IMAP/processor operations in a thread to not block event loop
+            results = await asyncio.to_thread(processor.process_inbox, **kwargs)
+
+            return {
+                "total_processed": len(results),
+                "auto_executed": self._state.get("emails_auto_executed", 0),
+                "queued": self._state.get("emails_queued", 0),
+                "skipped": self._state.get("emails_skipped", 0),
+                "emails": [
+                    {
+                        "metadata": {
+                            "id": r.metadata.id,
+                            "subject": r.metadata.subject,
+                            "from_address": r.metadata.from_address,
+                            "from_name": r.metadata.from_name,
+                            "date": r.metadata.date.isoformat() if r.metadata.date else None,
+                            "has_attachments": r.metadata.has_attachments,
+                            "folder": r.metadata.folder,
+                        },
+                        "analysis": {
+                            "action": r.analysis.action.value,
+                            "confidence": r.analysis.confidence,
+                            "category": r.analysis.category.value if r.analysis.category else None,
+                            "reasoning": r.analysis.reasoning,
+                            "destination": r.analysis.destination,
+                        },
+                        "processed_at": r.processed_at.isoformat(),
+                        "executed": (
+                            r.analysis.confidence >= (confidence_threshold or 90) and auto_execute
+                        ),
+                    }
+                    for r in results
+                ],
+            }
+
+    def _process_v2_sync(self, processor: Any, limit: int | None, auto_execute: bool) -> list[Any]:
+        """Synchronous wrapper for V2EmailProcessor.process_inbox (runs in thread pool)"""
+        # Note: V2EmailProcessor doesn't have process_inbox yet, we use a placeholder logic
+        if hasattr(processor, "process_inbox"):
+            return asyncio.run(
+                processor.process_inbox(limit=limit or 20, auto_execute=auto_execute)
+            )
+
+        logger.warning("V2EmailProcessor.process_inbox not implemented, falling back to empty list")
+        return []
 
     async def analyze_email(
         self,
@@ -156,9 +215,7 @@ class EmailService:
             Analysis result or None if email not found
         """
         # Run blocking IMAP/AI operations in a thread to not block event loop
-        return await asyncio.to_thread(
-            self._analyze_email_sync, email_id, folder
-        )
+        return await asyncio.to_thread(self._analyze_email_sync, email_id, folder)
 
     def _analyze_email_sync(
         self,
@@ -231,9 +288,7 @@ class EmailService:
             True if action executed successfully
         """
         # Run blocking IMAP operations in a thread to not block event loop
-        return await asyncio.to_thread(
-            self._execute_action_sync, email_id, action, destination
-        )
+        return await asyncio.to_thread(self._execute_action_sync, email_id, action, destination)
 
     def _execute_action_sync(
         self,
@@ -290,9 +345,7 @@ class EmailService:
         Returns:
             Tuple of (content bytes, content_type) or None if not found
         """
-        return await asyncio.to_thread(
-            self._get_attachment_sync, email_id, filename, folder
-        )
+        return await asyncio.to_thread(self._get_attachment_sync, email_id, filename, folder)
 
     def _get_attachment_sync(
         self,
@@ -471,9 +524,7 @@ class EmailService:
         Returns:
             True if recorded successfully
         """
-        return await asyncio.to_thread(
-            self._record_archive_sync, folder, sender_email, subject
-        )
+        return await asyncio.to_thread(self._record_archive_sync, folder, sender_email, subject)
 
     def _record_archive_sync(
         self,

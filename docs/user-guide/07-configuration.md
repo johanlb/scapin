@@ -19,6 +19,12 @@ IMAP_PORT=993
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 
+# Dossiers (optionnel, défauts ci-dessous)
+EMAIL_INBOX_FOLDER=INBOX
+EMAIL_ARCHIVE_FOLDER=Archive
+EMAIL_REFERENCE_FOLDER=Référence
+EMAIL_DELETE_FOLDER=Corbeille
+
 # Compte secondaire (optionnel)
 EMAIL_ACCOUNTS__1__ADDRESS=autre@outlook.com
 EMAIL_ACCOUNTS__1__PASSWORD=...
@@ -51,6 +57,7 @@ TEAMS__ACCOUNT__TENANT_ID=votre-tenant-id
 CALENDAR__ENABLED=true
 CALENDAR__POLL_INTERVAL_SECONDS=300
 CALENDAR__DAYS_AHEAD=7
+CALENDAR__DAYS_BEHIND=1
 ```
 
 ### Authentification
@@ -197,11 +204,12 @@ Scapin communique via AppleScript (macOS uniquement).
 
 ## Seuils de Confiance
 
-### Auto-Apply
+### Auto-Apply (Workflow v2.2)
 
 ```yaml
 thresholds:
-  auto_apply: 0.90  # Actions automatiques si > 90%
+  auto_apply: 0.85          # Actions appliquées sans révision si > 85%
+  escalation: 0.70          # Escalade vers Sonnet si < 70%
   high_confidence: 0.85
   medium_confidence: 0.70
   low_confidence: 0.50

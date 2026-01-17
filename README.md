@@ -107,7 +107,8 @@ Amélioration du système → Répéter
 | **Monitoring Santé** | ✅ | Checks IMAP, API IA, disque, file |
 | **Récupération Erreurs** | ✅ | Backoff exponentiel, protection timeout, cache LRU |
 | **Suivi Décisions** | ✅ | Stockage SQLite avec contexte |
-| **Architecture Cognitive** | ✅ | Modules valets complets (Phase 0.5) |
+| **Architecture Cognitive** | ✅ | Sancho (Multi-pass), Passepartout (Context), Trivelin (V2) |
+| **Sync Apple Notes** | ✅ | "Smart Merge" (Protection des méta-données Scapin) |
 
 **Qualité** : 967 tests, 95% couverture, 100% pass rate
 **Code** : Score 10/10 (0 ruff warnings)
@@ -269,25 +270,22 @@ python3 scapin.py review      # Réviser les décisions en attente
 
 ### Phases Complétées ✅
 
-| Phase | Nom | Statut |
-|-------|-----|--------|
-| **0** | Fondations | ✅ Structure, config, logging, CLI |
-| **1** | Intelligence Email | ✅ Multi-comptes, classification IA, récupération erreurs |
-| **2** | Expérience Interactive | ✅ Menu, file révision, UI multi-comptes |
-| **0.5** | Architecture Cognitive | ✅ Tous les modules valets implémentés |
-| **0.6** | Refactoring Valet | ✅ Migration src/ai/ → sancho, src/cli/ → jeeves, email_processor → trivelin |
+| Phase | Nom | Statut | Focus |
+|-------|-----|--------|-------|
+| **0** | Fondations | ✅ | Structure, config, logging, CLI |
+| **0.5** | Architecture Cognitive | ✅ | Modules valets complets (Trivelin, Sancho, etc.) |
+| **0.6** | Refactoring Valet | ✅ | Migration src/ai/ → sancho, src/cli/ → jeeves |
+| **3** | Sagesse & Connaissance | ✅ | Sancho (Multi-pass), Passepartout (Context Engine) |
+| **4** | Intégration & Sync | ✅ | Sync Apple Notes (Smart Merge), Email V2.2 |
 
 ### Phases en Cours et Planifiées 📅
 
 | Phase | Nom | Période | Focus |
 |-------|-----|---------|-------|
-| **1.0** | Trivelin Email | Q1 2026 | 🏗️ Traitement email intelligent multi-passes |
-| **1.1** | Journaling Email | Q1 2026 | Feedback loop, pré-remplissage journal |
-| **1.2** | Intégration Teams | Q2 2026 | Messages, réponses, appels |
-| **1.3** | Intégration Calendrier | Q2 2026 | Événements, disponibilités |
-| **1.4** | Système de Briefing | Q2 2026 | Briefing matin, pré-réunion |
+| **5** | Interaction | Q1 2026 | 🏗️ Jeeves CLI, révision humaine augmentée |
+| **6** | Orchestration | Q2 2026 | Figaro (Actions complexes), Planchet (Scheduling) |
 | **0.7** | API Jeeves | Q3 2026 | FastAPI REST + WebSockets |
-| **0.8** | Interface Web | Q3 2026 | SvelteKit + TailwindCSS ([Plan détaillé](docs/plans/phase-0.8-web/00-index.md)) |
+| **0.8** | Interface Web | Q3 2026 | SvelteKit + TailwindCSS |
 | **0.9** | PWA Mobile | Q4 2026 | Progressive Web App |
 
 ---

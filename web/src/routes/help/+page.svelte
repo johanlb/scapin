@@ -30,8 +30,8 @@
 			content: [
 				{ subtitle: 'Approuver', text: 'Swipe droite ou bouton vert. L\'action proposée est exécutée.' },
 				{ subtitle: 'Rejeter', text: 'Swipe gauche ou bouton rouge. L\'email reste non traité.' },
-				{ subtitle: 'Modifier', text: 'Ajuster l\'action ou la destination avant approbation' },
-				{ subtitle: 'Snooze', text: 'Reporter le traitement (1h, 3h, demain...)' }
+				{ subtitle: 'Ré-analyser', text: 'Cliquer sur "Autre" pour donner des instructions spécifiques à l\'IA.' },
+				{ subtitle: 'Modifier', text: 'Ajuster l\'action ou la destination avant approbation' }
 			]
 		},
 		{
@@ -39,7 +39,7 @@
 			title: 'Notes',
 			icon: '📝',
 			content: [
-				{ subtitle: 'Organisation', text: 'Notes Markdown dans des dossiers (personnes/, projets/, concepts/)' },
+				{ subtitle: 'Project-First', text: 'Organisation centralisée autour de vos projets et relations clés.' },
 				{ subtitle: 'Wikilinks', text: 'Liens entre notes avec [[Nom de la Note]]' },
 				{ subtitle: 'Révision SM-2', text: 'Algorithme de révision espacée pour maintenir vos notes à jour' },
 				{ subtitle: 'Historique', text: 'Versioning Git de chaque note avec restauration possible' }
@@ -72,11 +72,11 @@
 			title: 'Les Valets',
 			icon: '🎭',
 			content: [
-				{ subtitle: 'Trivelin', text: 'Perception et triage des événements entrants' },
-				{ subtitle: 'Sancho', text: 'Raisonnement IA multi-passes, analyse et extraction d\'entités' },
-				{ subtitle: 'Passepartout', text: 'Base de connaissances, notes, contexte' },
-				{ subtitle: 'Planchet', text: 'Planification des actions avec évaluation des risques' },
-				{ subtitle: 'Figaro', text: 'Exécution des actions (IMAP, Graph API)' },
+				{ subtitle: 'Trivelin', text: 'Perception et triage des événements (Email, Teams, Calendrier)' },
+				{ subtitle: 'Sancho', text: 'Raisonnement multi-passes (v2.2) avec escalade intelligente (Haiku/Sonnet/Opus)' },
+				{ subtitle: 'Passepartout', text: 'Mémoire contextuelle et recherche sémantique' },
+				{ subtitle: 'Planchet', text: 'Planification et évaluation des risques' },
+				{ subtitle: 'Figaro', text: 'Exécution atomique des actions' },
 				{ subtitle: 'Sganarelle', text: 'Apprentissage continu à partir de vos feedbacks' }
 			]
 		}

@@ -29,11 +29,11 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Le *comment* technique | Implémentation des modules |
 | **[ROADMAP.md](ROADMAP.md)** | Le *quand* | Priorisation des tâches |
 | **[UI_VOCABULARY.md](docs/UI_VOCABULARY.md)** | 🎭 **Vocabulaire UI** — Mapping termes UI ↔ technique | Traitement requêtes utilisateur, génération réponses |
-| **[CROSS_SOURCE_SPEC.md](docs/specs/CROSS_SOURCE_SPEC.md)** | ✅ **Spec CrossSource** — Complété | Référence Sprint Cross-Source |
-| **[SPRINT_5_SPEC.md](docs/specs/SPRINT_5_SPEC.md)** | ✅ **Spec Sprint 5** — Complété | Tests E2E, Lighthouse, Guide, Audit |
-| **[WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)** | ✅ **Workflow v2.1** — Complété | Architecture Knowledge Extraction |
-| **[WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)** | ✅ **Plan Implémentation** — Complété | 8 fichiers, ~2500 lignes |
-| **[MULTI_PASS_SPEC.md](docs/specs/MULTI_PASS_SPEC.md)** | ✅ **Spec Multi-Pass v2.2** — Complété | Architecture multi-passes + escalade |
+| **[CROSS_SOURCE_SPEC.md](docs/specs/archive/CROSS_SOURCE_SPEC.md)** | ✅ **Spec CrossSource** — Complété | Référence Sprint Cross-Source |
+| **[SPRINT_5_SPEC.md](docs/specs/archive/SPRINT_5_SPEC.md)** | ✅ **Spec Sprint 5** — Complété | Tests E2E, Lighthouse, Guide, Audit |
+| **[WORKFLOW_V2_SIMPLIFIED.md](docs/specs/archive/WORKFLOW_V2_SIMPLIFIED.md)** | ✅ **Workflow v2.1** — Complété | Architecture Knowledge Extraction |
+| **[WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/archive/WORKFLOW_V2_IMPLEMENTATION.md)** | ✅ **Plan Implémentation** — Complété | 8 fichiers, ~2500 lignes |
+| **[MULTI_PASS_SPEC.md](docs/specs/archive/MULTI_PASS_SPEC.md)** | ✅ **Spec Multi-Pass v2.2** — Complété | Architecture multi-passes + escalade |
 | **Ce fichier (CLAUDE.md)** | État actuel | Démarrage de session |
 
 ### Les 5 Principes Directeurs
@@ -115,27 +115,21 @@ Feedback via prochain journaling → Amélioration système
 
 ### Phases Complétées
 
-| Phase | Nom | Statut | Lignes Code |
-|-------|-----|--------|-------------|
-| **0** | Fondations | ✅ | — |
-| **1** | Intelligence Email | ✅ | — |
-| **2** | Expérience Interactive | 80% 🚧 | — |
-| **0.5** | Architecture Cognitive | ✅ | ~8000 lignes |
-| **0.6** | Refactoring Valet | ✅ | ~5200 lignes migrées |
-| **1.7** | Note Enrichment System | ✅ | ~2200 lignes |
-| **2.1** | Workflow v2.1 Knowledge Extraction | ✅ | ~2500 lignes |
+| Phase | Nom | Statut | Focus |
+|-------|-----|--------|-------|
+| **3** | Sagesse & Connaissance | ✅ | Sancho (Multi-pass), Passepartout (Context Engine) |
+| **4** | Intégration & Sync | ✅ | Sync Apple Notes (Smart Merge), Email V2.2 |
 
 ### Modules Valets Implémentés
 
-| Valet | Module | Lignes | Statut |
-|-------|--------|--------|--------|
-| **Sancho** | `router.py`, `model_selector.py`, `templates.py`, `reasoning_engine.py`, `providers/` | ~2650 | ✅ |
-| **Passepartout** | `context_engine`, `embeddings`, `note_manager`, `vector_store`, `note_types`, `note_metadata`, `note_scheduler`, `note_reviewer`, `note_enricher`, `note_merger`, `background_worker` | ~4200 | ✅ |
-| **Planchet** | `planning_engine.py` | ~400 | ✅ |
-| **Figaro** | `orchestrator.py`, `actions/` | ~770 | ✅ |
-| **Sganarelle** | 8 modules (learning, feedback, calibration, patterns, etc.) | ~4100 | ✅ |
-| **Trivelin** | `processor.py` | ~740 | ✅ |
-| **Jeeves** | `cli.py`, `display_manager.py`, `menu.py`, `review_mode.py` | ~2500 | ✅ |
+| Valet | Module | Statut |
+|-------|--------|--------|
+| **Sancho** | `reasoning_engine.py`, `multi_pass_analyzer.py` | ✅ |
+| **Passepartout** | `context_engine`, `note_reviewer`, `enricher`, `sync/` | ✅ |
+| **Trivelin** | `v2_processor.py`, `processor.py` | ✅ |
+| **Figaro** | `orchestrator.py`, `actions/` | ✅ |
+| **Sganarelle** | `learning_engine.py`, `pattern_learner.py` | ✅ |
+| **Jeeves** | `api/`, `cli.py`, `menu.py` | ✅ |
 
 ### Phase 1.0 : Trivelin Email — Pipeline Cognitif ✅
 
@@ -610,6 +604,7 @@ Ces règles sont définies dans les constantes `DEFAULT_PROCESSING_LIMIT` de cha
    - Champs par type de note (PERSONNE, PROJET, ENTITE, REUNION, ACTIF)
    - Concept `pending_updates` pour propositions IA en attente de validation
    - Workflows background pour enrichissement continu
+   - **Archive**: [FRONTMATTER_ENRICHED_SPEC.md](docs/specs/archive/FRONTMATTER_ENRICHED_SPEC.md)
 
 2. ✅ **5 nouveaux enums** (`src/passepartout/note_types.py`)
    - `Relation` : ami, famille, collègue, client, partenaire, fournisseur, connaissance, administration
@@ -928,7 +923,7 @@ web/src/routes/flux/test-performance/+page.svelte  # Mock data
    - ARCHITECTURE.md → v2.2
    - WORKFLOW_V2_SIMPLIFIED.md → v2.2
    - ROADMAP.md → Sprint 7
-   - docs/technical/02-valets.md → Sancho v2.2
+   - docs/archive/technical/02-valets.md → Sancho v2.2
    - docs/user-guide/06-architecture.md → Multi-Pass v2.2
 
 **Coûts estimés** :
@@ -1034,7 +1029,7 @@ tests/unit/test_v2_models.py     # Tests nouveaux champs
 
 4. ✅ **Mise à jour de la documentation technique**
    - `docs/specs/WORKFLOW_V2_SIMPLIFIED.md` — Version 2.1.1
-   - `docs/technical/06-data-models.md` — Section 3.3 Workflow v2.1.1
+   - `docs/archive/technical/06-data-models.md` — Section 3.3 Workflow v2.1.1
 
 **Fichiers modifiés** :
 ```
@@ -1043,7 +1038,7 @@ src/passepartout/enricher.py        # section_names, importance_icons
 src/sancho/analyzer.py              # _parse_importance simplifié
 templates/ai/v2/extraction.j2       # Prompt complet avec 14 types
 docs/specs/WORKFLOW_V2_SIMPLIFIED.md
-docs/technical/06-data-models.md
+docs/archive/technical/06-data-models.md
 ```
 
 **Tests** : Workflow v2.1.1 testé sur emails réels (iCloud), 6/14 types utilisés dans le batch test
