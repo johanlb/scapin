@@ -87,6 +87,30 @@ python scapin.py --help
 
 ## 📝 Notes de Session
 
+### 18 Janvier 2026 (Suite) — Notes UX & Dev Stability 🔧
+**Objectif** : Améliorer l'expérience utilisateur des notes et la stabilité du développement.
+
+**Fonctionnalités Notes :**
+- ✅ **Recherche API** : Barre de recherche hybride (full-text + sémantique) dans la colonne 2
+- ✅ **Édition titre inline** : Double-clic sur le titre pour édition directe
+- ✅ **Bouton Revue Hygiène** : Analyse de qualité des notes avec suggestions (🧹)
+- ✅ **Visualisation média** : Support images, audio, vidéo, PDF depuis Apple Notes
+
+**Stabilité dev.sh :**
+- ✅ **Nettoyage zombies** : Tue automatiquement les processus uvicorn/vite orphelins
+- ✅ **Vérification ports** : Libère les ports 8000/5173 avant démarrage
+- ✅ **Script stop.sh** : Arrêt manuel de tous les processus Scapin
+- ✅ **Cleanup robuste** : Trap sur SIGINT, SIGTERM et EXIT
+
+**Corrections API :**
+- ✅ `/api/notes/{id}/metadata` : Retourne 200 avec `null` au lieu de 404 pour notes sans métadonnées SM-2
+
+**Fichiers clés créés/modifiés :**
+- `src/jeeves/api/routers/media.py` (nouveau) : Endpoint `/api/media/{uuid}` pour médias Apple Notes
+- `web/src/lib/utils/markdown.ts` : Extension `apple-media://` pour marked.js
+- `scripts/dev.sh` (refonte) : Gestion robuste des processus
+- `scripts/stop.sh` (nouveau) : Arrêt manuel des serveurs
+
 ### 18 Janvier 2026 — Documentation Cleanup (Final Stage) 🏁
 **Objectif** : Finaliser le passage à la v1.0 RC-1 par un nettoyage radical de la documentation.
 - ✅ Archivage de `ROADMAP.md` et `BREAKING_CHANGES.md` dans `docs/archive/historical/`.

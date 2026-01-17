@@ -216,6 +216,82 @@ Chaque note est versionnée avec Git.
 
 ---
 
+## Revue Hygiène
+
+Le bouton **🧹 Revue Hygiène** analyse la qualité de la note sélectionnée et suggère des améliorations.
+
+### Lancer une Revue
+
+1. Sélectionner une note
+2. Cliquer sur le bouton 🧹 dans la barre d'outils
+
+### États du Bouton
+
+| État | Apparence | Signification |
+|------|-----------|---------------|
+| **Idle** | 🧹 | Prêt pour la revue |
+| **Loading** | ⏳ | Analyse en cours |
+| **Issues** | 🧹 + Badge rouge | Problèmes détectés |
+| **Clean** | ✨ | Note impeccable |
+
+### Types de Problèmes Détectés
+
+| Type | Description |
+|------|-------------|
+| **Lien cassé** | Wikilink vers note inexistante |
+| **Orpheline** | Note sans liens entrants |
+| **Obsolète** | Contenu potentiellement périmé |
+| **Incomplet** | Section manquante ou vide |
+| **Doublon** | Information dupliquée ailleurs |
+| **Format** | Problème de formatage Markdown |
+
+### Panneau de Résultats
+
+Le panneau affiche chaque problème avec :
+- **Icône de sévérité** : 🔴 Erreur, 🟡 Avertissement, ℹ️ Info
+- **Description** du problème
+- **Suggestion** de correction (optionnel)
+- **Confiance** de la détection (0-100%)
+
+### Actions
+
+- Cliquer sur un problème pour voir les détails
+- Bouton "Corriger" pour appliquer une suggestion automatique
+- Bouton "Ignorer" pour masquer un problème
+
+---
+
+## Média (Images, Audio, Vidéo, PDF)
+
+Les notes synchronisées depuis Apple Notes peuvent contenir des médias embarqués.
+
+### Types Supportés
+
+| Type | Extensions | Affichage |
+|------|------------|-----------|
+| **Images** | jpg, png, gif, webp, heic | Inline avec lazy loading |
+| **Audio** | m4a, mp3, wav | Lecteur audio natif |
+| **Vidéo** | mp4, mov | Lecteur vidéo natif |
+| **PDF** | pdf | Iframe intégrée |
+
+### Syntaxe Apple Media
+
+Les médias Apple Notes utilisent le protocole `apple-media://` :
+
+```markdown
+![Description](apple-media://attachment-uuid)
+```
+
+Scapin convertit automatiquement ces URLs vers `/api/media/{uuid}` pour l'affichage.
+
+### Cache et Performance
+
+- **Lazy loading** : Les images ne sont chargées que lorsqu'elles sont visibles
+- **Cache 24h** : Les médias sont mis en cache côté navigateur
+- **Optimisation** : Les grandes images sont servies avec des headers de cache appropriés
+
+---
+
 ## Enrichissement Automatique
 
 ### Sources
