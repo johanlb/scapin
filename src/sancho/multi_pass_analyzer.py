@@ -28,7 +28,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from src.core.events.universal_event import PerceivedEvent
 from src.monitoring.logger import get_logger
@@ -62,7 +62,6 @@ logger = get_logger("multi_pass_analyzer")
 OLD_EMAIL_THRESHOLD_DAYS = 90  # 3 months
 # Emails older than this don't get OmniFocus tasks created
 VERY_OLD_EMAIL_THRESHOLD_DAYS = 365  # 1 year
-
 
 
 class MultiPassAnalyzerError(Exception):
@@ -122,7 +121,7 @@ class MultiPassResult:
     high_stakes: bool = False
 
     # Draft reply (if action is reply)
-    draft_reply: str | None = None
+    draft_reply: Optional[str] = None
 
     # Coherence validation metadata (v2.2+)
     coherence_validated: bool = False
@@ -213,11 +212,11 @@ class MultiPassAnalyzer:
     def __init__(
         self,
         ai_router: AIRouter,
-        context_searcher: "ContextSearcher | None" = None,
-        template_renderer: TemplateRenderer | None = None,
-        config: MultiPassConfig | None = None,
-        note_manager: "NoteManager | None" = None,
-        entity_searcher: "EntitySearcher | None" = None,
+        context_searcher: Optional["ContextSearcher"] = None,
+        template_renderer: Optional[TemplateRenderer] = None,
+        config: Optional[MultiPassConfig] = None,
+        note_manager: Optional["NoteManager"] = None,
+        entity_searcher: Optional["EntitySearcher"] = None,
         enable_coherence_pass: bool = True,
     ):
         """
@@ -242,7 +241,7 @@ class MultiPassAnalyzer:
         self._coherence_service: "CoherenceService | None" = None  # noqa: UP037
 
     @property
-    def context_searcher(self) -> "ContextSearcher | None":
+    def context_searcher(self) -> Optional["ContextSearcher"]:
         """Get context searcher (lazy load if needed)"""
         return self._context_searcher
 
@@ -254,7 +253,7 @@ class MultiPassAnalyzer:
         return self._template_renderer
 
     @property
-    def coherence_service(self) -> "CoherenceService | None":
+    def coherence_service(self) -> Optional["CoherenceService"]:
         """
         Get coherence service (lazy initialization).
 
@@ -300,7 +299,7 @@ class MultiPassAnalyzer:
         start_time = time.time()
         total_tokens = 0
         pass_history: list[PassResult] = []
-        context: StructuredContext | None = None
+        context: Optional[StructuredContext] = None
         escalated = False
 
         # Build analysis context
@@ -332,14 +331,10 @@ class MultiPassAnalyzer:
 
         # Get context for subsequent passes
         if self.context_searcher and current_result.entities_discovered:
-            logger.debug(
-                f"Searching context for entities: {current_result.entities_discovered}"
-            )
+            logger.debug(f"Searching context for entities: {current_result.entities_discovered}")
             context = await self.context_searcher.search_for_entities(
                 list(current_result.entities_discovered),
-                sender_email=getattr(event.sender, "email", None)
-                if event.sender
-                else None,
+                sender_email=getattr(event.sender, "email", None) if event.sender else None,
             )
 
             # Update analysis context with conflict info
@@ -452,7 +447,7 @@ class MultiPassAnalyzer:
         self,
         event: PerceivedEvent,
         previous_result: PassResult,
-        context: "StructuredContext | None",
+        context: Optional["StructuredContext"],
         pass_number: int,
         model_tier: ModelTier,
     ) -> PassResult:
@@ -493,7 +488,7 @@ class MultiPassAnalyzer:
         self,
         event: PerceivedEvent,
         pass_history: list[PassResult],
-        context: "StructuredContext | None",
+        context: Optional["StructuredContext"],
         pass_number: int,
         model_tier: ModelTier,
     ) -> PassResult:
@@ -524,9 +519,7 @@ class MultiPassAnalyzer:
         )
 
         pass_type = (
-            PassType.EXPERT_ANALYSIS
-            if model_tier == ModelTier.OPUS
-            else PassType.DEEP_REASONING
+            PassType.EXPERT_ANALYSIS if model_tier == ModelTier.OPUS else PassType.DEEP_REASONING
         )
 
         return await self._call_model(
@@ -540,7 +533,7 @@ class MultiPassAnalyzer:
         self,
         extractions: list[Extraction],
         event: PerceivedEvent,
-    ) -> tuple[list[Extraction], "CoherenceResult | None"]:
+    ) -> tuple[list[Extraction], Optional["CoherenceResult"]]:
         """
         Run the coherence validation pass on extractions.
 
@@ -568,9 +561,7 @@ class MultiPassAnalyzer:
         if not extractions_with_targets:
             return extractions, None
 
-        logger.info(
-            f"Running coherence pass on {len(extractions_with_targets)} extractions"
-        )
+        logger.info(f"Running coherence pass on {len(extractions_with_targets)} extractions")
 
         try:
             # Run coherence validation (synchronous)
@@ -579,9 +570,7 @@ class MultiPassAnalyzer:
             )
 
             # Convert validated extractions back to Extraction objects
-            validated_extractions = self._apply_coherence_validations(
-                extractions, coherence_result
-            )
+            validated_extractions = self._apply_coherence_validations(extractions, coherence_result)
 
             logger.info(
                 f"Coherence pass completed: {coherence_result.coherence_summary.corrected} corrected, "
@@ -688,7 +677,9 @@ class MultiPassAnalyzer:
         # Check weak confidence dimensions
         weak_dims = last_pass.confidence.needs_improvement(threshold=0.85)
         for dim in weak_dims:
-            issues.append(f"Low {dim} confidence ({getattr(last_pass.confidence, f'{dim}_confidence', 0):.0%})")
+            issues.append(
+                f"Low {dim} confidence ({getattr(last_pass.confidence, f'{dim}_confidence', 0):.0%})"
+            )
 
         # Check for oscillating actions across passes
         if len(pass_history) >= 2:
@@ -851,8 +842,7 @@ class MultiPassAnalyzer:
 
             # Parse extractions (passing global confidence as default for per-extraction confidence)
             extractions = self._parse_extractions(
-                data.get("extractions", []),
-                default_confidence=confidence.overall
+                data.get("extractions", []), default_confidence=confidence.overall
             )
 
             # Get entities discovered
@@ -942,7 +932,9 @@ class MultiPassAnalyzer:
             # Log the actual response for debugging
             preview = response[:200].replace("\n", "\\n")
             logger.warning(f"No JSON braces found in response. Preview: {preview}...")
-            raise ParseError(f"No JSON object found in response. Response starts with: {response[:100]}")
+            raise ParseError(
+                f"No JSON object found in response. Response starts with: {response[:100]}"
+            )
 
         return response[json_start:json_end]
 
@@ -1003,7 +995,9 @@ class MultiPassAnalyzer:
                     ext_confidence = ExtractionConfidence.from_dict(ext_confidence_data)
                 elif isinstance(ext_confidence_data, (int, float)):
                     # Backwards compatibility: single score
-                    ext_confidence = ExtractionConfidence.from_single_score(float(ext_confidence_data))
+                    ext_confidence = ExtractionConfidence.from_single_score(
+                        float(ext_confidence_data)
+                    )
                 else:
                     ext_confidence = ExtractionConfidence.from_single_score(default_confidence)
 
@@ -1019,7 +1013,9 @@ class MultiPassAnalyzer:
                         ext_confidence = ExtractionConfidence(
                             quality=0.0, target_match=0.0, relevance=0.0, completeness=0.0
                         )
-                        logger.debug(f"Extraction with obsolete date ({ext_date}): not required, confidence=0")
+                        logger.debug(
+                            f"Extraction with obsolete date ({ext_date}): not required, confidence=0"
+                        )
 
                 extraction = Extraction(
                     info=info,
@@ -1158,7 +1154,7 @@ class MultiPassAnalyzer:
         self,
         extractions: list[Extraction],
         event: PerceivedEvent,
-    ) -> tuple[bool, str | None]:
+    ) -> tuple[bool, Optional[str]]:
         """
         Check if email contains ephemeral content with no lasting value.
 
@@ -1182,6 +1178,7 @@ class MultiPassAnalyzer:
         # Get text for analysis
         # PerceivedEvent uses from_person (string), not sender object
         from_person = (getattr(event, "from_person", "") or "").lower()
+        sender_email = (getattr(event.sender, "email", "") or "").lower() if event.sender else ""
         title = (getattr(event, "title", "") or "").lower()
         content = getattr(event, "content", "") or ""
         full_text = f"{title} {content}".lower()
@@ -1189,24 +1186,59 @@ class MultiPassAnalyzer:
         # FIRST: Check for protected document types (NEVER ephemeral)
         # Financial documents that must ALWAYS be archived
         financial_indicators = [
-            "bilan", "bilan financier", "bilan annuel", "annual report",
-            "financial statement", "financial report", "rapport financier",
-            "comptes annuels", "états financiers", "compte de résultat",
-            "résumé financier", "financial summary", "audit", "comptes",
-            "rapport annuel", "yearly report", "fiscal year",
-            "clôture comptable", "exercice comptable", "year end",
+            "bilan",
+            "bilan financier",
+            "bilan annuel",
+            "annual report",
+            "financial statement",
+            "financial report",
+            "rapport financier",
+            "comptes annuels",
+            "états financiers",
+            "compte de résultat",
+            "résumé financier",
+            "financial summary",
+            "audit",
+            "comptes",
+            "rapport annuel",
+            "yearly report",
+            "fiscal year",
+            "clôture comptable",
+            "exercice comptable",
+            "year end",
         ]
 
         # Legal/corporate documents that must ALWAYS be archived
         # NOTE: Avoid short words that could match common text (e.g., "accord" matches "according")
         legal_indicators = [
-            "contrat", "contract", "facture", "invoice", "bon de commande",
-            "purchase order", "devis signé", "procès-verbal", "pv de réunion",
-            "procuration", "power of attorney", "statuts sociaux", "bylaws",
-            "certificat", "certificate", "attestation officielle", "déclaration fiscale",
-            "companies act", "accord commercial", "accord signé", "legal agreement",
-            "avenant au contrat", "amendment", "résiliation", "termination notice",
-            "licence commerciale", "business license", "permis de construire",
+            "contrat",
+            "contract",
+            "facture",
+            "invoice",
+            "bon de commande",
+            "purchase order",
+            "devis signé",
+            "procès-verbal",
+            "pv de réunion",
+            "procuration",
+            "power of attorney",
+            "statuts sociaux",
+            "bylaws",
+            "certificat",
+            "certificate",
+            "attestation officielle",
+            "déclaration fiscale",
+            "companies act",
+            "accord commercial",
+            "accord signé",
+            "legal agreement",
+            "avenant au contrat",
+            "amendment",
+            "résiliation",
+            "termination notice",
+            "licence commerciale",
+            "business license",
+            "permis de construire",
         ]
 
         # Check if this is a protected document type
@@ -1217,7 +1249,7 @@ class MultiPassAnalyzer:
             # Find which indicator matched
             matched_ind = next(
                 (ind for ind in financial_indicators + legal_indicators if ind in full_text),
-                "unknown"
+                "unknown",
             )
             logger.info(
                 f"Protected document detected (NOT ephemeral): matched='{matched_ind}' "
@@ -1227,16 +1259,28 @@ class MultiPassAnalyzer:
 
         # Now proceed with ephemeral content detection
         newsletter_indicators = [
-            "newsletter", "digest", "daily", "weekly", "monthly",
-            "highlights", "roundup", "recap", "summary", "bulletin",
-            "noreply", "no-reply", "mailer", "news@", "updates@",
-            "medium", "substack", "mailchimp", "sendinblue",
+            "newsletter",
+            "digest",
+            "daily",
+            "weekly",
+            "monthly",
+            "highlights",
+            "roundup",
+            "recap",
+            "summary",
+            "bulletin",
+            "noreply",
+            "no-reply",
+            "mailer",
+            "news@",
+            "updates@",
+            "medium",
+            "substack",
+            "mailchimp",
+            "sendinblue",
         ]
 
-        is_newsletter = any(
-            ind in from_person or ind in title
-            for ind in newsletter_indicators
-        )
+        is_newsletter = any(ind in from_person or ind in title for ind in newsletter_indicators)
 
         logger.info(
             f"Ephemeral check: from_person='{from_person}', title='{title[:50]}', "
@@ -1249,14 +1293,32 @@ class MultiPassAnalyzer:
 
         # Second check: OTP/verification codes (always ephemeral)
         otp_indicators = [
-            "otp", "one-time password", "code de vérification", "verification code",
-            "code d'authentification", "authentication code", "code de sécurité",
-            "security code", "code de confirmation", "confirmation code",
-            "code à usage unique", "single-use code", "2fa", "two-factor",
-            "mot de passe temporaire", "temporary password", "code pin",
-            "entrer le code", "enter the code", "saisissez le code",
-            "pour vous authentifier", "to authenticate", "pour confirmer",
-            "code suivant", "following code", "voici votre code",
+            "otp",
+            "one-time password",
+            "code de vérification",
+            "verification code",
+            "code d'authentification",
+            "authentication code",
+            "code de sécurité",
+            "security code",
+            "code de confirmation",
+            "confirmation code",
+            "code à usage unique",
+            "single-use code",
+            "2fa",
+            "two-factor",
+            "mot de passe temporaire",
+            "temporary password",
+            "code pin",
+            "entrer le code",
+            "enter the code",
+            "saisissez le code",
+            "pour vous authentifier",
+            "to authenticate",
+            "pour confirmer",
+            "code suivant",
+            "following code",
+            "voici votre code",
         ]
 
         is_otp = any(ind in full_text or ind in sender_email for ind in otp_indicators)
@@ -1290,10 +1352,10 @@ class MultiPassAnalyzer:
             # Common date patterns in French/English
             # Examples: "30 septembre", "31 mars 2022", "September 30", "2021-09-30"
             date_patterns = [
-                r'\d{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s*\d{0,4}',
-                r'\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{0,4}',
-                r'\d{1,2}/\d{1,2}/\d{2,4}',
-                r'\d{4}-\d{2}-\d{2}',
+                r"\d{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s*\d{0,4}",
+                r"\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{0,4}",
+                r"\d{1,2}/\d{1,2}/\d{2,4}",
+                r"\d{4}-\d{2}-\d{2}",
                 r"jusqu'au\s+\d{1,2}\s+\w+\s*\d{0,4}",
                 r"until\s+\d{1,2}\s+\w+\s*\d{0,4}",
             ]
@@ -1305,7 +1367,7 @@ class MultiPassAnalyzer:
                         # Try to parse the date
                         # Add year from email if not present
                         date_str = match
-                        if not re.search(r'\d{4}', date_str):
+                        if not re.search(r"\d{4}", date_str):
                             # Add year from email date
                             date_str = f"{date_str} {event_date.year}"
 
@@ -1332,18 +1394,38 @@ class MultiPassAnalyzer:
             if all_past:
                 oldest = min(dates_found)
                 days_ago = (now - oldest).days
-                return True, f"event/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)"
+                return (
+                    True,
+                    f"event/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)",
+                )
 
         # Also check the email content directly for event indicators
         # (full_text already set above for OTP check)
 
         # Event/invitation indicators
         event_indicators = [
-            "vous invite", "invitation", "événement", "event",
-            "rendez-vous", "rencontrer", "découvrir",
-            "jeudi", "vendredi", "samedi", "dimanche", "lundi", "mardi", "mercredi",
-            "à 17h", "à 18h", "à 19h", "à 20h",
-            "offre valable", "jusqu'au", "expire", "limited time",
+            "vous invite",
+            "invitation",
+            "événement",
+            "event",
+            "rendez-vous",
+            "rencontrer",
+            "découvrir",
+            "jeudi",
+            "vendredi",
+            "samedi",
+            "dimanche",
+            "lundi",
+            "mardi",
+            "mercredi",
+            "à 17h",
+            "à 18h",
+            "à 19h",
+            "à 20h",
+            "offre valable",
+            "jusqu'au",
+            "expire",
+            "limited time",
         ]
 
         has_event_indicator = any(ind in full_text for ind in event_indicators)
@@ -1353,7 +1435,10 @@ class MultiPassAnalyzer:
             if all_past:
                 oldest = min(dates_found)
                 days_ago = (now - oldest).days
-                return True, f"invitation/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)"
+                return (
+                    True,
+                    f"invitation/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)",
+                )
 
         return False, None
 
@@ -1363,7 +1448,7 @@ class MultiPassAnalyzer:
         extractions: list[Extraction],
         age_days: int,
         event: PerceivedEvent,
-    ) -> tuple[str, list[Extraction], str | None]:
+    ) -> tuple[str, list[Extraction], Optional[str]]:
         """
         Apply age-based adjustments to action and extractions.
 
@@ -1387,9 +1472,7 @@ class MultiPassAnalyzer:
         adjusted_extractions = extractions
 
         # Check for valuable extractions (note enrichments, not just OmniFocus tasks)
-        has_valuable_extractions = any(
-            ext.note_cible and not ext.omnifocus for ext in extractions
-        )
+        has_valuable_extractions = any(ext.note_cible and not ext.omnifocus for ext in extractions)
 
         # Rule 1: Downgrade "flag" or "queue" for old emails
         # - Both require active follow-up which is inappropriate for old emails
@@ -1414,14 +1497,8 @@ class MultiPassAnalyzer:
         # - Event invitations with dates in the past
         # - Newsletters/digests (periodic content with no lasting value)
         # - Time-limited offers that have expired
-        is_ephemeral, ephemeral_reason = self._is_ephemeral_content(
-            adjusted_extractions, event
-        )
-        if (
-            age_days > OLD_EMAIL_THRESHOLD_DAYS
-            and adjusted_action == "archive"
-            and is_ephemeral
-        ):
+        is_ephemeral, ephemeral_reason = self._is_ephemeral_content(adjusted_extractions, event)
+        if age_days > OLD_EMAIL_THRESHOLD_DAYS and adjusted_action == "archive" and is_ephemeral:
             adjusted_action = "delete"
             # Clear extractions since ephemeral content has no lasting value
             adjusted_extractions = []
@@ -1553,7 +1630,9 @@ class MultiPassAnalyzer:
         if age_adjustment:
             final_stop_reason = f"{stop_reason}; {age_adjustment}"
         if coherence_validated and coherence_corrections > 0:
-            final_stop_reason = f"{final_stop_reason}; coherence_pass: {coherence_corrections} corrected"
+            final_stop_reason = (
+                f"{final_stop_reason}; coherence_pass: {coherence_corrections} corrected"
+            )
 
         return MultiPassResult(
             extractions=adjusted_extractions,
@@ -1579,11 +1658,11 @@ class MultiPassAnalyzer:
 
 # Factory function for convenience
 def create_multi_pass_analyzer(
-    ai_router: AIRouter | None = None,
-    context_searcher: "ContextSearcher | None" = None,
-    config: MultiPassConfig | None = None,
-    note_manager: "NoteManager | None" = None,
-    entity_searcher: "EntitySearcher | None" = None,
+    ai_router: Optional[AIRouter] = None,
+    context_searcher: Optional["ContextSearcher"] = None,
+    config: Optional[MultiPassConfig] = None,
+    note_manager: Optional["NoteManager"] = None,
+    entity_searcher: Optional["EntitySearcher"] = None,
     enable_coherence_pass: bool = True,
 ) -> MultiPassAnalyzer:
     """

@@ -10,7 +10,7 @@ See ADR-005 in MULTI_PASS_SPEC.md for design decisions.
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
@@ -33,7 +33,7 @@ class TemplateRenderer:
 
     def __init__(
         self,
-        template_dir: Path | None = None,
+        template_dir: Optional[Path] = None,
         auto_reload: bool = True,
     ) -> None:
         """
@@ -227,7 +227,7 @@ class TemplateRenderer:
 
 
 # Singleton instance
-_renderer: TemplateRenderer | None = None
+_renderer: Optional[TemplateRenderer] = None
 
 
 def get_template_renderer() -> TemplateRenderer:

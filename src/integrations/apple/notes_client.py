@@ -4,8 +4,13 @@ Apple Notes Client
 AppleScript-based client for interacting with Apple Notes.app.
 """
 
+import shutil
 import subprocess
+import tempfile
+import time
 from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Optional
 
 from src.integrations.apple.notes_models import AppleFolder, AppleNote
 from src.monitoring.logger import get_logger
@@ -18,7 +23,11 @@ class AppleNotesClient:
 
     def __init__(self) -> None:
         """Initialize the Apple Notes client"""
-        self._available: bool | None = None
+        # Assuming 'config' and 'AppleNotesConfig' are defined elsewhere or will be added.
+        # For now, I'll comment out the new lines that depend on them to maintain syntax.
+        # self._config = config or AppleNotesConfig()
+        # self._script_path = None
+        self._available: Optional[bool] = None
 
     def is_available(self) -> bool:
         """Check if Apple Notes is available on this system"""
@@ -27,8 +36,7 @@ class AppleNotesClient:
 
         try:
             self._run_applescript(
-                'tell application "System Events" to '
-                '(name of processes) contains "Notes"'
+                'tell application "System Events" to (name of processes) contains "Notes"'
             )
             # Even if Notes isn't running, we can still use it
             self._available = True
@@ -46,7 +54,7 @@ class AppleNotesClient:
         """
         # AppleScript to get all folders with full paths
         # Returns: "name|||path" for each folder
-        script = '''
+        script = """
         tell application "Notes"
             set allFolders to {}
 
@@ -82,7 +90,7 @@ class AppleNotesClient:
                 end try
             end tell
         end getFolderChildren
-        '''
+        """
         result = self._run_applescript(script)
         folder_entries = self._parse_list(result)
         folders = []
@@ -111,11 +119,9 @@ class AppleNotesClient:
             folder_access = f'folder "{escaped_parts[0]}"'
         else:
             # Nested folder: tell folder "A" to tell folder "B"...
-            folder_access = " of ".join(
-                [f'folder "{p}"' for p in reversed(escaped_parts)]
-            )
+            folder_access = " of ".join([f'folder "{p}"' for p in reversed(escaped_parts)])
 
-        script = f'''
+        script = f"""
         tell application "Notes"
             set notesList to {{}}
             tell {folder_access}
@@ -126,7 +132,7 @@ class AppleNotesClient:
             end tell
             return notesList
         end tell
-        '''
+        """
 
         try:
             result = self._run_applescript(script)
@@ -158,7 +164,7 @@ class AppleNotesClient:
 
         Returns a list of notes that have been deleted but not yet permanently removed.
         """
-        script = '''
+        script = """
         tell application "Notes"
             set notesList to {}
             try
@@ -174,7 +180,7 @@ class AppleNotesClient:
             end try
             return notesList
         end tell
-        '''
+        """
 
         try:
             result = self._run_applescript(script, timeout=180)
@@ -183,7 +189,7 @@ class AppleNotesClient:
             logger.error(f"Failed to get deleted notes: {e}")
             return []
 
-    def get_note_by_id(self, note_id: str) -> AppleNote | None:
+    def get_note_by_id(self, note_id: str) -> Optional[AppleNote]:
         """Get a specific note by its ID"""
         escaped_id = note_id.replace('"', '\\"')
 
@@ -213,7 +219,7 @@ class AppleNotesClient:
         folder_name: str,
         title: str,
         body_html: str,
-    ) -> str | None:
+    ) -> Optional[str]:
         """
         Create a new note in Apple Notes
 
@@ -250,8 +256,8 @@ class AppleNotesClient:
     def update_note(
         self,
         note_id: str,
-        title: str | None = None,
-        body_html: str | None = None,
+        title: Optional[str] = None,
+        body_html: Optional[str] = None,
     ) -> bool:
         """
         Update an existing note in Apple Notes
@@ -476,7 +482,7 @@ class AppleNotesClient:
 
         return notes
 
-    def _parse_single_note(self, result: str) -> AppleNote | None:
+    def _parse_single_note(self, result: str) -> Optional[AppleNote]:
         """Parse a single note from AppleScript result"""
         import re
 

@@ -7,7 +7,7 @@ Models for representing Apple Calendar/iCloud Calendar data in Scapin.
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Union
 
 
 class ICloudEventStatus(str, Enum):
@@ -101,10 +101,10 @@ class ICloudCalendarEvent:
     status: ICloudEventStatus = ICloudEventStatus.CONFIRMED
     url: str = ""
     attendees: list[ICloudAttendee] = field(default_factory=list)
-    organizer: ICloudAttendee | None = None
+    organizer: Optional[ICloudAttendee] = None
     recurrence_rule: str = ""
-    created_at: datetime | None = None
-    modified_at: datetime | None = None
+    created_at: Optional[datetime] = None
+    modified_at: Optional[datetime] = None
 
     @property
     def duration_minutes(self) -> int:
@@ -161,5 +161,5 @@ class ICloudCalendarSearchResult:
     calendars_searched: list[str] = field(default_factory=list)
     total_found: int = 0
     query: str = ""
-    date_range_start: datetime | None = None
-    date_range_end: datetime | None = None
+    date_range_start: Optional[datetime] = None
+    date_range_end: Optional[datetime] = None

@@ -17,7 +17,7 @@ Key responsibilities:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from src.monitoring.logger import get_logger
 
@@ -38,7 +38,7 @@ class NoteContextBlock:
     note_type: str  # personne, projet, entreprise, concept, etc.
     summary: str
     relevance: float  # 0-1 relevance score
-    last_modified: datetime | None = None
+    last_modified: Optional[datetime] = None
     tags: list[str] = field(default_factory=list)
 
     def to_prompt_block(self) -> str:
@@ -53,9 +53,9 @@ class CalendarContextBlock:
     event_id: str
     title: str
     date: str  # YYYY-MM-DD
-    time: str | None  # HH:MM
+    time: Optional[str]  # HH:MM
     participants: list[str] = field(default_factory=list)
-    location: str | None = None
+    location: Optional[str] = None
     relevance: float = 0.5
 
     def to_prompt_block(self) -> str:
@@ -71,8 +71,8 @@ class TaskContextBlock:
 
     task_id: str
     title: str
-    project: str | None = None
-    due_date: str | None = None
+    project: Optional[str] = None
+    due_date: Optional[str] = None
     status: str = "active"  # active, completed, deferred
     relevance: float = 0.5
 
@@ -121,12 +121,12 @@ class EntityProfile:
     name: str
     canonical_name: str  # Name in PKM notes
     entity_type: str  # personne, entreprise, projet, etc.
-    role: str | None = None  # "Tech Lead", "Client", etc.
-    relationship: str | None = None  # "Collègue", "Manager", etc.
-    last_interaction: datetime | None = None
+    role: Optional[str] = None  # "Tech Lead", "Client", etc.
+    relationship: Optional[str] = None  # "Collègue", "Manager", etc.
+    last_interaction: Optional[datetime] = None
     key_facts: list[str] = field(default_factory=list)
     related_entities: list[str] = field(default_factory=list)
-    source_note_id: str | None = None
+    source_note_id: Optional[str] = None
 
     def to_prompt_block(self) -> str:
         """Format for prompt injection"""
@@ -136,7 +136,9 @@ class EntityProfile:
         if self.relationship:
             lines.append(f"- **Relation**: {self.relationship}")
         if self.last_interaction:
-            lines.append(f"- **Dernière interaction**: {self.last_interaction.strftime('%Y-%m-%d')}")
+            lines.append(
+                f"- **Dernière interaction**: {self.last_interaction.strftime('%Y-%m-%d')}"
+            )
         if self.key_facts:
             lines.append("- **Faits clés**:")
             for fact in self.key_facts[:5]:
@@ -225,12 +227,7 @@ class StructuredContext:
     @property
     def total_results(self) -> int:
         """Total number of results across all sources"""
-        return (
-            len(self.notes)
-            + len(self.calendar)
-            + len(self.tasks)
-            + len(self.emails)
-        )
+        return len(self.notes) + len(self.calendar) + len(self.tasks) + len(self.emails)
 
 
 @dataclass
@@ -275,9 +272,9 @@ class ContextSearcher:
 
     def __init__(
         self,
-        note_manager: "NoteManager | None" = None,
-        cross_source_engine: "CrossSourceEngine | None" = None,
-        entity_searcher: "EntitySearcher | None" = None,
+        note_manager: Optional["NoteManager"] = None,
+        cross_source_engine: Optional["CrossSourceEngine"] = None,
+        entity_searcher: Optional["EntitySearcher"] = None,
     ) -> None:
         """
         Initialize the context searcher.
@@ -332,8 +329,8 @@ class ContextSearcher:
     async def search_for_entities(
         self,
         entities: list[str],
-        config: ContextSearchConfig | None = None,
-        sender_email: str | None = None,
+        config: Optional[ContextSearchConfig] = None,
+        sender_email: Optional[str] = None,
     ) -> StructuredContext:
         """
         Search for context related to the given entities.
@@ -362,9 +359,7 @@ class ContextSearcher:
         # 1. Search notes by entity names (Option D: entity search + semantic)
         if self._note_manager is not None:
             sources_searched.append("notes")
-            notes, entity_profiles = await self._search_notes(
-                entities, config
-            )
+            notes, entity_profiles = await self._search_notes(entities, config)
 
         # 2. Search cross-source if available
         if self._cross_source is not None:
@@ -374,9 +369,7 @@ class ContextSearcher:
             # Search calendar
             if config.include_calendar:
                 sources_searched.append("calendar")
-                calendar = await self._search_calendar(
-                    query, entities, config.max_calendar_events
-                )
+                calendar = await self._search_calendar(query, entities, config.max_calendar_events)
 
             # Search tasks
             if config.include_tasks:
@@ -386,9 +379,7 @@ class ContextSearcher:
             # Search email history
             if config.include_emails and sender_email:
                 sources_searched.append("email")
-                emails = await self._search_emails(
-                    sender_email, config.max_emails
-                )
+                emails = await self._search_emails(sender_email, config.max_emails)
 
         # 3. Detect conflicts
         conflicts = self._detect_conflicts(notes, calendar, tasks)
@@ -552,7 +543,7 @@ class ContextSearcher:
         entity_name: str,
         note: "Note",
         _relevance: float,
-    ) -> EntityProfile | None:
+    ) -> Optional[EntityProfile]:
         """Build an entity profile from a note"""
         try:
             import re
@@ -692,7 +683,9 @@ class ContextSearcher:
                     email = EmailContextBlock(
                         message_id=item.id,
                         subject=item.title,
-                        sender=item.metadata.get("sender", sender_email) if item.metadata else sender_email,
+                        sender=item.metadata.get("sender", sender_email)
+                        if item.metadata
+                        else sender_email,
                         date=item.metadata.get("date", "") if item.metadata else "",
                         snippet=item.snippet or "",
                         relevance=item.final_score,
@@ -730,7 +723,7 @@ class ContextSearcher:
         if len(notes) >= 2:
             titles = [n.title for n in notes]
             for i, title in enumerate(titles):
-                for _j, other_title in enumerate(titles[i + 1:], i + 1):
+                for _j, other_title in enumerate(titles[i + 1 :], i + 1):
                     # Check if titles are very similar
                     if self._similar_strings(title, other_title):
                         conflicts.append(

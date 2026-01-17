@@ -8,6 +8,7 @@ This allows users to configure entity resolution rules without code changes.
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional, Union
 
 from src.monitoring.logger import get_logger
 
@@ -24,7 +25,7 @@ class ScapinUserConfig:
     vip_contacts: list[str] = field(default_factory=list)
     """External contacts important enough to have their own person note"""
 
-    config_path: Path | None = None
+    config_path: Optional[Path] = None
     """Path to the configuration file if loaded"""
 
 
@@ -47,10 +48,10 @@ class ScapinConfigReader:
 
     CONFIG_FILENAME = "_Scapin/Configuration.md"
 
-    def __init__(self, notes_dir: str | Path):
+    def __init__(self, notes_dir: Union[str, Path]):
         self.notes_dir = Path(notes_dir)
         self.config_path = self.notes_dir / self.CONFIG_FILENAME
-        self._config: ScapinUserConfig | None = None
+        self._config: Optional[ScapinUserConfig] = None
 
     def load(self) -> ScapinUserConfig:
         """
@@ -148,8 +149,9 @@ class ScapinConfigReader:
         """
         config = self.load()
         entity_lower = entity_name.lower()
-        return any(e.lower() in entity_lower or entity_lower in e.lower()
-                   for e in config.my_entities)
+        return any(
+            e.lower() in entity_lower or entity_lower in e.lower() for e in config.my_entities
+        )
 
     def is_vip_contact(self, contact_name: str) -> bool:
         """
@@ -163,10 +165,11 @@ class ScapinConfigReader:
         """
         config = self.load()
         contact_lower = contact_name.lower()
-        return any(v.lower() in contact_lower or contact_lower in v.lower()
-                   for v in config.vip_contacts)
+        return any(
+            v.lower() in contact_lower or contact_lower in v.lower() for v in config.vip_contacts
+        )
 
-    def should_create_person_note(self, person_name: str, company_name: str | None) -> bool:
+    def should_create_person_note(self, person_name: str, company_name: Optional[str]) -> bool:
         """
         Determine if a person should have their own note vs enriching company note.
 
@@ -192,10 +195,10 @@ class ScapinConfigReader:
 
 
 # Singleton instance
-_config_reader: ScapinConfigReader | None = None
+_config_reader: Optional[ScapinConfigReader] = None
 
 
-def get_scapin_config(notes_dir: str | Path | None = None) -> ScapinConfigReader:
+def get_scapin_config(notes_dir: Union[str, Path, None] = None) -> ScapinConfigReader:
     """
     Get the singleton ScapinConfigReader instance.
 
@@ -211,6 +214,7 @@ def get_scapin_config(notes_dir: str | Path | None = None) -> ScapinConfigReader
         if notes_dir is None:
             # Try to get from environment/config
             from src.core.config_manager import get_config
+
             config = get_config()
             notes_dir = config.storage.notes_path
 

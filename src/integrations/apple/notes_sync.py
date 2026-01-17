@@ -6,8 +6,12 @@ Handles bidirectional synchronization between Apple Notes and Scapin notes.
 
 import json
 import re
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional, Union
+
+import yaml
 
 from src.integrations.apple.notes_client import AppleNotesClient, get_apple_notes_client
 from src.integrations.apple.notes_models import (
@@ -20,6 +24,8 @@ from src.integrations.apple.notes_models import (
     SyncResult,
 )
 from src.monitoring.logger import get_logger
+from src.passepartout.backup_manager import BackupManager
+from src.passepartout.janitor import NoteJanitor
 
 logger = get_logger("integrations.apple.sync")
 
@@ -42,7 +48,7 @@ class AppleNotesSync:
     def __init__(
         self,
         notes_dir: Path,
-        client: AppleNotesClient | None = None,
+        client: Optional[AppleNotesClient] = None,
         conflict_resolution: ConflictResolution = ConflictResolution.NEWER_WINS,
     ) -> None:
         """
@@ -58,6 +64,10 @@ class AppleNotesSync:
         self.conflict_resolution = conflict_resolution
         self._mappings: dict[str, SyncMapping] = {}
         self._load_mappings()
+
+        # Safety Net Services
+        self.backup_manager = BackupManager(self.notes_dir, self.notes_dir.parent / "backups")
+        self.janitor = NoteJanitor(self.notes_dir)
 
     def sync(
         self,
@@ -77,19 +87,20 @@ class AppleNotesSync:
         result = SyncResult(success=True, direction=direction)
 
         try:
+            # SAFETY NET: Create snapshot before sync
+            if not dry_run:
+                self.backup_manager.create_snapshot(prefix="pre_sync")
+
             # Get all notes from both sources
             apple_notes = self._get_apple_notes()
             scapin_notes = self._get_scapin_notes()
 
             logger.info(
-                f"Syncing: {len(apple_notes)} Apple Notes, "
-                f"{len(scapin_notes)} Scapin notes"
+                f"Syncing: {len(apple_notes)} Apple Notes, {len(scapin_notes)} Scapin notes"
             )
 
             # Determine sync actions
-            actions = self._determine_sync_actions(
-                apple_notes, scapin_notes, direction
-            )
+            actions = self._determine_sync_actions(apple_notes, scapin_notes, direction)
 
             # Execute actions
             if not dry_run:
@@ -192,9 +203,7 @@ class AppleNotesSync:
                 if apple_modified > mapping.last_synced:
                     if scapin_modified > mapping.last_synced:
                         # Both modified - conflict!
-                        action = self._resolve_conflict(
-                            apple_note, scapin_path, scapin_modified
-                        )
+                        action = self._resolve_conflict(apple_note, scapin_path, scapin_modified)
                         actions.append(
                             (
                                 apple_id,
@@ -465,16 +474,14 @@ class AppleNotesSync:
                 scapin_path.unlink()
                 # Find and remove mapping
                 for apple_id, mapping in list(self._mappings.items()):
-                    if mapping.scapin_path == str(
-                        scapin_path.relative_to(self.notes_dir)
-                    ):
+                    if mapping.scapin_path == str(scapin_path.relative_to(self.notes_dir)):
                         self._remove_mapping(apple_id)
                         break
                 result.deleted.append(scapin_path.stem)
             except Exception as e:
                 logger.error(f"Failed to delete Scapin note: {e}")
 
-    def _create_scapin_note(self, apple_note: AppleNote) -> str | None:
+    def _create_scapin_note(self, apple_note: AppleNote) -> Optional[str]:
         """Create a Scapin note from an Apple note"""
         # Determine target folder
         folder_path = self.notes_dir / self._sanitize_folder_name(apple_note.folder)
@@ -501,7 +508,7 @@ class AppleNotesSync:
             logger.error(f"Failed to create Scapin note: {e}")
             return None
 
-    def _create_apple_note(self, scapin_path: Path) -> str | None:
+    def _create_apple_note(self, scapin_path: Path) -> Optional[str]:
         """Create an Apple note from a Scapin note"""
         # Read Scapin note
         content = scapin_path.read_text(encoding="utf-8")
@@ -522,7 +529,8 @@ class AppleNotesSync:
     def _update_scapin_note(self, scapin_path: Path, apple_note: AppleNote) -> bool:
         """Update a Scapin note from an Apple note"""
         try:
-            content = self._format_scapin_note(apple_note)
+            # Pass existing path to enable Smart Merge
+            content = self._format_scapin_note(apple_note, existing_path=scapin_path)
             scapin_path.write_text(content, encoding="utf-8")
             logger.info(f"Updated Scapin note: {scapin_path}")
             return True
@@ -578,24 +586,64 @@ class AppleNotesSync:
             return f'"{escaped}"'
         return value
 
-    def _format_scapin_note(self, apple_note: AppleNote) -> str:
-        """Format an Apple note as Scapin Markdown"""
-        # Add frontmatter with metadata - properly quote strings
-        safe_title = self._yaml_safe_string(apple_note.name)
-        safe_folder = self._yaml_safe_string(apple_note.folder)
+    def _format_scapin_note(
+        self, apple_note: AppleNote, existing_path: Optional[Path] = None
+    ) -> str:
+        """
+        Format an Apple note as Scapin Markdown with Smart Merge.
 
-        frontmatter = f"""---
-title: {safe_title}
-source: apple_notes
-apple_id: {apple_note.id}
-apple_folder: {safe_folder}
-created: {apple_note.created_at.isoformat()}
-modified: {apple_note.modified_at.isoformat()}
-synced: {datetime.now(timezone.utc).isoformat()}
----
+        Args:
+            apple_note: The source note from Apple
+            existing_path: If provided, read this file to merge existing frontmatter (Smart Merge)
+        """
+        # Default Frontmatter
+        metadata = {
+            "title": apple_note.name,
+            "source": "apple_notes",
+            "apple_id": apple_note.id,
+            "apple_folder": apple_note.folder,
+            "created": apple_note.created_at.isoformat(),
+            "modified": apple_note.modified_at.isoformat(),
+            "synced": datetime.now(timezone.utc).isoformat(),
+        }
 
-"""
-        return frontmatter + apple_note.body_markdown
+        # SMART MERGE: Preserve existing metadata if available
+        if existing_path and existing_path.exists():
+            try:
+                content = existing_path.read_text(encoding="utf-8")
+                # Use Janitor or simple logic to exact frontmatter
+                match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+                if match:
+                    existing_fm_str = match.group(1)
+                    existing_fm = yaml.safe_load(existing_fm_str)
+                    if isinstance(existing_fm, dict):
+                        # Merge strategy: Update system fields, Keep AI fields
+                        # We overwrite the fields we KNOW are from Apple, keep others
+                        # But actually, 'title' might have been refined by user in Scapin?
+                        # Rule: Apple is master for Title/Body in this SyncDirection.
+                        # So we overwrite title.
+
+                        # Merge dictionaries (existing takes precedence for unknown keys, but we update system keys)
+                        merged = existing_fm.copy()
+                        merged.update(metadata)  # Overwrite system keys
+
+                        # Preserve keys that SHOULD NOT change if Apple didn't touch them?
+                        # Actually Apple Note is the source of truth for Title/Folder here.
+                        # So merged is correct: we apply new Apple values over old ones.
+                        # BUT we keep keys like 'type', 'importance', 'referenced_by' which are NOT in metadata.
+                        metadata = merged
+            except Exception as e:
+                logger.warning(
+                    f"Smart Merge failed to parse existing frontmatter for {existing_path}: {e}"
+                )
+
+        # Dump YAML
+        # Use safe_dump but ensure we handle the formatting nicely
+        yaml_str = yaml.dump(
+            metadata, allow_unicode=True, default_flow_style=False, sort_keys=False
+        )
+
+        return f"---\n{yaml_str}---\n\n{apple_note.body_markdown}"
 
     def _markdown_to_html(self, markdown: str) -> str:
         """Convert Markdown to Apple Notes HTML"""
@@ -663,12 +711,8 @@ synced: {datetime.now(timezone.utc).isoformat()}
                     self._mappings[apple_id] = SyncMapping(
                         apple_id=apple_id,
                         scapin_path=mapping_data["scapin_path"],
-                        apple_modified=datetime.fromisoformat(
-                            mapping_data["apple_modified"]
-                        ),
-                        scapin_modified=datetime.fromisoformat(
-                            mapping_data["scapin_modified"]
-                        ),
+                        apple_modified=datetime.fromisoformat(mapping_data["apple_modified"]),
+                        scapin_modified=datetime.fromisoformat(mapping_data["scapin_modified"]),
                         last_synced=datetime.fromisoformat(mapping_data["last_synced"]),
                     )
             except Exception as e:
@@ -687,9 +731,7 @@ synced: {datetime.now(timezone.utc).isoformat()}
             }
         mapping_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
-    def _add_mapping(
-        self, apple_id: str, scapin_path: str, modified: datetime
-    ) -> None:
+    def _add_mapping(self, apple_id: str, scapin_path: str, modified: datetime) -> None:
         """Add a new sync mapping"""
         now = datetime.now()
         self._mappings[apple_id] = SyncMapping(

@@ -11,6 +11,7 @@ import os
 import re
 import tempfile
 import threading
+import concurrent.futures
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -23,6 +24,8 @@ from src.core.events import Entity
 from src.monitoring.logger import get_logger
 from src.passepartout.embeddings import EmbeddingGenerator
 from src.passepartout.git_versioning import GitVersionManager
+from src.passepartout.note_types import NoteType, NoteStatus, ImportanceLevel
+from src.passepartout.templates import TemplateManager
 from src.passepartout.vector_store import VectorStore
 
 logger = get_logger("passepartout.note_manager")
@@ -31,10 +34,12 @@ logger = get_logger("passepartout.note_manager")
 DEFAULT_CACHE_MAX_SIZE = 2000  # Maximum notes to keep in memory
 
 # Pre-compiled regex for frontmatter parsing (performance optimization)
-FRONTMATTER_PATTERN = re.compile(r'^---\s*\n(.*?)\n---\s*\n(.*)$', re.DOTALL)
+FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)
+# Pre-compiled regex for wikilinks: [[target]] or [[target|label]]
+WIKILINK_PATTERN = re.compile(r"\[\[(.*?)(?:\|.*?)?\]\]")
 
 
-@dataclass(slots=True)
+@dataclass
 class Note:
     """
     Note data structure
@@ -42,6 +47,7 @@ class Note:
     Represents a single note with metadata and content.
     Uses slots=True for ~30% memory reduction per instance.
     """
+
     note_id: str
     title: str
     content: str
@@ -50,6 +56,7 @@ class Note:
     tags: list[str] = field(default_factory=list)
     entities: list[Entity] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    outgoing_links: list[str] = field(default_factory=list)
     file_path: Optional[Path] = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -66,7 +73,8 @@ class Note:
                 for e in self.entities
             ],
             "metadata": self.metadata,
-            "file_path": str(self.file_path) if self.file_path else None
+            "outgoing_links": self.outgoing_links,
+            "file_path": str(self.file_path) if self.file_path else None,
         }
 
 
@@ -118,9 +126,10 @@ class NoteManager:
 
         # Initialize embedder and vector store
         self.embedder = embedder if embedder is not None else EmbeddingGenerator()
-        self.vector_store = vector_store if vector_store is not None else VectorStore(
-            dimension=self.embedder.get_dimension(),
-            embedder=self.embedder
+        self.vector_store = (
+            vector_store
+            if vector_store is not None
+            else VectorStore(dimension=self.embedder.get_dimension(), embedder=self.embedder)
         )
 
         # Initialize Git versioning if enabled
@@ -130,11 +139,18 @@ class NoteManager:
                 self.git = GitVersionManager(self.notes_dir)
                 logger.info("Git versioning enabled for notes")
             except Exception as e:
-                logger.warning(
-                    "Failed to initialize Git versioning",
-                    extra={"error": str(e)}
-                )
+                logger.warning("Failed to initialize Git versioning", extra={"error": str(e)})
+                logger.warning("Failed to initialize Git versioning", extra={"error": str(e)})
                 self.git = None
+
+        # Template Manager
+        try:
+            # Assuming src/passepartout/note_manager.py -> src/templates
+            templates_dir = Path(__file__).parent.parent / "templates"
+            self.template_manager = TemplateManager(templates_dir)
+        except Exception as e:
+            logger.warning(f"Failed to initialize TemplateManager: {e}")
+            self.template_manager = None
 
         # LRU cache: OrderedDict maintains insertion order for LRU eviction
         self._note_cache: OrderedDict[str, Note] = OrderedDict()
@@ -153,13 +169,90 @@ class NoteManager:
                 "auto_index": auto_index,
                 "git_enabled": self.git is not None,
                 "cache_max_size": cache_max_size,
-            }
+            },
         )
 
         # Index existing notes (try to load from disk first)
         if auto_index and not self._try_load_index():
             self._index_all_notes()
             self._save_index()
+
+    def _extract_wikilinks(self, content: str) -> list[str]:
+        """
+        Extract wikilinks from content
+
+        Args:
+            content: Markdown content
+
+        Returns:
+            List of linked note titles (unique, sorted)
+        """
+        matches = WIKILINK_PATTERN.findall(content)
+        # Clean matches (remove pipe if missed by regex, though regex handles it)
+        links = set()
+        for match in matches:
+            # Handle potential edge cases or legacy formats
+            target = match.split("|")[0].strip()
+            if target:
+                links.add(target)
+        return sorted(links)
+
+    def _validate_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """
+        Validate and normalize metadata fields against schema.
+
+        - Validates 'type' against NoteType
+        - Validates 'status' against NoteStatus
+        - Validates 'importance' against ImportanceLevel (and maps French aliases)
+        """
+        validated = metadata.copy()
+
+        # 1. Type Validation
+        if "type" in validated:
+            val = validated["type"]
+            # Allow case-insensitive match
+            try:
+                # Try exact match first
+                NoteType(val)
+            except ValueError:
+                try:
+                    # Try folding to lowercase
+                    validated["type"] = NoteType(val.lower()).value
+                except ValueError:
+                    logger.warning(
+                        f"Invalid note type: {val}. Keeping as is but might break scheduling."
+                    )
+
+        # 2. Status Validation
+        if "status" in validated:
+            val = validated["status"]
+            if not NoteStatus.is_valid(val):
+                logger.warning(
+                    f"Invalid note status: {val}. Expected: {[s.value for s in NoteStatus]}"
+                )
+
+        # 3. Importance Validation
+        if "importance" in validated:
+            val = validated["importance"]
+            # Check if it's a known value
+            try:
+                ImportanceLevel(val)
+            except ValueError:
+                # Try French mapping
+                mapped = ImportanceLevel.from_french(val)
+                # If it maps to NORMAL but wasn't "moyenne" or "normal", it might be invalid.
+                # But from_french defaults to NORMAL.
+                # Let's check strict mapping?
+                # Actually, from_french is robust.
+                # We do NOT normalize to English values if user wrote French, unless we want to enforce English internal storage.
+                # Architecture doc implies "importance: haute". So we keep "haute".
+                # But we should verify it maps to something valid.
+                if mapped == ImportanceLevel.NORMAL and val.lower() not in ["normal", "moyenne"]:
+                    logger.warning(
+                        f"Unknown importance level: {val}. Defaulting to Normal priority."
+                    )
+
+        return validated
 
     def _cache_put(self, note_id: str, note: Note) -> None:
         """
@@ -195,7 +288,7 @@ class NoteManager:
             doc_count = len(self.vector_store.id_to_doc)
             logger.info(
                 "Loaded index from disk",
-                extra={"path": str(self._index_path), "documents": doc_count}
+                extra={"path": str(self._index_path), "documents": doc_count},
             )
 
             # Populate note cache from indexed files
@@ -205,7 +298,7 @@ class NoteManager:
         except Exception as e:
             logger.warning(
                 "Failed to load index cache, will rebuild",
-                extra={"path": str(self._index_path), "error": str(e)}
+                extra={"path": str(self._index_path), "error": str(e)},
             )
             return False
 
@@ -213,14 +306,10 @@ class NoteManager:
         """Save vector index to disk for faster startup"""
         try:
             self.vector_store.save(self._index_path)
-            logger.info(
-                "Saved index to disk",
-                extra={"path": str(self._index_path)}
-            )
+            logger.info("Saved index to disk", extra={"path": str(self._index_path)})
         except Exception as e:
             logger.warning(
-                "Failed to save index cache",
-                extra={"path": str(self._index_path), "error": str(e)}
+                "Failed to save index cache", extra={"path": str(self._index_path), "error": str(e)}
             )
 
     def _populate_cache_from_files(self) -> None:
@@ -235,8 +324,7 @@ class NoteManager:
                     count += 1
             except Exception as e:
                 logger.warning(
-                    "Failed to cache note",
-                    extra={"file_path": str(file_path), "error": str(e)}
+                    "Failed to cache note", extra={"file_path": str(file_path), "error": str(e)}
                 )
         logger.debug("Populated note cache", extra={"count": count})
 
@@ -247,7 +335,7 @@ class NoteManager:
         tags: Optional[list[str]] = None,
         entities: Optional[list[Entity]] = None,
         metadata: Optional[dict[str, Any]] = None,
-        subfolder: Optional[str] = None
+        subfolder: Optional[str] = None,
     ) -> str:
         """
         Create new note
@@ -271,7 +359,32 @@ class NoteManager:
             raise ValueError("Note title cannot be empty")
 
         if not content or not content.strip():
-            raise ValueError("Note content cannot be empty")
+            # Try to apply template if content is empty
+            if self.template_manager and metadata and "type" in metadata:
+                tmpl_content = self.template_manager.get_template(metadata["type"])
+                if tmpl_content:
+                    # Parse template frontmatter
+                    match = FRONTMATTER_PATTERN.match(tmpl_content)
+                    if match:
+                        fm_str, body = match.groups()
+                        try:
+                            tmpl_fm = yaml.safe_load(fm_str) or {}
+                            # Merge: Template defaults < Provided metadata
+                            # We want template keys to be present, but overridden by specific args if any
+                            # But 'metadata' arg here is authoritative.
+                            merged = tmpl_fm.copy()
+                            merged.update(metadata)
+                            metadata = merged
+                            content = body
+                        except yaml.YAMLError:
+                            # Fallback if template YAML is bad
+                            content = tmpl_content
+                    else:
+                        content = tmpl_content
+
+            # Re-check content emptiness (it might still be empty if no template found)
+            if not content or not content.strip():
+                raise ValueError("Note content cannot be empty")
 
         # Generate note ID from title and timestamp
         now = datetime.now(timezone.utc)
@@ -286,7 +399,8 @@ class NoteManager:
             updated_at=now,
             tags=tags or [],
             entities=entities or [],
-            metadata=metadata or {}
+            metadata=self._validate_metadata(metadata or {}),
+            outgoing_links=self._extract_wikilinks(content),
         )
 
         # Write to file (with optional subfolder)
@@ -309,8 +423,9 @@ class NoteManager:
                 "title": title,
                 "tags": tags or [],
                 "created_at": now.isoformat(),
-                "entities": [e.value for e in (entities or [])]
-            }
+                "entities": [e.value for e in (entities or [])],
+                "outgoing_links": note.outgoing_links,
+            },
         )
 
         # Cache with LRU eviction (thread-safe)
@@ -328,8 +443,8 @@ class NoteManager:
                 "note_id": note_id,
                 "title": title,
                 "tags": tags or [],
-                "file_path": str(file_path)
-            }
+                "file_path": str(file_path),
+            },
         )
 
         return note_id
@@ -373,7 +488,7 @@ class NoteManager:
         content: Optional[str] = None,
         tags: Optional[list[str]] = None,
         entities: Optional[list[Entity]] = None,
-        metadata: Optional[dict[str, Any]] = None
+        metadata: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         Update existing note
@@ -414,7 +529,11 @@ class NoteManager:
         if entities is not None:
             note.entities = entities
         if metadata is not None:
-            note.metadata.update(metadata)
+            note.metadata.update(self._validate_metadata(metadata))
+
+        # Always re-extract links on update if content changed
+        if content is not None:
+            note.outgoing_links = self._extract_wikilinks(note.content)
 
         note.updated_at = datetime.now(timezone.utc)
 
@@ -432,8 +551,9 @@ class NoteManager:
                 "title": note.title,
                 "tags": note.tags,
                 "updated_at": note.updated_at.isoformat(),
-                "entities": [e.value for e in note.entities]
-            }
+                "entities": [e.value for e in note.entities],
+                "outgoing_links": note.outgoing_links,
+            },
         )
 
         # Git commit
@@ -444,12 +564,7 @@ class NoteManager:
         return True
 
     def add_info(
-        self,
-        note_id: str,
-        info: str,
-        info_type: str,
-        importance: str,
-        source_id: str
+        self, note_id: str, info: str, info_type: str, importance: str, source_id: str
     ) -> bool:
         """
         Add information to an existing note.
@@ -482,8 +597,7 @@ class NoteManager:
         note = self.get_note(note_id)
         if not note:
             logger.warning(
-                "Note not found for add_info",
-                extra={"note_id": note_id, "info_type": info_type}
+                "Note not found for add_info", extra={"note_id": note_id, "info_type": info_type}
             )
             return False
 
@@ -493,7 +607,7 @@ class NoteManager:
             "engagement": "Engagements",
             "fait": "Faits",
             "deadline": "Jalons",
-            "relation": "Relations"
+            "relation": "Relations",
         }
         section_name = section_names.get(info_type.lower(), "Informations")
 
@@ -616,7 +730,7 @@ class NoteManager:
         query: str,
         top_k: int = 10,
         tags: Optional[list[str]] = None,
-        return_scores: bool = False
+        return_scores: bool = False,
     ) -> Union[list[Note], list[tuple[Note, float]]]:
         """
         Semantic search for notes (optimized with batch loading)
@@ -631,6 +745,7 @@ class NoteManager:
             List of Note objects (or (Note, score) tuples if return_scores=True),
             sorted by relevance
         """
+
         # Define filter function for tags
         def tag_filter(metadata: dict[str, Any]) -> bool:
             if not tags:
@@ -640,9 +755,7 @@ class NoteManager:
 
         # Search in vector store
         results = self.vector_store.search(
-            query=query,
-            top_k=top_k,
-            filter_fn=tag_filter if tags else None
+            query=query, top_k=top_k, filter_fn=tag_filter if tags else None
         )
 
         # Batch load notes: check cache first, then load missing from disk
@@ -661,20 +774,13 @@ class NoteManager:
 
         logger.debug(
             "Search completed",
-            extra={
-                "query": query[:50],
-                "results": len(notes_result),
-                "tags": tags
-            }
+            extra={"query": query[:50], "results": len(notes_result), "tags": tags},
         )
 
         return notes_result
 
     def get_notes_by_entity(
-        self,
-        entity: Entity,
-        top_k: int = 10,
-        return_scores: bool = False
+        self, entity: Entity, top_k: int = 10, return_scores: bool = False
     ) -> Union[list[Note], list[tuple[Note, float]]]:
         """
         Get notes mentioning specific entity (optimized with batch loading)
@@ -695,11 +801,7 @@ class NoteManager:
             note_entities = metadata.get("entities", [])
             return entity.value in note_entities
 
-        results = self.vector_store.search(
-            query=query,
-            top_k=top_k,
-            filter_fn=entity_filter
-        )
+        results = self.vector_store.search(query=query, top_k=top_k, filter_fn=entity_filter)
 
         # Batch load notes
         doc_ids = [doc_id for doc_id, _, _ in results]
@@ -758,17 +860,17 @@ class NoteManager:
                 "from_cache": len(note_ids) - len(missing_ids),
                 "from_disk": len(missing_ids),
                 "found": len(result),
-            }
+            },
         )
 
         return result
 
-    def get_all_notes(self, limit: int | None = None) -> list[Note]:
+    def get_all_notes(self, limit: Optional[int] = None) -> list[Note]:
         """
         Get all notes with optional pagination
 
-        Uses cache when available for fast retrieval.
-        Falls back to disk read only if cache is empty.
+        Uses parallel execution for fast retrieval from disk.
+        Updates cache as side effect.
 
         Args:
             limit: Maximum number of notes to return (None = all)
@@ -776,32 +878,61 @@ class NoteManager:
         Returns:
             List of Note objects
         """
-        # Try to return from cache if populated
-        with self._cache_lock:
-            if len(self._note_cache) > 0:
-                notes = list(self._note_cache.values())
-                if limit is not None:
-                    notes = notes[:limit]
-                return notes
+        # Get all file paths first
+        files = list(self.notes_dir.rglob("*.md"))
+        notes: list[Note] = []
 
-        # Cache empty - read from disk and populate cache
-        notes = []
-        for file_path in self.notes_dir.rglob("*.md"):
-            # Skip hidden files/dirs
-            if any(part.startswith(".") for part in file_path.parts):
-                continue
+        # Use parallel execution for faster I/O
+        # IO bound, so we can use more threads
+        max_workers = min(32, len(files) + 1)
 
-            note = self._read_note_file(file_path)
-            if note:
-                notes.append(note)
-                with self._cache_lock:
-                    self._cache_put(note.note_id, note)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # We filter hidden files first to avoid unnecessary work
+            visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
 
-            # Apply limit if specified
-            if limit is not None and len(notes) >= limit:
-                break
+            # Map returns results. We use map to keep it simple.
+            for note in executor.map(self._read_note_file, visible_files):
+                if note:
+                    notes.append(note)
+                    # Update cache
+                    with self._cache_lock:
+                        self._cache_put(note.note_id, note)
+
+        # Apply limit if specified (post-loading)
+        if limit is not None:
+            notes = notes[:limit]
 
         return notes
+
+    def get_recently_modified_notes(self, since: datetime) -> list[Note]:
+        """
+        Get notes modified since a specific time
+
+        Args:
+            since: Timestamp to check modification age against
+
+        Returns:
+            List of Note objects modified after 'since'
+        """
+        modified_notes = []
+        since_ts = since.timestamp()
+
+        # Iterate through all markdown files
+        for file_path in self.notes_dir.rglob("*.md"):
+            try:
+                # Check metrics fast first
+                mtime = file_path.stat().st_mtime
+                if mtime > since_ts:
+                    note = self._read_note_file(file_path)
+                    if note:
+                        modified_notes.append(note)
+            except Exception as e:
+                logger.warning(
+                    "Error checking file for modification",
+                    extra={"file_path": str(file_path), "error": str(e)},
+                )
+
+        return modified_notes
 
     def _index_all_notes(self) -> int:
         """
@@ -829,7 +960,7 @@ class NoteManager:
                             "title": note.title,
                             "tags": note.tags,
                             "created_at": note.created_at.isoformat(),
-                            "entities": [e.value for e in note.entities]
+                            "entities": [e.value for e in note.entities],
                         }
                         notes_to_index.append((note, search_text, metadata))
 
@@ -845,8 +976,7 @@ class NoteManager:
 
             except Exception as e:
                 logger.warning(
-                    "Failed to index note",
-                    extra={"file_path": str(file_path), "error": str(e)}
+                    "Failed to index note", extra={"file_path": str(file_path), "error": str(e)}
                 )
                 continue
 
@@ -858,8 +988,7 @@ class NoteManager:
         return count
 
     def _batch_add_to_vector_store(
-        self,
-        notes_data: list[tuple[Note, str, dict[str, Any]]]
+        self, notes_data: list[tuple[Note, str, dict[str, Any]]]
     ) -> None:
         """
         Add multiple notes to vector store in a single batch operation
@@ -873,31 +1002,22 @@ class NoteManager:
         try:
             # Prepare documents for batch add
             documents = [
-                (note.note_id, search_text, metadata)
-                for note, search_text, metadata in notes_data
+                (note.note_id, search_text, metadata) for note, search_text, metadata in notes_data
             ]
             self.vector_store.add_batch(documents)
-            logger.debug(
-                "Batch added notes to vector store",
-                extra={"count": len(documents)}
-            )
+            logger.debug("Batch added notes to vector store", extra={"count": len(documents)})
         except Exception as e:
             # Fallback to individual adds if batch fails
             logger.warning(
-                "Batch add failed, falling back to individual adds",
-                extra={"error": str(e)}
+                "Batch add failed, falling back to individual adds", extra={"error": str(e)}
             )
             for note, search_text, metadata in notes_data:
                 try:
-                    self.vector_store.add(
-                        doc_id=note.note_id,
-                        text=search_text,
-                        metadata=metadata
-                    )
+                    self.vector_store.add(doc_id=note.note_id, text=search_text, metadata=metadata)
                 except Exception as add_error:
                     logger.warning(
                         "Failed to add note to vector store",
-                        extra={"note_id": note.note_id, "error": str(add_error)}
+                        extra={"note_id": note.note_id, "error": str(add_error)},
                     )
 
     def _sanitize_title(self, title: str) -> str:
@@ -915,19 +1035,19 @@ class NoteManager:
         """
         # Remove forbidden characters (path separators, wildcards, control chars)
         # / \ : * ? " < > | and control characters (0x00-0x1f, 0x7f)
-        sanitized = re.sub(r'[/\\:*?"<>|\x00-\x1f\x7f]', '-', title)
+        sanitized = re.sub(r'[/\\:*?"<>|\x00-\x1f\x7f]', "-", title)
 
         # Remove leading/trailing whitespace and dots
-        sanitized = sanitized.strip(' .')
+        sanitized = sanitized.strip(" .")
 
         # Limit length (file system limits, leave room for hash suffix)
         max_length = 100
         if len(sanitized) > max_length:
-            sanitized = sanitized[:max_length].rstrip('-')
+            sanitized = sanitized[:max_length].rstrip("-")
 
         # Ensure not empty after sanitization
         # Also treat strings that are only dashes/dots/spaces as empty
-        if not sanitized or not sanitized.strip('-._ '):
+        if not sanitized or not sanitized.strip("-._ "):
             sanitized = "untitled"
 
         return sanitized
@@ -950,7 +1070,7 @@ class NoteManager:
         safe_title = self._sanitize_title(title)
 
         # Create slug from sanitized title
-        slug = re.sub(r'[^a-z0-9]+', '-', safe_title.lower()).strip('-')[:50]
+        slug = re.sub(r"[^a-z0-9]+", "-", safe_title.lower()).strip("-")[:50]
 
         # Add hash for uniqueness (use original title for hash input)
         # Using SHA256 for consistency with content hashing elsewhere
@@ -1006,7 +1126,7 @@ class NoteManager:
             "entities": [
                 {"type": e.type, "value": e.value, "confidence": e.confidence}
                 for e in note.entities
-            ]
+            ],
         }
 
         if note.metadata:
@@ -1017,7 +1137,7 @@ class NoteManager:
         dir_path = file_path.parent
         fd, temp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp", prefix=".note_")
         try:
-            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write("---\n")
                 yaml.dump(frontmatter, f, default_flow_style=False, allow_unicode=True)
                 f.write("---\n\n")
@@ -1035,16 +1155,13 @@ class NoteManager:
     def _read_note_file(self, file_path: Path) -> Optional[Note]:
         """Read note from Markdown file with YAML frontmatter"""
         try:
-            with open(file_path, encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
 
             # Parse frontmatter using pre-compiled regex
             match = FRONTMATTER_PATTERN.match(content)
             if not match:
-                logger.warning(
-                    "No frontmatter in note",
-                    extra={"file_path": str(file_path)}
-                )
+                logger.warning("No frontmatter in note", extra={"file_path": str(file_path)})
                 return None
 
             frontmatter_str, body = match.groups()
@@ -1056,7 +1173,7 @@ class NoteManager:
                 # Fallback: create minimal frontmatter from filename
                 logger.warning(
                     "YAML parsing failed, using filename as title",
-                    extra={"file_path": str(file_path), "error": str(yaml_err)}
+                    extra={"file_path": str(file_path), "error": str(yaml_err)},
                 )
                 frontmatter = {}
 
@@ -1066,11 +1183,13 @@ class NoteManager:
             # Parse entities
             entities = []
             for e_dict in frontmatter.get("entities", []):
-                entities.append(Entity(
-                    type=e_dict["type"],
-                    value=e_dict["value"],
-                    confidence=e_dict.get("confidence", 1.0)
-                ))
+                entities.append(
+                    Entity(
+                        type=e_dict["type"],
+                        value=e_dict["value"],
+                        confidence=e_dict.get("confidence", 1.0),
+                    )
+                )
 
             # Get dates - support both formats (created_at/updated_at and created/modified)
             # Use file modification time as fallback
@@ -1124,7 +1243,8 @@ class NoteManager:
                 tags=frontmatter.get("tags", []),
                 entities=entities,
                 metadata=metadata,
-                file_path=file_path
+                file_path=file_path,
+                outgoing_links=self._extract_wikilinks(body),
             )
 
             return note
@@ -1133,7 +1253,7 @@ class NoteManager:
             logger.error(
                 "Failed to read note",
                 extra={"file_path": str(file_path), "error": str(e)},
-                exc_info=True
+                exc_info=True,
             )
             return None
 
@@ -1175,9 +1295,7 @@ class NoteManager:
         try:
             folder_path.relative_to(notes_dir_resolved)
         except ValueError as e:
-            raise ValueError(
-                f"Invalid folder path: {path} would be outside notes directory"
-            ) from e
+            raise ValueError(f"Invalid folder path: {path} would be outside notes directory") from e
 
         # Create folder structure
         folder_path.mkdir(parents=True, exist_ok=True)
@@ -1216,9 +1334,7 @@ class NoteManager:
         """
         with self._cache_lock:
             total_requests = self._cache_hits + self._cache_misses
-            hit_rate = (
-                self._cache_hits / total_requests if total_requests > 0 else 0.0
-            )
+            hit_rate = self._cache_hits / total_requests if total_requests > 0 else 0.0
             return {
                 "cache_size": len(self._note_cache),
                 "cache_max_size": self._cache_max_size,
@@ -1246,10 +1362,7 @@ _note_manager: Optional[NoteManager] = None
 _note_manager_lock = threading.Lock()
 
 
-def get_note_manager(
-    notes_dir: Optional[Path] = None,
-    git_enabled: bool = True
-) -> NoteManager:
+def get_note_manager(notes_dir: Optional[Path] = None, git_enabled: bool = True) -> NoteManager:
     """
     Get or create singleton NoteManager instance (thread-safe)
 

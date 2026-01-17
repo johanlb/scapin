@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from src.integrations.apple.calendar_models import (
     ICloudAttendee,
@@ -51,7 +51,7 @@ class ICloudCalendarClient:
         events = client.get_events(days_ahead=7)
     """
 
-    def __init__(self, config: ICloudCalendarConfig | None = None) -> None:
+    def __init__(self, config: Optional[ICloudCalendarConfig] = None) -> None:
         """
         Initialize the iCloud Calendar client.
 
@@ -60,9 +60,9 @@ class ICloudCalendarClient:
                    will be unavailable until configure() is called.
         """
         self._config = config
-        self._client: caldav.DAVClient | None = None
-        self._principal: caldav.Principal | None = None
-        self._available: bool | None = None
+        self._client: Optional[caldav.DAVClient] = None
+        self._principal: Optional[caldav.Principal] = None
+        self._available: Optional[bool] = None
 
     def configure(self, config: ICloudCalendarConfig) -> None:
         """
@@ -115,9 +115,7 @@ class ICloudCalendarClient:
         try:
             import caldav
         except ImportError as e:
-            raise RuntimeError(
-                "caldav package not installed. Run: pip install caldav"
-            ) from e
+            raise RuntimeError("caldav package not installed. Run: pip install caldav") from e
 
         self._client = caldav.DAVClient(
             url=self._config.server_url,
@@ -201,9 +199,7 @@ class ICloudCalendarClient:
         self._ensure_connected()
 
         events = []
-        calendar_names_lower = (
-            {n.lower() for n in calendar_names} if calendar_names else None
-        )
+        calendar_names_lower = {n.lower() for n in calendar_names} if calendar_names else None
 
         try:
             for cal in self._principal.calendars():
@@ -235,7 +231,7 @@ class ICloudCalendarClient:
         events.sort(key=lambda e: e.start_date)
         return events
 
-    def get_event_by_uid(self, uid: str) -> ICloudCalendarEvent | None:
+    def get_event_by_uid(self, uid: str) -> Optional[ICloudCalendarEvent]:
         """
         Get a specific event by its UID.
 

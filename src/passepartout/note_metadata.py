@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from queue import Empty, Queue
+from typing import Any, Optional, Union
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_types import (
@@ -44,14 +45,14 @@ IMPORTANCE_ORDER: dict[ImportanceLevel, int] = {
 }
 
 
-@dataclass(slots=True)
+@dataclass
 class EnrichmentRecord:
     """Record of a single enrichment action. Uses slots=True for memory efficiency."""
 
     timestamp: datetime
     action_type: str  # add, update, remove, link
     target: str  # Section or content target
-    content: str | None  # New content if applicable
+    content: Optional[str]  # New content if applicable
     confidence: float
     applied: bool  # Whether it was auto-applied
     reasoning: str = ""
@@ -82,7 +83,7 @@ class EnrichmentRecord:
         )
 
 
-@dataclass(slots=True)
+@dataclass
 class NoteMetadata:
     """
     Complete metadata for a note's review state
@@ -98,8 +99,8 @@ class NoteMetadata:
     # Timestamps
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    reviewed_at: datetime | None = None
-    next_review: datetime | None = None
+    reviewed_at: Optional[datetime] = None
+    next_review: Optional[datetime] = None
 
     # SM-2 Algorithm state
     easiness_factor: float = 2.5  # 1.3 - 2.5
@@ -108,7 +109,7 @@ class NoteMetadata:
 
     # Tracking
     review_count: int = 0
-    last_quality: int | None = None  # 0-5, last review quality
+    last_quality: Optional[int] = None  # 0-5, last review quality
     content_hash: str = ""  # SHA256 to detect external changes
 
     # Configuration
@@ -119,7 +120,7 @@ class NoteMetadata:
     # History (stored as JSON)
     enrichment_history: list[EnrichmentRecord] = field(default_factory=list)
 
-    def is_due_for_review(self, now: datetime | None = None) -> bool:
+    def is_due_for_review(self, now: Optional[datetime] = None) -> bool:
         """Check if note is due for review"""
         if now is None:
             now = datetime.now(timezone.utc)
@@ -138,7 +139,7 @@ class NoteMetadata:
 
         return now >= next_review
 
-    def days_until_review(self, now: datetime | None = None) -> float:
+    def days_until_review(self, now: Optional[datetime] = None) -> float:
         """Calculate days until next review (negative if overdue)"""
         if now is None:
             now = datetime.now(timezone.utc)
@@ -212,16 +213,14 @@ class NoteMetadataStore:
             self._active_connections += 1
         logger.debug(
             "Initialized connection pool",
-            extra={"pool_size": self._pool_size, "db_path": str(self.db_path)}
+            extra={"pool_size": self._pool_size, "db_path": str(self.db_path)},
         )
 
     def _create_connection(self) -> sqlite3.Connection:
         """Create a new SQLite connection"""
         # check_same_thread=False is safe because we use connection pooling with locks
         conn = sqlite3.connect(
-            str(self.db_path),
-            timeout=CONNECTION_TIMEOUT,
-            check_same_thread=False
+            str(self.db_path), timeout=CONNECTION_TIMEOUT, check_same_thread=False
         )
         conn.row_factory = sqlite3.Row
         # Enable WAL mode for better concurrent read performance
@@ -232,7 +231,7 @@ class NoteMetadataStore:
     @contextmanager
     def _get_connection(self) -> Iterator[sqlite3.Connection]:
         """Get a connection from the pool (thread-safe)"""
-        conn: sqlite3.Connection | None = None
+        conn: Optional[sqlite3.Connection] = None
         from_pool = False
         try:
             # Try to get from pool with timeout
@@ -245,7 +244,7 @@ class NoteMetadataStore:
             self._pool_exhausted_count += 1
             logger.warning(
                 "Connection pool exhausted, creating temporary connection",
-                extra={"exhausted_count": self._pool_exhausted_count}
+                extra={"exhausted_count": self._pool_exhausted_count},
             )
             conn = self._create_connection()
             yield conn
@@ -276,7 +275,7 @@ class NoteMetadataStore:
 
         Note: Uses direct pool access to avoid recursion through _get_connection.
         """
-        conn: sqlite3.Connection | None = None
+        conn: Optional[sqlite3.Connection] = None
         try:
             # Get connection directly from pool to avoid recursion
             conn = self._pool.get(timeout=5.0)
@@ -284,16 +283,12 @@ class NoteMetadataStore:
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             self._operations_since_checkpoint = 0
             logger.debug(
-                "WAL checkpoint completed",
-                extra={"total_operations": self._total_operations}
+                "WAL checkpoint completed", extra={"total_operations": self._total_operations}
             )
         except Empty:
             logger.warning("WAL checkpoint skipped - pool exhausted")
         except Exception as e:
-            logger.warning(
-                "WAL checkpoint failed",
-                extra={"error": str(e)}
-            )
+            logger.warning("WAL checkpoint failed", extra={"error": str(e)})
         finally:
             if conn is not None:
                 try:
@@ -331,10 +326,7 @@ class NoteMetadataStore:
                     self._active_connections -= 1
                 except Empty:
                     break
-            logger.debug(
-                "Closed connection pool",
-                extra={"final_stats": self.get_pool_stats()}
-            )
+            logger.debug("Closed connection pool", extra={"final_stats": self.get_pool_stats()})
 
     def __del__(self) -> None:
         """Ensure connection pool is closed on garbage collection"""
@@ -409,7 +401,7 @@ class NoteMetadataStore:
             conn.commit()
             logger.debug("Database initialized", extra={"db_path": str(self.db_path)})
 
-    def _parse_datetime_safe(self, val: str | None, field_name: str = "") -> datetime | None:
+    def _parse_datetime_safe(self, val: Optional[str], field_name: str = "") -> Optional[datetime]:
         """
         Safely parse datetime string with error handling
 
@@ -427,7 +419,7 @@ class NoteMetadataStore:
         except (ValueError, TypeError) as e:
             logger.warning(
                 "Failed to parse datetime",
-                extra={"field": field_name, "value": val, "error": str(e)}
+                extra={"field": field_name, "value": val, "error": str(e)},
             )
             return None
 
@@ -443,16 +435,17 @@ class NoteMetadataStore:
             history = [EnrichmentRecord.from_dict(h) for h in history_data]
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning(
-                "Failed to parse enrichment history",
-                extra={"note_id": note_id, "error": str(e)}
+                "Failed to parse enrichment history", extra={"note_id": note_id, "error": str(e)}
             )
             history = []
 
         return NoteMetadata(
             note_id=note_id,
             note_type=NoteType(row["note_type"]),
-            created_at=self._parse_datetime_safe(row["created_at"], "created_at") or datetime.now(timezone.utc),
-            updated_at=self._parse_datetime_safe(row["updated_at"], "updated_at") or datetime.now(timezone.utc),
+            created_at=self._parse_datetime_safe(row["created_at"], "created_at")
+            or datetime.now(timezone.utc),
+            updated_at=self._parse_datetime_safe(row["updated_at"], "updated_at")
+            or datetime.now(timezone.utc),
             reviewed_at=self._parse_datetime_safe(row["reviewed_at"], "reviewed_at"),
             next_review=self._parse_datetime_safe(row["next_review"], "next_review"),
             easiness_factor=row["easiness_factor"],
@@ -511,10 +504,7 @@ class NoteMetadataStore:
             )
 
             conn.commit()
-            logger.debug(
-                "Saved metadata",
-                extra={"note_id": metadata.note_id}
-            )
+            logger.debug("Saved metadata", extra={"note_id": metadata.note_id})
 
     def save_batch(self, metadata_list: list[NoteMetadata]) -> int:
         """
@@ -538,24 +528,26 @@ class NoteMetadataStore:
             data_tuples = []
             for metadata in metadata_list:
                 history_json = json.dumps([h.to_dict() for h in metadata.enrichment_history])
-                data_tuples.append((
-                    metadata.note_id,
-                    metadata.note_type.value,
-                    metadata.created_at.isoformat(),
-                    metadata.updated_at.isoformat(),
-                    metadata.reviewed_at.isoformat() if metadata.reviewed_at else None,
-                    metadata.next_review.isoformat() if metadata.next_review else None,
-                    metadata.easiness_factor,
-                    metadata.repetition_number,
-                    metadata.interval_hours,
-                    metadata.review_count,
-                    metadata.last_quality,
-                    metadata.content_hash,
-                    metadata.importance.value,
-                    int(metadata.auto_enrich),
-                    int(metadata.web_search_enabled),
-                    history_json,
-                ))
+                data_tuples.append(
+                    (
+                        metadata.note_id,
+                        metadata.note_type.value,
+                        metadata.created_at.isoformat(),
+                        metadata.updated_at.isoformat(),
+                        metadata.reviewed_at.isoformat() if metadata.reviewed_at else None,
+                        metadata.next_review.isoformat() if metadata.next_review else None,
+                        metadata.easiness_factor,
+                        metadata.repetition_number,
+                        metadata.interval_hours,
+                        metadata.review_count,
+                        metadata.last_quality,
+                        metadata.content_hash,
+                        metadata.importance.value,
+                        int(metadata.auto_enrich),
+                        int(metadata.web_search_enabled),
+                        history_json,
+                    )
+                )
 
             cursor.executemany(
                 """
@@ -572,13 +564,10 @@ class NoteMetadataStore:
 
             conn.commit()
             saved_count = len(data_tuples)
-            logger.info(
-                "Batch saved metadata",
-                extra={"count": saved_count}
-            )
+            logger.info("Batch saved metadata", extra={"count": saved_count})
             return saved_count
 
-    def get(self, note_id: str) -> NoteMetadata | None:
+    def get(self, note_id: str) -> Optional[NoteMetadata]:
         """
         Get metadata for a specific note
 
@@ -590,9 +579,7 @@ class NoteMetadataStore:
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT * FROM note_metadata WHERE note_id = ?", (note_id,)
-            )
+            cursor.execute("SELECT * FROM note_metadata WHERE note_id = ?", (note_id,))
             row = cursor.fetchone()
 
             if row is None:
@@ -619,7 +606,7 @@ class NoteMetadataStore:
     def get_due_for_review(
         self,
         limit: int = 50,
-        note_types: list[NoteType] | None = None,
+        note_types: Optional[list[NoteType]] = None,
         importance_min: ImportanceLevel = ImportanceLevel.LOW,
     ) -> list[NoteMetadata]:
         """
@@ -640,7 +627,8 @@ class NoteMetadataStore:
 
         # Build list of allowed importance levels
         allowed_importance = [
-            level.value for level, value in IMPORTANCE_ORDER.items()
+            level.value
+            for level, value in IMPORTANCE_ORDER.items()
             if value <= min_importance_value and level != ImportanceLevel.ARCHIVE
         ]
 
@@ -681,9 +669,7 @@ class NoteMetadataStore:
 
             return [self._row_to_metadata(row) for row in rows]
 
-    def get_by_type(
-        self, note_type: NoteType, limit: int = 100
-    ) -> list[NoteMetadata]:
+    def get_by_type(self, note_type: NoteType, limit: int = 100) -> list[NoteMetadata]:
         """
         Get metadata for notes of a specific type
 
@@ -741,9 +727,7 @@ class NoteMetadataStore:
                 GROUP BY importance
             """
             )
-            by_importance = {
-                row["importance"]: row["count"] for row in cursor.fetchall()
-            }
+            by_importance = {row["importance"]: row["count"] for row in cursor.fetchall()}
 
             # Due for review
             now = datetime.now(timezone.utc).isoformat()
@@ -803,20 +787,12 @@ class NoteMetadataStore:
             created_at=now,
             updated_at=now,
             next_review=next_review,
-            easiness_factor=config.easiness_factor,
             interval_hours=config.base_interval_hours,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
             importance=importance,
-            auto_enrich=config.auto_enrich,
-            web_search_enabled=config.web_search_default,
         )
 
         self.save(metadata)
-        logger.info(
-            "Created metadata for note",
-            extra={"note_id": note_id, "note_type": note_type.value}
-        )
-
         return metadata
 
     def update_content_hash(self, note_id: str, content: str) -> bool:
@@ -852,9 +828,7 @@ class NoteMetadataStore:
         Returns:
             Number of reviews completed today
         """
-        today_start = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
         with self._get_connection() as conn:
             cursor = conn.cursor()

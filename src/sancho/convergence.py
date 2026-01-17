@@ -13,7 +13,7 @@ Key responsibilities:
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Union
 
 from src.monitoring.logger import get_logger
 from src.sancho.model_selector import ModelTier
@@ -45,8 +45,8 @@ class DecomposedConfidence:
     completeness: float  # Is nothing forgotten?
 
     # Optional dimensions (Sprint 8+)
-    date_confidence: float | None = None
-    amount_confidence: float | None = None
+    date_confidence: Optional[float] = None
+    amount_confidence: Optional[float] = None
 
     @property
     def overall(self) -> float:
@@ -136,7 +136,7 @@ class ExtractionConfidence:
         """Calculate overall confidence using geometric mean of 4 dimensions."""
         product = self.quality * self.target_match * self.relevance * self.completeness
         # Geometric mean: 4th root of product
-        return product ** 0.25
+        return product**0.25
 
     @property
     def weakest_dimension(self) -> tuple[str, float]:
@@ -151,7 +151,7 @@ class ExtractionConfidence:
         return weakest, dims[weakest]
 
     @property
-    def weakness_label(self) -> str | None:
+    def weakness_label(self) -> Optional[str]:
         """Return a human-readable label for the weakest dimension, if significantly lower."""
         dim, value = self.weakest_dimension
         # Only show label if this dimension is notably weaker (> 10% below average)
@@ -201,19 +201,19 @@ class Extraction:
     info: str
     type: str  # fait, decision, engagement, deadline, etc.
     importance: str  # haute, moyenne, basse
-    note_cible: str | None = None
+    note_cible: Optional[str] = None
     note_action: str = "enrichir"  # enrichir, creer
     omnifocus: bool = False
     calendar: bool = False
-    date: str | None = None
-    time: str | None = None
-    timezone: str | None = None
-    duration: int | None = None
+    date: Optional[str] = None
+    time: Optional[str] = None
+    timezone: Optional[str] = None
+    duration: Optional[int] = None
     # Fields for atomic transaction logic
     required: bool = False  # If True, this extraction MUST be executed for safe archiving
     confidence: ExtractionConfidence = field(default_factory=ExtractionConfidence)
     # Manual override
-    manually_approved: bool | None = None  # None=auto, True=forced, False=rejected
+    manually_approved: Optional[bool] = None  # None=auto, True=forced, False=rejected
     # Flag for generic titles that couldn't be resolved to real names
     generic_title: bool = False  # If True, note_cible is generic (e.g., "Promoteur") - needs review
 
@@ -328,7 +328,7 @@ class MultiPassConfig:
     cost_opus_per_1k: float = 0.015
 
     # Force model (override automatic selection)
-    force_model: "ModelTier | None" = None  # Force all passes to use this model
+    force_model: Optional["ModelTier"] = None  # Force all passes to use this model
 
 
 # Status messages for UI (see UI_VOCABULARY.md)
@@ -351,7 +351,7 @@ PASS_UI_NAMES = {
 
 def should_stop(
     current: PassResult,
-    previous: PassResult | None,
+    previous: Optional["PassResult"],
     config: MultiPassConfig,
 ) -> tuple[bool, str]:
     """
@@ -364,7 +364,9 @@ def should_stop(
 
     # Criterion 1: Sufficient confidence
     if confidence >= config.confidence_stop_threshold:
-        logger.debug(f"Pass {current.pass_number}: Stopping - confidence {confidence:.2f} >= {config.confidence_stop_threshold}")
+        logger.debug(
+            f"Pass {current.pass_number}: Stopping - confidence {confidence:.2f} >= {config.confidence_stop_threshold}"
+        )
         return True, "confidence_sufficient"
 
     # Criterion 2: Convergence (no changes)
@@ -378,7 +380,9 @@ def should_stop(
         and current.entities_discovered == previous.entities_discovered
         and confidence >= config.confidence_minimum
     ):
-        logger.debug(f"Pass {current.pass_number}: Stopping - no new entities, confidence sufficient")
+        logger.debug(
+            f"Pass {current.pass_number}: Stopping - no new entities, confidence sufficient"
+        )
         return True, "no_new_entities"
 
     # Criterion 4: Max passes reached
@@ -391,10 +395,14 @@ def should_stop(
     if current.action in ["archive", "rien"] and confidence >= config.confidence_minimum:
         global_conf = calculate_global_confidence(current)
         if global_conf >= config.confidence_minimum:
-            logger.debug(f"Pass {current.pass_number}: Stopping - simple action with acceptable global confidence ({global_conf:.2f})")
+            logger.debug(
+                f"Pass {current.pass_number}: Stopping - simple action with acceptable global confidence ({global_conf:.2f})"
+            )
             return True, "simple_action"
         else:
-            logger.debug(f"Pass {current.pass_number}: Continuing - required extractions have low confidence ({global_conf:.2f})")
+            logger.debug(
+                f"Pass {current.pass_number}: Continuing - required extractions have low confidence ({global_conf:.2f})"
+            )
 
     return False, ""
 
@@ -428,7 +436,8 @@ def calculate_global_confidence(result: PassResult) -> float:
     # Get required extractions that lead to actions AND have meaningful confidence
     # Extractions with confidence < 10% are "rejections", not "uncertainties"
     required_extractions = [
-        e for e in result.extractions
+        e
+        for e in result.extractions
         if e.required and e.is_actionable() and e.confidence.overall >= REJECTION_THRESHOLD
     ]
 
@@ -443,10 +452,13 @@ def calculate_global_confidence(result: PassResult) -> float:
     global_conf = min(action_confidence, min_extraction_conf)
 
     # Count rejected extractions for logging
-    rejected_count = len([
-        e for e in result.extractions
-        if e.required and e.is_actionable() and e.confidence.overall < REJECTION_THRESHOLD
-    ])
+    rejected_count = len(
+        [
+            e
+            for e in result.extractions
+            if e.required and e.is_actionable() and e.confidence.overall < REJECTION_THRESHOLD
+        ]
+    )
 
     logger.debug(
         f"Global confidence: {global_conf:.2f} "
@@ -459,7 +471,9 @@ def calculate_global_confidence(result: PassResult) -> float:
     return global_conf
 
 
-def get_required_extractions(result: PassResult, exclude_rejections: bool = True) -> list[Extraction]:
+def get_required_extractions(
+    result: PassResult, exclude_rejections: bool = True
+) -> list[Extraction]:
     """
     Get all required extractions that lead to actions.
 
@@ -541,7 +555,9 @@ def select_model(
     # Pass 4: Sonnet if Haiku hasn't converged
     if pass_number == 4:
         if confidence < config.confidence_escalate_sonnet:
-            logger.info(f"Pass 4: Escalating to Sonnet (confidence {confidence:.2f} < {config.confidence_escalate_sonnet})")
+            logger.info(
+                f"Pass 4: Escalating to Sonnet (confidence {confidence:.2f} < {config.confidence_escalate_sonnet})"
+            )
             return ModelTier.SONNET, "low_confidence"
         # One more chance with Haiku if close
         if confidence < config.confidence_minimum:
@@ -552,7 +568,9 @@ def select_model(
     if pass_number == 5:
         # Always Opus if we get here
         if confidence < config.confidence_escalate_opus:
-            logger.info(f"Pass 5: Escalating to Opus (confidence {confidence:.2f} < {config.confidence_escalate_opus})")
+            logger.info(
+                f"Pass 5: Escalating to Opus (confidence {confidence:.2f} < {config.confidence_escalate_opus})"
+            )
             return ModelTier.OPUS, "very_low_confidence"
         if context.has_conflicting_info:
             logger.info("Pass 5: Escalating to Opus (conflicting info)")
@@ -581,7 +599,9 @@ def is_high_stakes(
         if extraction.type == "montant":
             amount = _parse_amount(extraction.info)
             if amount and amount > config.high_stakes_amount_threshold:
-                logger.debug(f"High-stakes: amount {amount} > {config.high_stakes_amount_threshold}")
+                logger.debug(
+                    f"High-stakes: amount {amount} > {config.high_stakes_amount_threshold}"
+                )
                 return True
 
         # Critical deadline (< 48h)
@@ -666,7 +686,7 @@ def targeted_escalation(confidence: DecomposedConfidence) -> dict[str, dict]:
     return strategies
 
 
-def _parse_amount(text: str) -> float | None:
+def _parse_amount(text: str) -> Optional[float]:
     """Parse an amount from text (e.g., '15 000 €' -> 15000.0)"""
     import re
 
@@ -683,7 +703,7 @@ def _parse_amount(text: str) -> float | None:
         return None
 
 
-def _days_until(date_str: str) -> int | None:
+def _days_until(date_str: str) -> Optional[int]:
     """Calculate days until a date string (YYYY-MM-DD format)"""
     from datetime import datetime
 

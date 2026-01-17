@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Union
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import Note
@@ -32,7 +32,7 @@ DEFAULT_WEB_TIMEOUT = 15.0  # Timeout for web research
 DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 # Pre-compiled regex for section header detection (markdown headers)
-SECTION_HEADER_PATTERN = re.compile(r'^(#+)\s+(.*)$')
+SECTION_HEADER_PATTERN = re.compile(r"^(#+)\s+(.*)$")
 
 
 class EnrichmentSource(str, Enum):
@@ -44,7 +44,7 @@ class EnrichmentSource(str, Enum):
     WEB_SEARCH = "web_search"  # From web search
 
 
-@dataclass(slots=True)
+@dataclass
 class Enrichment:
     """A single enrichment suggestion. Uses slots=True for memory efficiency."""
 
@@ -59,7 +59,7 @@ class Enrichment:
         return f"[{self.source.value}] {self.section}: {self.content[:50]}... (conf={self.confidence:.2f})"
 
 
-@dataclass(slots=True)
+@dataclass
 class EnrichmentContext:
     """Context for enrichment analysis. Uses slots=True for memory efficiency."""
 
@@ -70,7 +70,7 @@ class EnrichmentContext:
     related_entities: list[dict[str, Any]] = field(default_factory=list)
 
 
-@dataclass(slots=True)
+@dataclass
 class EnrichmentResult:
     """Result of enrichment analysis. Uses slots=True for memory efficiency."""
 
@@ -94,7 +94,7 @@ class NoteEnricher:
 
     def __init__(
         self,
-        ai_router: Any | None = None,
+        ai_router: Optional[Any] = None,
         web_search_enabled: bool = False,
         ai_timeout: float = DEFAULT_AI_TIMEOUT,
         web_timeout: float = DEFAULT_WEB_TIMEOUT,
@@ -117,7 +117,7 @@ class NoteEnricher:
         self,
         note: Note,
         metadata: NoteMetadata,
-        context: EnrichmentContext | None = None,
+        context: Optional[EnrichmentContext] = None,
     ) -> EnrichmentResult:
         """
         Generate enrichments for a note
@@ -143,8 +143,7 @@ class NoteEnricher:
         if self.ai_router and metadata.auto_enrich:
             try:
                 ai_enrichments = await asyncio.wait_for(
-                    self._ai_gap_analysis(context),
-                    timeout=self.ai_timeout
+                    self._ai_gap_analysis(context), timeout=self.ai_timeout
                 )
                 enrichments.extend(ai_enrichments)
                 if ai_enrichments:
@@ -152,7 +151,7 @@ class NoteEnricher:
             except asyncio.TimeoutError:
                 logger.warning(
                     "AI gap analysis timed out",
-                    extra={"note_id": note.note_id, "timeout": self.ai_timeout}
+                    extra={"note_id": note.note_id, "timeout": self.ai_timeout},
                 )
             except Exception as e:
                 logger.warning("AI gap analysis failed", extra={"error": str(e)})
@@ -174,8 +173,7 @@ class NoteEnricher:
         if self.web_search_enabled and metadata.web_search_enabled:
             try:
                 web_enrichments = await asyncio.wait_for(
-                    self._web_research(context),
-                    timeout=self.web_timeout
+                    self._web_research(context), timeout=self.web_timeout
                 )
                 enrichments.extend(web_enrichments)
                 if web_enrichments:
@@ -183,7 +181,7 @@ class NoteEnricher:
             except asyncio.TimeoutError:
                 logger.warning(
                     "Web research timed out",
-                    extra={"note_id": note.note_id, "timeout": self.web_timeout}
+                    extra={"note_id": note.note_id, "timeout": self.web_timeout},
                 )
             except Exception as e:
                 logger.warning("Web research failed", extra={"error": str(e)})
@@ -200,10 +198,7 @@ class NoteEnricher:
         else:
             summary = "Aucun enrichissement identifié"
 
-        logger.info(
-            "Enrichment complete",
-            extra={"note_id": note.note_id, "summary": summary}
-        )
+        logger.info("Enrichment complete", extra={"note_id": note.note_id, "summary": summary})
 
         return EnrichmentResult(
             note_id=note.note_id,
@@ -342,8 +337,7 @@ class NoteEnricher:
         if dates:
             try:
                 latest_date = max(
-                    datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-                    for d in dates
+                    datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc) for d in dates
                 )
                 days_old = (datetime.now(timezone.utc) - latest_date).days
                 if days_old > 90:
@@ -397,12 +391,12 @@ class NoteEnricher:
             if target_title in para.lower() and len(para) > 50:
                 # This paragraph might contain relevant info
                 relevant.append(
-                        {
-                            "section": "Contexte",
-                            "content": f"Mentionné dans [[{source_note.title}]]: {para[:200]}...",
-                            "confidence": CONFIDENCE_EXISTING_SECTION,
-                        }
-                    )
+                    {
+                        "section": "Contexte",
+                        "content": f"Mentionné dans [[{source_note.title}]]: {para[:200]}...",
+                        "confidence": CONFIDENCE_EXISTING_SECTION,
+                    }
+                )
 
         return relevant[:3]  # Limit suggestions
 
@@ -487,10 +481,7 @@ class EnrichmentPipeline:
 
         for task_result in task_results:
             if isinstance(task_result, Exception):
-                logger.warning(
-                    "Enrichment task failed",
-                    extra={"error": str(task_result)}
-                )
+                logger.warning("Enrichment task failed", extra={"error": str(task_result)})
                 continue
             note_id, enrichment_result = task_result
             results[note_id] = enrichment_result

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import NoteManager
@@ -21,6 +21,7 @@ from src.passepartout.note_scheduler import NoteScheduler
 
 if TYPE_CHECKING:
     from src.passepartout.cross_source import CrossSourceEngine
+    from src.sancho.processor import NoteProcessor
 
 logger = get_logger("passepartout.background_worker")
 
@@ -43,8 +44,8 @@ class WorkerStats:
     actions_applied: int = 0
     actions_pending: int = 0
     errors_today: int = 0
-    last_review_at: datetime | None = None
-    session_start: datetime | None = None
+    last_review_at: Optional[datetime] = None
+    session_start: Optional[datetime] = None
     average_review_seconds: float = 0.0
 
 
@@ -60,6 +61,7 @@ class WorkerConfig:
     sleep_between_reviews_seconds: float = 10.0
     sleep_when_idle_seconds: float = 300.0  # 5 minutes
     sleep_on_error_seconds: float = 60.0
+    ingestion_interval_seconds: float = 60.0  # Check for modified notes every minute
 
     # Throttling
     cpu_throttle_threshold: float = 80.0  # Pause if CPU > 80%
@@ -72,13 +74,13 @@ class WorkerConfig:
 
 class BackgroundWorker:
     """
-    Background worker for 24/7 note review
+    Background worker for 24/7 note review and ingestion
 
     Constraints:
     - Max 50 reviews per day
     - Max 5 minutes per session
     - Throttling if system is under load
-    - Pause on API rate limiting
+    - Pause on rate limiting
 
     Usage:
         worker = BackgroundWorker(notes_dir=Path("data/notes"))
@@ -88,11 +90,11 @@ class BackgroundWorker:
     def __init__(
         self,
         notes_dir: Path,
-        data_dir: Path | None = None,
-        config: WorkerConfig | None = None,
-        cross_source_engine: "CrossSourceEngine | None" = None,
-        on_review_complete: Callable[[ReviewResult], None] | None = None,
-        on_state_change: Callable[[WorkerState], None] | None = None,
+        data_dir: Optional[Path] = None,
+        config: Optional[WorkerConfig] = None,
+        cross_source_engine: Optional["CrossSourceEngine"] = None,
+        on_review_complete: Optional[Callable[[ReviewResult], None]] = None,
+        on_state_change: Optional[Callable[[WorkerState], None]] = None,
     ):
         """
         Initialize background worker
@@ -119,13 +121,15 @@ class BackgroundWorker:
         self._stats = WorkerStats()
         self._stop_requested = False
         self._pause_requested = False
-        self._session_start: datetime | None = None
+        self._session_start: Optional[datetime] = None
+        self._last_ingestion_check: float = 0
 
         # Components (lazy init)
-        self._note_manager: NoteManager | None = None
-        self._metadata_store: NoteMetadataStore | None = None
-        self._scheduler: NoteScheduler | None = None
-        self._reviewer: NoteReviewer | None = None
+        self._note_manager: Optional[NoteManager] = None
+        self._metadata_store: Optional[NoteMetadataStore] = None
+        self._scheduler: Optional[NoteScheduler] = None
+        self._reviewer: Optional[NoteReviewer] = None
+        self._processor: Optional["NoteProcessor"] = None
 
     @property
     def state(self) -> WorkerState:
@@ -167,6 +171,13 @@ class BackgroundWorker:
                 cross_source_engine=self._cross_source_engine,
             )
 
+        if self._processor is None:
+            from src.sancho.processor import NoteProcessor
+
+            self._processor = NoteProcessor(
+                note_manager=self._note_manager,
+            )
+
     def _remaining_today(self) -> int:
         """Calculate remaining reviews for today"""
         return max(0, self.config.max_daily_reviews - self._stats.reviews_today)
@@ -186,6 +197,8 @@ class BackgroundWorker:
 
         if self._remaining_today() <= 0:
             logger.info("Daily review limit reached")
+            # Even if review limit reached, we might want to continue ingestion?
+            # For now, pause applies to everything to respect "do not disturb" logic.
             return True
 
         # Check CPU usage (simplified - would use psutil in production)
@@ -216,6 +229,10 @@ class BackgroundWorker:
         self._set_state(WorkerState.RUNNING)
         self._stop_requested = False
 
+        # Initial ingestion check lookback (e.g., last 1 hour on startup)
+        # This catches changes made while offline
+        self._last_ingestion_check = time.time() - 3600
+
         while not self._stop_requested:
             try:
                 # Reset daily stats if needed
@@ -229,16 +246,31 @@ class BackgroundWorker:
 
                 self._set_state(WorkerState.RUNNING)
 
+                # 1. Ingestion / Change Detection
+                if (
+                    time.time() - self._last_ingestion_check
+                    > self.config.ingestion_interval_seconds
+                ):
+                    await self._check_ingestion()
+                    self._last_ingestion_check = time.time()
+
+                # 2. Regular SM-2 Reviews
                 # Get notes due for review
                 assert self._scheduler is not None
-                due_notes = self._scheduler.get_notes_due(
-                    limit=min(10, self._remaining_today())
-                )
+                due_notes = self._scheduler.get_notes_due(limit=min(10, self._remaining_today()))
 
                 if not due_notes:
                     self._set_state(WorkerState.IDLE)
-                    logger.debug("No notes due, sleeping")
-                    await asyncio.sleep(self.config.sleep_when_idle_seconds)
+                    # Use shorter sleep to remain responsive to ingestion needs
+                    sleep_time = min(
+                        self.config.sleep_when_idle_seconds, self.config.ingestion_interval_seconds
+                    )
+
+                    # Log only if sleeping long
+                    if sleep_time > 10:
+                        logger.debug(f"No notes due, sleeping {sleep_time}s")
+
+                    await asyncio.sleep(sleep_time)
                     continue
 
                 # Start session
@@ -254,6 +286,9 @@ class BackgroundWorker:
                         logger.info("Session timeout reached")
                         break
 
+                    # Check for ingestion again if session is long?
+                    # Usually session is 5 mins, so maybe not critical.
+
                     await self._process_note(metadata.note_id)
                     await asyncio.sleep(self.config.sleep_between_reviews_seconds)
 
@@ -262,10 +297,38 @@ class BackgroundWorker:
                 self._stats.errors_today += 1
                 await asyncio.sleep(self.config.sleep_on_error_seconds)
 
+    async def _check_ingestion(self) -> None:
+        """Check for recently modified notes and trigger analysis"""
+        if not self._note_manager:
+            return
+
+        try:
+            # Look for notes modified since last check
+            since = datetime.fromtimestamp(self._last_ingestion_check, tz=timezone.utc)
+            modified_notes = self._note_manager.get_recently_modified_notes(since)
+
+            if modified_notes:
+                logger.info(
+                    f"Detected {len(modified_notes)} modified notes",
+                    extra={"notes": [n.title for n in modified_notes]},
+                )
+
+                for note in modified_notes:
+                    # Trigger review/ingestion
+                    # For now, we reuse review_note but this might change to ingest_note later
+                    # Phase 1: Just log detection
+                    logger.info(f"Ingesting modified note: {note.title} ({note.note_id})")
+
+                    if self._processor:
+                        await self._processor.process_note(note.note_id)
+
+        except Exception as e:
+            logger.error(f"Ingestion check failed: {e}", exc_info=True)
+
         self._set_state(WorkerState.STOPPED)
         logger.info("Background worker stopped")
 
-    async def _process_note(self, note_id: str) -> ReviewResult | None:
+    async def _process_note(self, note_id: str) -> Optional[ReviewResult]:
         """Process a single note review"""
         logger.info(f"Processing note: {note_id}")
         start_time = time.time()
@@ -285,8 +348,8 @@ class BackgroundWorker:
             # Update average review time
             total = self._stats.reviews_total
             self._stats.average_review_seconds = (
-                (self._stats.average_review_seconds * (total - 1) + elapsed) / total
-            )
+                self._stats.average_review_seconds * (total - 1) + elapsed
+            ) / total
 
             # Notify if callback registered
             if self.on_review_complete:
@@ -331,13 +394,9 @@ class BackgroundWorker:
                 "actions_pending": self._stats.actions_pending,
                 "errors_today": self._stats.errors_today,
                 "last_review_at": (
-                    self._stats.last_review_at.isoformat()
-                    if self._stats.last_review_at
-                    else None
+                    self._stats.last_review_at.isoformat() if self._stats.last_review_at else None
                 ),
-                "average_review_seconds": round(
-                    self._stats.average_review_seconds, 2
-                ),
+                "average_review_seconds": round(self._stats.average_review_seconds, 2),
             },
             "config": {
                 "max_daily_reviews": self.config.max_daily_reviews,
@@ -354,9 +413,9 @@ class BackgroundWorkerManager:
     Handles starting, stopping, and monitoring the worker.
     """
 
-    _instance: "BackgroundWorkerManager | None" = None
-    _worker: BackgroundWorker | None = None
-    _task: asyncio.Task | None = None
+    _instance: Optional["BackgroundWorkerManager"] = None
+    _worker: Optional[BackgroundWorker] = None
+    _task: Optional[asyncio.Task] = None
 
     @classmethod
     def get_instance(cls) -> "BackgroundWorkerManager":
@@ -372,8 +431,8 @@ class BackgroundWorkerManager:
     async def start(
         self,
         notes_dir: Path,
-        data_dir: Path | None = None,
-        config: WorkerConfig | None = None,
+        data_dir: Optional[Path] = None,
+        config: Optional[WorkerConfig] = None,
     ) -> None:
         """Start the background worker"""
         if self._worker and self._worker.state == WorkerState.RUNNING:

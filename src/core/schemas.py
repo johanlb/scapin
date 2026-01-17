@@ -72,14 +72,12 @@ class ProcessingMode(str, Enum):
 
 class EmailAttachment(BaseModel):
     """Email attachment information"""
+
     model_config = ConfigDict(str_strip_whitespace=True)
 
     filename: str = Field(..., min_length=1, description="Attachment filename")
     size_bytes: int = Field(default=0, ge=0, description="Attachment size in bytes")
-    content_type: str = Field(
-        default="application/octet-stream",
-        description="MIME content type"
-    )
+    content_type: str = Field(default="application/octet-stream", description="MIME content type")
 
     @field_validator("filename")
     @classmethod
@@ -108,10 +106,14 @@ class EmailMetadata(BaseModel):
     subject: str = Field(..., min_length=1, description="Email subject")
     date: datetime = Field(..., description="Email date")
     has_attachments: bool = Field(default=False, description="Has attachments")
-    attachments: list[EmailAttachment] = Field(default_factory=list, description="Attachment information")
+    attachments: list[EmailAttachment] = Field(
+        default_factory=list, description="Attachment information"
+    )
     size_bytes: Optional[int] = Field(None, description="Email size in bytes")
     flags: list[str] = Field(default_factory=list, description="IMAP flags")
-    references: list[str] = Field(default_factory=list, description="Message references for threading")
+    references: list[str] = Field(
+        default_factory=list, description="Message references for threading"
+    )
     in_reply_to: Optional[str] = Field(None, description="In-Reply-To header for threading")
 
     @field_validator("subject")
@@ -130,15 +132,16 @@ class EmailContent(BaseModel):
 
     plain_text: Optional[str] = Field(None, description="Plain text body")
     html: Optional[str] = Field(None, description="HTML body")
-    preview: Optional[str] = Field(None, max_length=500, description="Email preview (first 500 chars)")
+    preview: Optional[str] = Field(
+        None, max_length=500, description="Email preview (first 500 chars)"
+    )
     attachments: list[str] = Field(default_factory=list, description="Attachment filenames")
     metadata: Optional[dict[str, Any]] = Field(
-        default_factory=dict,
-        description="Content metadata (encoding issues, truncation, etc.)"
+        default_factory=dict, description="Content metadata (encoding issues, truncation, etc.)"
     )
 
-    @model_validator(mode='after')
-    def generate_preview(self) -> 'EmailContent':
+    @model_validator(mode="after")
+    def generate_preview(self) -> "EmailContent":
         """Generate preview from plain text if not provided"""
         if not self.preview and self.plain_text:
             self.preview = self.plain_text[:500]
@@ -174,23 +177,19 @@ class EmailAnalysis(BaseModel):
 
     # Multi-options (nouveau)
     options: list[ActionOption] = Field(
-        default_factory=list,
-        description="Liste des options d'action proposées"
+        default_factory=list, description="Liste des options d'action proposées"
     )
-    summary: Optional[str] = Field(
-        None,
-        description="Résumé de l'email en français"
-    )
+    summary: Optional[str] = Field(None, description="Résumé de l'email en français")
 
     # Autres champs
-    omnifocus_task: Optional[dict[str, Any]] = Field(None, description="OmniFocus task data (title, note, tags, dates)")
-    tags: list[str] = Field(default_factory=list, description="Suggested tags")
-    related_emails: list[str] = Field(
-        default_factory=list, description="Related email Message-IDs"
+    omnifocus_task: Optional[dict[str, Any]] = Field(
+        None, description="OmniFocus task data (title, note, tags, dates)"
     )
+    tags: list[str] = Field(default_factory=list, description="Suggested tags")
+    related_emails: list[str] = Field(default_factory=list, description="Related email Message-IDs")
     entities: dict[str, Any] = Field(
         default_factory=dict,
-        description="Extracted entities by type: {'person': [...], 'date': [...], 'project': [...]}"
+        description="Extracted entities by type: {'person': [...], 'date': [...], 'project': [...]}",
     )
     needs_full_content: bool = Field(
         default=False, description="Needs full email content (preview mode)"
@@ -199,22 +198,17 @@ class EmailAnalysis(BaseModel):
     # Sprint 2: Entity extraction & bidirectional loop
     proposed_notes: list[dict[str, Any]] = Field(
         default_factory=list,
-        description="AI-proposed notes to create or enrich (serialized ProposedNote)"
+        description="AI-proposed notes to create or enrich (serialized ProposedNote)",
     )
     proposed_tasks: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="AI-proposed OmniFocus tasks (serialized ProposedTask)"
+        default_factory=list, description="AI-proposed OmniFocus tasks (serialized ProposedTask)"
     )
     context_used: list[str] = Field(
-        default_factory=list,
-        description="Note IDs used as context for this analysis"
+        default_factory=list, description="Note IDs used as context for this analysis"
     )
 
     # Sprint 3: Draft replies
-    draft_reply: Optional[str] = Field(
-        None,
-        description="Draft reply content when action is REPLY"
-    )
+    draft_reply: Optional[str] = Field(None, description="Draft reply content when action is REPLY")
 
     @field_validator("confidence")
     @classmethod
@@ -277,17 +271,15 @@ class DecisionRecord(BaseModel):
     is_correction: bool = Field(default=False, description="User corrected AI")
     processing_mode: ProcessingMode
     reviewed: bool = Field(default=False, description="Decision has been reviewed")
-    review_status: Optional[str] = Field(
-        None, description="Review result: confirmed, corrected"
-    )
+    review_status: Optional[str] = Field(None, description="Review result: confirmed, corrected")
     review_date: Optional[datetime] = None
     correct_action: Optional[EmailAction] = Field(
         None, description="Correct action if reviewed and corrected"
     )
     correct_destination: Optional[str] = None
 
-    @model_validator(mode='after')
-    def validate_correction_consistency(self) -> 'DecisionRecord':
+    @model_validator(mode="after")
+    def validate_correction_consistency(self) -> "DecisionRecord":
         """
         Validate consistency between is_correction and correct_action
 
@@ -296,13 +288,9 @@ class DecisionRecord(BaseModel):
         - If is_correction=False, correct_action should be None
         """
         if self.is_correction and not self.correct_action:
-            raise ValueError(
-                "correct_action is required when is_correction=True"
-            )
+            raise ValueError("correct_action is required when is_correction=True")
         if not self.is_correction and self.correct_action:
-            raise ValueError(
-                "correct_action should be None when is_correction=False"
-            )
+            raise ValueError("correct_action should be None when is_correction=False")
         return self
 
 
@@ -454,8 +442,27 @@ class SystemHealth(BaseModel):
     @property
     def unhealthy_services(self) -> list[str]:
         """Get list of unhealthy services"""
-        return [
-            check.service
-            for check in self.checks
-            if check.status == ServiceStatus.UNHEALTHY
-        ]
+        return [check.service for check in self.checks if check.status == ServiceStatus.UNHEALTHY]
+
+
+# ============================================================================
+# NOTE SCHEMAS
+# ============================================================================
+
+
+class NoteAnalysis(BaseModel):
+    """AI analysis result for a note"""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    category: str = Field(..., description="Note category (Project, Person, etc.)")
+    tags: list[str] = Field(default_factory=list, description="Suggested tags")
+    summary: Optional[str] = Field(None, description="Note summary")
+    proposed_notes: list[dict[str, Any]] = Field(
+        default_factory=list, description="AI-proposed notes to create or enrich"
+    )
+    proposed_tasks: list[dict[str, Any]] = Field(
+        default_factory=list, description="AI-proposed tasks"
+    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score 0.0-1.0")
+    reasoning: str = Field(..., min_length=5, description="Explanation for analysis")

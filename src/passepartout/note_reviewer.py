@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import Note, NoteManager
@@ -51,7 +51,7 @@ class ReviewAction:
 
     action_type: ActionType
     target: str  # Section or content being targeted
-    content: str | None = None  # New content if applicable
+    content: Optional[str] = None  # New content if applicable
     confidence: float = 0.5  # 0.0 - 1.0
     reasoning: str = ""
     source: str = ""  # Where this suggestion came from
@@ -102,8 +102,8 @@ class ReviewResult:
     applied_actions: list[ReviewAction]
     pending_actions: list[ReviewAction]  # Actions needing approval
     analysis: ReviewAnalysis
-    updated_content: str | None = None
-    error: str | None = None
+    updated_content: Optional[str] = None
+    error: Optional[str] = None
 
 
 class NoteReviewer:
@@ -126,9 +126,9 @@ class NoteReviewer:
         note_manager: NoteManager,
         metadata_store: NoteMetadataStore,
         scheduler: NoteScheduler,
-        conservation_criteria: ConservationCriteria | None = None,
-        ai_router: Any | None = None,
-        cross_source_engine: "CrossSourceEngine | None" = None,
+        conservation_criteria: Optional[ConservationCriteria] = None,
+        ai_router: Optional[Any] = None,
+        cross_source_engine: Optional["CrossSourceEngine"] = None,
     ):
         """
         Initialize reviewer
@@ -182,9 +182,7 @@ class NoteReviewer:
             # Create metadata if missing
             from src.passepartout.note_types import detect_note_type_from_path
 
-            note_type = detect_note_type_from_path(
-                str(note.file_path) if note.file_path else ""
-            )
+            note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
             metadata = self.store.create_for_note(
                 note_id=note_id,
                 note_type=note_type,
@@ -210,15 +208,11 @@ class NoteReviewer:
                     updated_content = new_content
                     applied_actions.append(action)
                     # Record in history
-                    metadata.enrichment_history.append(
-                        action.to_enrichment_record(applied=True)
-                    )
+                    metadata.enrichment_history.append(action.to_enrichment_record(applied=True))
             else:
                 # Queue for approval
                 pending_actions.append(action)
-                metadata.enrichment_history.append(
-                    action.to_enrichment_record(applied=False)
-                )
+                metadata.enrichment_history.append(action.to_enrichment_record(applied=False))
 
         # Calculate quality for SM-2
         quality = self._calculate_quality(analysis, len(applied_actions))
@@ -274,9 +268,7 @@ class NoteReviewer:
         recent_changes = []
         if hasattr(self.notes, "git_manager") and self.notes.git_manager:
             try:
-                versions = self.notes.git_manager.get_note_versions(
-                    note.note_id, limit=5
-                )
+                versions = self.notes.git_manager.get_note_versions(note.note_id, limit=5)
                 recent_changes = [
                     {
                         "commit_hash": v.commit_hash,
@@ -347,16 +339,18 @@ class NoteReviewer:
             # Convert SourceItems to dictionaries for storage
             related_items = []
             for item in result.items:
-                related_items.append({
-                    "source": item.source,
-                    "type": item.type,
-                    "title": item.title,
-                    "content": item.content[:300] if item.content else "",  # Limit content
-                    "timestamp": item.timestamp.isoformat() if item.timestamp else None,
-                    "relevance_score": item.relevance_score,
-                    "url": item.url,
-                    "metadata": item.metadata,
-                })
+                related_items.append(
+                    {
+                        "source": item.source,
+                        "type": item.type,
+                        "title": item.title,
+                        "content": item.content[:300] if item.content else "",  # Limit content
+                        "timestamp": item.timestamp.isoformat() if item.timestamp else None,
+                        "relevance_score": item.relevance_score,
+                        "url": item.url,
+                        "metadata": item.metadata,
+                    }
+                )
 
             logger.info(
                 f"CrossSource found {len(related_items)} related items for note {note.note_id}",
@@ -458,17 +452,14 @@ class NoteReviewer:
 
         # Calculate overall confidence
         needs_update = len(actions) > 0
-        overall_confidence = (
-            max(a.confidence for a in actions) if actions else 1.0
-        )
+        overall_confidence = max(a.confidence for a in actions) if actions else 1.0
 
         # Generate reasoning summary
         if not actions:
             reasoning = "Note en bon état, aucune action suggérée"
         else:
             action_summary = ", ".join(
-                f"{a.action_type.value}({a.target[:30]}...)"
-                for a in actions[:3]
+                f"{a.action_type.value}({a.target[:30]}...)" for a in actions[:3]
             )
             reasoning = f"{len(actions)} actions suggérées: {action_summary}"
 
@@ -504,9 +495,7 @@ class NoteReviewer:
                     )
                     break
                 # Check if this matches a keep pattern
-                context = content[
-                    max(0, match.start() - 50) : match.end() + 50
-                ]
+                context = content[max(0, match.start() - 50) : match.end() + 50]
                 should_keep = any(
                     re.search(keep_pattern, context, re.IGNORECASE)
                     for keep_pattern in self.criteria.keep_patterns
@@ -534,9 +523,7 @@ class NoteReviewer:
 
         for i, match in enumerate(matches):
             if i >= MAX_REGEX_MATCHES:
-                logger.warning(
-                    f"Hit regex match limit ({MAX_REGEX_MATCHES}) for completed tasks"
-                )
+                logger.warning(f"Hit regex match limit ({MAX_REGEX_MATCHES}) for completed tasks")
                 break
             task_text = match.group(1).strip()
 
@@ -549,9 +536,8 @@ class NoteReviewer:
                 "urgent",
                 "milestone",
             ]
-            is_minor = (
-                len(task_text) < 50
-                and not any(kw in task_text.lower() for kw in important_keywords)
+            is_minor = len(task_text) < 50 and not any(
+                kw in task_text.lower() for kw in important_keywords
             )
 
             if is_minor:
@@ -648,7 +634,9 @@ class NoteReviewer:
             if archive_section not in content:
                 content += archive_section
             # Add archived content
-            content += f"\n- {action.target} (archivé {datetime.now(timezone.utc).strftime('%Y-%m-%d')})"
+            content += (
+                f"\n- {action.target} (archivé {datetime.now(timezone.utc).strftime('%Y-%m-%d')})"
+            )
             # Remove from original location
             content = content.replace(action.target, "", 1)
             return content
@@ -656,9 +644,7 @@ class NoteReviewer:
         if action.action_type == ActionType.LINK:
             # Replace entity with wikilink
             if action.content:
-                content = content.replace(
-                    action.target, action.content, 1
-                )
+                content = content.replace(action.target, action.content, 1)
             return content
 
         return content
@@ -685,10 +671,7 @@ class NoteReviewer:
             return 5
 
         # Count action types
-        format_only = all(
-            a.action_type == ActionType.FORMAT
-            for a in analysis.suggested_actions
-        )
+        format_only = all(a.action_type == ActionType.FORMAT for a in analysis.suggested_actions)
         link_only = all(
             a.action_type in (ActionType.FORMAT, ActionType.LINK)
             for a in analysis.suggested_actions

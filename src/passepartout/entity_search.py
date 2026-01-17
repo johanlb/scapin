@@ -17,7 +17,7 @@ See TODO list item "Option D" for design decisions.
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from src.core.scapin_config import ScapinConfigReader, get_scapin_config
 from src.monitoring.logger import get_logger
@@ -84,7 +84,7 @@ class EntitySearcher:
     def __init__(
         self,
         note_manager: "NoteManager",
-        scapin_config: ScapinConfigReader | None = None,
+        scapin_config: Optional[ScapinConfigReader] = None,
         fuzzy_threshold: float = MEDIUM_FUZZY_THRESHOLD,
         search_content: bool = True,
         max_results_per_entity: int = 3,
@@ -128,9 +128,7 @@ class EntitySearcher:
             except Exception as e:
                 logger.warning(f"Could not load ScapinConfig: {e}")
                 # Create a dummy config
-                self._scapin_config = ScapinConfigReader(
-                    self.note_manager.notes_dir
-                )
+                self._scapin_config = ScapinConfigReader(self.note_manager.notes_dir)
         return self._scapin_config
 
     def _rebuild_title_cache(self) -> None:
@@ -220,7 +218,7 @@ class EntitySearcher:
     def search_entities(
         self,
         entity_names: list[str],
-        include_content_search: bool | None = None,
+        include_content_search: Optional[bool] = None,
     ) -> list[EntitySearchResult]:
         """
         Search for notes matching the given entity names.
@@ -243,9 +241,7 @@ class EntitySearcher:
         stats = EntitySearchStats(entities_searched=len(entity_names))
 
         for entity_name in entity_names:
-            entity_results = self._search_single_entity(
-                entity_name, include_content_search
-            )
+            entity_results = self._search_single_entity(entity_name, include_content_search)
 
             # Apply ScapinConfig rules
             for result in entity_results:
@@ -407,7 +403,7 @@ class EntitySearcher:
     def get_entity_resolution_rule(
         self,
         person_name: str,
-        company_name: str | None,
+        company_name: Optional[str],
     ) -> str:
         """
         Get the entity resolution rule for a person.
@@ -423,7 +419,7 @@ class EntitySearcher:
 
 def create_entity_searcher(
     note_manager: "NoteManager",
-    notes_dir: str | Path | None = None,
+    notes_dir: Union[str, Path, None] = None,
 ) -> EntitySearcher:
     """
     Factory function to create an EntitySearcher.

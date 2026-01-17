@@ -8,6 +8,7 @@ Manages scheduling of note reviews with adaptive intervals.
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional, Union
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_metadata import NoteMetadata, NoteMetadataStore
@@ -174,7 +175,7 @@ class NoteScheduler:
         self,
         note_id: str,
         quality: int,
-    ) -> NoteMetadata | None:
+    ) -> Optional[NoteMetadata]:
         """
         Record a review and update scheduling
 
@@ -190,9 +191,7 @@ class NoteScheduler:
         """
         # Validate quality bounds early with note context
         if not 0 <= quality <= 5:
-            raise ValueError(
-                f"Quality must be 0-5, got {quality} for note {note_id}"
-            )
+            raise ValueError(f"Quality must be 0-5, got {quality} for note {note_id}")
 
         metadata = self.store.get(note_id)
         if metadata is None:
@@ -213,8 +212,7 @@ class NoteScheduler:
         self.store.save(metadata)
 
         logger.info(
-            f"Recorded review for {note_id}: Q={quality}, "
-            f"next in {result.new_interval_hours:.1f}h"
+            f"Recorded review for {note_id}: Q={quality}, next in {result.new_interval_hours:.1f}h"
         )
 
         return metadata
@@ -222,7 +220,7 @@ class NoteScheduler:
     def get_notes_due(
         self,
         limit: int = 50,
-        note_types: list[NoteType] | None = None,
+        note_types: Optional[list[NoteType]] = None,
     ) -> list[NoteMetadata]:
         """
         Get notes due for review
@@ -236,17 +234,9 @@ class NoteScheduler:
         """
         # Exclude types that skip revision
         if note_types is None:
-            note_types = [
-                t
-                for t in NoteType
-                if not get_review_config(t).skip_revision
-            ]
+            note_types = [t for t in NoteType if not get_review_config(t).skip_revision]
         else:
-            note_types = [
-                t
-                for t in note_types
-                if not get_review_config(t).skip_revision
-            ]
+            note_types = [t for t in note_types if not get_review_config(t).skip_revision]
 
         return self.store.get_due_for_review(
             limit=limit,
@@ -350,17 +340,14 @@ class NoteScheduler:
             day_end = day_start + timedelta(days=1)
 
             count = sum(
-                1
-                for m in all_metadata
-                if m.next_review
-                and day_start <= m.next_review < day_end
+                1 for m in all_metadata if m.next_review and day_start <= m.next_review < day_end
             )
             workload[day_start.strftime("%Y-%m-%d")] = count
 
         return workload
 
 
-def create_scheduler(data_dir: Path | str = "data") -> NoteScheduler:
+def create_scheduler(data_dir: Union[Path, str] = "data") -> NoteScheduler:
     """
     Create a scheduler with default configuration
 

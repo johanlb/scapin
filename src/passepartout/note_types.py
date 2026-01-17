@@ -70,15 +70,41 @@ class NoteType(str, Enum):
 class ImportanceLevel(str, Enum):
     """
     Niveaux d'importance pour la priorisation des révisions
-
-    Influence la fréquence et la priorité des révisions.
+    Supporte les valeurs anglaises (interne) et françaises (frontmatter).
     """
 
-    CRITICAL = "critical"  # Jamais manquer une révision
-    HIGH = "high"  # Réviser en priorité
-    NORMAL = "normal"  # Révision standard
-    LOW = "low"  # Réviser quand possible
-    ARCHIVE = "archive"  # Ne plus réviser automatiquement
+    CRITICAL = "critical"  # critique
+    HIGH = "high"  # haute
+    NORMAL = "normal"  # moyenne
+    LOW = "low"  # basse
+    ARCHIVE = "archive"  # archive
+
+    @classmethod
+    def from_french(cls, value: str) -> "ImportanceLevel":
+        mapping = {
+            "critique": cls.CRITICAL,
+            "haute": cls.HIGH,
+            "moyenne": cls.NORMAL,
+            "basse": cls.LOW,
+            "archive": cls.ARCHIVE,
+        }
+        return mapping.get(value.lower(), cls.NORMAL)
+
+
+class NoteStatus(str, Enum):
+    """
+    Statut de la note (cycle de vie)
+    """
+
+    ACTIF = "actif"
+    EN_COURS = "en_cours"
+    TERMINE = "termine"
+    ARCHIVE = "archive"
+    BROUILLON = "brouillon"
+
+    @classmethod
+    def is_valid(cls, value: str) -> bool:
+        return any(value.lower() == item.value for item in cls)
 
 
 @dataclass(frozen=True)

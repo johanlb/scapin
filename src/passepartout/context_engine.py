@@ -10,7 +10,7 @@ import atexit
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -29,6 +29,7 @@ CONTEXT_SOURCE_HISTORY = "conversation_history"
 CONTEXT_TYPE_ENTITY = "entity"
 CONTEXT_TYPE_SEMANTIC = "semantic"
 CONTEXT_TYPE_THREAD = "thread"
+CONTEXT_TYPE_LINKED = "linked"  # New context type for graph expansion
 
 # Memory and performance bounds
 MAX_CONTEXT_CANDIDATES = 200  # Cap items before ranking to bound memory
@@ -36,7 +37,7 @@ DEFAULT_RETRIEVAL_TIMEOUT_SECONDS = 10.0  # Timeout for retrieval operations
 MAX_SEMANTIC_QUERY_LENGTH = 5000  # Maximum characters for semantic search query
 
 # Module-level executor for sync wrapper (reused across calls)
-_sync_executor: ThreadPoolExecutor | None = None
+_sync_executor: Optional[ThreadPoolExecutor] = None
 
 
 def _cleanup_executor() -> None:
@@ -52,7 +53,7 @@ def _cleanup_executor() -> None:
 atexit.register(_cleanup_executor)
 
 
-@dataclass(slots=True)
+@dataclass
 class ContextRetrievalResult:
     """
     Result of context retrieval
@@ -60,6 +61,7 @@ class ContextRetrievalResult:
     Contains all context items retrieved and metadata about the retrieval.
     Uses slots=True for memory efficiency.
     """
+
     context_items: list[ContextItem]
     total_retrieved: int
     sources_used: list[str]
@@ -73,7 +75,7 @@ class ContextRetrievalResult:
             "total_retrieved": self.total_retrieved,
             "sources_used": self.sources_used,
             "retrieval_duration_seconds": self.retrieval_duration_seconds,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
@@ -119,9 +121,7 @@ class ContextEngine:
         """
         total_weight = entity_weight + semantic_weight + thread_weight
         if abs(total_weight - 1.0) > 0.01:
-            raise ValueError(
-                f"Weights must sum to 1.0, got {total_weight}"
-            )
+            raise ValueError(f"Weights must sum to 1.0, got {total_weight}")
 
         self.note_manager = note_manager
         self.entity_weight = entity_weight
@@ -136,18 +136,79 @@ class ContextEngine:
                 "weights": {
                     "entity": entity_weight,
                     "semantic": semantic_weight,
-                    "thread": thread_weight
+                    "thread": thread_weight,
                 },
                 "timeout_seconds": timeout_seconds,
                 "max_candidates": max_candidates,
-            }
+            },
         )
 
-    async def retrieve_context(
+    async def _retrieve_graph_expansion(
         self,
-        event: PerceivedEvent,
-        top_k: int = 5,
-        min_relevance: float = 0.5
+        initial_candidates: list[tuple[ContextItem, float]],
+        graph_weight: float = 0.5,  # Weight factor for linked notes relative to parent
+    ) -> list[tuple[ContextItem, float]]:
+        """
+        Expand context by following outgoing links from initial candidates.
+        """
+        if not initial_candidates:
+            return []
+
+        # Collect all linked note titles
+        # Use a set to duplicate titles
+        linked_titles = set()
+        for item, _ in initial_candidates:
+            # outgoing_links should be in metadata if NoteManager captured them
+            links = item.metadata.get("outgoing_links", [])
+            linked_titles.update(links)
+
+        if not linked_titles:
+            return []
+
+        # Batch fetch linked notes by title
+        # NoteManager doesn't have a direct "get_notes_by_titles" but has "get_note_by_title"
+        # We can implement a batch lookup or loop. For v1, loop is fine as N is small (max 20 candidates * ~3 links)
+        # Efficient batch Retrieval if possible, or parallel loop
+        # Since we are in async context, we can run this potentially in parallel if NoteManager supports it,
+        # but NoteManager methods are sync (disk I/O).
+        # We'll run in executor to avoid blocking.
+
+        loop = asyncio.get_running_loop()
+
+        def fetch_linked_notes():
+            results = []
+            for title in linked_titles:
+                # Note: get_note_by_title searches all notes, which might be slow if many notes.
+                # Optimally NoteManager should index titles.
+                # For now, we assume it's acceptable or we should upgrade NoteManager later.
+                note = self.note_manager.get_note_by_title(title)
+                if note:
+                    # Calculate score: parent_score * graph_weight?
+                    # No, determining "parent" is hard if multiple parents link to it.
+                    # We assign a fixed high relevance for explicit links, dampened by graph_weight.
+
+                    # Actually, 2nd degree notes are usually "context", so they are valuable.
+                    # Let's assign a base relevance and apply the graph_weight in the main ranking loop.
+
+                    ctx_item = ContextItem(
+                        source=CONTEXT_SOURCE_KB,
+                        type=CONTEXT_TYPE_LINKED,
+                        content=f"# {note.title}\n\n{note.content}",
+                        relevance_score=0.8,  # Base relevance for explicitly linked content
+                        metadata={
+                            "note_id": note.note_id,
+                            "tags": note.tags,
+                            "created_at": note.created_at.isoformat(),
+                            "outgoing_links": note.outgoing_links,
+                        },
+                    )
+                    results.append((ctx_item, graph_weight))
+            return results
+
+        return await loop.run_in_executor(None, fetch_linked_notes)
+
+    async def retrieve_context(
+        self, event: PerceivedEvent, top_k: int = 5, min_relevance: float = 0.5
     ) -> ContextRetrievalResult:
         """
         Retrieve relevant context for event (async with timeout)
@@ -166,7 +227,7 @@ class ContextEngine:
             # Run retrieval with timeout
             result = await asyncio.wait_for(
                 self._retrieve_context_internal(event, top_k, min_relevance),
-                timeout=self.timeout_seconds
+                timeout=self.timeout_seconds,
             )
             return result
         except asyncio.TimeoutError:
@@ -177,7 +238,7 @@ class ContextEngine:
                     "event_id": event.event_id,
                     "timeout_seconds": self.timeout_seconds,
                     "duration_seconds": duration,
-                }
+                },
             )
             # Return empty result on timeout
             return ContextRetrievalResult(
@@ -189,14 +250,11 @@ class ContextEngine:
                     "event_id": event.event_id,
                     "event_title": event.title,
                     "timed_out": True,
-                }
+                },
             )
 
     async def _retrieve_context_internal(
-        self,
-        event: PerceivedEvent,
-        top_k: int,
-        min_relevance: float
+        self, event: PerceivedEvent, top_k: int, min_relevance: float
     ) -> ContextRetrievalResult:
         """
         Internal context retrieval logic (async)
@@ -217,27 +275,28 @@ class ContextEngine:
         # Note: Capture entities explicitly to avoid closure issues with loop variables
         if self.entity_weight > 0 and event.entities:
             entities = event.entities  # Capture for lambda
-            tasks.append(loop.run_in_executor(
-                None,
-                lambda ents=entities: self._retrieve_by_entities(ents, top_k=10)
-            ))
+            tasks.append(
+                loop.run_in_executor(
+                    None, lambda ents=entities: self._retrieve_by_entities(ents, top_k=10)
+                )
+            )
             task_sources.append(("entity", self.entity_weight))
 
         # 2. Semantic retrieval
         if self.semantic_weight > 0:
-            tasks.append(loop.run_in_executor(
-                None,
-                lambda e=event: self._retrieve_by_semantic(e, top_k=10)
-            ))
+            tasks.append(
+                loop.run_in_executor(None, lambda e=event: self._retrieve_by_semantic(e, top_k=10))
+            )
             task_sources.append(("semantic", self.semantic_weight))
 
         # 3. Thread-based retrieval
         if self.thread_weight > 0 and event.thread_id:
             thread_id = event.thread_id  # Capture for lambda
-            tasks.append(loop.run_in_executor(
-                None,
-                lambda tid=thread_id: self._retrieve_by_thread(tid, top_k=5)
-            ))
+            tasks.append(
+                loop.run_in_executor(
+                    None, lambda tid=thread_id: self._retrieve_by_thread(tid, top_k=5)
+                )
+            )
             task_sources.append(("thread", self.thread_weight))
 
         # Fast-path: no retrieval tasks to run
@@ -245,17 +304,14 @@ class ContextEngine:
             duration = time.time() - start_time
             logger.debug(
                 "No retrieval sources available",
-                extra={"event_id": event.event_id, "duration_seconds": duration}
+                extra={"event_id": event.event_id, "duration_seconds": duration},
             )
             return ContextRetrievalResult(
                 context_items=[],
                 total_retrieved=0,
                 sources_used=[],
                 retrieval_duration_seconds=duration,
-                metadata={
-                    "event_id": event.event_id,
-                    "event_title": event.title
-                }
+                metadata={"event_id": event.event_id, "event_title": event.title},
             )
 
         # Execute all retrievals in parallel
@@ -265,7 +321,7 @@ class ContextEngine:
             if isinstance(result, Exception):
                 logger.warning(
                     "Context source retrieval failed",
-                    extra={"source": source_name, "error": str(result)}
+                    extra={"source": source_name, "error": str(result)},
                 )
                 continue
 
@@ -281,14 +337,35 @@ class ContextEngine:
         if len(context_candidates) >= self.max_candidates:
             logger.debug(
                 "Context candidates capped at max_candidates",
-                extra={"max_candidates": self.max_candidates}
+                extra={"max_candidates": self.max_candidates},
             )
+
+        # --- GRAPH EXPANSION (Step 2) ---
+        # Fetch notes linked from the initial candidates
+        # Only do this if we have candidates and enough time left
+        # (Could add a check for elapsed time vs timeout)
+
+        # We use a dedicated weight for graph expansion (can be configured in init later)
+        GRAPH_WEIGHT = 0.2
+
+        try:
+            linked_candidates = await self._retrieve_graph_expansion(
+                context_candidates, graph_weight=GRAPH_WEIGHT
+            )
+            if linked_candidates:
+                context_candidates.extend(linked_candidates)
+                sources_used.append("graph_expansion")
+                logger.debug(
+                    "Graph expansion added candidates", extra={"count": len(linked_candidates)}
+                )
+        except Exception as e:
+            logger.warning("Graph expansion failed", extra={"error": str(e)})
+
+        # 4. Rank and deduplicate
 
         # 4. Rank and deduplicate
         ranked_contexts = self._rank_and_deduplicate(
-            context_candidates,
-            top_k=top_k,
-            min_relevance=min_relevance
+            context_candidates, top_k=top_k, min_relevance=min_relevance
         )
 
         duration = time.time() - start_time
@@ -298,10 +375,7 @@ class ContextEngine:
             total_retrieved=len(context_candidates),
             sources_used=sources_used,
             retrieval_duration_seconds=duration,
-            metadata={
-                "event_id": event.event_id,
-                "event_title": event.title
-            }
+            metadata={"event_id": event.event_id, "event_title": event.title},
         )
 
         logger.info(
@@ -311,17 +385,14 @@ class ContextEngine:
                 "contexts_found": len(ranked_contexts),
                 "total_candidates": len(context_candidates),
                 "duration_seconds": duration,
-                "sources": sources_used
-            }
+                "sources": sources_used,
+            },
         )
 
         return result
 
     def retrieve_context_sync(
-        self,
-        event: PerceivedEvent,
-        top_k: int = 5,
-        min_relevance: float = 0.5
+        self, event: PerceivedEvent, top_k: int = 5, min_relevance: float = 0.5
     ) -> ContextRetrievalResult:
         """
         Synchronous wrapper for retrieve_context (for backward compatibility)
@@ -345,10 +416,11 @@ class ContextEngine:
             # If we're already in an async context, run in executor
             # Reuse module-level executor for performance
             if _sync_executor is None:
-                _sync_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="context_sync")
+                _sync_executor = ThreadPoolExecutor(
+                    max_workers=2, thread_name_prefix="context_sync"
+                )
             future = _sync_executor.submit(
-                asyncio.run,
-                self.retrieve_context(event, top_k, min_relevance)
+                asyncio.run, self.retrieve_context(event, top_k, min_relevance)
             )
             return future.result()
         except RuntimeError:
@@ -379,14 +451,10 @@ class ContextEngine:
             # relevance = exp(-distance^2 / temperature)
             # Temperature controls how quickly relevance drops
             temperature = 2.0
-            relevance = np.exp(-(distance ** 2) / temperature)
+            relevance = np.exp(-(distance**2) / temperature)
             return min(1.0, max(0.0, relevance))
 
-    def _retrieve_by_entities(
-        self,
-        entities: list[Entity],
-        top_k: int = 10
-    ) -> list[ContextItem]:
+    def _retrieve_by_entities(self, entities: list[Entity], top_k: int = 10) -> list[ContextItem]:
         """
         Retrieve context based on entities
 
@@ -423,30 +491,25 @@ class ContextEngine:
                             "entity_confidence": entity.confidence,
                             "similarity_score": similarity_relevance,
                             "tags": note.tags,
-                            "created_at": note.created_at.isoformat()
-                        }
+                            "created_at": note.created_at.isoformat(),
+                        },
                     )
                     context_items.append(context_item)
 
             except Exception as e:
                 logger.warning(
-                    "Entity retrieval failed",
-                    extra={"entity_value": entity.value, "error": str(e)}
+                    "Entity retrieval failed", extra={"entity_value": entity.value, "error": str(e)}
                 )
                 continue
 
         logger.debug(
             "Entity retrieval complete",
-            extra={"items_found": len(context_items), "entities": [e.value for e in entities]}
+            extra={"items_found": len(context_items), "entities": [e.value for e in entities]},
         )
 
         return context_items
 
-    def _retrieve_by_semantic(
-        self,
-        event: PerceivedEvent,
-        top_k: int = 10
-    ) -> list[ContextItem]:
+    def _retrieve_by_semantic(self, event: PerceivedEvent, top_k: int = 10) -> list[ContextItem]:
         """
         Retrieve context based on semantic similarity
 
@@ -463,15 +526,13 @@ class ContextEngine:
             query = query[:MAX_SEMANTIC_QUERY_LENGTH]
             logger.debug(
                 "Semantic query truncated",
-                extra={"original_length": len(event.title) + len(event.content) + 1}
+                extra={"original_length": len(event.title) + len(event.content) + 1},
             )
 
         try:
             # Get notes with similarity scores
             notes_with_scores = self.note_manager.search_notes(
-                query=query,
-                top_k=top_k,
-                return_scores=True
+                query=query, top_k=top_k, return_scores=True
             )
 
             context_items = []
@@ -488,8 +549,8 @@ class ContextEngine:
                         "note_id": note.note_id,
                         "tags": note.tags,
                         "created_at": note.created_at.isoformat(),
-                        "similarity_distance": float(distance)  # Store raw distance for debugging
-                    }
+                        "similarity_distance": float(distance),  # Store raw distance for debugging
+                    },
                 )
                 context_items.append(context_item)
 
@@ -498,24 +559,17 @@ class ContextEngine:
                 extra={
                     "items_found": len(context_items),
                     "query_preview": query[:50],
-                    "top_score": context_items[0].relevance_score if context_items else 0.0
-                }
+                    "top_score": context_items[0].relevance_score if context_items else 0.0,
+                },
             )
 
             return context_items
 
         except Exception as e:
-            logger.warning(
-                "Semantic retrieval failed",
-                extra={"error": str(e)}
-            )
+            logger.warning("Semantic retrieval failed", extra={"error": str(e)})
             return []
 
-    def _retrieve_by_thread(
-        self,
-        thread_id: str,
-        top_k: int = 5
-    ) -> list[ContextItem]:
+    def _retrieve_by_thread(self, thread_id: str, top_k: int = 5) -> list[ContextItem]:
         """
         Retrieve context from same thread/conversation
 
@@ -544,30 +598,26 @@ class ContextEngine:
                         metadata={
                             "note_id": note.note_id,
                             "thread_id": thread_id,
-                            "created_at": note.created_at.isoformat()
-                        }
+                            "created_at": note.created_at.isoformat(),
+                        },
                     )
                     context_items.append(context_item)
 
             logger.debug(
                 "Thread retrieval complete",
-                extra={"items_found": len(context_items), "thread_id": thread_id}
+                extra={"items_found": len(context_items), "thread_id": thread_id},
             )
 
             return context_items
 
         except Exception as e:
             logger.warning(
-                "Thread retrieval failed",
-                extra={"thread_id": thread_id, "error": str(e)}
+                "Thread retrieval failed", extra={"thread_id": thread_id, "error": str(e)}
             )
             return []
 
     def _rank_and_deduplicate(
-        self,
-        candidates: list[tuple[ContextItem, float]],
-        top_k: int,
-        min_relevance: float
+        self, candidates: list[tuple[ContextItem, float]], top_k: int, min_relevance: float
     ) -> list[ContextItem]:
         """
         Rank context candidates and remove duplicates
@@ -585,7 +635,9 @@ class ContextEngine:
 
         # Aggregate scores for items from multiple sources
         # Use weight as a boost factor, not a multiplier that reduces score
-        aggregated: dict[str, tuple[ContextItem, float, float]] = {}  # note_id -> (item, max_score, weight_sum)
+        aggregated: dict[
+            str, tuple[ContextItem, float, float]
+        ] = {}  # note_id -> (item, max_score, weight_sum)
 
         for context_item, weight in candidates:
             note_id = context_item.metadata.get("note_id", id(context_item))
@@ -626,8 +678,8 @@ class ContextEngine:
                 "after_dedup": len(aggregated),
                 "after_filter": len(scored_items),
                 "returned": len(result),
-                "top_scores": [round(item.relevance_score, 2) for item in result[:3]]
-            }
+                "top_scores": [round(item.relevance_score, 2) for item in result[:3]],
+            },
         )
 
         return result
@@ -643,9 +695,9 @@ class ContextEngine:
             "weights": {
                 "entity": self.entity_weight,
                 "semantic": self.semantic_weight,
-                "thread": self.thread_weight
+                "thread": self.thread_weight,
             },
-            "note_manager": repr(self.note_manager)
+            "note_manager": repr(self.note_manager),
         }
 
     def __repr__(self) -> str:

@@ -7,6 +7,7 @@ Models for representing Apple Notes data in Scapin.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Optional, Union
 
 
 class SyncDirection(str, Enum):
@@ -143,10 +144,10 @@ class SyncConflict:
     """Represents a sync conflict that needs resolution"""
 
     note_id: str
-    apple_note: AppleNote | None
-    scapin_note_path: str | None
-    apple_modified: datetime | None
-    scapin_modified: datetime | None
+    apple_note: Optional[AppleNote]
+    scapin_note_path: Optional[str]
+    apple_modified: Optional[datetime]
+    scapin_modified: Optional[datetime]
     reason: str
     suggested_resolution: ConflictResolution = ConflictResolution.NEWER_WINS
 
@@ -164,7 +165,7 @@ class SyncResult:
     conflicts: list[SyncConflict] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     started_at: datetime = field(default_factory=datetime.now)
-    completed_at: datetime | None = None
+    completed_at: Optional[datetime] = None
 
     @property
     def total_synced(self) -> int:
@@ -172,7 +173,7 @@ class SyncResult:
         return len(self.created) + len(self.updated)
 
     @property
-    def duration_seconds(self) -> float | None:
+    def duration_seconds(self) -> Optional[float]:
         """Duration of sync in seconds"""
         if self.completed_at:
             return (self.completed_at - self.started_at).total_seconds()

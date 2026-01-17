@@ -253,7 +253,7 @@ AUTO_APPLY_THRESHOLD_REQUIRED = 0.80  # For required enrichments
 def should_auto_apply(
     confidence: float,
     is_required: bool,
-    manually_approved: bool | None = None,
+    manually_approved: Optional[bool] = None,
 ) -> bool:
     """
     Determine if an enrichment should be auto-applied.

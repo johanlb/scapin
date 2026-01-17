@@ -13,7 +13,9 @@ from enum import Enum
 from typing import Any, Optional
 
 from src.core.config_manager import AIConfig
-from src.core.schemas import EmailAnalysis, EmailContent, EmailMetadata
+from src.core.schemas import EmailAnalysis, EmailContent, EmailMetadata, NoteAnalysis
+from src.passepartout.note_manager import Note
+from src.passepartout.note_metadata import NoteMetadata
 from src.monitoring.logger import get_logger
 
 logger = get_logger("ai_router")
@@ -38,19 +40,19 @@ def clean_json_string(json_str: str) -> str:
         Cleaned JSON string
     """
     # Remove markdown code blocks if present
-    json_str = re.sub(r'```json\s*', '', json_str)
-    json_str = re.sub(r'```\s*$', '', json_str)
-    json_str = re.sub(r'```', '', json_str)
+    json_str = re.sub(r"```json\s*", "", json_str)
+    json_str = re.sub(r"```\s*$", "", json_str)
+    json_str = re.sub(r"```", "", json_str)
 
     # Remove single-line comments (// ...)
-    json_str = re.sub(r'//[^\n]*', '', json_str)
+    json_str = re.sub(r"//[^\n]*", "", json_str)
 
     # Remove multi-line comments (/* ... */)
-    json_str = re.sub(r'/\*.*?\*/', '', json_str, flags=re.DOTALL)
+    json_str = re.sub(r"/\*.*?\*/", "", json_str, flags=re.DOTALL)
 
     # Remove trailing commas before ] or }
     # Pattern: comma followed by optional whitespace, then ] or }
-    json_str = re.sub(r',\s*([}\]])', r'\1', json_str)
+    json_str = re.sub(r",\s*([}\]])", r"\1", json_str)
 
     # Fix missing commas between properties (any whitespace including spaces):
     # Pattern: "value" followed by any whitespace then "key"
@@ -59,18 +61,18 @@ def clean_json_string(json_str: str) -> str:
 
     # Fix missing commas after numbers/booleans/null before "
     # e.g., '95   "reasoning"' or '95\n    "reasoning"' → '95, "reasoning"'
-    json_str = re.sub(r'(\d+)\s+(")', r'\1, \2', json_str)
-    json_str = re.sub(r'(true|false|null)\s+(")', r'\1, \2', json_str)
+    json_str = re.sub(r'(\d+)\s+(")', r"\1, \2", json_str)
+    json_str = re.sub(r'(true|false|null)\s+(")', r"\1, \2", json_str)
 
     # Fix missing commas after ] or } before " or [ or {
     # e.g., ']   "key"' or '}\n    "key"' → '], "key"'
-    json_str = re.sub(r'(\])\s+("|\[|\{)', r'\1, \2', json_str)
-    json_str = re.sub(r'(\})\s+("|\[|\{)', r'\1, \2', json_str)
+    json_str = re.sub(r'(\])\s+("|\[|\{)', r"\1, \2", json_str)
+    json_str = re.sub(r'(\})\s+("|\[|\{)', r"\1, \2", json_str)
 
     # Fix missing commas between array elements (objects in arrays):
     # e.g., '}\n    {' → '}, {'  (between objects in an array)
-    json_str = re.sub(r'(\})\s*\n\s*(\{)', r'\1, \2', json_str)
-    json_str = re.sub(r'(\])\s*\n\s*(\[)', r'\1, \2', json_str)
+    json_str = re.sub(r"(\})\s*\n\s*(\{)", r"\1, \2", json_str)
+    json_str = re.sub(r"(\])\s*\n\s*(\[)", r"\1, \2", json_str)
 
     return json_str
 
@@ -93,6 +95,7 @@ def _repair_json_with_library(json_str: str) -> tuple[str, bool]:
     """
     try:
         from json_repair import repair_json
+
         repaired = repair_json(json_str)
         return repaired, True
     except ImportError:
@@ -105,6 +108,7 @@ def _repair_json_with_library(json_str: str) -> tuple[str, bool]:
 
 class AIModel(str, Enum):
     """Available AI models"""
+
     CLAUDE_HAIKU = "claude-3-5-haiku-20241022"
     CLAUDE_SONNET = "claude-sonnet-4-20250514"
     CLAUDE_OPUS = "claude-opus-4-20250514"
@@ -117,6 +121,7 @@ class CircuitBreakerOpenError(Exception):
     This exception indicates that the circuit breaker has detected
     repeated failures and is blocking requests to prevent cascading failures.
     """
+
     pass
 
 
@@ -200,7 +205,7 @@ class CircuitBreaker:
                     self.state = "open"
                     logger.error(
                         f"Circuit breaker OPENED after {self.failure_count} failures",
-                        extra={"failure_threshold": self.failure_threshold}
+                        extra={"failure_threshold": self.failure_threshold},
                     )
 
             raise
@@ -228,7 +233,7 @@ class RateLimiter:
 
         logger.debug(
             "Rate limiter initialized",
-            extra={"max_requests": max_requests, "window_seconds": window_seconds}
+            extra={"max_requests": max_requests, "window_seconds": window_seconds},
         )
 
     def __repr__(self) -> str:
@@ -289,7 +294,7 @@ class RateLimiter:
                 "current_requests": len(self._requests),
                 "max_requests": self.max_requests,
                 "window_seconds": self.window_seconds,
-                "usage_percent": (len(self._requests) / self.max_requests) * 100
+                "usage_percent": (len(self._requests) / self.max_requests) * 100,
             }
 
 
@@ -318,13 +323,9 @@ class AIRouter:
         """
         self.config = config
         self.rate_limiter = RateLimiter(
-            max_requests=config.rate_limit_per_minute,
-            window_seconds=60
+            max_requests=config.rate_limit_per_minute, window_seconds=60
         )
-        self.circuit_breaker = CircuitBreaker(
-            failure_threshold=5,
-            timeout=60
-        )
+        self.circuit_breaker = CircuitBreaker(failure_threshold=5, timeout=60)
 
         # Metrics tracking
         self._metrics = {
@@ -332,13 +333,14 @@ class AIRouter:
             "total_tokens": 0,
             "total_cost_usd": 0.0,
             "duration_histogram": deque(maxlen=1000),  # Auto-trims at 1000 items
-            "errors_by_type": {}
+            "errors_by_type": {},
         }
         self._metrics_lock = threading.Lock()
 
         # Try to import anthropic
         try:
             import anthropic
+
             self.anthropic = anthropic
             self._client = anthropic.Anthropic(api_key=config.anthropic_api_key)
             logger.info("Anthropic client initialized")
@@ -354,8 +356,8 @@ class AIRouter:
             extra={
                 "rate_limit": config.rate_limit_per_minute,
                 "confidence_threshold": config.confidence_threshold,
-                "circuit_breaker_threshold": 5
-            }
+                "circuit_breaker_threshold": 5,
+            },
         )
 
     def __repr__(self) -> str:
@@ -372,12 +374,13 @@ class AIRouter:
         content: EmailContent,
         model: AIModel = AIModel.CLAUDE_HAIKU,
         max_retries: int = 3,
-        existing_folders: list[str] | None = None,
-        user_instruction: str | None = None,
-        learned_suggestions: list[dict] | None = None,
+        existing_folders: Optional[list[str]] = None,
+        user_instruction: Optional[str] = None,
+        learned_suggestions: Optional[list[dict]] = None,
     ) -> Optional[EmailAnalysis]:
         """
         Analyze email with AI
+
 
         Args:
             metadata: Email metadata
@@ -428,8 +431,8 @@ class AIRouter:
                     extra={
                         "model": model.value,
                         "email_id": metadata.id,
-                        "subject": metadata.subject
-                    }
+                        "subject": metadata.subject,
+                    },
                 )
 
                 # Use circuit breaker to prevent repeated calls to failing service
@@ -446,7 +449,7 @@ class AIRouter:
                             tokens=api_usage.get("total_tokens", 0),
                             input_tokens=api_usage.get("input_tokens", 0),
                             output_tokens=api_usage.get("output_tokens", 0),
-                            model=model
+                            model=model,
                         )
 
                         logger.info(
@@ -460,9 +463,9 @@ class AIRouter:
                                 "estimated_cost_usd": self._calculate_cost(
                                     model,
                                     api_usage.get("input_tokens", 0),
-                                    api_usage.get("output_tokens", 0)
-                                )
-                            }
+                                    api_usage.get("output_tokens", 0),
+                                ),
+                            },
                         )
                         return analysis
 
@@ -473,10 +476,10 @@ class AIRouter:
                 self._record_error_metric("RateLimitError")
 
                 if attempt < max_retries - 1:
-                    wait_time = min(2 ** attempt, 60)  # Exponential backoff, cap at 60s
+                    wait_time = min(2**attempt, 60)  # Exponential backoff, cap at 60s
                     logger.warning(
                         f"Rate limit exceeded, retrying in {wait_time}s",
-                        extra={"attempt": attempt + 1, "max_retries": max_retries}
+                        extra={"attempt": attempt + 1, "max_retries": max_retries},
                     )
                     time.sleep(wait_time)
                     continue
@@ -489,8 +492,7 @@ class AIRouter:
                 self._record_error_metric("AuthenticationError")
 
                 logger.error(
-                    f"Authentication failed: {e}. Check API key configuration.",
-                    exc_info=True
+                    f"Authentication failed: {e}. Check API key configuration.", exc_info=True
                 )
                 return None
 
@@ -504,8 +506,7 @@ class AIRouter:
                 # NON-RETRIABLE: Invalid request - fail immediately
                 self._record_error_metric("BadRequestError")
                 logger.error(
-                    f"Invalid request: {e}. Check email content or prompt format.",
-                    exc_info=True
+                    f"Invalid request: {e}. Check email content or prompt format.", exc_info=True
                 )
                 return None
 
@@ -513,10 +514,10 @@ class AIRouter:
                 # RETRIABLE: Network issue - retry with backoff
                 self._record_error_metric("APIConnectionError")
                 if attempt < max_retries - 1:
-                    wait_time = min(2 ** attempt, 30)
+                    wait_time = min(2**attempt, 30)
                     logger.warning(
                         f"API connection error, retrying in {wait_time}s: {e}",
-                        extra={"attempt": attempt + 1}
+                        extra={"attempt": attempt + 1},
                     )
                     time.sleep(wait_time)
                     continue
@@ -528,10 +529,10 @@ class AIRouter:
                 # RETRIABLE: Server error - retry with backoff
                 self._record_error_metric("InternalServerError")
                 if attempt < max_retries - 1:
-                    wait_time = min(2 ** attempt, 30)
+                    wait_time = min(2**attempt, 30)
                     logger.warning(
                         f"Server error, retrying in {wait_time}s: {e}",
-                        extra={"attempt": attempt + 1}
+                        extra={"attempt": attempt + 1},
                     )
                     time.sleep(wait_time)
                     continue
@@ -543,7 +544,7 @@ class AIRouter:
                 # RETRIABLE: Generic API error - cautious retry
                 self._record_error_metric("APIError")
                 if attempt < max_retries - 1:
-                    wait_time = min(2 ** attempt, 10)
+                    wait_time = min(2**attempt, 10)
                     logger.warning(f"API error, retrying in {wait_time}s: {e}")
                     time.sleep(wait_time)
                     continue
@@ -564,18 +565,116 @@ class AIRouter:
                     logger.warning(
                         f"Unexpected error, retrying once: {e}",
                         exc_info=True,
-                        extra={"attempt": attempt + 1}
+                        extra={"attempt": attempt + 1},
                     )
                     time.sleep(1)
                     continue
                 else:
-                    logger.error(
-                        f"Failed after {max_retries} attempts: {e}",
-                        exc_info=True
-                    )
+                    logger.error(f"Failed after {max_retries} attempts: {e}", exc_info=True)
                     return None
 
         logger.error(f"Failed to analyze email after {max_retries} attempts")
+        return None
+
+    def analyze_note(
+        self,
+        note: Note,
+        metadata: NoteMetadata,
+        model: AIModel = AIModel.CLAUDE_SONNET,
+        max_retries: int = 3,
+    ) -> Optional[NoteAnalysis]:
+        """
+        Analyze note with AI for enrichment
+
+        Args:
+            note: Note object
+            metadata: Note metadata
+            model: AI model to use
+            max_retries: Maximum retry attempts
+
+        Returns:
+            NoteAnalysis or None if analysis fails
+        """
+        from src.sancho.templates import get_template_manager
+
+        # Acquire rate limit permission
+        if not self.rate_limiter.acquire(timeout=30):
+            logger.error("Rate limit timeout - could not acquire permission")
+            return None
+
+        # Prepare prompt
+        tm = get_template_manager()
+        try:
+            prompt = tm.render(
+                "ai/note_analysis",
+                title=note.title,
+                note_type=metadata.note_type.value if metadata.note_type else "unknown",
+                content=note.content,
+            )
+        except Exception as e:
+            logger.error(f"Failed to render note analysis prompt: {e}", exc_info=True)
+            return None
+
+        # Make API call
+        start_time = time.time()
+
+        for attempt in range(max_retries):
+            try:
+                logger.debug(
+                    f"Calling Claude API for note (attempt {attempt + 1}/{max_retries})",
+                    extra={"model": model.value, "note_id": note.note_id, "title": note.title},
+                )
+
+                # Use circuit breaker
+                response, api_usage = self.circuit_breaker.call(
+                    self._call_claude, prompt, model, 4096
+                )
+
+                if response:
+                    # Parse response
+                    try:
+                        # Extract JSON
+                        json_start = response.find("{")
+                        json_end = response.rfind("}") + 1
+                        if json_start == -1 or json_end == 0:
+                            raise ValueError("No JSON found in response")
+
+                        json_str = clean_json_string(response[json_start:json_end])
+                        data = json.loads(json_str)
+
+                        analysis = NoteAnalysis(**data)
+
+                        # Record metrics
+                        duration_ms = (time.time() - start_time) * 1000
+                        self._record_analysis_metrics(
+                            duration_ms=duration_ms,
+                            tokens=api_usage.get("total_tokens", 0),
+                            input_tokens=api_usage.get("input_tokens", 0),
+                            output_tokens=api_usage.get("output_tokens", 0),
+                            model=model,
+                        )
+
+                        logger.info(
+                            "Note analysis successful",
+                            extra={
+                                "note_id": note.note_id,
+                                "category": analysis.category,
+                                "confidence": analysis.confidence,
+                                "duration_ms": duration_ms,
+                            },
+                        )
+                        return analysis
+
+                    except Exception as e:
+                        logger.warning(f"Failed to parse note analysis: {e}")
+                        # Retry on parse error? usually bad JSON from LLM
+                        continue
+
+            except Exception as e:
+                # Handle general errors (circuit breaker handles its own)
+                logger.error(f"Note analysis error: {e}")
+                time.sleep(1)
+
         return None
 
     def analyze_with_prompt(
@@ -584,7 +683,7 @@ class AIRouter:
         model: AIModel,
         system_prompt: Optional[str] = None,
         max_tokens: int = 2048,
-        max_retries: int = 3
+        max_retries: int = 3,
     ) -> tuple[str, dict]:
         """
         Analyze with a custom prompt (for Sancho reasoning passes)
@@ -616,16 +715,12 @@ class AIRouter:
             try:
                 logger.debug(
                     f"Calling Claude API with custom prompt (attempt {attempt + 1}/{max_retries})",
-                    extra={"model": model.value}
+                    extra={"model": model.value},
                 )
 
                 # Use circuit breaker for resilience
                 response, usage = self.circuit_breaker.call(
-                    self._call_claude_with_system,
-                    prompt,
-                    model,
-                    system_prompt,
-                    max_tokens
+                    self._call_claude_with_system, prompt, model, system_prompt, max_tokens
                 )
 
                 if response:
@@ -636,7 +731,7 @@ class AIRouter:
                         tokens=usage.get("total_tokens", 0),
                         input_tokens=usage.get("input_tokens", 0),
                         output_tokens=usage.get("output_tokens", 0),
-                        model=model
+                        model=model,
                     )
 
                     return response, usage
@@ -644,7 +739,7 @@ class AIRouter:
             except self.anthropic.RateLimitError:
                 self._record_error_metric("RateLimitError")
                 if attempt < max_retries - 1:
-                    wait_time = min(2 ** attempt, 60)
+                    wait_time = min(2**attempt, 60)
                     logger.warning(f"Rate limit exceeded, retrying in {wait_time}s")
                     time.sleep(wait_time)
                     continue
@@ -652,7 +747,7 @@ class AIRouter:
             except self.anthropic.APIConnectionError:
                 self._record_error_metric("APIConnectionError")
                 if attempt < max_retries - 1:
-                    wait_time = min(2 ** attempt, 30)
+                    wait_time = min(2**attempt, 30)
                     logger.warning(f"Connection error, retrying in {wait_time}s")
                     time.sleep(wait_time)
                     continue
@@ -677,7 +772,7 @@ class AIRouter:
         prompt: str,
         model: AIModel,
         system_prompt: Optional[str] = None,
-        max_tokens: int = 2048
+        max_tokens: int = 2048,
     ) -> tuple[Optional[str], dict]:
         """
         Call Claude API with optional system prompt
@@ -696,7 +791,7 @@ class AIRouter:
             kwargs = {
                 "model": model.value,
                 "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}]
+                "messages": [{"role": "user", "content": prompt}],
             }
 
             if system_prompt:
@@ -705,13 +800,13 @@ class AIRouter:
             message = self._client.messages.create(**kwargs)
 
             # Extract usage information
-            input_tokens = message.usage.input_tokens if hasattr(message, 'usage') else 0
-            output_tokens = message.usage.output_tokens if hasattr(message, 'usage') else 0
+            input_tokens = message.usage.input_tokens if hasattr(message, "usage") else 0
+            output_tokens = message.usage.output_tokens if hasattr(message, "usage") else 0
 
             usage = {
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
-                "total_tokens": input_tokens + output_tokens
+                "total_tokens": input_tokens + output_tokens,
             }
 
             # Extract text from response
@@ -725,10 +820,7 @@ class AIRouter:
             raise
 
     def _call_claude(
-        self,
-        prompt: str,
-        model: AIModel,
-        max_tokens: int = 1024
+        self, prompt: str, model: AIModel, max_tokens: int = 1024
     ) -> tuple[Optional[str], dict]:
         """
         Call Claude API
@@ -745,22 +837,17 @@ class AIRouter:
             message = self._client.messages.create(
                 model=model.value,
                 max_tokens=max_tokens,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             # Extract usage information
-            input_tokens = message.usage.input_tokens if hasattr(message, 'usage') else 0
-            output_tokens = message.usage.output_tokens if hasattr(message, 'usage') else 0
+            input_tokens = message.usage.input_tokens if hasattr(message, "usage") else 0
+            output_tokens = message.usage.output_tokens if hasattr(message, "usage") else 0
 
             usage = {
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
-                "total_tokens": input_tokens + output_tokens
+                "total_tokens": input_tokens + output_tokens,
             }
 
             # Extract text from response
@@ -774,9 +861,7 @@ class AIRouter:
             raise
 
     def _parse_analysis_response(
-        self,
-        response: str,
-        metadata: EmailMetadata
+        self, response: str, metadata: EmailMetadata
     ) -> Optional[EmailAnalysis]:
         """
         Parse AI response into EmailAnalysis
@@ -843,53 +928,55 @@ class AIRouter:
                 raise json.JSONDecodeError("Failed to parse JSON", json_str, 0)
 
             # Normalize category to lowercase
-            if 'category' in data and isinstance(data['category'], str):
-                data['category'] = data['category'].lower()
+            if "category" in data and isinstance(data["category"], str):
+                data["category"] = data["category"].lower()
 
             # Check if this is the new multi-options format
-            if 'options' in data and isinstance(data['options'], list) and data['options']:
+            if "options" in data and isinstance(data["options"], list) and data["options"]:
                 # Parse options
                 parsed_options = []
                 recommended_option = None
 
-                for opt in data['options']:
+                for opt in data["options"]:
                     # Normalize action to lowercase
-                    if 'action' in opt and isinstance(opt['action'], str):
-                        opt['action'] = opt['action'].lower()
+                    if "action" in opt and isinstance(opt["action"], str):
+                        opt["action"] = opt["action"].lower()
 
                     parsed_options.append(opt)
 
                     # Find recommended option
-                    if opt.get('is_recommended', False):
+                    if opt.get("is_recommended", False):
                         recommended_option = opt
 
                 # If no explicit recommended, use first option
                 if not recommended_option and parsed_options:
                     recommended_option = parsed_options[0]
-                    parsed_options[0]['is_recommended'] = True
+                    parsed_options[0]["is_recommended"] = True
 
                 # Populate main fields from recommended option
-                data['options'] = parsed_options
-                data['action'] = recommended_option['action']
-                data['confidence'] = recommended_option['confidence']
-                data['reasoning'] = recommended_option['reasoning']
-                data['destination'] = recommended_option.get('destination')
+                data["options"] = parsed_options
+                data["action"] = recommended_option["action"]
+                data["confidence"] = recommended_option["confidence"]
+                data["reasoning"] = recommended_option["reasoning"]
+                data["destination"] = recommended_option.get("destination")
 
             else:
                 # Legacy single-action format
-                if 'action' in data and isinstance(data['action'], str):
-                    data['action'] = data['action'].lower()
-                if 'priority' in data and isinstance(data['priority'], str):
-                    data['priority'] = data['priority'].lower()
+                if "action" in data and isinstance(data["action"], str):
+                    data["action"] = data["action"].lower()
+                if "priority" in data and isinstance(data["priority"], str):
+                    data["priority"] = data["priority"].lower()
 
                 # Create a single option from the legacy format
-                data['options'] = [{
-                    'action': data['action'],
-                    'destination': data.get('destination'),
-                    'confidence': data['confidence'],
-                    'reasoning': data['reasoning'],
-                    'is_recommended': True
-                }]
+                data["options"] = [
+                    {
+                        "action": data["action"],
+                        "destination": data.get("destination"),
+                        "confidence": data["confidence"],
+                        "reasoning": data["reasoning"],
+                        "is_recommended": True,
+                    }
+                ]
 
             # Create EmailAnalysis from parsed data
             analysis = EmailAnalysis(**data)
@@ -899,8 +986,8 @@ class AIRouter:
                 extra={
                     "email_id": metadata.id,
                     "options_count": len(analysis.options),
-                    "format": "multi-options" if len(data.get('options', [])) > 1 else "legacy"
-                }
+                    "format": "multi-options" if len(data.get("options", [])) > 1 else "legacy",
+                },
             )
 
             return analysis
@@ -911,7 +998,7 @@ class AIRouter:
             if json_str and e.pos:
                 start = max(0, e.pos - 60)
                 end = min(len(json_str), e.pos + 40)
-                snippet = json_str[start:end].replace('\n', '\\n')
+                snippet = json_str[start:end].replace("\n", "\\n")
 
             logger.error(
                 f"Failed to parse JSON response: {e}",
@@ -920,24 +1007,19 @@ class AIRouter:
                     "error_line": e.lineno,
                     "error_col": e.colno,
                     "error_pos": e.pos,
-                    "json_snippet": f"...{snippet}..." if snippet else "N/A"
-                }
+                    "json_snippet": f"...{snippet}..." if snippet else "N/A",
+                },
             )
             return None
         except Exception as e:
             logger.error(
                 f"Failed to create EmailAnalysis: {e}",
                 exc_info=True,
-                extra={"email_id": metadata.id}
+                extra={"email_id": metadata.id},
             )
             return None
 
-    def _calculate_cost(
-        self,
-        model: AIModel,
-        input_tokens: int,
-        output_tokens: int
-    ) -> float:
+    def _calculate_cost(self, model: AIModel, input_tokens: int, output_tokens: int) -> float:
         """
         Calculate API cost in USD
 
@@ -952,29 +1034,24 @@ class AIRouter:
         # Pricing as of January 2025
         pricing = {
             AIModel.CLAUDE_OPUS: {
-                "input": 15.00 / 1_000_000,   # $15 per MTok
-                "output": 75.00 / 1_000_000   # $75 per MTok
+                "input": 15.00 / 1_000_000,  # $15 per MTok
+                "output": 75.00 / 1_000_000,  # $75 per MTok
             },
             AIModel.CLAUDE_SONNET: {
-                "input": 3.00 / 1_000_000,    # $3 per MTok
-                "output": 15.00 / 1_000_000   # $15 per MTok
+                "input": 3.00 / 1_000_000,  # $3 per MTok
+                "output": 15.00 / 1_000_000,  # $15 per MTok
             },
             AIModel.CLAUDE_HAIKU: {
-                "input": 0.25 / 1_000_000,    # $0.25 per MTok
-                "output": 1.25 / 1_000_000    # $1.25 per MTok
-            }
+                "input": 0.25 / 1_000_000,  # $0.25 per MTok
+                "output": 1.25 / 1_000_000,  # $1.25 per MTok
+            },
         }
 
         rates = pricing.get(model, pricing[AIModel.CLAUDE_HAIKU])
         return (input_tokens * rates["input"]) + (output_tokens * rates["output"])
 
     def _record_analysis_metrics(
-        self,
-        duration_ms: float,
-        tokens: int,
-        input_tokens: int,
-        output_tokens: int,
-        model: AIModel
+        self, duration_ms: float, tokens: int, input_tokens: int, output_tokens: int, model: AIModel
     ) -> None:
         """
         Record metrics for analysis request
@@ -1053,7 +1130,7 @@ class AIRouter:
                 "p95_duration_ms": round(p95, 2),
                 "p99_duration_ms": round(p99, 2),
                 "errors_by_type": self._metrics["errors_by_type"].copy(),
-                "rate_limit_status": self.rate_limiter.get_current_usage()
+                "rate_limit_status": self.rate_limiter.get_current_usage(),
             }
 
     def get_rate_limit_status(self) -> dict[str, Any]:
@@ -1091,6 +1168,7 @@ def get_ai_router(config: Optional[AIConfig] = None) -> AIRouter:
         if _ai_router is None:
             if config is None:
                 from src.core.config_manager import get_config
+
                 config = get_config().ai
 
             _ai_router = AIRouter(config)

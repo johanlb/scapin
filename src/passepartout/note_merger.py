@@ -8,6 +8,7 @@ Handles conflicts when user edits a note while Scapin is enriching it.
 import difflib
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional, Union, List
 
 from src.monitoring.logger import get_logger
 
@@ -62,7 +63,7 @@ class Conflict:
     type: ConflictType
     user_change: Change
     scapin_change: Change
-    resolved_content: list[str] | None = None
+    resolved_content: Optional[list[str]] = None
     resolution_reason: str = ""
 
 
@@ -110,7 +111,7 @@ class NoteMerger:
         original: str,
         user_version: str,
         scapin_version: str,
-        strategy: MergeStrategy | None = None,
+        strategy: Optional[MergeStrategy] = None,
     ) -> MergeResult:
         """
         Perform three-way merge
@@ -132,36 +133,23 @@ class NoteMerger:
         scapin_lines = scapin_version.splitlines(keepends=True)
 
         # Compute diffs
-        user_changes = self._compute_changes(
-            original_lines, user_lines, source="user"
-        )
-        scapin_changes = self._compute_changes(
-            original_lines, scapin_lines, source="scapin"
-        )
+        user_changes = self._compute_changes(original_lines, user_lines, source="user")
+        scapin_changes = self._compute_changes(original_lines, scapin_lines, source="scapin")
 
         logger.debug(
-            f"Found {len(user_changes)} user changes, "
-            f"{len(scapin_changes)} scapin changes"
+            f"Found {len(user_changes)} user changes, {len(scapin_changes)} scapin changes"
         )
 
         # Handle based on strategy
         if strategy == MergeStrategy.USER_WINS:
-            return self._user_wins_merge(
-                user_version, user_changes, scapin_changes
-            )
+            return self._user_wins_merge(user_version, user_changes, scapin_changes)
         elif strategy == MergeStrategy.SCAPIN_WINS:
-            return self._scapin_wins_merge(
-                scapin_version, user_changes, scapin_changes
-            )
+            return self._scapin_wins_merge(scapin_version, user_changes, scapin_changes)
         elif strategy == MergeStrategy.SMART_MERGE:
-            return self._smart_merge(
-                original_lines, user_changes, scapin_changes
-            )
+            return self._smart_merge(original_lines, user_changes, scapin_changes)
         else:
             # Manual - return with conflicts marked
-            return self._mark_conflicts(
-                original_lines, user_changes, scapin_changes
-            )
+            return self._mark_conflicts(original_lines, user_changes, scapin_changes)
 
     def _compute_changes(
         self,
@@ -241,10 +229,7 @@ class NoteMerger:
         range2 = change2.line_range
 
         # Check for any overlap
-        return (
-            range1.start <= range2.stop
-            and range2.start <= range1.stop
-        )
+        return range1.start <= range2.stop and range2.start <= range1.stop
 
     def _determine_conflict_type(
         self,
@@ -274,9 +259,7 @@ class NoteMerger:
         scapin_changes: list[Change],
     ) -> MergeResult:
         """Merge where user changes always win"""
-        conflicts, _, non_conflict_scapin = self._find_conflicts(
-            user_changes, scapin_changes
-        )
+        conflicts, _, non_conflict_scapin = self._find_conflicts(user_changes, scapin_changes)
 
         # Scapin changes that conflict are saved as pending
         pending = [c.scapin_change for c in conflicts]
@@ -299,9 +282,7 @@ class NoteMerger:
         scapin_changes: list[Change],
     ) -> MergeResult:
         """Merge where scapin changes win"""
-        conflicts, non_conflict_user, _ = self._find_conflicts(
-            user_changes, scapin_changes
-        )
+        conflicts, non_conflict_user, _ = self._find_conflicts(user_changes, scapin_changes)
 
         return MergeResult(
             content=scapin_version,
@@ -339,12 +320,8 @@ class NoteMerger:
 
         # Collect all changes to apply, sorted by start line
         changes_to_apply = []
-        changes_to_apply.extend(
-            (c, "user") for c in user_changes
-        )
-        changes_to_apply.extend(
-            (c, "scapin") for c in non_conflict_scapin
-        )
+        changes_to_apply.extend((c, "user") for c in user_changes)
+        changes_to_apply.extend((c, "scapin") for c in non_conflict_scapin)
 
         # Sort by start line (stable sort maintains user preference)
         changes_to_apply.sort(key=lambda x: x[0].start_line)
@@ -465,12 +442,8 @@ class NoteMerger:
         user_lines = user_version.splitlines(keepends=True)
         scapin_lines = scapin_version.splitlines(keepends=True)
 
-        user_changes = self._compute_changes(
-            original_lines, user_lines, source="user"
-        )
-        scapin_changes = self._compute_changes(
-            original_lines, scapin_lines, source="scapin"
-        )
+        user_changes = self._compute_changes(original_lines, user_lines, source="user")
+        scapin_changes = self._compute_changes(original_lines, scapin_lines, source="scapin")
 
         conflicts, non_conflict_user, non_conflict_scapin = self._find_conflicts(
             user_changes, scapin_changes
