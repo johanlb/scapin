@@ -1,7 +1,7 @@
 # Scapin — Feuille de Route Produit
 
-**Dernière mise à jour** : 17 janvier 2026
-**Version** : 1.0.0-alpha.28
+**Dernière mise à jour** : 18 janvier 2026
+**Version** : 1.0.0-alpha.29
 **Phase actuelle** : ✅ Release Candidate 1 | ✅ Sprint 7 (Multi-Pass v2.2) COMPLÉTÉ (11/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
@@ -1215,6 +1215,23 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.29** (2026-01-18) : Notes UX Improvements
+  - **Recherche API** : Barre de recherche dans la page Notes (Cmd+K)
+    - Recherche hybride full-text + sémantique via ContextEngine
+    - Debounce 300ms, scores de pertinence colorés
+    - Highlights des termes trouvés dans les résultats
+  - **Édition titre inline** : Double-clic sur le titre pour éditer
+    - Enter/Escape pour sauvegarder/annuler
+    - Boutons ✓/✕ visuels
+    - Feedback toast sur sauvegarde
+  - **Documentation** : Specs NOTES_UX_SPEC.md et NOTE_HYGIENE_SPEC.md créées
+  - **Fichiers modifiés** :
+    - `web/src/routes/notes/+page.svelte` — +330 lignes (search + title edit)
+    - `docs/user-guide/04-notes.md` — Documentation mise à jour
+    - `docs/specs/NOTES_UX_SPEC.md` — NEW (~400 lignes)
+    - `docs/specs/NOTE_HYGIENE_SPEC.md` — NEW (~600 lignes)
+  - **Commits** : `c34469a`, `6a2dc23`
 
 - **v1.0.0-alpha.28** (2026-01-17) : Semantic Embeddings for OmniFocus Duplicates
   - **Détection sémantique** : Utilise les embeddings pour détecter les reformulations

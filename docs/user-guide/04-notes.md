@@ -41,9 +41,19 @@ notes/
 
 ## Interface
 
-### Arbre de Dossiers
+L'interface Notes est organisée en **3 colonnes** style Apple Notes :
 
-- Navigation hiérarchique
+| Colonne | Contenu | Largeur |
+|---------|---------|---------|
+| **1** | Arbre de dossiers | 224px |
+| **2** | Liste des notes + Recherche | 288px |
+| **3** | Contenu de la note | Flexible |
+
+### Arbre de Dossiers (Colonne 1)
+
+- Navigation hiérarchique avec expansion/collapse
+- Dossiers virtuels : "Toutes les notes" et "Supprimées récemment"
+- Compteur de notes par dossier
 - Créer dossiers avec clic droit
 - Glisser-déposer pour organiser
 
@@ -51,12 +61,35 @@ notes/
 
 Vos notes favorites en accès rapide.
 
-### Recherche
+### Recherche API (Colonne 2)
 
-`Cmd+K` pour recherche globale :
-- Par titre
-- Par contenu
-- Par type
+La barre de recherche en haut de la colonne 2 permet une recherche puissante dans toutes vos notes.
+
+**Raccourci clavier** : `Cmd+K` (ou `Ctrl+K`)
+
+**Fonctionnalités** :
+- Recherche hybride : full-text + sémantique
+- Debounce automatique (300ms)
+- Score de pertinence affiché (badge coloré)
+- Extraits avec highlights des termes trouvés
+- Chemin du dossier affiché pour chaque résultat
+
+**Actions** :
+- `Escape` ou clic sur ✕ : Effacer la recherche
+- Clic sur un résultat : Ouvre la note
+
+### Édition du Titre (Colonne 3)
+
+**Double-clic** sur le titre d'une note pour l'éditer directement.
+
+| Action | Résultat |
+|--------|----------|
+| Double-clic sur titre | Passe en mode édition |
+| `Enter` | Sauvegarde le titre |
+| `Escape` | Annule les modifications |
+| Clic ailleurs | Sauvegarde le titre |
+| ✓ | Sauvegarde |
+| ✕ | Annule |
 
 ---
 
