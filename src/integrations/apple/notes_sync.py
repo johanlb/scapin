@@ -6,10 +6,9 @@ Handles bidirectional synchronization between Apple Notes and Scapin notes.
 
 import json
 import re
-import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import Any, Optional
 
 import yaml
 
@@ -40,10 +39,101 @@ class AppleNotesSync:
     3. Determine actions based on modification dates
     4. Execute sync in both directions
     5. Update sync mappings
+
+    IMPORTANT: Scapin-specific frontmatter fields are PROTECTED and never
+    overwritten by Apple Notes sync. See PROTECTED_SCAPIN_FIELDS.
     """
 
     SYNC_MAPPING_FILE = "apple_notes_sync.json"
     EXCLUDED_FOLDERS = {"Recently Deleted", "Quick Notes"}
+
+    # Fields that Apple Notes sync can safely overwrite
+    APPLE_SYSTEM_FIELDS = {
+        "title",
+        "source",
+        "apple_id",
+        "apple_folder",
+        "created",
+        "modified",
+        "synced",
+    }
+
+    # Scapin-specific fields that MUST be preserved during sync
+    # These are NEVER overwritten by Apple Notes content
+    PROTECTED_SCAPIN_FIELDS = {
+        # Base fields
+        "type",
+        "aliases",
+        "importance",
+        "tags",
+        "category",
+        "related",
+        "linked_sources",
+        "pending_updates",
+        "created_at",
+        "updated_at",
+        "source_id",
+        # Personne fields
+        "first_name",
+        "last_name",
+        "relation",
+        "relationship_strength",
+        "introduced_by",
+        "organization",
+        "role",
+        "sector",
+        "email",
+        "phone",
+        "preferred_language",
+        "communication_style",
+        "timezone",
+        "projects",
+        "last_contact",
+        "mention_count",
+        "first_contact",
+        "notes_personnelles",
+        # Projet fields
+        "status",
+        "priority",
+        "domain",
+        "start_date",
+        "target_date",
+        "deadline",
+        "stakeholders",
+        "budget_range",
+        "currency",
+        "related_entities",
+        "last_activity",
+        "activity_count",
+        # Entité fields
+        "entity_type",
+        "industry",
+        "relationship",
+        "contacts",
+        "website",
+        "email_domain",
+        "address",
+        "country",
+        "last_interaction",
+        # Réunion fields
+        "date",
+        "duration_minutes",
+        "location",
+        "location_type",
+        "meeting_url",
+        "participants",
+        "project",
+        "agenda",
+        "decisions",
+        "action_items",
+        "next_meeting",
+        # Actif fields
+        "asset_type",
+        "asset_category",
+        "acquisition_date",
+        "acquisition_value",
+        "current_status",
+    }
 
     def __init__(
         self,
@@ -592,12 +682,18 @@ class AppleNotesSync:
         """
         Format an Apple note as Scapin Markdown with Smart Merge.
 
+        IMPORTANT: Scapin-specific fields are PROTECTED and will be preserved
+        from the existing file if present. Only Apple system fields are updated.
+
         Args:
             apple_note: The source note from Apple
             existing_path: If provided, read this file to merge existing frontmatter (Smart Merge)
+
+        Returns:
+            Formatted Markdown with YAML frontmatter
         """
-        # Default Frontmatter
-        metadata = {
+        # Apple system fields - these CAN be overwritten
+        apple_metadata = {
             "title": apple_note.name,
             "source": "apple_notes",
             "apple_id": apple_note.id,
@@ -607,40 +703,50 @@ class AppleNotesSync:
             "synced": datetime.now(timezone.utc).isoformat(),
         }
 
-        # SMART MERGE: Preserve existing metadata if available
+        # Start with Apple metadata
+        final_metadata: dict[str, Any] = dict(apple_metadata)
+
+        # SMART MERGE: Preserve Scapin-specific fields from existing file
         if existing_path and existing_path.exists():
             try:
                 content = existing_path.read_text(encoding="utf-8")
-                # Use Janitor or simple logic to exact frontmatter
                 match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
                 if match:
                     existing_fm_str = match.group(1)
                     existing_fm = yaml.safe_load(existing_fm_str)
                     if isinstance(existing_fm, dict):
-                        # Merge strategy: Update system fields, Keep AI fields
-                        # We overwrite the fields we KNOW are from Apple, keep others
-                        # But actually, 'title' might have been refined by user in Scapin?
-                        # Rule: Apple is master for Title/Body in this SyncDirection.
-                        # So we overwrite title.
+                        # Collect protected fields from existing frontmatter
+                        protected_values: dict[str, Any] = {}
+                        for key, value in existing_fm.items():
+                            if key in self.PROTECTED_SCAPIN_FIELDS:
+                                protected_values[key] = value
 
-                        # Merge dictionaries (existing takes precedence for unknown keys, but we update system keys)
-                        merged = existing_fm.copy()
-                        merged.update(metadata)  # Overwrite system keys
+                        # Log protected fields for debugging
+                        if protected_values:
+                            logger.debug(
+                                f"Protecting {len(protected_values)} Scapin fields: "
+                                f"{list(protected_values.keys())}"
+                            )
 
-                        # Preserve keys that SHOULD NOT change if Apple didn't touch them?
-                        # Actually Apple Note is the source of truth for Title/Folder here.
-                        # So merged is correct: we apply new Apple values over old ones.
-                        # BUT we keep keys like 'type', 'importance', 'referenced_by' which are NOT in metadata.
-                        metadata = merged
+                        # Build final metadata:
+                        # 1. Start with existing frontmatter (preserves order and unknown keys)
+                        # 2. Update ONLY Apple system fields
+                        # 3. Protected fields are never touched
+                        final_metadata = dict(existing_fm)
+
+                        # Update only Apple system fields
+                        for key, value in apple_metadata.items():
+                            if key in self.APPLE_SYSTEM_FIELDS:
+                                final_metadata[key] = value
+
             except Exception as e:
                 logger.warning(
                     f"Smart Merge failed to parse existing frontmatter for {existing_path}: {e}"
                 )
 
-        # Dump YAML
-        # Use safe_dump but ensure we handle the formatting nicely
+        # Dump YAML with nice formatting
         yaml_str = yaml.dump(
-            metadata, allow_unicode=True, default_flow_style=False, sort_keys=False
+            final_metadata, allow_unicode=True, default_flow_style=False, sort_keys=False
         )
 
         return f"---\n{yaml_str}---\n\n{apple_note.body_markdown}"
