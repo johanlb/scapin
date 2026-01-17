@@ -740,6 +740,50 @@ web/src/routes/flux/test-performance/+page.svelte  # +1 ligne (mock)
 
 ---
 
+### Session 2026-01-17 (Suite 3) — Protected Scapin Fields in Apple Notes Sync (Phase 3) ✅
+
+**Focus** : Protéger les champs Scapin enrichis par l'IA lors de la synchronisation avec Apple Notes
+
+**Problème résolu** :
+- Avant : Smart Merge écrasait potentiellement les champs Scapin avec les données Apple
+- Risque : Perte des enrichissements IA (aliases, relations, pending_updates, etc.)
+- Solution : Définition explicite des champs protégés et mise à jour sélective
+
+**Accomplissements** :
+
+1. ✅ **Constantes de protection** (`src/integrations/apple/notes_sync.py`)
+   - `PROTECTED_SCAPIN_FIELDS` : ~50 champs qui ne doivent JAMAIS être écrasés
+     - Base : `type`, `aliases`, `importance`, `tags`, `category`, `related`, `linked_sources`, `pending_updates`
+     - Personne : `relation`, `organization`, `email`, `phone`, `projects`, etc.
+     - Projet : `status`, `stakeholders`, `budget_range`, `deadline`, etc.
+     - Entité : `entity_type`, `contacts`, `website`, etc.
+     - Réunion : `participants`, `agenda`, `decisions`, `action_items`, etc.
+   - `APPLE_SYSTEM_FIELDS` : 7 champs que Apple peut écraser
+     - `title`, `source`, `apple_id`, `apple_folder`, `created`, `modified`, `synced`
+
+2. ✅ **Smart Merge amélioré** (`_format_scapin_note()`)
+   - Lecture du frontmatter existant
+   - Mise à jour UNIQUEMENT des champs Apple système
+   - Préservation de tous les champs Scapin et inconnus
+   - Logging des champs protégés pour debugging
+
+3. ✅ **Suite de tests complète** (`tests/unit/test_apple_notes_sync.py` ~280 lignes)
+   - TestProtectedFields : 3 tests (constantes, pas d'overlap)
+   - TestFormatScapinNote : 7 tests (new note, preserve, unknown, malformed)
+   - TestProtectedFieldsComprehensive : 4 tests (personne, projet, pending_updates, linked_sources)
+
+**Fichiers modifiés** :
+```
+src/integrations/apple/notes_sync.py       # +80 lignes (constantes), refactor _format_scapin_note
+tests/unit/test_apple_notes_sync.py        # NEW (~280 lignes, 14 tests)
+```
+
+**Tests** : 14 tests passent, ruff 0 warnings
+
+**Commit** : `2abaaad`
+
+---
+
 ### Session 2026-01-12 (Suite 2) — Atomic Transaction Logic for Email + Enrichments ✅
 
 **Focus** : Refonte architecturale pour traiter email + enrichissements comme unité atomique

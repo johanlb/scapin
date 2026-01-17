@@ -1,7 +1,7 @@
 # Scapin — Feuille de Route Produit
 
 **Dernière mise à jour** : 17 janvier 2026
-**Version** : 1.0.0-alpha.25
+**Version** : 1.0.0-alpha.26
 **Phase actuelle** : ✅ Release Candidate 1 | ✅ Sprint 7 (Multi-Pass v2.2) COMPLÉTÉ (11/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
@@ -1215,6 +1215,17 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.26** (2026-01-17) : Protected Scapin Fields in Apple Notes Sync (Phase 3)
+  - **Protection des champs Scapin** : Les champs enrichis par l'IA ne sont plus écrasés lors de la sync
+  - **PROTECTED_SCAPIN_FIELDS** : ~50 champs protégés (type, aliases, relation, stakeholders, etc.)
+  - **APPLE_SYSTEM_FIELDS** : 7 champs que Apple peut écraser (title, source, apple_id, etc.)
+  - **Smart Merge amélioré** : Seuls les champs système Apple sont mis à jour
+  - **Tests** : 14 tests pour la protection des champs
+  - **Fichiers modifiés** :
+    - `src/integrations/apple/notes_sync.py` — Constantes et logique de protection
+    - `tests/unit/test_apple_notes_sync.py` — Suite de tests complète
+  - **Commit** : `2abaaad`
 
 - **v1.0.0-alpha.25** (2026-01-17) : Task Checkbox Toggle for OmniFocus Proposals
   - **Checkboxes interactives** : Les tâches OmniFocus proposées peuvent être cochées/décochées
