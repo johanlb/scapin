@@ -56,9 +56,9 @@ Event → Perception → Reasoning (iterative) → Planning → Action → Learn
 
 > **Paradigm Shift**: From "What action should I take?" to "What information can I extract?"
 >
-> **Spec Multi-Pass (v2.2)**: [docs/specs/MULTI_PASS_SPEC.md](docs/specs/MULTI_PASS_SPEC.md) ⭐ NEW
-> **Spec simplifiée (v2.2)**: [docs/specs/WORKFLOW_V2_SIMPLIFIED.md](docs/specs/WORKFLOW_V2_SIMPLIFIED.md)
-> **Plan d'implémentation**: [docs/specs/WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/WORKFLOW_V2_IMPLEMENTATION.md)
+> **Spec Multi-Pass (v2.2)**: [docs/specs/archive/MULTI_PASS_SPEC.md](docs/specs/archive/MULTI_PASS_SPEC.md)
+> **Spec simplifiée (v2.2)**: [docs/specs/archive/WORKFLOW_V2_SIMPLIFIED.md](docs/specs/archive/WORKFLOW_V2_SIMPLIFIED.md)
+> **Plan d'implémentation**: [docs/specs/archive/WORKFLOW_V2_IMPLEMENTATION.md](docs/specs/archive/WORKFLOW_V2_IMPLEMENTATION.md)
 
 ### Vision
 
@@ -97,7 +97,7 @@ Event → Classification          Event → Extraction d'information
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                    │                                                     │
 │            ┌──────┴──────┐                                              │
-│            │ conf ≥ 95%? │──→ OUI ──→ APPLICATION                       │
+│            │ conf ≥ 95%? │──→ OUI ──→ COHÉRENCE                          │
 │            └──────┬──────┘                                              │
 │                   ↓ NON                                                  │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
@@ -115,7 +115,7 @@ Event → Classification          Event → Extraction d'information
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                    │                                                     │
 │            ┌──────┴──────┐                                              │
-│            │ conf ≥ 90%? │──→ OUI ──→ APPLICATION                       │
+│            │ conf ≥ 90%? │──→ OUI ──→ COHÉRENCE                          │
 │            └──────┬──────┘                                              │
 │                   ↓ NON (conf < 80%)                                     │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
@@ -126,7 +126,7 @@ Event → Classification          Event → Extraction d'information
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                    │                                                     │
 │            ┌──────┴──────┐                                              │
-│            │ conf ≥ 90%? │──→ OUI ──→ APPLICATION                       │
+│            │ conf ≥ 90%? │──→ OUI ──→ COHÉRENCE                          │
 │            └──────┬──────┘                                              │
 │                   ↓ NON (conf < 75% OU high-stakes)                      │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
@@ -135,6 +135,14 @@ Event → Classification          Event → Extraction d'information
 │  │  • High-stakes: montant > 10k€, deadline < 48h, VIP               │   │
 │  │  • Si incertain: génère question clarification                    │   │
 │  │  • Coût: ~$0.075                                                  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                              ↓                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  COHÉRENCE & VALIDATION                                [HAIKU]    │   │
+│  │  • Charge contenu COMPLET des notes cibles                        │   │
+│  │  • Préfère "Enrichir" si note existante                           │   │
+│  │  • Détecte doublons cross-notes                                   │   │
+│  │  • Identifie la section appropriée (## Header)                    │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 │                              ↓                                           │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
@@ -421,7 +429,11 @@ Scapin's architecture follows a valet-themed design, where each module represent
 │  │ • Relations │         │ • Relations │                   │
 │  │ • History   │         │ • Learning  │                   │
 │  └─────────────┘         └─────────────┘                   │
-│  Technology: Markdown + Git + Vector DB (embeddings)       │
+│                                                            │
+│  STRATÉGIE DE PERSISTANCE ATOMIQUE :                       │
+│  • Content: Markdown files (Human-readable, Git-friendly)   │
+│  • Metadata: SQLite (Spaced Repetition, AI History)         │
+│  • Sync: Apple Notes (Bidirectional + Smart Merge)         │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -509,36 +521,25 @@ Scapin's architecture follows a valet-themed design, where each module represent
 
 **Valet**: Trivelin (from Marivaux's *L'Île des esclaves*) - The clever valet who excels at sorting and classification
 **Module**: `src/trivelin/`
-**Purpose**: Normalize diverse inputs into universal format.
+**Purpose**: Normalize diverse inputs into universal `PerceivedEvent` format.
 
 **Interface**:
 ```python
-class PerceptionLayer:
-    def perceive(self, raw_event: Any) -> PerceivedEvent:
+class Normalizer:
+    def normalize(self, raw_data: Any) -> PerceivedEvent:
         """
-        Convert raw event into standardized format.
+        Convert raw source-specific data into standardized PerceivedEvent.
 
-        Args:
-            raw_event: EmailMessage, File, Question, etc.
-
-        Returns:
-            PerceivedEvent with:
-            - source: EventSource (email, file, question)
-            - content: UniversalContent (normalized)
-            - metadata: Dict[str, Any]
-            - entities: List[Entity] (extracted)
-            - timestamp: datetime
-            - event_id: str (unique)
+        Implementations: EmailNormalizer, CalendarNormalizer, TeamsNormalizer.
         """
         pass
 ```
 
 **Responsibilities**:
-- Event type detection
-- Content extraction & normalization
-- Initial entity extraction (people, dates, topics, locations)
-- Metadata capture
-- Event ID generation (for tracking)
+- **Standardization**: Map source fields (subject, body, sender) to universal fields.
+- **Initial Triage**: Heuristic detection of `EventType` and `UrgencyLevel`.
+- **Entity Extraction**: Clean up people, locations, and dates for reasoning.
+- **Traceability**: Link back to original source IDs.
 
 **Technologies**:
 - Email: IMAP parsing (existing)
@@ -548,52 +549,40 @@ class PerceptionLayer:
 
 ---
 
-### 2. Working Memory
+### 2. V2 Working Memory
 
-**Purpose**: Central hub for current reasoning state.
+**Purpose**: Cumulative state container for the reasoning pipeline.
+**Module**: `src/core/models/v2_models.py`
 
-**Interface**:
+**Composition (`V2WorkingMemory`):**
 ```python
 @dataclass
-class WorkingMemory:
-    """Short-term understanding accumulator"""
+class V2WorkingMemory:
+    """Short-term understanding accumulator for Workflow v2"""
 
-    # Event being processed
-    event: PerceivedEvent
+    event_id: str
+    state: V2MemoryState  # INITIALIZED -> ANALYZING -> etc.
+    
+    # Context (The "Retrieval" pass)
+    context_notes: List[ContextNote]
+    cross_source_context: List[CrossSourceContext]
 
-    # Current understanding (evolves across passes)
-    understanding: Understanding
+    # Validation (The "Sganarelle" pass)
+    pattern_matches: List[PatternMatch]
 
-    # Retrieved context from PKM
-    context: ContextBundle
+    # Analysis (The "Reasoning" pass)
+    analysis: Optional[AnalysisResult]
 
-    # Reasoning trace (all passes)
-    reasoning_trace: List[ReasoningPass]
-
-    # Hypotheses being considered
-    hypotheses: List[Hypothesis]
-
-    # Confidence scores
-    confidence: ConfidenceScores
-
-    # Open questions / uncertainties
-    uncertainties: List[str]
-
-    # Conversation history (if continuous)
-    conversation_history: Optional[List[PerceivedEvent]]
-
-    # Iteration count
-    iteration: int = 0
-    max_iterations: int = 5
-
-    def is_confident(self) -> bool:
-        """Check if confidence threshold met"""
-        return self.confidence.overall >= 0.95
-
-    def should_continue(self) -> bool:
-        """Check if should continue reasoning"""
-        return not self.is_confident() and self.iteration < self.max_iterations
+    # Interaction
+    clarification_questions: List[ClarificationQuestion]
 ```
+
+**Cycle of Life**:
+1. **Initialize** with a `PerceivedEvent`.
+2. **Context Enrichment**: Retrieve relevant notes and recent history.
+3. **Reasoning**: Multi-pass analysis using the LLM.
+4. **Validation**: Check against known patterns or historical precedents.
+5. **Finalization**: Either apply results or queue for user clarification.
 
 **Persistence Strategy**:
 - **Default**: Reset for each new event
@@ -605,194 +594,69 @@ class WorkingMemory:
 
 ---
 
-### 3. Sancho - Reasoning Engine
+### 3. Sancho - Reasoning Layer
 
-**Valet**: Sancho Panza (from Cervantes' *Don Quixote*) - The wise and practical squire who provides sound counsel
+**Valet**: Sancho (from Cervantes' *Don Quixote*) - The wise and practical squire who provides sound counsel and grounding.
 **Module**: `src/sancho/`
-**Purpose**: Iterative multi-pass reasoning until confident.
+**Purpose**: Multi-pass reasoning and extraction with intelligent model escalation.
 
-**Algorithm**:
-```python
-class ReasoningEngine:
-    def reason(self, working_memory: WorkingMemory) -> ReasoningResult:
-        """
-        Iterative reasoning loop.
+**Key Components**:
+- **MultiPassAnalyzer**: Orchestrates the reasoning flow through multiple passes (Haiku → Sonnet → Opus).
+- **CoherenceValidator**: Validates extractions against existing notes (Enrichir > Créer) to prevent duplicates.
+- **ContextSearcher**: Bridges Trivelin and Passepartout, providing a `StructuredContext` for reasoning.
+- **DecomposedConfidence**: Evaluates understanding across four dimensions (Entity, Action, Extraction, Completeness).
 
-        Max 5 passes:
-        1. Initial Analysis (60-70% confidence)
-        2. Context Enrichment (75-85% confidence)
-        3. Deep Reasoning (85-92% confidence)
-        4. Validation & Consensus (90-96% confidence)
-        5. User Clarification (95-99% confidence)
+**The Reasoning Flow (v2.2)**:
+- **Pass 1 (Blind)**: Fast, initial extraction using Haiku without external context.
+- **Pass 2-3 (Refinement)**: Context-aware refinement using Haiku + retrieved notes/entities.
+- **Pass 4 (Deep)**: Escalation to Sonnet if confidence < 90% or "high-stakes" content is detected.
+- **Pass 5 (Expert)**: Escalation to Opus for final consensus on complex or conflicting information.
+- **Coherence Pass**: Final structural validation before committing extractions to the Knowledge Base. Operates in three modes: Extraction (validate enrichment vs creation), Maintenance (note refactoring), and Batch (duplicate detection).
 
-        Stops when confidence >= 95% OR max iterations reached.
-        """
+**Convergence Strategy**:
+Instead of fixed passes, Sancho stops when:
+1. All confidence dimensions are >= 90%.
+2. Analysis has converged (no significant changes between passes).
+3. Maximum passes (5) are reached.
 
-        while working_memory.should_continue():
-            pass_num = working_memory.iteration + 1
-
-            # Execute reasoning pass
-            if pass_num == 1:
-                result = self._initial_analysis(working_memory)
-            elif pass_num == 2:
-                result = self._context_enrichment(working_memory)
-            elif pass_num == 3:
-                result = self._deep_reasoning(working_memory)
-            elif pass_num == 4:
-                result = self._validation_consensus(working_memory)
-            else:  # pass_num == 5
-                result = self._user_clarification(working_memory)
-
-            # Update working memory
-            working_memory.update(result)
-            working_memory.iteration += 1
-
-            # Check convergence
-            if working_memory.is_confident():
-                break
-
-        return ReasoningResult(
-            understanding=working_memory.understanding,
-            confidence=working_memory.confidence,
-            trace=working_memory.reasoning_trace
-        )
-```
-
-**Pass Specifications**:
-
-#### Pass 1: Initial Analysis
-- **Input**: PerceivedEvent only
-- **Process**:
-  - AI analyzes raw event
-  - Extracts key information
-  - Generates initial hypotheses
-  - No external context yet
-- **Output**: Initial understanding (~60-70% confidence)
-- **Time**: ~2-3 seconds
-
-#### Pass 2: Context Enrichment
-- **Input**: Initial understanding + PKM
-- **Process**:
-  - Identify key entities from Pass 1
-  - Semantic search PKM for related notes
-  - Retrieve context (notes, entities, relationships)
-  - Re-analyze with full context
-- **Output**: Context-aware understanding (~75-85% confidence)
-- **Time**: ~3-5 seconds (includes vector search)
-
-#### Pass 3: Deep Reasoning
-- **Input**: Context-enriched understanding
-- **Process**:
-  - Multi-step inference chains
-  - "If X then Y" reasoning
-  - Check for contradictions
-  - Explore alternative interpretations
-  - Consider implications
-- **Output**: Deep understanding (~85-92% confidence)
-- **Time**: ~2-4 seconds
-
-#### Pass 4: Validation & Consensus
-- **Input**: Deep understanding
-- **Process**:
-  - Query second AI provider (Phase 2.5)
-  - Compare analyses
-  - Identify discrepancies
-  - Resolve through weighted consensus
-  - Generate unified understanding
-- **Output**: Validated understanding (~90-96% confidence)
-- **Time**: ~3-5 seconds (second AI call)
-
-#### Pass 5: User Clarification
-- **Input**: Validated but still uncertain understanding
-- **Process**:
-  - Identify specific uncertainties
-  - Generate targeted clarifying question
-  - Present to user (via Review Queue)
-  - Wait for user answer
-  - Incorporate answer into analysis
-- **Output**: User-validated understanding (~95-99% confidence)
-- **Time**: User-dependent (async)
-
-**Total Time**: 10-20 seconds (excluding user wait in Pass 5)
+### Note Granularity: "Project-First"
+Scapin prioritizes meaningful context over atomic isolation.
+- **Principle**: Information is extracted into the most relevant "Project" or "Asset" note rather than creating separate notes for every person or entity.
+- **Categories**:
+  - **Projects (Temporaires)**: Notes with a clear start and end (e.g., "Projet Vente Nautil 6").
+  - **Domaines/Actifs (Permanents)**: Ongoing context (e.g., "Nautil 6", "Santé").
+  - **Contacts Stratégiques**: Individual notes only for people appearing across multiple contexts.
+- **Benefit**: Reduces PKM fragmentation and preserves the "Why" behind data points.
 
 ---
 
-### 4. Passepartout - Long-Term Memory
+### 4. Passepartout - Knowledge Foundation
 
-**Valet**: Passepartout (from Verne's *Around the World in 80 Days*) - The resourceful valet who can find his way anywhere
+**Valet**: Passepartout (from Verne's *Around the World in 80 Days*) - The resourceful valet who manages the tools and environment.
 **Module**: `src/passepartout/`
-**Purpose**: Bidirectional knowledge base (Read + Write).
+**Purpose**: Long-term memory, context retrieval, and PKM maintenance.
 
-**Interface**:
-```python
-class PassepartoutMemory:
-    """Long-term knowledge storage"""
+**Key Components**:
+- **ContextEngine**: Multi-strategy retrieval (Entity, Semantic, Thread, Graph).
+- **NoteManager**: Managed file persistence (Markdown + Frontmatter) and vector indexing.
+- **NoteReviewer**: Automated hygiene and enrichment using SM-2 spaced repetition.
+- **NoteScheduler**: SM-2 algorithm implementation for adaptive review intervals.
+- **NoteMetadataStore**: SQLite persistence for review states and enrichment history.
 
-    # READ operations
-    def semantic_search(
-        self,
-        query: str,
-        top_k: int = 10
-    ) -> List[Note]:
-        """
-        Semantic search using embeddings.
+**Retrieval Strategies**:
+| Strategy | Description | Innovation |
+| :--- | :--- | :--- |
+| **Entity** | Exact alias matching + semantic entity search | Multi-stage discovery |
+| **Semantic** | FAISS-based vector search on note embeddings | 1536-dim accuracy |
+| **Thread** | Relationship tracking for email/chat threads | Continuity support |
+| **Graph** | Outgoing link expansion (2nd degree context) | Deep context discovery |
 
-        Uses sentence-transformers + FAISS/ChromaDB.
-        """
-        pass
-
-    def get_entity(self, entity_id: str) -> Entity:
-        """Get entity by ID (person, project, topic)"""
-        pass
-
-    def get_relationships(
-        self,
-        entity_id: str
-    ) -> List[Relationship]:
-        """Get all relationships for entity"""
-        pass
-
-    def get_history(
-        self,
-        entity_id: str,
-        limit: int = 10
-    ) -> List[Event]:
-        """Get event history related to entity"""
-        pass
-
-    # WRITE operations
-    def create_note(self, note: Note) -> str:
-        """Create new note, return note_id"""
-        pass
-
-    def update_note(self, note_id: str, updates: Dict) -> None:
-        """Update existing note"""
-        pass
-
-    def add_entity(self, entity: Entity) -> str:
-        """Add new entity, return entity_id"""
-        pass
-
-    def create_relationship(
-        self,
-        from_id: str,
-        to_id: str,
-        rel_type: str
-    ) -> None:
-        """Create relationship between entities"""
-        pass
-
-    def commit(self, message: str) -> None:
-        """Git commit changes to knowledge base"""
-        pass
-```
-
-**Storage Technology**:
-- **Notes**: Markdown files with YAML frontmatter
-- **Version Control**: Git (automatic commits)
-- **Embeddings**: sentence-transformers (all-MiniLM-L6-v2 or similar)
-- **Vector Store**: FAISS (local) or ChromaDB (scalable)
-- **Graph**: NetworkX (for relationships)
+**Note Hygiene (SM-2)**:
+Notes are scored (0-5) during review, determining their next appearance:
+- **Quality 5**: Perfect, long interval.
+- **Quality < 3**: Failed, reset to base interval.
+- **Interval Formula**: `I(n) = I(n-1) * EF` (where EF is the Easiness Factor).
+- **Auto-Apply**: High-confidence hygiene fixes (formatting, links) are applied automatically.
 
 **Example Note Format**:
 ```markdown
@@ -832,6 +696,36 @@ Marie sent the preliminary Q2 budget spreadsheet...
 - [[Q1 Budget Review]]
 - [[Annual Financial Plan]]
 ```
+
+### Metadata & Persistence Strategy
+
+Scapin uses a **hybrid storage model** that balances human readability with machine efficiency:
+
+1. **Markdown Payload** (`.md` files):
+   - Stores the actual content and primary tags.
+   - Versioned via Git for auditability and safety.
+   - Uses YAML frontmatter for core properties (title, type, importance).
+
+2. **Atomic Metadata Store** (SQLite):
+   - Stores time-sensitive or high-frequency data.
+   - **Scheduling**: SM-2 algorithm state (interval, easiness factor).
+   - **Enrichment History**: Tracks every AI-suggested change (add, update, link) and its confidence level.
+   - **Performance**: NoteManager uses an LRU cache (default 2000 notes) and SQLite WAL mode for fast concurrent access.
+
+3. **Vector Store** (FAISS):
+   - Stores embeddings for semantic search.
+   - Indexed on-the-fly or loaded from `.scapin_index` cache.
+
+### Enrichment History Schema
+
+Each note's metadata includes an `enrichment_history` (list of `EnrichmentRecord`):
+- `timestamp`: When the action was suggested.
+- `action_type`: `add`, `update`, `link`, `refactor`.
+- `target`: Specific section or field targeted.
+- `content`: The proposed content.
+- `confidence`: AI confidence score.
+- `applied`: Boolean flag for auto-application.
+- `reasoning`: AI explanation for the change.
 
 ---
 
@@ -1237,6 +1131,12 @@ class ProcessedEmailTracker:
 - SQLite provides reliable local persistence
 - Thread-safe with `check_same_thread=False`
 - Batch processing with early stop for performance (1s vs 43s for 16k+ emails)
+
+#### Folder Strategy: Single Archive Folder
+**Decision**: Scapin follows a "Flat Archive" strategy to minimize organizational friction.
+- **Rule**: ALL archived emails go to the root "Archive" folder (no sub-folders like "Archive/2026/Work").
+- **Classification**: Emails are categorized via the `category` field (work, personal, finance, etc.) in metadata, NOT via folder hierarchy.
+- **Rationale**: Search and AI-powered retrieval make deep hierarchies obsolete and counter-productive for automated systems.
 
 #### JSON Repair Strategy (`src/sancho/router.py`)
 
@@ -1780,8 +1680,9 @@ src/core/
 
 **Phase 2** (Interactive Menu) → Event source + UI for review (via Jeeves)
 **Phase 0.7** (Jeeves API) → Web/Mobile interface to cognitive architecture
-**Phase 2.5** (Multi-Provider AI) → Used in Sancho's Pass 4 (Validation & Consensus)
-**Phase 3** (Knowledge System) → Implemented by Passepartout
+**Phase 3** (Knowledge System) → ✅ COMPLETE (2026-01-15)
+**Phase 4** (Integration & Sync) → ✅ COMPLETE (2026-01-17)
+**Phase 5** (Interaction) → In Progress
 **Phase 6** (Integrations) → Additional actions for Figaro to orchestrate
 
 ### Valet Module Integration Map
@@ -1799,6 +1700,47 @@ Figaro (Execution)
     ↓
 Sganarelle (Learning) → Passepartout (Knowledge Update)
 ```
+
+---
+
+---
+
+## 🔗 Phase 4: Integration & Sync
+
+### Overview
+Phase 4 focuses on bridging the Perception layer with External Systems, ensuring high-fidelity data flow and state synchronization. This includes the upgrade of the Email Pipeline to v2.2 and bidirectional Apple Notes synchronization.
+
+### 📧 V2 Email Processing (Trivelin V2)
+The `V2EmailProcessor` implements the full cognitive iteration loop for emails.
+
+**Key Components**:
+- **Working Memory (V2)**: Maintains state across the analysis iterations, storing intermediate reasoning and context.
+- **Multi-Source Context**: Integrates `ContextEngine` (Semantic) and `CrossSourceEngine` (Entities/Patterns) for holistic understanding.
+- **Pattern Validation (Sganarelle)**: Validates extracted information against learned user patterns and historical preferences.
+- **Cognitive Reasoning (Sancho)**: Multi-pass extraction with model escalation (Haiku -> Sonnet) based on task complexity.
+
+**Pipeline Flow**:
+1. **Perception**: IMAP fetching/normalization.
+2. **Context Enrichment**: Retrieval of relevant notes and cross-source patterns.
+3. **Analysis**: Multi-pass reasoning via `MultiPassAnalyzer`.
+4. **Validation**: Coherence check and pattern verification.
+5. **Decision**: Auto-execution of high-confidence extractions or queuing for user review.
+
+### 🍏 Apple Notes Synchronization
+Bidirectional sync between local Scapin Markdown notes and Apple Notes via AppleScript.
+
+**Smart Merge Strategy**:
+To preserve Scapin's knowledge graph integrity, the sync engine distinguishes between "System" and "Scapin" fields.
+
+| Category | Fields | Logic |
+|----------|--------|-------|
+| 🍎 **Apple System** | title, folder, created, modified | Overwritten by Apple Notes (Source of Truth for metadata) |
+| 🛡️ **Scapin Protected** | type, importance, aliases, relation, pending_updates, linked_sources | **Preserved** during sync. Never overwritten by external data. |
+| 📝 **Content** | Note Body | Merged using "Newer Wins" logic at the paragraph level. |
+
+**Conflict Resolution**:
+- **Newer Wins**: Changes in Apple Notes or Scapin are compared by modification date.
+- **Frontmatter Preservation**: Scapin-specific YAML fields are merged carefully to prevent data loss of AI-enriched metadata.
 
 ---
 
@@ -1870,6 +1812,11 @@ on Dec 30. She confirmed the revenue target of $500K and
 
 **Architecture Support**: Question events already designed for this. Jeeves API (Phase 0.7) will provide the conversational interface.
 
+#### Feature: Re-analysis (Autre)
+The "Other" option in the Review Queue allows users to provide explicit instructions (e.g., "Classify in Archive/Taxes"). 
+- **Workflow**: Instruction → `/reanalyze` API → Multi-pass loop with `user_instruction` injected → Updated proposal.
+- **Modes**: Immediate (synchronous) or Background (queued).
+
 ---
 
 ### Extension 4: Learning from Mistakes
@@ -1890,6 +1837,53 @@ Learning:
 ```
 
 **Architecture Support**: Learning Engine already designed for this.
+
+---
+
+### Extension 5: Note Hygiene Review (Planned)
+
+**Enhancement**: Treat note review as a PerceivedEvent to leverage the entire cognitive pipeline.
+
+**Spec complète** : [docs/specs/NOTE_HYGIENE_SPEC.md](docs/specs/NOTE_HYGIENE_SPEC.md)
+
+**Principle**: A note review is just another event source, like email or Teams.
+
+```
+Email         → PerceivedEvent(source=email)       → Pipeline Cognitif
+Teams Message → PerceivedEvent(source=teams)       → Pipeline Cognitif
+Calendar      → PerceivedEvent(source=calendar)    → Pipeline Cognitif
+───────────────────────────────────────────────────────────────────────
+Note Review   → PerceivedEvent(source=note_review) → Pipeline Cognitif
+```
+
+**Workflow**:
+```
+User clicks 🧹 on note
+      │
+      ▼
+PerceivedEvent(type=NOTE_REVIEW)
+      │
+      ▼
+ContextEngine.retrieve_context()
+  • Resolve wikilinks
+  • Semantic search (FAISS)
+  • Cross-source (Calendar, Teams...)
+      │
+      ▼
+Multi-Pass Analysis (Sancho)
+  • Prompt: note_review.j2
+  • Detect: broken links, duplicates, inconsistencies
+  • Suggest: field updates, merges, new links
+      │
+      ▼
+Auto-apply (confidence ≥ 0.9) | Queue (confidence < 0.9)
+```
+
+**Key Architectural Decision**:
+- **Reuses**: ContextEngine, EmbeddingGenerator, ReasoningEngine, CognitivePipeline, Queue
+- **New**: EventType.NOTE_REVIEW, template note_review.j2, Figaro actions for notes
+
+**Architecture Support**: Full reuse of existing cognitive architecture. Only a new event type, prompt template, and note-specific actions needed.
 
 ---
 
