@@ -8,7 +8,7 @@ Handles conflicts when user edits a note while Scapin is enriching it.
 import difflib
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Union, List
+from typing import Optional
 
 from src.monitoring.logger import get_logger
 

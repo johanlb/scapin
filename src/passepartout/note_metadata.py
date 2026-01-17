@@ -415,7 +415,10 @@ class NoteMetadataStore:
         if val is None:
             return None
         try:
-            return datetime.fromisoformat(val)
+            dt = datetime.fromisoformat(val)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
         except (ValueError, TypeError) as e:
             logger.warning(
                 "Failed to parse datetime",

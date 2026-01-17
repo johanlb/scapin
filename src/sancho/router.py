@@ -16,6 +16,7 @@ from src.core.config_manager import AIConfig
 from src.core.schemas import EmailAnalysis, EmailContent, EmailMetadata, NoteAnalysis
 from src.passepartout.note_manager import Note
 from src.passepartout.note_metadata import NoteMetadata
+from src.passepartout.context_loader import ContextLoader
 from src.monitoring.logger import get_logger
 
 logger = get_logger("ai_router")
@@ -327,6 +328,14 @@ class AIRouter:
         )
         self.circuit_breaker = CircuitBreaker(failure_threshold=5, timeout=60)
 
+        # Initialize Context Loader for Dynamic Briefing
+        try:
+            self.context_loader = ContextLoader()
+            logger.info("ContextLoader initialized in AIRouter")
+        except Exception as e:
+            logger.warning(f"Failed to initialize ContextLoader: {e}")
+            self.context_loader = None
+
         # Metrics tracking
         self._metrics = {
             "total_requests": 0,
@@ -611,6 +620,19 @@ class AIRouter:
                 note_type=metadata.note_type.value if metadata.note_type else "unknown",
                 content=note.content,
             )
+
+            # Inject Global Context (Dynamic Briefing)
+            if self.context_loader:
+                global_context = self.context_loader.load_context()
+                if global_context:
+                    # Wrap the task prompt with global context using a template
+                    prompt = tm.render(
+                        "ai/briefing_system",
+                        global_context=global_context,
+                        task_prompt=prompt,
+                    )
+                    logger.debug("Injected global context into note analysis prompt")
+
         except Exception as e:
             logger.error(f"Failed to render note analysis prompt: {e}", exc_info=True)
             return None

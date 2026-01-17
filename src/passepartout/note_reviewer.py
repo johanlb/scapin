@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import Note, NoteManager
@@ -43,6 +43,7 @@ class ActionType(str, Enum):
     LINK = "link"  # Add wikilink to another note
     ARCHIVE = "archive"  # Move content to archive section
     FORMAT = "format"  # Formatting fixes only
+    ENRICH = "enrich"  # Enrich an external note (Reflection)
 
 
 @dataclass
@@ -55,6 +56,7 @@ class ReviewAction:
     confidence: float = 0.5  # 0.0 - 1.0
     reasoning: str = ""
     source: str = ""  # Where this suggestion came from
+    target_note_id: Optional[str] = None  # ID of the note to update (None for current note)
 
     def to_enrichment_record(self, applied: bool) -> EnrichmentRecord:
         """Convert to EnrichmentRecord for history"""
@@ -119,7 +121,7 @@ class NoteReviewer:
     """
 
     # Confidence threshold for auto-applying actions
-    AUTO_APPLY_THRESHOLD = 0.90
+    AUTO_APPLY_THRESHOLD = 0.85
 
     def __init__(
         self,
@@ -192,8 +194,11 @@ class NoteReviewer:
         # Build review context
         context = await self._load_context(note, metadata)
 
-        # Analyze note
-        analysis = await self._analyze(context)
+        # Scrub content for AI analysis (prevent binary bloat/token waste)
+        scrubbed_content = self._scrub_content(note.content)
+
+        # Analyze note (use scrubbed content if it's an AI analysis)
+        analysis = await self._analyze(context, scrubbed_content=scrubbed_content)
 
         # Process actions
         applied_actions = []
@@ -203,12 +208,23 @@ class NoteReviewer:
         for action in analysis.suggested_actions:
             if action.confidence >= self.AUTO_APPLY_THRESHOLD:
                 # Auto-apply high confidence actions
-                new_content = self._apply_action(updated_content, action)
-                if new_content != updated_content:
-                    updated_content = new_content
-                    applied_actions.append(action)
-                    # Record in history
-                    metadata.enrichment_history.append(action.to_enrichment_record(applied=True))
+                if action.action_type == ActionType.ENRICH and action.target_note_id:
+                    # External update (Briefing or other note)
+                    logger.info(f"Applying external enrichment to {action.target_note_id}")
+                    if self._apply_external_action(action):
+                        applied_actions.append(action)
+                        metadata.enrichment_history.append(
+                            action.to_enrichment_record(applied=True)
+                        )
+                else:
+                    new_content = self._apply_action(updated_content, action)
+                    if new_content != updated_content:
+                        updated_content = new_content
+                        applied_actions.append(action)
+                        # Record in history
+                        metadata.enrichment_history.append(
+                            action.to_enrichment_record(applied=True)
+                        )
             else:
                 # Queue for approval
                 pending_actions.append(action)
@@ -368,16 +384,33 @@ class NoteReviewer:
         pattern = r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]"
         return re.findall(pattern, content)
 
-    async def _analyze(self, context: ReviewContext) -> ReviewAnalysis:
+    def _scrub_content(self, content: str) -> str:
+        """
+        Scrub media links and large binary-like patterns from content.
+
+        Replaces ![image](path) or other media markers with placeholders.
+        """
+        # Replace Markdown images/attachments: ![alt](path)
+        scrubbed = re.sub(r"!\[([^\]]*)\]\([^\)]+\)", r"[MEDIA: \1]", content)
+
+        # Replace HTML images: <img src="...">
+        scrubbed = re.sub(r"<img[^>]+src=[\"'][^\"']+[\"'][^>]*>", "[IMAGE]", scrubbed)
+
+        return scrubbed
+
+    async def _analyze(
+        self, context: ReviewContext, scrubbed_content: Optional[str] = None
+    ) -> ReviewAnalysis:
         """Analyze note and suggest actions"""
         note = context.note
+        content_for_analysis = scrubbed_content if scrubbed_content is not None else note.content
         metadata = context.metadata
         actions = []
         issues = []
         strengths = []
 
         # Rule-based analysis
-        content = note.content
+        content = content_for_analysis
 
         # Check for outdated temporal references
         temporal_issues = self._check_temporal_references(content)
@@ -615,11 +648,87 @@ class NoteReviewer:
 
         return issues
 
-    async def _ai_analyze(self, _context: ReviewContext) -> list[ReviewAction]:
-        """Use AI to analyze note (requires Sancho integration)"""
-        # This will be implemented when integrated with Sancho
-        # For now, return empty list
-        return []
+    async def _ai_analyze(self, context: ReviewContext) -> list[ReviewAction]:
+        """Use AI to analyze note with Sancho integration"""
+        if not self.ai_router:
+            return []
+
+        try:
+            # We use the scrubbed content for the AI call to save tokens and avoid noise
+            scrubbed_content = self._scrub_content(context.note.content)
+
+            # Create a temporary note object for the router
+            from copy import copy
+
+            temp_note = copy(context.note)
+            temp_note.content = scrubbed_content
+
+            analysis = self.ai_router.analyze_note(temp_note, context.metadata)
+            if not analysis:
+                logger.info("DEBUG: AI Analysis is None/Empty")
+                return []
+
+            actions = []
+
+            # Map AI proposed notes (enrichments) to review actions
+            briefing_map = {"Profile": "Profile", "Projects": "Projects", "Goals": "Goals"}
+
+            for prop in analysis.proposed_notes:
+                # Note: AI might use 'note_id', 'target_note_id' or 'title' for targeting
+                target_note_id = prop.get("target_note_id") or prop.get("note_id")
+                title = prop.get("title", "")
+
+                # Check if this is a Briefing update (Reflection Loop)
+                is_briefing = False
+                if title in briefing_map:
+                    is_briefing = True
+                    target_note_id = briefing_map[title]
+
+                # If it's a proposal for the CURRENT note, we can map it to an action
+                if target_note_id == context.note.note_id or not target_note_id:
+                    # For now, map simple enrichments to ActionType.UPDATE or ActionType.ADD
+                    actions.append(
+                        ReviewAction(
+                            action_type=ActionType.UPDATE,
+                            target=prop.get("title", "Enrichment"),
+                            content=prop.get("content"),
+                            confidence=analysis.confidence,
+                            reasoning=prop.get("reasoning", analysis.reasoning),
+                            source="ai_analysis",
+                        )
+                    )
+                elif is_briefing or target_note_id:
+                    # Proposed update for an EXTERNAL note (Reflection Loop)
+                    actions.append(
+                        ReviewAction(
+                            action_type=ActionType.ENRICH,
+                            target=prop.get("title", "External Enrichment"),
+                            content=prop.get("content_summary") or prop.get("content"),
+                            confidence=analysis.confidence,
+                            reasoning=prop.get("reasoning", analysis.reasoning),
+                            source="ai_analysis",
+                            target_note_id=target_note_id,
+                        )
+                    )
+
+            # Map AI proposed tasks to review actions
+            for task in analysis.proposed_tasks:
+                actions.append(
+                    ReviewAction(
+                        action_type=ActionType.ADD,
+                        target=task.get("title", "New Task"),
+                        content=f"- [ ] {task.get('title')} #task",
+                        confidence=analysis.confidence,
+                        reasoning=task.get("reasoning", analysis.reasoning),
+                        source="ai_analysis",
+                    )
+                )
+
+            return actions
+
+        except Exception as e:
+            logger.warning(f"AI analysis integration failed: {e}", exc_info=True)
+            return []
 
     def _apply_action(self, content: str, action: ReviewAction) -> str:
         """Apply a single action to content"""
@@ -647,7 +756,45 @@ class NoteReviewer:
                 content = content.replace(action.target, action.content, 1)
             return content
 
+        if action.action_type == ActionType.UPDATE:
+            # Simple enrichment for the current note
+            if action.content:
+                # Append enrichment before archive or at end
+                if "---" in content:
+                    parts = content.split("---", 1)
+                    return f"{parts[0].strip()}\n\n{action.content}\n\n---{parts[1]}"
+                return f"{content.strip()}\n\n{action.content}"
+            return content
+
         return content
+
+    def _apply_external_action(self, action: ReviewAction) -> bool:
+        """Apply an enrichment action to an external note (Reflection Loop)"""
+        if not action.target_note_id or not action.content:
+            return False
+
+        target_note = self.notes.get_note(action.target_note_id)
+        if not target_note:
+            logger.warning(
+                f"Could not find target note for external update: {action.target_note_id}"
+            )
+            return False
+
+        # For Briefing files, we typically APPEND or ENRICH.
+        # For now, we append the enrichment as a new bullet point or section.
+        enrichment = (
+            f"\n\n### Mise à jour Sancho ({datetime.now(timezone.utc).strftime('%Y-%m-%d')})\n"
+            f"{action.content}"
+        )
+        new_content = target_note.content + enrichment
+
+        try:
+            self.notes.update_note(note_id=action.target_note_id, content=new_content)
+            logger.info(f"Successfully updated external note {action.target_note_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to apply external update to {action.target_note_id}: {e}")
+            return False
 
     def _calculate_quality(
         self,

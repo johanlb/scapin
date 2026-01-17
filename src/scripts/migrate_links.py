@@ -6,8 +6,8 @@ This script iterates through all notes in the NoteManager and re-saves them
 to trigger the new `outgoing_links` extraction logic.
 """
 
-import sys
 import logging
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -43,6 +43,8 @@ sys.modules["src.passepartout.note_merger"] = MagicMock()
 # 3. Mock EmbeddingGenerator specifically (Class replacement)
 class MockEmbeddingGenerator:
     def __init__(self, *args, **kwargs):
+        _ = args
+        _ = kwargs
         self.model_name = "mock-model"
 
     def get_dimension(self):

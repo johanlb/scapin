@@ -20,12 +20,19 @@ from src.core.state_manager import get_state_manager
 from src.monitoring.health import quick_health_check
 from src.monitoring.logger import LogFormat, LogLevel, ScapinLogger, get_logger
 
-# Create Typer app
+# Create Typer apps
 app = typer.Typer(
     name="pkm",
     help="Scapin - Intelligent email management system",
     add_completion=False,
 )
+
+notes_app = typer.Typer(
+    name="notes",
+    help="Manage notes and carnets",
+    add_completion=False,
+)
+app.add_typer(notes_app, name="notes")
 
 # Rich console
 console = Console()
@@ -50,22 +57,13 @@ def format_health_status(status: ServiceStatus, include_text: bool = True) -> st
     """
     # Status formatting with emoji
     status_formats = {
-        "healthy": {
-            "with_text": "[green]✓ Healthy[/green]",
-            "emoji_only": "[green]✓[/green]"
-        },
+        "healthy": {"with_text": "[green]✓ Healthy[/green]", "emoji_only": "[green]✓[/green]"},
         "degraded": {
             "with_text": "[yellow]⚠ Degraded[/yellow]",
-            "emoji_only": "[yellow]⚠[/yellow]"
+            "emoji_only": "[yellow]⚠[/yellow]",
         },
-        "unhealthy": {
-            "with_text": "[red]✗ Unhealthy[/red]",
-            "emoji_only": "[red]✗[/red]"
-        },
-        "unknown": {
-            "with_text": "[dim]? Unknown[/dim]",
-            "emoji_only": "[dim]?[/dim]"
-        }
+        "unhealthy": {"with_text": "[red]✗ Unhealthy[/red]", "emoji_only": "[red]✗[/red]"},
+        "unknown": {"with_text": "[dim]? Unknown[/dim]", "emoji_only": "[dim]?[/dim]"},
     }
 
     format_key = "with_text" if include_text else "emoji_only"
@@ -121,6 +119,7 @@ def main(
     # If no subcommand specified, launch interactive menu
     if ctx.invoked_subcommand is None:
         from src.jeeves.menu import run_interactive_menu
+
         exit_code = run_interactive_menu()
         raise typer.Exit(code=exit_code)
 
@@ -129,9 +128,15 @@ def main(
 def process(
     limit: int = typer.Option(None, "--limit", "-n", help="Max emails to process"),
     auto: bool = typer.Option(False, "--auto", help="Auto-process high confidence emails"),
-    confidence: int = typer.Option(90, "--confidence", "-c", help="Confidence threshold for auto mode"),
-    unread_only: bool = typer.Option(False, "--unread-only", help="Only process unread emails (UNSEEN flag)"),
-    unflagged_only: bool = typer.Option(True, "--unflagged-only/--all", help="Only process unflagged emails (default: True)"),
+    confidence: int = typer.Option(
+        90, "--confidence", "-c", help="Confidence threshold for auto mode"
+    ),
+    unread_only: bool = typer.Option(
+        False, "--unread-only", help="Only process unread emails (UNSEEN flag)"
+    ),
+    unflagged_only: bool = typer.Option(
+        True, "--unflagged-only/--all", help="Only process unflagged emails (default: True)"
+    ),
 ):
     """
     Process emails from inbox
@@ -142,11 +147,9 @@ def process(
     from src.jeeves.display_manager import DisplayManager
     from src.trivelin.processor import EmailProcessor
 
-    console.print(Panel.fit(
-        "[bold cyan]Scapin[/bold cyan]\n"
-        "Processing your inbox...",
-        border_style="cyan"
-    ))
+    console.print(
+        Panel.fit("[bold cyan]Scapin[/bold cyan]\nProcessing your inbox...", border_style="cyan")
+    )
 
     mode = "auto" if auto else "manual"
     filters = []
@@ -156,7 +159,9 @@ def process(
         filters.append("unflagged")
     filter_str = " + ".join(filters) if filters else "all emails"
 
-    console.print(f"[dim]Mode: {mode} | Confidence: {confidence}% | Filter: {filter_str} | Limit: {limit or 'None'}[/dim]\n")
+    console.print(
+        f"[dim]Mode: {mode} | Confidence: {confidence}% | Filter: {filter_str} | Limit: {limit or 'None'}[/dim]\n"
+    )
 
     try:
         # Enable display mode BEFORE initialization to hide all console logs
@@ -176,7 +181,7 @@ def process(
                 auto_execute=auto,
                 confidence_threshold=confidence,
                 unread_only=unread_only,
-                unflagged_only=unflagged_only
+                unflagged_only=unflagged_only,
             )
         finally:
             # Always restore console logs
@@ -203,7 +208,7 @@ def process(
                     "TASK": "yellow",
                     "REPLY": "blue",
                     "DEFER": "magenta",
-                    "QUEUE": "dim"
+                    "QUEUE": "dim",
                 }
                 action_color = action_colors.get(email.analysis.action.value, "white")
 
@@ -212,7 +217,7 @@ def process(
                     email.metadata.from_address[:25],
                     f"[{action_color}]{email.analysis.action.value}[/{action_color}]",
                     email.analysis.category.value,
-                    f"{email.analysis.confidence}%"
+                    f"{email.analysis.confidence}%",
                 )
 
             console.print(table)
@@ -280,11 +285,12 @@ def review(
     """
     from src.jeeves.review_mode import InteractiveReviewMode
 
-    console.print(Panel.fit(
-        "[bold magenta]📋 Review Queue[/bold magenta]\n"
-        "Loading queued emails for review...",
-        border_style="magenta"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold magenta]📋 Review Queue[/bold magenta]\nLoading queued emails for review...",
+            border_style="magenta",
+        )
+    )
 
     try:
         review_mode = InteractiveReviewMode()
@@ -304,10 +310,16 @@ def review(
 
 @app.command()
 def journal(
-    date_str: Optional[str] = typer.Option(None, "--date", "-d", help="Date for journal (YYYY-MM-DD)"),
-    interactive: bool = typer.Option(True, "--interactive/--no-interactive", "-i", help="Interactive mode with questions"),
+    date_str: Optional[str] = typer.Option(
+        None, "--date", "-d", help="Date for journal (YYYY-MM-DD)"
+    ),
+    interactive: bool = typer.Option(
+        True, "--interactive/--no-interactive", "-i", help="Interactive mode with questions"
+    ),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path"),
-    output_format: str = typer.Option("markdown", "--format", "-f", help="Output format (markdown or json)"),
+    output_format: str = typer.Option(
+        "markdown", "--format", "-f", help="Output format (markdown or json)"
+    ),
 ):
     """
     Generate and complete daily journal
@@ -337,10 +349,9 @@ def journal(
     else:
         journal_date = date.today()
 
-    console.print(Panel.fit(
-        f"[bold blue]Journal du {journal_date}[/bold blue]",
-        border_style="blue"
-    ))
+    console.print(
+        Panel.fit(f"[bold blue]Journal du {journal_date}[/bold blue]", border_style="blue")
+    )
 
     try:
         # Generate draft journal
@@ -388,9 +399,13 @@ def journal(
 @app.command()
 def teams(
     poll: bool = typer.Option(False, "--poll", "-p", help="Continuous polling mode"),
-    interactive: bool = typer.Option(True, "--interactive/--no-interactive", "-i", help="Interactive review mode"),
+    interactive: bool = typer.Option(
+        True, "--interactive/--no-interactive", "-i", help="Interactive review mode"
+    ),
     limit: int = typer.Option(50, "--limit", "-l", help="Maximum messages per poll"),
-    since: Optional[str] = typer.Option(None, "--since", "-s", help="Only fetch messages after this datetime (ISO format)"),
+    since: Optional[str] = typer.Option(
+        None, "--since", "-s", help="Only fetch messages after this datetime (ISO format)"
+    ),
 ):
     """
     Process Microsoft Teams messages
@@ -417,10 +432,9 @@ def teams(
         console.print("\n[dim]See ROADMAP.md Phase 1.2 for details[/dim]")
         raise typer.Exit(1)
 
-    console.print(Panel.fit(
-        "[bold blue]Microsoft Teams Integration[/bold blue]",
-        border_style="blue"
-    ))
+    console.print(
+        Panel.fit("[bold blue]Microsoft Teams Integration[/bold blue]", border_style="blue")
+    )
 
     # Parse since datetime if provided (validates format, TODO: pass to processor)
     if since:
@@ -437,7 +451,9 @@ def teams(
 
         if poll:
             # Continuous polling mode
-            console.print(f"[green]Polling every {config.teams.poll_interval_seconds}s. Press Ctrl+C to stop.[/green]\n")
+            console.print(
+                f"[green]Polling every {config.teams.poll_interval_seconds}s. Press Ctrl+C to stop.[/green]\n"
+            )
 
             async def poll_loop():
                 while True:
@@ -468,7 +484,9 @@ def teams(
             if summary.total == 0:
                 console.print("[dim]No new messages to process[/dim]")
             else:
-                console.print(f"[green]OK[/green] Processed {summary.successful}/{summary.total} messages")
+                console.print(
+                    f"[green]OK[/green] Processed {summary.successful}/{summary.total} messages"
+                )
                 if summary.failed > 0:
                     console.print(f"[red]Failed: {summary.failed}[/red]")
                 if summary.skipped > 0:
@@ -485,8 +503,10 @@ def teams(
 
                     for result in summary.results[:20]:  # Limit to 20 rows
                         status = (
-                            "[green]OK[/green]" if result.success
-                            else "[yellow]Skipped[/yellow]" if result.skipped
+                            "[green]OK[/green]"
+                            if result.success
+                            else "[yellow]Skipped[/yellow]"
+                            if result.skipped
                             else "[red]Failed[/red]"
                         )
                         actions = ", ".join(result.actions_taken) if result.actions_taken else "-"
@@ -512,7 +532,9 @@ def teams(
 @app.command()
 def calendar(
     poll: bool = typer.Option(False, "--poll", "-p", help="Continuous polling mode"),
-    briefing: bool = typer.Option(False, "--briefing", "-b", help="Show briefing of upcoming events"),
+    briefing: bool = typer.Option(
+        False, "--briefing", "-b", help="Show briefing of upcoming events"
+    ),
     hours: int = typer.Option(24, "--hours", "-H", help="Hours ahead for briefing (default: 24)"),
     limit: int = typer.Option(50, "--limit", "-l", help="Maximum events per poll"),
 ):
@@ -541,10 +563,9 @@ def calendar(
         console.print("\n[dim]See ROADMAP.md Phase 1.3 for details[/dim]")
         raise typer.Exit(1)
 
-    console.print(Panel.fit(
-        "[bold green]Microsoft Calendar Integration[/bold green]",
-        border_style="green"
-    ))
+    console.print(
+        Panel.fit("[bold green]Microsoft Calendar Integration[/bold green]", border_style="green")
+    )
 
     try:
         # Initialize processor
@@ -588,6 +609,7 @@ def calendar(
                         start_str = meta.get("start", "")
                         if start_str:
                             from datetime import datetime
+
                             start_dt = datetime.fromisoformat(start_str)
                             time_str = start_dt.strftime("%H:%M")
                         else:
@@ -631,7 +653,9 @@ def calendar(
 
         elif poll:
             # Continuous polling mode
-            console.print(f"[green]Polling every {config.calendar.poll_interval_seconds}s. Press Ctrl+C to stop.[/green]\n")
+            console.print(
+                f"[green]Polling every {config.calendar.poll_interval_seconds}s. Press Ctrl+C to stop.[/green]\n"
+            )
 
             async def poll_loop():
                 while True:
@@ -662,7 +686,9 @@ def calendar(
             if summary.total == 0:
                 console.print("[dim]No events to process[/dim]")
             else:
-                console.print(f"[green]OK[/green] Processed {summary.successful}/{summary.total} events")
+                console.print(
+                    f"[green]OK[/green] Processed {summary.successful}/{summary.total} events"
+                )
                 if summary.failed > 0:
                     console.print(f"[red]Failed: {summary.failed}[/red]")
                 if summary.skipped > 0:
@@ -699,7 +725,7 @@ def queue(
         # Clear queue with confirmation
         if not typer.confirm(
             f"⚠️  Clear queue{f' for account {account}' if account else ''}? This cannot be undone!",
-            default=False
+            default=False,
         ):
             console.print("[yellow]Cancelled[/yellow]")
             return
@@ -710,10 +736,9 @@ def queue(
 
     if process_queue:
         # Launch review mode
-        console.print(Panel.fit(
-            "[bold yellow]📋 Processing Queue[/bold yellow]",
-            border_style="yellow"
-        ))
+        console.print(
+            Panel.fit("[bold yellow]📋 Processing Queue[/bold yellow]", border_style="yellow")
+        )
 
         try:
             review_mode = InteractiveReviewMode()
@@ -724,10 +749,7 @@ def queue(
             raise typer.Exit(code=1) from None
 
     # Show queue stats
-    console.print(Panel.fit(
-        "[bold yellow]📋 Queue Status[/bold yellow]",
-        border_style="yellow"
-    ))
+    console.print(Panel.fit("[bold yellow]📋 Queue Status[/bold yellow]", border_style="yellow"))
 
     stats = queue_storage.get_stats()
 
@@ -785,11 +807,13 @@ def secrets(
         raise typer.Exit(code=1)
 
     if migrate:
-        console.print(Panel.fit(
-            "[bold magenta]Migrate Secrets to Keychain[/bold magenta]\n"
-            "Moving credentials from .env to secure storage...",
-            border_style="magenta"
-        ))
+        console.print(
+            Panel.fit(
+                "[bold magenta]Migrate Secrets to Keychain[/bold magenta]\n"
+                "Moving credentials from .env to secure storage...",
+                border_style="magenta",
+            )
+        )
 
         # List of secrets to migrate
         secrets_to_migrate = [
@@ -814,9 +838,13 @@ def secrets(
         if successful > 0:
             console.print(f"\n[green]✓[/green] Migrated {successful} secrets to keychain")
             console.print("\n[yellow]Next steps:[/yellow]")
-            console.print("  1. Verify secrets are accessible: [cyan]python3 pkm.py secrets --list[/cyan]")
+            console.print(
+                "  1. Verify secrets are accessible: [cyan]python3 pkm.py secrets --list[/cyan]"
+            )
             console.print("  2. Remove migrated secrets from .env file for better security")
-            console.print("  3. The app will automatically use keychain first, then fallback to .env")
+            console.print(
+                "  3. The app will automatically use keychain first, then fallback to .env"
+            )
 
     elif list_keys:
         console.print("[bold]Checking stored secrets...[/bold]\n")
@@ -838,7 +866,9 @@ def secrets(
                 console.print(f"  [dim]○[/dim] {key}: [dim]not set[/dim]")
 
     else:
-        console.print("[yellow]Use --migrate to migrate secrets or --list to view stored secrets[/yellow]")
+        console.print(
+            "[yellow]Use --migrate to migrate secrets or --list to view stored secrets[/yellow]"
+        )
 
 
 @app.command()
@@ -848,10 +878,7 @@ def health():
 
     Verifies all system components (IMAP, AI, storage, config, git).
     """
-    console.print(Panel.fit(
-        "[bold green]System Health Check[/bold green]",
-        border_style="green"
-    ))
+    console.print(Panel.fit("[bold green]System Health Check[/bold green]", border_style="green"))
 
     with Progress(
         SpinnerColumn(),
@@ -877,18 +904,9 @@ def health():
         status = format_health_status(check.status, include_text=True)
 
         # Response time
-        response_time = (
-            f"{check.response_time_ms:.0f}ms"
-            if check.response_time_ms
-            else "N/A"
-        )
+        response_time = f"{check.response_time_ms:.0f}ms" if check.response_time_ms else "N/A"
 
-        table.add_row(
-            check.service,
-            status,
-            check.message,
-            response_time
-        )
+        table.add_row(check.service, status, check.message, response_time)
 
     console.print(table)
 
@@ -905,17 +923,16 @@ def health():
 def stats(
     detailed: bool = typer.Option(False, "--detailed", "-d", help="Show detailed statistics"),
     include_queue: bool = typer.Option(True, "--queue/--no-queue", help="Include queue statistics"),
-    include_health: bool = typer.Option(True, "--health/--no-health", help="Include health summary"),
+    include_health: bool = typer.Option(
+        True, "--health/--no-health", help="Include health summary"
+    ),
 ):
     """
     Show comprehensive statistics
 
     Display session stats, queue status, health summary, and processing metrics.
     """
-    console.print(Panel.fit(
-        "[bold blue]📊 System Statistics[/bold blue]",
-        border_style="blue"
-    ))
+    console.print(Panel.fit("[bold blue]📊 System Statistics[/bold blue]", border_style="blue"))
 
     # Session Statistics
     console.print("\n[bold cyan]Session Statistics:[/bold cyan]\n")
@@ -957,7 +974,9 @@ def stats(
         confidence_table.add_column("Metric", style="cyan")
         confidence_table.add_column("Value", justify="right", style="bold")
 
-        confidence_table.add_row("Average Confidence", f"{session_stats.get('confidence_avg', 0):.1f}%")
+        confidence_table.add_row(
+            "Average Confidence", f"{session_stats.get('confidence_avg', 0):.1f}%"
+        )
 
         console.print(confidence_table)
 
@@ -975,7 +994,9 @@ def stats(
         queue_table.add_column("Value", justify="right", style="bold")
 
         queue_table.add_row("Total Items", str(queue_stats.get("total", 0)))
-        queue_table.add_row("Pending Review", str(queue_stats.get("by_status", {}).get("pending", 0)))
+        queue_table.add_row(
+            "Pending Review", str(queue_stats.get("by_status", {}).get("pending", 0))
+        )
         queue_table.add_row("Approved", str(queue_stats.get("by_status", {}).get("approved", 0)))
         queue_table.add_row("Rejected", str(queue_stats.get("by_status", {}).get("rejected", 0)))
 
@@ -990,7 +1011,11 @@ def stats(
 
         try:
             # Show spinner while checking health (can take a few seconds)
-            with Live(Spinner("dots", text="[dim]Checking system health...[/dim]"), console=console, transient=True):
+            with Live(
+                Spinner("dots", text="[dim]Checking system health...[/dim]"),
+                console=console,
+                transient=True,
+            ):
                 system_health = quick_health_check()
 
             health_table = Table(show_header=False, box=None)
@@ -1007,13 +1032,17 @@ def stats(
             if system_health.is_healthy:
                 console.print("\n[green]All systems operational[/green]")
             else:
-                console.print(f"\n[yellow]⚠ {len(system_health.unhealthy_services)} services need attention[/yellow]")
+                console.print(
+                    f"\n[yellow]⚠ {len(system_health.unhealthy_services)} services need attention[/yellow]"
+                )
 
         except Exception as e:
             console.print(f"[yellow]⚠ Could not fetch health status: {e}[/yellow]")
 
     # Processing state
-    console.print(f"\n[dim]State: {state_dict.get('processing_state', 'idle')} | Duration: {session_stats.get('duration_minutes', 0)} min[/dim]")
+    console.print(
+        f"\n[dim]State: {state_dict.get('processing_state', 'idle')} | Duration: {session_stats.get('duration_minutes', 0)} min[/dim]"
+    )
     console.print()
 
 
@@ -1026,6 +1055,7 @@ def menu():
     review queue, statistics, and settings.
     """
     from src.jeeves.menu import run_interactive_menu
+
     exit_code = run_interactive_menu()
     raise typer.Exit(code=exit_code)
 
@@ -1039,10 +1069,7 @@ def config(
 
     Display current configuration and validate settings.
     """
-    console.print(Panel.fit(
-        "[bold cyan]Configuration[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Configuration[/bold cyan]", border_style="cyan"))
 
     try:
         cfg = get_config()
@@ -1067,7 +1094,11 @@ def config(
             account_table.add_row("Max Workers", str(account.max_workers))
             account_table.add_row("Batch Size", str(account.batch_size))
 
-            console.print(Panel(account_table, title=f"[bold]{account.account_name}[/bold]", border_style="cyan"))
+            console.print(
+                Panel(
+                    account_table, title=f"[bold]{account.account_name}[/bold]", border_style="cyan"
+                )
+            )
 
         # AI config
         console.print("\n[bold cyan]AI Configuration:[/bold cyan]\n")
@@ -1093,8 +1124,13 @@ def config(
         integrations_table = Table(show_header=False, box=None)
         integrations_table.add_column("Key", style="dim")
         integrations_table.add_column("Value")
-        integrations_table.add_row("OmniFocus", "Enabled" if cfg.integrations.omnifocus_enabled else "Disabled")
-        integrations_table.add_row("Apple Notes Sync", "Enabled" if cfg.integrations.apple_notes_sync_enabled else "Disabled")
+        integrations_table.add_row(
+            "OmniFocus", "Enabled" if cfg.integrations.omnifocus_enabled else "Disabled"
+        )
+        integrations_table.add_row(
+            "Apple Notes Sync",
+            "Enabled" if cfg.integrations.apple_notes_sync_enabled else "Disabled",
+        )
         integrations_table.add_row("Sync Interval", f"{cfg.integrations.sync_interval_minutes} min")
         console.print(integrations_table)
 
@@ -1105,21 +1141,28 @@ def config(
 
 @app.command()
 def settings(
-    set_confidence: Optional[int] = typer.Option(None, "--set-confidence", help="Set AI confidence threshold (0-100)"),
-    set_rate_limit: Optional[int] = typer.Option(None, "--set-rate-limit", help="Set AI rate limit (requests/min)"),
+    set_confidence: Optional[int] = typer.Option(
+        None, "--set-confidence", help="Set AI confidence threshold (0-100)"
+    ),
+    set_rate_limit: Optional[int] = typer.Option(
+        None, "--set-rate-limit", help="Set AI rate limit (requests/min)"
+    ),
     list_accounts: bool = typer.Option(False, "--list-accounts", help="List all email accounts"),
-    enable_account: Optional[str] = typer.Option(None, "--enable-account", help="Enable account by ID"),
-    disable_account: Optional[str] = typer.Option(None, "--disable-account", help="Disable account by ID"),
+    enable_account: Optional[str] = typer.Option(
+        None, "--enable-account", help="Enable account by ID"
+    ),
+    disable_account: Optional[str] = typer.Option(
+        None, "--disable-account", help="Disable account by ID"
+    ),
 ):
     """
     Manage application settings
 
     Modify AI settings, manage accounts, and configure integrations.
     """
-    console.print(Panel.fit(
-        "[bold magenta]⚙ Settings Management[/bold magenta]",
-        border_style="magenta"
-    ))
+    console.print(
+        Panel.fit("[bold magenta]⚙ Settings Management[/bold magenta]", border_style="magenta")
+    )
 
     try:
         cfg = get_config()
@@ -1142,7 +1185,7 @@ def settings(
                     account.account_name,
                     str(account.imap_username),
                     account.imap_host,
-                    status
+                    status,
                 )
 
             console.print(accounts_table)
@@ -1152,7 +1195,9 @@ def settings(
         # Set confidence threshold
         if set_confidence is not None:
             if not (MIN_CONFIDENCE_THRESHOLD <= set_confidence <= MAX_CONFIDENCE_THRESHOLD):
-                console.print(f"[red]✗ Confidence threshold must be between {MIN_CONFIDENCE_THRESHOLD} and {MAX_CONFIDENCE_THRESHOLD}[/red]")
+                console.print(
+                    f"[red]✗ Confidence threshold must be between {MIN_CONFIDENCE_THRESHOLD} and {MAX_CONFIDENCE_THRESHOLD}[/red]"
+                )
                 raise typer.Exit(1)
 
             console.print(f"[yellow]Setting confidence threshold to {set_confidence}%...[/yellow]")
@@ -1164,10 +1209,14 @@ def settings(
         # Set rate limit
         if set_rate_limit is not None:
             if not (MIN_RATE_LIMIT <= set_rate_limit <= MAX_RATE_LIMIT):
-                console.print(f"[red]✗ Rate limit must be between {MIN_RATE_LIMIT} and {MAX_RATE_LIMIT}[/red]")
+                console.print(
+                    f"[red]✗ Rate limit must be between {MIN_RATE_LIMIT} and {MAX_RATE_LIMIT}[/red]"
+                )
                 raise typer.Exit(1)
 
-            console.print(f"[yellow]Setting rate limit to {set_rate_limit} requests/min...[/yellow]")
+            console.print(
+                f"[yellow]Setting rate limit to {set_rate_limit} requests/min...[/yellow]"
+            )
             console.print("[yellow]Note: This requires updating .env file:[/yellow]")
             console.print(f"  AI__RATE_LIMIT_PER_MINUTE={set_rate_limit}")
             console.print("\n[dim]Please update your .env file manually for now[/dim]")
@@ -1189,14 +1238,21 @@ def settings(
 
             # Find the account index
             account_index = next(
-                i for i, acc in enumerate(cfg.email.accounts)
+                i
+                for i, acc in enumerate(cfg.email.accounts)
                 if acc.account_id == account_id_to_modify
             )
 
-            console.print("[yellow]Note: Account enable/disable requires updating .env file:[/yellow]")
+            console.print(
+                "[yellow]Note: Account enable/disable requires updating .env file:[/yellow]"
+            )
             console.print(f"  EMAIL__ACCOUNTS__{account_index}__ENABLED={new_status}")
-            console.print(f"\n[dim]This will {'enable' if enable_account else 'disable'} account: {account.account_name}[/dim]")
-            console.print("[dim]Please update your .env file manually and restart the application[/dim]")
+            console.print(
+                f"\n[dim]This will {'enable' if enable_account else 'disable'} account: {account.account_name}[/dim]"
+            )
+            console.print(
+                "[dim]Please update your .env file manually and restart the application[/dim]"
+            )
             return
 
         # No options provided - show current settings summary
@@ -1209,7 +1265,9 @@ def settings(
         settings_table.add_row("AI Confidence Threshold", f"{cfg.ai.confidence_threshold}%")
         settings_table.add_row("AI Rate Limit", f"{cfg.ai.rate_limit_per_minute} requests/min")
         settings_table.add_row("Email Accounts", f"{len(cfg.email.get_enabled_accounts())} enabled")
-        settings_table.add_row("OmniFocus Integration", "Enabled" if cfg.integrations.omnifocus_enabled else "Disabled")
+        settings_table.add_row(
+            "OmniFocus Integration", "Enabled" if cfg.integrations.omnifocus_enabled else "Disabled"
+        )
         settings_table.add_row("Backup Enabled", "Yes" if cfg.storage.backup_enabled else "No")
 
         console.print(settings_table)
@@ -1227,9 +1285,13 @@ def settings(
 @app.command()
 def briefing(
     morning: bool = typer.Option(False, "--morning", "-m", help="Generate morning briefing"),
-    meeting: Optional[str] = typer.Option(None, "--meeting", "-M", help="Pre-meeting briefing for event ID"),
+    meeting: Optional[str] = typer.Option(
+        None, "--meeting", "-M", help="Pre-meeting briefing for event ID"
+    ),
     hours: int = typer.Option(24, "--hours", "-H", help="Hours ahead for calendar events"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Save briefing to file (markdown)"),
+    output: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Save briefing to file (markdown)"
+    ),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Show only overview (no details)"),
 ):
     """
@@ -1265,16 +1327,11 @@ def briefing(
     try:
         if morning or (not meeting):
             # Morning briefing (default if no option provided)
-            console.print(Panel.fit(
-                "[bold cyan]Morning Briefing[/bold cyan]",
-                border_style="cyan"
-            ))
+            console.print(Panel.fit("[bold cyan]Morning Briefing[/bold cyan]", border_style="cyan"))
 
             # Override hours if provided
             if hours != 24:
-                generator.config = config.briefing.model_copy(
-                    update={"morning_hours_ahead": hours}
-                )
+                generator.config = config.briefing.model_copy(update={"morning_hours_ahead": hours})
 
             async def generate_morning():
                 return await generator.generate_morning_briefing()
@@ -1301,10 +1358,9 @@ def briefing(
 
         elif meeting:
             # Pre-meeting briefing
-            console.print(Panel.fit(
-                "[bold cyan]Pre-Meeting Briefing[/bold cyan]",
-                border_style="cyan"
-            ))
+            console.print(
+                Panel.fit("[bold cyan]Pre-Meeting Briefing[/bold cyan]", border_style="cyan")
+            )
 
             from src.trivelin.calendar_processor import CalendarProcessor
 
@@ -1366,13 +1422,15 @@ def serve(
         console.print("Install with: [cyan]pip install fastapi uvicorn[/cyan]")
         raise typer.Exit(1) from None
 
-    console.print(Panel.fit(
-        f"[bold green]Starting Scapin API[/bold green]\n\n"
-        f"Host: [cyan]{host}:{port}[/cyan]\n"
-        f"Docs: [cyan]http://{host}:{port}/docs[/cyan]\n"
-        f"Health: [cyan]http://{host}:{port}/api/health[/cyan]",
-        border_style="green"
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold green]Starting Scapin API[/bold green]\n\n"
+            f"Host: [cyan]{host}:{port}[/cyan]\n"
+            f"Docs: [cyan]http://{host}:{port}/docs[/cyan]\n"
+            f"Health: [cyan]http://{host}:{port}/api/health[/cyan]",
+            border_style="green",
+        )
+    )
 
     try:
         uvicorn.run(
@@ -1386,6 +1444,129 @@ def serve(
     except Exception as e:
         console.print(f"[red]Server error: {e}[/red]")
         raise typer.Exit(1) from None
+
+
+@notes_app.command(name="review")
+def notes_review(
+    all_notes: bool = typer.Option(
+        False, "--all", "-a", help="Schedule notes for immediate review"
+    ),
+    limit: int = typer.Option(None, "--limit", "-l", help="Limit number of notes to process"),
+    process: bool = typer.Option(
+        False, "--process", "-p", help="Actually run the review logic now (CLI mode)"
+    ),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Bypass SM-2 and process even if not due"
+    ),
+):
+    """
+    Batch review existing notes to trigger the Reflection Loop.
+
+    Schedules notes for review and optionally processes them through Sancho
+    to generate briefing enrichments and note updates.
+    Always starts with the least recently modified notes.
+    """
+    import asyncio
+    from pathlib import Path
+
+    from src.core.config_manager import get_config
+    from src.passepartout.note_manager import NoteManager
+    from src.passepartout.note_reviewer import NoteReviewer
+    from src.passepartout.note_scheduler import create_scheduler
+    from src.sancho.router import AIRouter
+
+    config = get_config()
+    notes_dir = Path(config.storage.notes_path)
+    manager = NoteManager(notes_dir)
+    scheduler = create_scheduler(config.storage.database_path.parent)
+
+    console.print(
+        Panel.fit("[bold cyan]Batch Note Review & Reflection[/bold cyan]", border_style="cyan")
+    )
+
+    # 1. Fetch metadata and sort by updated_at ASC (oldest first)
+    console.print("[dim]Scanning vault metadata...[/dim]")
+    # We use list_all from the metadata store because it's MUCH faster than reading all files
+    all_meta = scheduler.store.list_all(limit=10000)
+
+    # Sort by updated_at (oldest first)
+    sorted_meta = sorted(all_meta, key=lambda m: m.updated_at)
+
+    # Apply limit if we are ONLY scheduling
+    items_to_schedule = sorted_meta
+    if limit and all_notes and not process:
+        items_to_schedule = sorted_meta[:limit]
+
+    if all_notes:
+        console.print(
+            f"[cyan]Scheduling {len(items_to_schedule)} notes for review (oldest first)...[/cyan]"
+        )
+        for meta in items_to_schedule:
+            scheduler.trigger_immediate_review(meta.note_id)
+        console.print(f"[green]Done. {len(items_to_schedule)} notes scheduled.[/green]")
+
+    if process:
+        # Initialize AI components
+        console.print("[dim]Initializing Sancho...[/dim]")
+        ai_router = AIRouter(config=config.ai)
+        reviewer = NoteReviewer(
+            note_manager=manager,
+            metadata_store=scheduler.store,
+            scheduler=scheduler,
+            ai_router=ai_router,
+        )
+
+        # Identify which notes to process
+        notes_to_process_ids = []
+
+        if force:
+            # All notes in the store are candidates
+            notes_to_process_ids = [m.note_id for m in sorted_meta]
+        else:
+            # Filter sorted list to keep only those due for review
+            notes_to_process_ids = [m.note_id for m in sorted_meta if m.is_due_for_review()]
+
+        # Apply limit to execution
+        if limit:
+            notes_to_process_ids = notes_to_process_ids[:limit]
+
+        if not notes_to_process_ids:
+            console.print(
+                "[yellow]No notes to process.[/yellow]\n"
+                "[dim]Use --all to schedule or --force to process even if not due.[/dim]"
+            )
+            return
+
+        console.print(
+            f"[cyan]Processing {len(notes_to_process_ids)} notes through Sancho (oldest first)...[/cyan]\n"
+        )
+
+        async def run_reviews():
+            count = 0
+            for note_id in notes_to_process_ids:
+                console.print(f"  • Reviewing [bold]{note_id}[/bold]...")
+                try:
+                    success = await reviewer.review_note(note_id)
+                    if success:
+                        count += 1
+                except Exception as e:
+                    console.print(f"    [red]Error reviewing {note_id}: {e}[/red]")
+            return count
+
+        try:
+            success_count = asyncio.run(run_reviews())
+            console.print(
+                f"\n[bold green]Success![/bold green] Processed {success_count}/{len(notes_to_process_ids)} notes."
+            )
+            console.print(
+                "[dim]High-confidence updates applied. Check pending actions for others.[/dim]"
+            )
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interrupted by user[/yellow]")
+            raise typer.Exit(130) from None
+        except Exception as e:
+            console.print(f"\n[red]Global error: {e}[/red]")
+            raise typer.Exit(1) from None
 
 
 def run():

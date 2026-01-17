@@ -38,7 +38,7 @@ class EmbeddingGenerator:
         self,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         cache_size: int = 10000,
-        device: Optional[str] = None
+        device: Optional[str] = None,
     ):
         """
         Initialize embedding generator
@@ -68,10 +68,7 @@ class EmbeddingGenerator:
             self.embedding_dimension = self.model.get_sentence_embedding_dimension()
             logger.info(
                 f"Loaded embedding model: {model_name}",
-                extra={
-                    "dimension": self.embedding_dimension,
-                    "device": self.model.device
-                }
+                extra={"dimension": self.embedding_dimension, "device": str(self.model.device)},
             )
         except Exception as e:
             logger.error(f"Failed to load model {model_name}: {e}", exc_info=True)
@@ -116,9 +113,7 @@ class EmbeddingGenerator:
         # Generate embedding (outside lock - expensive operation)
         try:
             embedding = self.model.encode(
-                text_normalized,
-                convert_to_numpy=True,
-                normalize_embeddings=normalize
+                text_normalized, convert_to_numpy=True, normalize_embeddings=normalize
             )
 
             # Cache result (thread-safe with LRU eviction)
@@ -126,7 +121,7 @@ class EmbeddingGenerator:
 
             logger.debug(
                 f"Generated embedding for text: {text_normalized[:50]}...",
-                extra={"dimension": embedding.shape[0]}
+                extra={"dimension": embedding.shape[0]},
             )
 
             return embedding
@@ -140,7 +135,7 @@ class EmbeddingGenerator:
         texts: list[str],
         normalize: bool = True,
         batch_size: int = 32,
-        show_progress: bool = False
+        show_progress: bool = False,
     ) -> np.ndarray:
         """
         Generate embeddings for multiple texts efficiently
@@ -197,7 +192,7 @@ class EmbeddingGenerator:
                     convert_to_numpy=True,
                     normalize_embeddings=normalize,
                     batch_size=batch_size,
-                    show_progress_bar=show_progress
+                    show_progress_bar=show_progress,
                 )
 
                 # Cache new embeddings
@@ -223,8 +218,8 @@ class EmbeddingGenerator:
                 "total": len(texts),
                 "cached": self._cache_hits,
                 "generated": len(uncached_texts),
-                "shape": result.shape
-            }
+                "shape": result.shape,
+            },
         )
 
         return result
@@ -275,7 +270,7 @@ class EmbeddingGenerator:
             "misses": misses,
             "size": cache_size,
             "max_size": self.cache_size,
-            "hit_rate": hit_rate
+            "hit_rate": hit_rate,
         }
 
     def _get_cache_key(self, text: str) -> str:
@@ -289,7 +284,7 @@ class EmbeddingGenerator:
             Hash string for cache lookup
         """
         # Use SHA256 for collision resistance
-        return hashlib.sha256(text.encode('utf-8')).hexdigest()
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
     def _add_to_cache(self, key: str, embedding: np.ndarray) -> None:
         """
@@ -322,8 +317,7 @@ class EmbeddingGenerator:
 
 
 def get_embedding_generator(
-    model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-    cache_size: int = 10000
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2", cache_size: int = 10000
 ) -> EmbeddingGenerator:
     """
     Get or create global embedding generator (singleton pattern)

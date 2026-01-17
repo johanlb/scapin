@@ -5,13 +5,13 @@ Manages notes stored as Markdown files with YAML frontmatter.
 Provides semantic search via vector store integration.
 """
 
+import concurrent.futures
 import contextlib
 import hashlib
 import os
 import re
 import tempfile
 import threading
-import concurrent.futures
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -314,18 +314,24 @@ class NoteManager:
 
     def _populate_cache_from_files(self) -> None:
         """Populate note cache from files (after loading index)"""
+        files = list(self.notes_dir.rglob("*.md"))
+        if not files:
+            return
+
         count = 0
-        for file_path in self.notes_dir.rglob("*.md"):
-            try:
-                note = self._read_note_file(file_path)
+        # Use parallel execution for faster I/O
+        max_workers = min(32, len(files) + 1)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Filter hidden files
+            visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+
+            for note in executor.map(self._read_note_file, visible_files):
                 if note:
                     with self._cache_lock:
                         self._cache_put(note.note_id, note)
                     count += 1
-            except Exception as e:
-                logger.warning(
-                    "Failed to cache note", extra={"file_path": str(file_path), "error": str(e)}
-                )
+
         logger.debug("Populated note cache", extra={"count": count})
 
     def create_note(
@@ -938,20 +944,28 @@ class NoteManager:
         """
         Index all existing notes in directory (thread-safe)
 
-        Uses batch indexing for better performance with large note collections.
+        Uses parallel execution for reading and batch indexing for vector store.
 
         Returns:
             Number of notes indexed
         """
+        files = list(self.notes_dir.rglob("*.md"))
+        if not files:
+            return 0
+
+        # Filter hidden files
+        visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+
         # Batch size for vector store operations
         BATCH_SIZE = 50
-
-        notes_to_index: list[tuple[Note, str, dict[str, Any]]] = []
         count = 0
+        notes_to_index: list[tuple[Note, str, dict[str, Any]]] = []
 
-        for file_path in self.notes_dir.rglob("*.md"):
-            try:
-                note = self._read_note_file(file_path)
+        # Use parallel execution for reading files
+        max_workers = min(32, len(visible_files) + 1)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for note in executor.map(self._read_note_file, visible_files):
                 if note:
                     # Check if already indexed
                     if not self.vector_store.get_document(note.note_id):
@@ -974,13 +988,7 @@ class NoteManager:
                         self._batch_add_to_vector_store(notes_to_index)
                         notes_to_index = []
 
-            except Exception as e:
-                logger.warning(
-                    "Failed to index note", extra={"file_path": str(file_path), "error": str(e)}
-                )
-                continue
-
-        # Index any remaining notes
+        # Final batch
         if notes_to_index:
             self._batch_add_to_vector_store(notes_to_index)
 
@@ -1194,23 +1202,34 @@ class NoteManager:
             # Get dates - support both formats (created_at/updated_at and created/modified)
             # Use file modification time as fallback
             # PyYAML may parse ISO dates as datetime objects automatically
-            file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+            file_mtime = datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.utc)
 
             created_at_raw = frontmatter.get("created_at") or frontmatter.get("created")
             updated_at_raw = frontmatter.get("updated_at") or frontmatter.get("modified")
 
             # Handle both string and datetime (YAML may parse dates automatically)
+            def ensure_aware(dt: datetime) -> datetime:
+                if dt.tzinfo is None:
+                    return dt.replace(tzinfo=timezone.utc)
+                return dt
+
             if isinstance(created_at_raw, datetime):
-                created_at = created_at_raw
+                created_at = ensure_aware(created_at_raw)
             elif created_at_raw:
-                created_at = datetime.fromisoformat(str(created_at_raw))
+                try:
+                    created_at = ensure_aware(datetime.fromisoformat(str(created_at_raw)))
+                except ValueError:
+                    created_at = file_mtime
             else:
                 created_at = file_mtime
 
             if isinstance(updated_at_raw, datetime):
-                updated_at = updated_at_raw
+                updated_at = ensure_aware(updated_at_raw)
             elif updated_at_raw:
-                updated_at = datetime.fromisoformat(str(updated_at_raw))
+                try:
+                    updated_at = ensure_aware(datetime.fromisoformat(str(updated_at_raw)))
+                except ValueError:
+                    updated_at = file_mtime
             else:
                 updated_at = file_mtime
 

@@ -56,13 +56,32 @@ class StructuredFormatter(logging.Formatter):
     """
 
     # Standard LogRecord attributes (frozenset for immutability and performance)
-    STANDARD_ATTRS = frozenset([
-        "name", "msg", "args", "created", "filename", "funcName",
-        "levelname", "levelno", "lineno", "module", "msecs", "message",
-        "pathname", "process", "processName", "relativeCreated",
-        "thread", "threadName", "exc_info", "exc_text", "stack_info",
-        "taskName",  # Python 3.12+
-    ])
+    STANDARD_ATTRS = frozenset(
+        [
+            "name",
+            "msg",
+            "args",
+            "created",
+            "filename",
+            "funcName",
+            "levelname",
+            "levelno",
+            "lineno",
+            "module",
+            "msecs",
+            "message",
+            "pathname",
+            "process",
+            "processName",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "taskName",  # Python 3.12+
+        ]
+    )
 
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON"""
@@ -80,10 +99,7 @@ class StructuredFormatter(logging.Formatter):
             log_entry["exception"] = self.formatException(record.exc_info)
 
         # Add extra fields (anything not in standard LogRecord attributes)
-        extra_fields = {
-            k: v for k, v in record.__dict__.items()
-            if k not in self.STANDARD_ATTRS
-        }
+        extra_fields = {k: v for k, v in record.__dict__.items() if k not in self.STANDARD_ATTRS}
 
         if extra_fields:
             log_entry["extra"] = extra_fields
@@ -95,7 +111,14 @@ class StructuredFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
-        return json.dumps(log_entry)
+        def safe_json_default(obj):
+            """Fall back to string representation for non-serializable objects"""
+            try:
+                return str(obj)
+            except Exception:
+                return f"<Unserializable {type(obj).__name__}>"
+
+        return json.dumps(log_entry, default=safe_json_default)
 
 
 class TextFormatter(logging.Formatter):
@@ -237,8 +260,13 @@ class ScapinLogger:
             if enabled and not cls._display_mode:
                 # Hide console handlers
                 cls._saved_console_handlers = []
-                for handler in root_logger.handlers[:]:  # Copy list to avoid modification during iteration
-                    if isinstance(handler, logging.StreamHandler) and handler.stream in (sys.stdout, sys.stderr):
+                for handler in root_logger.handlers[
+                    :
+                ]:  # Copy list to avoid modification during iteration
+                    if isinstance(handler, logging.StreamHandler) and handler.stream in (
+                        sys.stdout,
+                        sys.stderr,
+                    ):
                         cls._saved_console_handlers.append(handler)
                         root_logger.removeHandler(handler)
 
