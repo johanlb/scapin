@@ -68,6 +68,37 @@
 	let editedTitle = $state('');
 	let titleInputRef: HTMLInputElement | null = null;
 
+	// Hygiene review state
+	interface HygieneIssue {
+		type: string;
+		severity: 'error' | 'warning' | 'info';
+		detail: string;
+		suggestion?: string;
+		confidence: number;
+		auto_applied: boolean;
+		related_note_id?: string;
+		source?: string;
+	}
+
+	interface HygieneResult {
+		note_id: string;
+		analyzed_at: string;
+		duration_ms: number;
+		model_used: string;
+		context_notes_count: number;
+		issues: HygieneIssue[];
+		summary: {
+			total_issues: number;
+			auto_fixed: number;
+			pending_review: number;
+			health_score: number;
+		};
+	}
+
+	let isRunningHygiene = $state(false);
+	let hygieneResult = $state<HygieneResult | null>(null);
+	let showHygienePanel = $state(false);
+
 	// Expanded folders tracking
 	let expandedFolders = $state<Set<string>>(new Set());
 
@@ -168,6 +199,10 @@
 			isEditingTitle = false;
 			editedTitle = '';
 		}
+
+		// Reset hygiene state
+		hygieneResult = null;
+		showHygienePanel = false;
 
 		isLoadingNote = true;
 		noteReviewMetadata = null;
@@ -319,6 +354,89 @@
 			console.error('Failed to trigger review:', error);
 		} finally {
 			isTriggering = false;
+		}
+	}
+
+	async function runHygieneReview() {
+		if (!selectedNote || isRunningHygiene) return;
+
+		isRunningHygiene = true;
+		hygieneResult = null;
+
+		try {
+			// TODO: Replace with actual API call when backend is ready
+			// const result = await runNoteHygiene(selectedNote.note_id);
+
+			// For now, simulate the API call with a placeholder
+			await new Promise(resolve => setTimeout(resolve, 2000));
+
+			// Mock result for UI development
+			hygieneResult = {
+				note_id: selectedNote.note_id,
+				analyzed_at: new Date().toISOString(),
+				duration_ms: 2340,
+				model_used: 'claude-3-5-haiku',
+				context_notes_count: 8,
+				issues: [
+					{
+						type: 'broken_link',
+						severity: 'warning',
+						detail: 'Exemple: lien cassé détecté',
+						suggestion: 'Correction suggérée',
+						confidence: 0.95,
+						auto_applied: true,
+						source: 'fuzzy_match'
+					}
+				],
+				summary: {
+					total_issues: 1,
+					auto_fixed: 1,
+					pending_review: 0,
+					health_score: 0.95
+				}
+			};
+
+			showHygienePanel = true;
+			toastStore.success('Analyse hygiène terminée');
+		} catch (error) {
+			console.error('Failed to run hygiene review:', error);
+			toastStore.error('Échec de l\'analyse hygiène');
+		} finally {
+			isRunningHygiene = false;
+		}
+	}
+
+	function dismissHygieneIssue(index: number) {
+		if (!hygieneResult) return;
+		hygieneResult = {
+			...hygieneResult,
+			issues: hygieneResult.issues.filter((_, i) => i !== index),
+			summary: {
+				...hygieneResult.summary,
+				pending_review: Math.max(0, hygieneResult.summary.pending_review - 1)
+			}
+		};
+	}
+
+	function getIssueSeverityIcon(severity: string): string {
+		switch (severity) {
+			case 'error': return '❌';
+			case 'warning': return '⚠️';
+			case 'info': return 'ℹ️';
+			default: return '•';
+		}
+	}
+
+	function getIssueTypeLabel(type: string): string {
+		switch (type) {
+			case 'broken_link': return 'Lien cassé';
+			case 'potential_duplicate': return 'Doublon potentiel';
+			case 'missing_field': return 'Champ manquant';
+			case 'outdated_info': return 'Info obsolète';
+			case 'inconsistency': return 'Incohérence';
+			case 'orphan_note': return 'Note orpheline';
+			case 'suggested_link': return 'Lien suggéré';
+			default: return type;
 		}
 	}
 
@@ -802,13 +920,34 @@
 						>
 							🗑️
 						</button>
+						<!-- Hygiene Review Button -->
+						<button
+							type="button"
+							onclick={runHygieneReview}
+							disabled={isRunningHygiene}
+							class="p-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] relative"
+							title="Analyser l'hygiène de la note"
+						>
+							{#if isRunningHygiene}
+								<span class="inline-block animate-spin">⟳</span>
+							{:else if hygieneResult && hygieneResult.summary.pending_review > 0}
+								🧹
+								<span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+									{hygieneResult.summary.pending_review}
+								</span>
+							{:else if hygieneResult && hygieneResult.summary.health_score >= 0.9}
+								✨
+							{:else}
+								🧹
+							{/if}
+						</button>
 						<!-- Trigger Review Button -->
 						<button
 							type="button"
 							onclick={handleTriggerReview}
 							disabled={isTriggering}
 							class="p-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-							title="Déclencher une revue"
+							title="Déclencher une revue SM-2"
 						>
 							{#if isTriggering}
 								<span class="inline-block animate-spin">⟳</span>
@@ -852,6 +991,115 @@
 									#{tag}
 								</span>
 							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Hygiene Review Panel -->
+				{#if hygieneResult && showHygienePanel}
+					<div class="mt-6 pt-4 border-t border-[var(--color-border)]">
+						<div class="bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)]">
+							<!-- Header -->
+							<div class="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
+								<div class="flex items-center gap-2">
+									<span>🧹</span>
+									<span class="font-semibold text-[var(--color-text-primary)]">Revue Hygiène</span>
+								</div>
+								<div class="flex items-center gap-3">
+									<span class="text-sm">
+										Score:
+										<span class="font-bold {hygieneResult.summary.health_score >= 0.9 ? 'text-green-600 dark:text-green-400' : hygieneResult.summary.health_score >= 0.7 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}">
+											{Math.round(hygieneResult.summary.health_score * 100)}%
+										</span>
+									</span>
+									<button
+										type="button"
+										onclick={() => showHygienePanel = false}
+										class="p-1 rounded hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]"
+										title="Fermer"
+									>
+										✕
+									</button>
+								</div>
+							</div>
+
+							<!-- Issues List -->
+							<div class="p-4 space-y-3">
+								{#if hygieneResult.issues.length === 0}
+									<div class="text-center py-4 text-[var(--color-text-tertiary)]">
+										<span class="text-2xl">✨</span>
+										<p class="mt-2">Note en parfait état !</p>
+									</div>
+								{:else}
+									{#each hygieneResult.issues as issue, index}
+										<div class="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-bg-primary)] border border-[var(--color-border)]">
+											<span class="text-lg flex-shrink-0">
+												{#if issue.auto_applied}
+													✅
+												{:else}
+													{getIssueSeverityIcon(issue.severity)}
+												{/if}
+											</span>
+											<div class="flex-1 min-w-0">
+												<div class="flex items-center gap-2 mb-1">
+													<span class="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
+														{getIssueTypeLabel(issue.type)}
+													</span>
+													<span class="text-xs text-[var(--color-text-tertiary)]">
+														{Math.round(issue.confidence * 100)}% confiance
+													</span>
+													{#if issue.auto_applied}
+														<span class="text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+															Corrigé
+														</span>
+													{/if}
+												</div>
+												<p class="text-sm text-[var(--color-text-primary)]">{issue.detail}</p>
+												{#if issue.suggestion}
+													<p class="text-sm text-[var(--color-text-secondary)] mt-1">
+														💡 {issue.suggestion}
+													</p>
+												{/if}
+												{#if !issue.auto_applied}
+													<div class="flex items-center gap-2 mt-2">
+														<button
+															type="button"
+															class="text-xs px-2 py-1 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+														>
+															Appliquer
+														</button>
+														<button
+															type="button"
+															onclick={() => dismissHygieneIssue(index)}
+															class="text-xs px-2 py-1 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]/80"
+														>
+															Ignorer
+														</button>
+														{#if issue.related_note_id}
+															<button
+																type="button"
+																class="text-xs px-2 py-1 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]/80"
+															>
+																Voir note
+															</button>
+														{/if}
+													</div>
+												{/if}
+											</div>
+										</div>
+									{/each}
+								{/if}
+
+								<!-- Summary -->
+								<div class="flex items-center justify-between text-xs text-[var(--color-text-tertiary)] pt-2 border-t border-[var(--color-border)]">
+									<span>
+										Analysé en {hygieneResult.duration_ms}ms avec {hygieneResult.model_used}
+									</span>
+									<span>
+										{hygieneResult.context_notes_count} notes contextuelles
+									</span>
+								</div>
+							</div>
 						</div>
 					</div>
 				{/if}

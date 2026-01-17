@@ -27,7 +27,7 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 |----------|------|-----------------|
 | **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | 🎯 **Document fondateur** — Le *pourquoi* | Toujours, pour comprendre l'âme du projet |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Le *comment* technique | Implémentation des modules |
-| **[ROADMAP.md](ROADMAP.md)** | Le *quand* | Priorisation des tâches |
+| **[ROADMAP.md](docs/archive/historical/ROADMAP.md)** | Le *quand* (Archive) | Historique des sprints |
 | **[UI_VOCABULARY.md](docs/UI_VOCABULARY.md)** | 🎭 **Vocabulaire UI** — Mapping termes UI ↔ technique | Traitement requêtes utilisateur, génération réponses |
 | **[CROSS_SOURCE_SPEC.md](docs/specs/archive/CROSS_SOURCE_SPEC.md)** | ✅ **Spec CrossSource** — Complété | Référence Sprint Cross-Source |
 | **[SPRINT_5_SPEC.md](docs/specs/archive/SPRINT_5_SPEC.md)** | ✅ **Spec Sprint 5** — Complété | Tests E2E, Lighthouse, Guide, Audit |
@@ -1998,7 +1998,7 @@ Tous les bugs sont résolus (#41-#46). Le projet est prêt pour le tag v1.0.0-rc
 |----------|-------------|----------|
 | **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | Principes philosophiques, fondements théoriques | 🔴 Critique |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Architecture technique, spécifications valets | 🟠 Haute |
-| **[ROADMAP.md](ROADMAP.md)** | Plan développement par sprints | 🟡 Moyenne |
+| **[ROADMAP.md](docs/archive/historical/ROADMAP.md)** | Historique développement | 🟡 Moyenne |
 | **[GAPS_TRACKING.md](docs/GAPS_TRACKING.md)** | Suivi des écarts specs vs implémentation | 🟡 Moyenne |
 | **[README.md](README.md)** | Vue d'ensemble projet | 🟢 Intro |
 | **[Session History](docs/session-history/)** | Archives des sessions précédentes | 📋 Référence |

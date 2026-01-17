@@ -245,7 +245,7 @@ python3 scapin.py review      # Réviser les décisions en attente
 |----------|-------------|
 | **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | 🎯 **Document fondateur** — Principes philosophiques, fondements théoriques (Extended Mind, Stiegler, Wegner), vision du partenariat cognitif |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Architecture cognitive complète — Comment l'équipe des valets fonctionne |
-| **[ROADMAP.md](ROADMAP.md)** | Phases de développement, priorités, calendrier (Q1-Q4 2026) |
+| **[ROADMAP.md](docs/archive/historical/ROADMAP.md)** | Historique des phases de développement (Archive) |
 
 ### Documents Techniques
 
@@ -253,7 +253,7 @@ python3 scapin.py review      # Réviser les décisions en attente
 |----------|-------------|
 | **[CLAUDE.md](CLAUDE.md)** | Contexte de session pour Claude Code — État actuel du projet |
 | **[MIGRATION.md](MIGRATION.md)** | Migration depuis PKM System vers Scapin |
-| **[BREAKING_CHANGES.md](BREAKING_CHANGES.md)** | Changements d'API et guides de migration |
+| **[BREAKING_CHANGES.md](docs/archive/historical/BREAKING_CHANGES.md)** | Changements d'API et guides de migration (Archive) |
 | **[docs/api/](docs/api/)** | Documentation de référence API |
 
 ### Concepts Clés

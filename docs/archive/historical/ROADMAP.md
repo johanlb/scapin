@@ -40,11 +40,11 @@ Transformer un processeur d'emails en **assistant personnel intelligent** avec :
 
 | Document | Rôle | Contenu |
 |----------|------|---------|
-| **[DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)** | Fondateur | Pourquoi — Principes, théorie, vision |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Technique | Comment — Spécifications, composants |
-| **[GAPS_TRACKING.md](docs/GAPS_TRACKING.md)** | Suivi | Écarts specs vs implémentation |
-| **[ROADMAP.md](ROADMAP.md)** | Opérationnel | Quand — Phases, priorités, calendrier |
-| **[CLAUDE.md](CLAUDE.md)** | Session | État actuel pour Claude Code |
+| **[DESIGN_PHILOSOPHY.md](../../DESIGN_PHILOSOPHY.md)** | Fondateur | Pourquoi — Principes, théorie, vision |
+| **[ARCHITECTURE.md](../../../ARCHITECTURE.md)** | Technique | Comment — Spécifications, composants |
+| **[GAPS_TRACKING.md](../GAPS_TRACKING_JAN_11.md)** | Suivi | (Archive) Écarts specs vs implémentation |
+| **[ROADMAP.md](ROADMAP.md)** | Opérationnel | (Ce document) Historique des sprints |
+| **[CLAUDE.md](../../../CLAUDE.md)** | Session | État actuel pour Claude Code |
 
 ### Principes Directeurs
 

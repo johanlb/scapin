@@ -377,7 +377,7 @@ def test_frozen_enforcement():
 
 **Migration from v2.x to v3.1.0:**
 
-See [BREAKING_CHANGES.md](../../BREAKING_CHANGES.md#-critical-perceivedevent-is-now-immutable) for complete migration guide.
+See [BREAKING_CHANGES.md](../../archive/historical/BREAKING_CHANGES.md#-critical-perceivedevent-is-now-immutable) for complete migration guide.
 
 ---
 

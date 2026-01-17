@@ -1887,6 +1887,46 @@ Auto-apply (confidence ≥ 0.9) | Queue (confidence < 0.9)
 
 ---
 
+### Extension 6: Cognitive Robustness (Judge-Jury v3.0)
+
+**Enhancement**: Diversify reasoning via consensus to achieve "critical" reliability.
+
+**Strategies**:
+- **Consensus Multi-Modèles (Judge-Jury)**: Pass 4 uses a "Devil's Advocate" model (e.g., GPT-4o) to critique the primary model's decision. If a major flaw is found, the system escalates or prompts for clarification.
+- **Hallucination Detection**: Perform double-blind extractions for critical facts (dates, amounts) using a fast model (Haiku) and comparing with the primary reasoning result.
+
+---
+
+### Extension 7: Performance Optimization (Speculative Execution)
+
+**Enhancement**: Reduce perceived latencies in the multi-pass pipeline.
+
+**Strategies**:
+- **Exécution Spéculative**: Launch context retrieval (Passepartout) in parallel with Pass 1 (Blind Extraction). If the pass confirms the need for context, results are already pre-fetched.
+- **Contextual Pre-warming**: When a high-priority contact (VIP) is detected at the triage level, pre-load their relationship and project history into cache before analysis begins.
+
+---
+
+### Extension 8: Privacy Firewall
+
+**Enhancement**: Protect sensitive data before it leaves the local environment.
+
+**Strategies**:
+- **Redaction Layer (PII Sanitization)**: Local regex or small-model filters to mask sensitive identifiers (SSN, banking info) irrelevant to the analysis.
+- **Local-First Classification**: Use local models (e.g., Ollama/Llama) for trivial triage (spam, notifications) to keep 80% of low-value traffic entirely private and off-cloud.
+
+---
+
+### Extension 9: Technical Scalability & Quality
+
+**Enhancement**: Ensure Scapin scales to massive knowledge bases.
+
+**Strategies**:
+- **Vector Store Abstraction**: Formalize the semantic interface to allow transparent migration from FAISS to distributed stores (ChromaDB, Qdrant) as the vault exceeds 10k+ notes.
+- **Simulated User Testing (Virtual Johan)**: Automated LLM personas that send diverse email traffic to stress-test reasoning stability and detect prompt regressions.
+
+---
+
 ## 📚 References
 
 **Cognitive Architectures**:
