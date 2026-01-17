@@ -1721,7 +1721,7 @@ def notes_pending(
     config = get_config()
     notes_dir = Path(config.storage.notes_path)
     manager = NoteManager(notes_dir)
-    scheduler = create_scheduler(config)
+    scheduler = create_scheduler(config.storage.database_path.parent)
 
     if action == "list":
         # List all notes with pending actions
