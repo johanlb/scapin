@@ -694,28 +694,26 @@ async def delete_note(
 # =============================================================================
 
 
-@router.get("/{note_id}/metadata", response_model=APIResponse[NoteMetadataResponse])
+@router.get("/{note_id}/metadata", response_model=APIResponse[NoteMetadataResponse | None])
 async def get_note_metadata(
     note_id: str,
     service: NotesReviewService = Depends(get_notes_review_service),
     _user: Optional[TokenData] = Depends(get_current_user),
-) -> APIResponse[NoteMetadataResponse]:
+) -> APIResponse[NoteMetadataResponse | None]:
     """
     Get review metadata for a note
 
     Returns SM-2 scheduling parameters and review history.
+    Returns null data if no metadata exists yet (note not scheduled for review).
     """
     try:
         metadata = await service.get_note_metadata(note_id)
-        if metadata is None:
-            raise HTTPException(status_code=404, detail="Metadata not found")
+        # Return null if no metadata exists - this is normal for unscheduled notes
         return APIResponse(
             success=True,
             data=metadata,
             timestamp=datetime.now(timezone.utc),
         )
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Failed to get metadata for note {note_id}: {e}", exc_info=True)
         raise HTTPException(
