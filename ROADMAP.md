@@ -1,7 +1,7 @@
 # Scapin — Feuille de Route Produit
 
 **Dernière mise à jour** : 17 janvier 2026
-**Version** : 1.0.0-alpha.27
+**Version** : 1.0.0-alpha.28
 **Phase actuelle** : ✅ Release Candidate 1 | ✅ Sprint 7 (Multi-Pass v2.2) COMPLÉTÉ (11/11)
 **Tag** : [v1.0.0-rc.1](https://github.com/johanlb/scapin/releases/tag/v1.0.0-rc.1)
 
@@ -1215,6 +1215,18 @@ Global MVP:        ████████████████████�
 ---
 
 ## Historique des Versions
+
+- **v1.0.0-alpha.28** (2026-01-17) : Semantic Embeddings for OmniFocus Duplicates
+  - **Détection sémantique** : Utilise les embeddings pour détecter les reformulations
+  - **Approche hybride** : MAX(token similarity, semantic similarity)
+  - **Exemples détectés** : "Répondre à Marc" ↔ "Envoyer email à Marc"
+  - **EmbeddingGenerator** : Lazy-loading du modèle sentence-transformers
+  - **Fallback gracieux** : Token-only si embeddings indisponibles
+  - **Tests** : 32 tests (6 nouveaux pour similarité sémantique)
+  - **Fichiers modifiés** :
+    - `src/integrations/apple/omnifocus.py` — +65 lignes (hybrid similarity)
+    - `tests/unit/test_omnifocus_duplicates.py` — +6 tests sémantiques
+  - **Commit** : `3425ebe`
 
 - **v1.0.0-alpha.27** (2026-01-17) : OmniFocus Duplicate Detection (Coherence Pass)
   - **Détection de doublons** : Vérifie l'existence de tâches similaires avant création
