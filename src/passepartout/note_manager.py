@@ -23,8 +23,10 @@ import yaml
 from src.core.events import Entity
 from src.monitoring.logger import get_logger
 from src.passepartout.embeddings import EmbeddingGenerator
+from src.passepartout.frontmatter_parser import FrontmatterParser
+from src.passepartout.frontmatter_schema import AnyFrontmatter, PersonneFrontmatter
 from src.passepartout.git_versioning import GitVersionManager
-from src.passepartout.note_types import NoteType, NoteStatus, ImportanceLevel
+from src.passepartout.note_types import ImportanceLevel, NoteStatus, NoteType
 from src.passepartout.templates import TemplateManager
 from src.passepartout.vector_store import VectorStore
 
@@ -151,6 +153,13 @@ class NoteManager:
         except Exception as e:
             logger.warning(f"Failed to initialize TemplateManager: {e}")
             self.template_manager = None
+
+        # Frontmatter Parser for typed frontmatter access
+        self._frontmatter_parser = FrontmatterParser()
+
+        # Aliases index cache (title.lower() -> note_id, alias.lower() -> note_id)
+        self._aliases_index: dict[str, str] = {}
+        self._aliases_index_dirty = True  # Needs rebuild
 
         # LRU cache: OrderedDict maintains insertion order for LRU eviction
         self._note_cache: OrderedDict[str, Note] = OrderedDict()
@@ -1374,6 +1383,160 @@ class NoteManager:
             f"cached={cache_stats['cache_size']}, "
             f"hit_rate={cache_stats['hit_rate']:.1%})"
         )
+
+    # === FRONTMATTER ENRICHI (Phase 1) ===
+
+    def get_typed_frontmatter(self, note_id: str) -> AnyFrontmatter | None:
+        """
+        Récupère le frontmatter typé d'une note.
+
+        Args:
+            note_id: ID de la note
+
+        Returns:
+            Frontmatter typé ou None si note non trouvée
+        """
+        note = self.get_note(note_id)
+        if not note:
+            return None
+
+        # Parse le metadata brut en frontmatter typé
+        return self._frontmatter_parser.parse(note.metadata)
+
+    def get_note_with_typed_frontmatter(
+        self, note_id: str
+    ) -> tuple[Note, AnyFrontmatter] | None:
+        """
+        Récupère une note avec son frontmatter typé.
+
+        Args:
+            note_id: ID de la note
+
+        Returns:
+            Tuple (Note, Frontmatter typé) ou None si note non trouvée
+        """
+        note = self.get_note(note_id)
+        if not note:
+            return None
+
+        frontmatter = self._frontmatter_parser.parse(note.metadata)
+        return note, frontmatter
+
+    def get_aliases_index(self) -> dict[str, str]:
+        """
+        Construit et retourne un index aliases → note_id pour le matching.
+
+        L'index mappe:
+        - title.lower() → note_id
+        - chaque alias.lower() → note_id
+
+        Returns:
+            Dict mapping alias/title (lowercase) → note_id
+        """
+        if not self._aliases_index_dirty:
+            return self._aliases_index
+
+        # Rebuild index
+        index: dict[str, str] = {}
+
+        with self._cache_lock:
+            for note_id, note in self._note_cache.items():
+                # Index by title
+                if note.title:
+                    index[note.title.lower()] = note_id
+
+                # Parse frontmatter for aliases
+                try:
+                    fm = self._frontmatter_parser.parse(note.metadata)
+                    for alias in fm.aliases:
+                        if alias:
+                            index[alias.lower()] = note_id
+                except Exception:
+                    # Skip notes with parsing errors
+                    pass
+
+        self._aliases_index = index
+        self._aliases_index_dirty = False
+
+        logger.debug(
+            "Rebuilt aliases index",
+            extra={"entries": len(index), "notes": len(self._note_cache)},
+        )
+
+        return index
+
+    def find_note_by_alias(self, alias: str) -> Note | None:
+        """
+        Trouve une note par son titre ou un de ses alias.
+
+        Args:
+            alias: Titre ou alias à chercher (insensible à la casse)
+
+        Returns:
+            Note trouvée ou None
+        """
+        index = self.get_aliases_index()
+        note_id = index.get(alias.lower())
+        if note_id:
+            return self.get_note(note_id)
+        return None
+
+    def invalidate_aliases_index(self) -> None:
+        """
+        Marque l'index des aliases comme invalide (à reconstruire).
+
+        Appelé automatiquement après création/modification/suppression de note.
+        """
+        self._aliases_index_dirty = True
+
+    def get_all_aliases(self) -> dict[str, list[str]]:
+        """
+        Retourne toutes les notes avec leurs aliases.
+
+        Returns:
+            Dict mapping note_id → [title, alias1, alias2, ...]
+        """
+        result: dict[str, list[str]] = {}
+
+        with self._cache_lock:
+            for note_id, note in self._note_cache.items():
+                names = [note.title] if note.title else []
+
+                try:
+                    fm = self._frontmatter_parser.parse(note.metadata)
+                    names.extend(fm.aliases)
+                except Exception:
+                    pass
+
+                if names:
+                    result[note_id] = names
+
+        return result
+
+    def get_persons_with_relation(self, relation: str | None = None) -> list[tuple[Note, PersonneFrontmatter]]:
+        """
+        Retourne toutes les notes PERSONNE, optionnellement filtrées par relation.
+
+        Args:
+            relation: Type de relation à filtrer (ami, collègue, etc.) ou None pour toutes
+
+        Returns:
+            Liste de tuples (Note, PersonneFrontmatter)
+        """
+        result: list[tuple[Note, PersonneFrontmatter]] = []
+
+        with self._cache_lock:
+            for note in self._note_cache.values():
+                try:
+                    fm = self._frontmatter_parser.parse(note.metadata)
+                    if isinstance(fm, PersonneFrontmatter) and (
+                        relation is None or (fm.relation and fm.relation.value == relation)
+                    ):
+                        result.append((note, fm))
+                except Exception:
+                    pass
+
+        return result
 
 
 # Singleton instance with thread-safe initialization

@@ -107,6 +107,132 @@ class NoteStatus(str, Enum):
         return any(value.lower() == item.value for item in cls)
 
 
+class Relation(str, Enum):
+    """
+    Type de relation avec Johan.
+    Utilisé pour qualifier les contacts dans les notes PERSONNE.
+    """
+
+    AMI = "ami"
+    FAMILLE = "famille"
+    COLLEGUE = "collègue"
+    CLIENT = "client"
+    PARTENAIRE = "partenaire"
+    FOURNISSEUR = "fournisseur"
+    CONNAISSANCE = "connaissance"
+    ADMINISTRATION = "administration"
+
+    @classmethod
+    def from_string(cls, value: str) -> "Relation | None":
+        """Parse une relation depuis une string (insensible à la casse)."""
+        if not value:
+            return None
+        normalized = value.lower().strip()
+        for item in cls:
+            if item.value == normalized:
+                return item
+        return None
+
+
+class RelationshipStrength(str, Enum):
+    """
+    Force de la relation avec un contact.
+    Aide à prioriser les notes importantes.
+    """
+
+    FORTE = "forte"
+    MOYENNE = "moyenne"
+    FAIBLE = "faible"
+    NOUVELLE = "nouvelle"
+
+    @classmethod
+    def from_string(cls, value: str) -> "RelationshipStrength | None":
+        """Parse depuis une string."""
+        if not value:
+            return None
+        normalized = value.lower().strip()
+        for item in cls:
+            if item.value == normalized:
+                return item
+        return None
+
+
+class ProjectStatus(str, Enum):
+    """
+    Statut d'un projet (différent de NoteStatus).
+    Utilisé pour les notes de type PROJET.
+    """
+
+    ACTIF = "actif"
+    EN_PAUSE = "en_pause"
+    TERMINE = "terminé"
+    ANNULE = "annulé"
+
+    @classmethod
+    def from_string(cls, value: str) -> "ProjectStatus | None":
+        """Parse depuis une string."""
+        if not value:
+            return None
+        normalized = value.lower().strip()
+        for item in cls:
+            if item.value == normalized:
+                return item
+        # Gérer les variantes sans accent
+        if normalized == "termine":
+            return cls.TERMINE
+        if normalized == "annule":
+            return cls.ANNULE
+        return None
+
+
+class EntityType(str, Enum):
+    """
+    Type d'entité/organisation.
+    Utilisé pour les notes de type ENTITE.
+    """
+
+    ENTREPRISE = "entreprise"
+    ADMINISTRATION = "administration"
+    ASSOCIATION = "association"
+    INSTITUTION = "institution"
+    AUTRE = "autre"
+
+    @classmethod
+    def from_string(cls, value: str) -> "EntityType | None":
+        """Parse depuis une string."""
+        if not value:
+            return None
+        normalized = value.lower().strip()
+        for item in cls:
+            if item.value == normalized:
+                return item
+        return None
+
+
+class Category(str, Enum):
+    """
+    Catégorie de note (domaine de vie).
+    """
+
+    WORK = "work"
+    PERSONAL = "personal"
+    FINANCE = "finance"
+    HEALTH = "health"
+    FAMILY = "family"
+    OTHER = "other"
+
+    @classmethod
+    def from_string(cls, value: str) -> "Category | None":
+        """Parse depuis une string."""
+        if not value:
+            return None
+        normalized = value.lower().strip()
+        for item in cls:
+            if item.value == normalized:
+                return item
+        return None
+
+
 @dataclass(frozen=True)
 class ReviewConfig:
     """
