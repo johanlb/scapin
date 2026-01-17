@@ -410,8 +410,6 @@ class NoteManager:
         Returns:
             Number of notes indexed
         """
-        import json
-
         files = list(self.notes_dir.rglob("*.md"))
         visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
 
@@ -481,9 +479,8 @@ class NoteManager:
             List of note summary dicts with: note_id, title, path, updated_at, pinned, tags
         """
         # Rebuild index if empty
-        if not self._notes_metadata:
-            if not self._load_metadata_index():
-                self._rebuild_metadata_index()
+        if not self._notes_metadata and not self._load_metadata_index():
+            self._rebuild_metadata_index()
 
         return [
             {"note_id": note_id, **meta}

@@ -296,7 +296,7 @@ class NotesService:
             folders=folders,
             pinned=pinned_responses,
             recent=recent_responses,
-            total_notes=len(all_notes),
+            total_notes=total_notes,
         )
 
     async def list_notes(
