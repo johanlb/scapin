@@ -1192,7 +1192,7 @@
 										checked={isChecked}
 										class="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
 										title={isManuallySet ? (note.manually_approved ? 'Forcé' : 'Rejeté') : (willApply ? 'Auto' : 'Manuel')}
-										onchange={() => console.log('Toggle note:', noteIndex)}
+										onchange={() => queueStore.toggleNoteApproval(currentItem.id, noteIndex)}
 									/>
 									<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
 										{note.action === 'create' ? '+' : '~'} {note.note_type}
@@ -1216,7 +1216,8 @@
 					{#each tasks as task, taskIndex}
 						{@const willApply = willTaskBeAutoApplied(task)}
 						{@const isPastDue = isDateObsolete(task.due_date)}
-						{@const isChecked = willApply && !isPastDue}
+						{@const isManuallySet = task.manually_approved !== null && task.manually_approved !== undefined}
+						{@const isChecked = task.manually_approved === true || (task.manually_approved !== false && willApply && !isPastDue)}
 						<div class="rounded-lg border border-[var(--color-border)] p-2 {!isChecked ? 'opacity-60' : ''}">
 							<div class="flex items-center justify-between text-sm">
 								<span class="flex items-center gap-2">
@@ -1224,7 +1225,8 @@
 										type="checkbox"
 										checked={isChecked}
 										class="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-										onchange={() => console.log('Toggle task:', taskIndex)}
+										title={task.manually_approved !== null ? (task.manually_approved ? 'Forcé' : 'Rejeté') : (willApply ? 'Auto' : 'Manuel')}
+										onchange={() => queueStore.toggleTaskApproval(currentItem.id, taskIndex)}
 									/>
 									<span class="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300">📋 OmniFocus</span>
 									<span class="text-[var(--color-text-primary)] font-medium">{task.title}</span>

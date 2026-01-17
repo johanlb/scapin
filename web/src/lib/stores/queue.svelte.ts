@@ -155,6 +155,42 @@ function updateItemAnalysis(itemId: string, newAnalysis: QueueItem['analysis']):
 	);
 }
 
+// Toggle manually_approved for a proposed note
+function toggleNoteApproval(itemId: string, noteIndex: number): void {
+	state.items = state.items.map((item) => {
+		if (item.id !== itemId) return item;
+
+		const notes = [...item.analysis.proposed_notes];
+		if (noteIndex < 0 || noteIndex >= notes.length) return item;
+
+		const note = notes[noteIndex];
+		// Cycle: null -> false -> true -> null (or just toggle based on current checked state)
+		const currentlyChecked = note.manually_approved === true ||
+			(note.manually_approved === null && note.confidence >= 0.9);
+		notes[noteIndex] = { ...note, manually_approved: currentlyChecked ? false : true };
+
+		return { ...item, analysis: { ...item.analysis, proposed_notes: notes } };
+	});
+}
+
+// Toggle manually_approved for a proposed task
+function toggleTaskApproval(itemId: string, taskIndex: number): void {
+	state.items = state.items.map((item) => {
+		if (item.id !== itemId) return item;
+
+		const tasks = [...item.analysis.proposed_tasks];
+		if (taskIndex < 0 || taskIndex >= tasks.length) return item;
+
+		const task = tasks[taskIndex];
+		// Cycle based on current checked state
+		const currentlyChecked = task.manually_approved === true ||
+			(task.manually_approved === null && task.confidence >= 0.9);
+		tasks[taskIndex] = { ...task, manually_approved: currentlyChecked ? false : true };
+
+		return { ...item, analysis: { ...item.analysis, proposed_tasks: tasks } };
+	});
+}
+
 async function fetchStats(): Promise<void> {
 	try {
 		state.stats = await getQueueStats();
@@ -217,6 +253,8 @@ export const queueStore = {
 	removeFromList,
 	restoreItem,
 	updateItemAnalysis,
+	toggleNoteApproval,
+	toggleTaskApproval,
 	moveToEnd,
 	refresh,
 	clearError

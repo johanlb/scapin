@@ -746,6 +746,7 @@ interface ProposedTask {
 	confidence: number;
 	reasoning: string;
 	auto_applied: boolean;
+	manually_approved: boolean | null;  // User override: true=force, false=reject, null=auto
 }
 
 interface QueueItemAnalysis {
