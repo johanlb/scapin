@@ -1489,8 +1489,21 @@ def notes_review(
     # We use list_all from the metadata store because it's MUCH faster than reading all files
     all_meta = scheduler.store.list_all(limit=10000)
 
-    # Sort by updated_at (oldest first)
-    sorted_meta = sorted(all_meta, key=lambda m: m.updated_at)
+    # Fallback: if metadata store is empty, use NoteManager (slower but necessary for first run)
+    if not all_meta:
+        console.print(
+            "[yellow]Metadata store is empty. Scanning all notes (this may take a moment)...[/yellow]"
+        )
+        all_notes_objs = manager.get_all_notes()
+        sorted_notes = sorted(all_notes_objs, key=lambda n: n.updated_at)
+        # Convert to a simple structure with note_id and updated_at for consistency
+        sorted_meta = [
+            type("obj", (object,), {"note_id": n.note_id, "updated_at": n.updated_at})()
+            for n in sorted_notes
+        ]
+    else:
+        # Sort by updated_at (oldest first)
+        sorted_meta = sorted(all_meta, key=lambda m: m.updated_at)
 
     # Apply limit if we are ONLY scheduling
     items_to_schedule = sorted_meta
@@ -1524,7 +1537,12 @@ def notes_review(
             notes_to_process_ids = [m.note_id for m in sorted_meta]
         else:
             # Filter sorted list to keep only those due for review
-            notes_to_process_ids = [m.note_id for m in sorted_meta if m.is_due_for_review()]
+            # For fallback objects (from NoteManager), we don't have is_due_for_review, so skip them
+            notes_to_process_ids = [
+                m.note_id
+                for m in sorted_meta
+                if hasattr(m, "is_due_for_review") and m.is_due_for_review()
+            ]
 
         # Apply limit to execution
         if limit:

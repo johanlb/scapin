@@ -21,6 +21,17 @@ RÈGLES D'ENRICHISSEMENT:
 - Si c'est une note de personne, cherche les informations de contact ou le rôle.
 - SOIS PRUDENT. Ne propose des enrichissements que si tu es sûr > 70%.
 
+RÈGLES D'HYGIÈNE STRUCTURELLE:
+- **Frontmatter**: Vérifie la présence de `title`, `created_at`, `updated_at`, `tags`. Si manquants, propose une action "validate" pour les ajouter.
+- **Longueur**: Évalue le nombre de mots. Si < 100 mots ET la note semble incomplète, propose "merge" avec une note liée. Si > 2000 mots, propose "split" en sections thématiques.
+- **Wikilinks cassés**: 
+  * Si un [[Lien]] pointe vers une note inexistante, propose "fix_links" avec le titre correct suggéré.
+  * Si plusieurs notes similaires existent, choisis la plus pertinente selon le contexte.
+  * Si aucune note similaire n'existe, propose "create" pour créer la note manquante.
+  * Utilise `action.target` pour le lien cassé et `action.content` pour le lien corrigé.
+- **Hiérarchie des titres**: Vérifie que les titres suivent une hiérarchie logique (# → ## → ### sans sauts). Propose "format" si nécessaire.
+- **Formatage Markdown**: Vérifie la cohérence du style (listes, code blocks, emphases). Propose "format" pour normaliser.
+
 RÈGLES DE RÉFLEXION (Briefing):
 - Identifie les informations qui impactent le PROFIL de l'utilisateur (nouveaux rôles, compétences, valeurs, changements de vie).
 - Identifie les nouveaux PROJETS ou les changements de statut des projets existants.

@@ -58,6 +58,18 @@ class EmailProcessor:
         """Initialize email processor"""
         self.config = get_config()
         self.state = get_state_manager()
+
+        # Check if workflow v2 is enabled - if so, use V2EmailProcessor
+        if self.config.workflow_v2.enabled:
+            logger.info("Workflow v2 enabled - using V2EmailProcessor for context-aware analysis")
+            from src.trivelin.v2_processor import V2EmailProcessor
+
+            self._v2_processor = V2EmailProcessor(
+                config=self.config.workflow_v2, use_multi_pass=True
+            )
+        else:
+            self._v2_processor = None
+
         self.imap_client = IMAPClient(self.config.email)
         self.ai_router = get_ai_router(self.config.ai)
         self.event_bus = get_event_bus()
@@ -71,12 +83,14 @@ class EmailProcessor:
 
         # Initialize recovery engine
         from src.core.recovery_engine import init_recovery_engine
+
         self.recovery_engine = init_recovery_engine()
 
         # Initialize NoteManager for auto-apply of proposed_notes
         self.note_manager = None
         try:
             from src.passepartout.note_manager import NoteManager
+
             self.note_manager = NoteManager(notes_dir=self.config.storage.notes_path)
         except Exception as e:
             logger.warning(f"NoteManager not available for auto-apply: {e}")
@@ -85,7 +99,8 @@ class EmailProcessor:
             "Email processor initialized",
             extra={
                 "auto_apply_enabled": self.note_manager is not None,
-            }
+                "v2_enabled": self._v2_processor is not None,
+            },
         )
 
     def _setup_signal_handlers(self) -> None:
@@ -97,6 +112,7 @@ class EmailProcessor:
         Note: Signal handlers must be minimal to avoid deadlocks.
         Logging is done via stderr instead of logger.
         """
+
         def shutdown_handler(signum: int, _frame: object) -> None:
             """
             Handle shutdown signals gracefully
@@ -123,7 +139,7 @@ class EmailProcessor:
         metadata: EmailMetadata,
         content: EmailContent,
         _auto_execute: bool = False,
-        existing_folders: list[str] | None = None
+        existing_folders: list[str] | None = None,
     ) -> Optional[EmailAnalysis]:
         """
         Analyze email using AI (direct single-pass analysis)
@@ -144,16 +160,14 @@ class EmailProcessor:
         learned_suggestions = []
         try:
             suggestions = self.folder_preferences.get_suggestions(
-                sender_email=metadata.from_address,
-                subject=metadata.subject,
-                limit=5
+                sender_email=metadata.from_address, subject=metadata.subject, limit=5
             )
             # Convert to dict format for template
             learned_suggestions = [
                 {
                     "folder": s.folder,
                     "confidence": int(s.confidence * 100),
-                    "reason": ", ".join(s.reasons) if s.reasons else "Utilisé précédemment"
+                    "reason": ", ".join(s.reasons) if s.reasons else "Utilisé précédemment",
                 }
                 for s in suggestions
                 if s.confidence >= 0.3  # Only include suggestions with >= 30% confidence
@@ -163,8 +177,8 @@ class EmailProcessor:
                     "Found learned folder suggestions",
                     extra={
                         "email_id": metadata.id,
-                        "suggestions": [s["folder"] for s in learned_suggestions]
-                    }
+                        "suggestions": [s["folder"] for s in learned_suggestions],
+                    },
                 )
         except Exception as e:
             logger.warning(f"Failed to get folder suggestions: {e}")
@@ -175,7 +189,7 @@ class EmailProcessor:
             content,
             model=AIModel.CLAUDE_HAIKU,
             existing_folders=existing_folders,
-            learned_suggestions=learned_suggestions
+            learned_suggestions=learned_suggestions,
         )
         return analysis
 
@@ -185,7 +199,7 @@ class EmailProcessor:
         auto_execute: bool = False,
         confidence_threshold: Optional[int] = None,
         unread_only: bool = False,
-        unprocessed_only: bool = True
+        unprocessed_only: bool = True,
     ) -> list[ProcessedEmail]:
         """
         Process emails from inbox
@@ -211,8 +225,8 @@ class EmailProcessor:
                 "auto_execute": auto_execute,
                 "confidence_threshold": confidence_threshold,
                 "unread_only": unread_only,
-                "unprocessed_only": unprocessed_only
-            }
+                "unprocessed_only": unprocessed_only,
+            },
         )
 
         # Start processing session
@@ -220,16 +234,18 @@ class EmailProcessor:
         self.state.set("processing_mode", "auto" if auto_execute else "manual")
 
         # Emit processing started event
-        self.event_bus.emit(ProcessingEvent(
-            event_type=ProcessingEventType.PROCESSING_STARTED,
-            metadata={
-                "limit": limit,
-                "auto_execute": auto_execute,
-                "confidence_threshold": confidence_threshold,
-                "unread_only": unread_only,
-                "unprocessed_only": unprocessed_only
-            }
-        ))
+        self.event_bus.emit(
+            ProcessingEvent(
+                event_type=ProcessingEventType.PROCESSING_STARTED,
+                metadata={
+                    "limit": limit,
+                    "auto_execute": auto_execute,
+                    "confidence_threshold": confidence_threshold,
+                    "unread_only": unread_only,
+                    "unprocessed_only": unprocessed_only,
+                },
+            )
+        )
 
         processed_emails = []
 
@@ -245,7 +261,7 @@ class EmailProcessor:
                     folder=self.config.email.inbox_folder,
                     limit=limit,
                     unread_only=unread_only,
-                    unprocessed_only=unprocessed_only
+                    unprocessed_only=unprocessed_only,
                 )
 
                 logger.info(f"Fetched {len(emails)} emails from inbox")
@@ -259,21 +275,23 @@ class EmailProcessor:
                             "Shutdown requested, stopping email processing",
                             extra={
                                 "processed": len(processed_emails),
-                                "remaining": len(emails) - len(processed_emails)
-                            }
+                                "remaining": len(emails) - len(processed_emails),
+                            },
                         )
                         break
 
                     try:
                         # Emit email started event
-                        self.event_bus.emit(ProcessingEvent(
-                            event_type=ProcessingEventType.EMAIL_STARTED,
-                            email_id=metadata.id,
-                            subject=metadata.subject,
-                            from_address=metadata.from_address,
-                            current=idx,
-                            total=len(emails)
-                        ))
+                        self.event_bus.emit(
+                            ProcessingEvent(
+                                event_type=ProcessingEventType.EMAIL_STARTED,
+                                email_id=metadata.id,
+                                subject=metadata.subject,
+                                from_address=metadata.from_address,
+                                current=idx,
+                                total=len(emails),
+                            )
+                        )
 
                         # Process email
                         processed = self._process_single_email(
@@ -283,7 +301,7 @@ class EmailProcessor:
                             confidence_threshold=confidence_threshold,
                             current=idx,
                             total=len(emails),
-                            existing_folders=existing_folders
+                            existing_folders=existing_folders,
                         )
 
                         if processed:
@@ -291,21 +309,23 @@ class EmailProcessor:
 
                     except Exception as e:
                         # Emit error event
-                        self.event_bus.emit(ProcessingEvent(
-                            event_type=ProcessingEventType.EMAIL_ERROR,
-                            email_id=metadata.id,
-                            subject=metadata.subject,
-                            from_address=metadata.from_address,
-                            error=str(e),
-                            error_type=type(e).__name__,
-                            current=idx,
-                            total=len(emails)
-                        ))
+                        self.event_bus.emit(
+                            ProcessingEvent(
+                                event_type=ProcessingEventType.EMAIL_ERROR,
+                                email_id=metadata.id,
+                                subject=metadata.subject,
+                                from_address=metadata.from_address,
+                                error=str(e),
+                                error_type=type(e).__name__,
+                                current=idx,
+                                total=len(emails),
+                            )
+                        )
 
                         logger.error(
                             f"Failed to process email {metadata.id}: {e}",
                             exc_info=True,
-                            extra={"email_id": metadata.id, "subject": metadata.subject}
+                            extra={"email_id": metadata.id, "subject": metadata.subject},
                         )
 
             # Update final statistics
@@ -313,26 +333,32 @@ class EmailProcessor:
             if self._shutdown_requested:
                 self.state.set("shutdown_graceful", True)
 
-            completion_status = "interrupted by shutdown" if self._shutdown_requested else "completed"
+            completion_status = (
+                "interrupted by shutdown" if self._shutdown_requested else "completed"
+            )
 
             # Emit processing completed event
-            self.event_bus.emit(ProcessingEvent(
-                event_type=ProcessingEventType.PROCESSING_COMPLETED,
-                metadata={
-                    "total_processed": len(processed_emails),
-                    "auto_executed": self.state.get("emails_auto_executed", 0),
-                    "queued": self.state.get("emails_queued", 0),
-                    "shutdown_requested": self._shutdown_requested
-                }
-            ))
+            self.event_bus.emit(
+                ProcessingEvent(
+                    event_type=ProcessingEventType.PROCESSING_COMPLETED,
+                    metadata={
+                        "total_processed": len(processed_emails),
+                        "auto_executed": self.state.get("emails_auto_executed", 0),
+                        "queued": self.state.get("emails_queued", 0),
+                        "shutdown_requested": self._shutdown_requested,
+                    },
+                )
+            )
 
             logger.info(
                 f"Inbox processing {completion_status}",
                 extra={
                     "total_processed": len(processed_emails),
-                    "auto_executed": self.state.get("emails_auto_executed", 0),  # Use actual counter
-                    "shutdown_requested": self._shutdown_requested
-                }
+                    "auto_executed": self.state.get(
+                        "emails_auto_executed", 0
+                    ),  # Use actual counter
+                    "shutdown_requested": self._shutdown_requested,
+                },
             )
 
             return processed_emails
@@ -349,7 +375,7 @@ class EmailProcessor:
         confidence_threshold: int = 90,
         current: Optional[int] = None,
         total: Optional[int] = None,
-        existing_folders: list[str] | None = None
+        existing_folders: list[str] | None = None,
     ) -> Optional[ProcessedEmail]:
         """
         Process a single email
@@ -369,7 +395,9 @@ class EmailProcessor:
         # IMAP sequence numbers can change as emails are deleted/moved!
         tracking_id = metadata.message_id or str(metadata.id)
         if self.state.is_processed(tracking_id):
-            logger.debug(f"Email {metadata.id} already processed (tracking_id={tracking_id}), skipping")
+            logger.debug(
+                f"Email {metadata.id} already processed (tracking_id={tracking_id}), skipping"
+            )
             return None
 
         logger.info(
@@ -377,8 +405,8 @@ class EmailProcessor:
             extra={
                 "email_id": metadata.id,
                 "subject": metadata.subject,
-                "from": metadata.from_address
-            }
+                "from": metadata.from_address,
+            },
         )
 
         # Validate email before processing
@@ -390,8 +418,8 @@ class EmailProcessor:
                 extra={
                     "email_id": metadata.id,
                     "skip_reason": validation_result.reason,
-                    "validation_details": validation_result.details
-                }
+                    "validation_details": validation_result.details,
+                },
             )
             self.state.increment("emails_skipped")
             return None
@@ -401,7 +429,7 @@ class EmailProcessor:
             content = self._truncate_content(content, max_chars=10000)
             logger.info(
                 f"Truncated email {metadata.id} content",
-                extra={"email_id": metadata.id, "max_chars": 10000}
+                extra={"email_id": metadata.id, "max_chars": 10000},
             )
 
         # Analyze email with AI (cognitive pipeline or legacy)
@@ -410,7 +438,7 @@ class EmailProcessor:
         if not analysis:
             logger.warning(
                 f"AI analysis failed for email {metadata.id}, using fallback",
-                extra={"email_id": metadata.id, "subject": metadata.subject}
+                extra={"email_id": metadata.id, "subject": metadata.subject},
             )
             # Create fallback analysis - queue for manual review instead of losing email
             analysis = EmailAnalysis(
@@ -418,7 +446,7 @@ class EmailProcessor:
                 confidence=0,  # Zero confidence = needs manual review
                 category=EmailCategory.OTHER,
                 reasoning="AI analysis failed - queued for manual review",
-                summary=f"Email from {metadata.from_address}: {metadata.subject}"
+                summary=f"Email from {metadata.from_address}: {metadata.subject}",
             )
 
         # Auto-apply high-confidence proposals (notes, tasks)
@@ -430,15 +458,12 @@ class EmailProcessor:
                 extra={
                     "email_id": metadata.id,
                     **auto_apply_result,
-                }
+                },
             )
 
         # Create processed email record
         processed = ProcessedEmail(
-            metadata=metadata,
-            content=content,
-            analysis=analysis,
-            processed_at=now_utc()
+            metadata=metadata, content=content, analysis=analysis, processed_at=now_utc()
         )
 
         # Update state
@@ -454,8 +479,8 @@ class EmailProcessor:
                 "from": metadata.from_address,
                 "action": analysis.action.value,
                 "confidence": analysis.confidence,
-                "processed_at": processed.processed_at.isoformat()
-            }
+                "processed_at": processed.processed_at.isoformat(),
+            },
         )
 
         # Execute action if confidence is high enough
@@ -472,30 +497,34 @@ class EmailProcessor:
                     folder=metadata.folder or self.config.email.inbox_folder,
                     message_id=metadata.message_id,
                     subject=metadata.subject,
-                    from_address=metadata.from_address
+                    from_address=metadata.from_address,
                 )
             except Exception as e:
                 logger.warning(f"Failed to flag auto-executed email {metadata.id}: {e}")
 
             # Emit email completed event (executed)
-            self.event_bus.emit(ProcessingEvent(
-                event_type=ProcessingEventType.EMAIL_COMPLETED,
-                email_id=metadata.id,
-                subject=metadata.subject,
-                from_address=metadata.from_address,
-                email_date=metadata.date,
-                preview=content.plain_text[:80] if content.plain_text else None,
-                action=analysis.action.value,
-                confidence=analysis.confidence,
-                category=analysis.category.value if analysis.category else None,
-                reasoning=analysis.reasoning,
-                current=current,
-                total=total,
-                metadata={"executed": True}
-            ))
+            self.event_bus.emit(
+                ProcessingEvent(
+                    event_type=ProcessingEventType.EMAIL_COMPLETED,
+                    email_id=metadata.id,
+                    subject=metadata.subject,
+                    from_address=metadata.from_address,
+                    email_date=metadata.date,
+                    preview=content.plain_text[:80] if content.plain_text else None,
+                    action=analysis.action.value,
+                    confidence=analysis.confidence,
+                    category=analysis.category.value if analysis.category else None,
+                    reasoning=analysis.reasoning,
+                    current=current,
+                    total=total,
+                    metadata={"executed": True},
+                )
+            )
         else:
             # Populate attachment details from content metadata
-            attachments_details = content.metadata.get("attachments_details", []) if content.metadata else []
+            attachments_details = (
+                content.metadata.get("attachments_details", []) if content.metadata else []
+            )
             metadata.attachments = [
                 EmailAttachment(
                     filename=att.get("filename", ""),
@@ -529,12 +558,12 @@ class EmailProcessor:
                     folder=metadata.folder or self.config.email.inbox_folder,
                     message_id=metadata.message_id,
                     subject=metadata.subject,
-                    from_address=metadata.from_address
+                    from_address=metadata.from_address,
                 )
                 if not flag_success:
                     logger.warning(
                         f"Failed to flag email {metadata.id} - may be re-fetched",
-                        extra={"email_id": metadata.id, "folder": metadata.folder}
+                        extra={"email_id": metadata.id, "folder": metadata.folder},
                     )
             except Exception as e:
                 logger.warning(f"Failed to flag email {metadata.id}: {e}")
@@ -546,7 +575,7 @@ class EmailProcessor:
                     extra={
                         "email_id": metadata.id,
                         "message_id": metadata.message_id,
-                    }
+                    },
                 )
                 self.state.increment("emails_duplicates")
             else:
@@ -556,36 +585,34 @@ class EmailProcessor:
                         "email_id": metadata.id,
                         "queue_item_id": queue_item_id,
                         "confidence": analysis.confidence,
-                        "threshold": confidence_threshold
-                    }
+                        "threshold": confidence_threshold,
+                    },
                 )
                 self.state.increment("emails_queued")
 
             # Emit email queued event (only if actually queued, not duplicate)
             if queue_item_id is not None:
-                self.event_bus.emit(ProcessingEvent(
-                    event_type=ProcessingEventType.EMAIL_QUEUED,
-                    email_id=metadata.id,
-                    subject=metadata.subject,
-                    from_address=metadata.from_address,
-                    email_date=metadata.date,
-                    preview=content.plain_text[:80] if content.plain_text else None,
-                    action=analysis.action.value,
-                    confidence=analysis.confidence,
-                    category=analysis.category.value if analysis.category else None,
-                    reasoning=analysis.reasoning,
-                    current=current,
-                    total=total,
-                    metadata={"executed": False}
-                ))
+                self.event_bus.emit(
+                    ProcessingEvent(
+                        event_type=ProcessingEventType.EMAIL_QUEUED,
+                        email_id=metadata.id,
+                        subject=metadata.subject,
+                        from_address=metadata.from_address,
+                        email_date=metadata.date,
+                        preview=content.plain_text[:80] if content.plain_text else None,
+                        action=analysis.action.value,
+                        confidence=analysis.confidence,
+                        category=analysis.category.value if analysis.category else None,
+                        reasoning=analysis.reasoning,
+                        current=current,
+                        total=total,
+                        metadata={"executed": False},
+                    )
+                )
 
         return processed
 
-    def _execute_action(
-        self,
-        metadata: EmailMetadata,
-        analysis: EmailAnalysis
-    ) -> bool:
+    def _execute_action(self, metadata: EmailMetadata, analysis: EmailAnalysis) -> bool:
         """
         Execute action based on analysis
 
@@ -601,8 +628,8 @@ class EmailProcessor:
             extra={
                 "email_id": metadata.id,
                 "action": analysis.action.value,
-                "confidence": analysis.confidence
-            }
+                "confidence": analysis.confidence,
+            },
         )
 
         try:
@@ -635,15 +662,11 @@ class EmailProcessor:
             logger.error(
                 f"Failed to execute action: {e}",
                 exc_info=True,
-                extra={"email_id": metadata.id, "action": analysis.action.value}
+                extra={"email_id": metadata.id, "action": analysis.action.value},
             )
             return False
 
-    def _archive_email(
-        self,
-        metadata: EmailMetadata,
-        analysis: EmailAnalysis
-    ) -> bool:
+    def _archive_email(self, metadata: EmailMetadata, analysis: EmailAnalysis) -> bool:
         """
         Archive email to specified destination
 
@@ -667,16 +690,13 @@ class EmailProcessor:
             success = self.imap_client.move_email(
                 msg_id=metadata.id,
                 from_folder=metadata.folder,
-                to_folder=analysis.destination or self.config.email.archive_folder
+                to_folder=analysis.destination or self.config.email.archive_folder,
             )
 
             if success:
                 logger.info(
                     "Email archived",
-                    extra={
-                        "email_id": metadata.id,
-                        "destination": analysis.destination
-                    }
+                    extra={"email_id": metadata.id, "destination": analysis.destination},
                 )
                 self.state.increment("emails_archived")
                 return True
@@ -711,7 +731,7 @@ class EmailProcessor:
             success = self.imap_client.move_email(
                 msg_id=metadata.id,
                 from_folder=metadata.folder,
-                to_folder=self.config.email.delete_folder
+                to_folder=self.config.email.delete_folder,
             )
 
             if success:
@@ -726,11 +746,7 @@ class EmailProcessor:
             logger.error(f"Error deleting email: {e}", exc_info=True)
             return False
 
-    def _create_task(
-        self,
-        metadata: EmailMetadata,
-        analysis: EmailAnalysis
-    ) -> bool:
+    def _create_task(self, metadata: EmailMetadata, analysis: EmailAnalysis) -> bool:
         """
         Create OmniFocus task
 
@@ -747,17 +763,14 @@ class EmailProcessor:
 
         logger.info(
             "Creating OmniFocus task",
-            extra={
-                "email_id": metadata.id,
-                "task_title": analysis.omnifocus_task.get("title", "")
-            }
+            extra={"email_id": metadata.id, "task_title": analysis.omnifocus_task.get("title", "")},
         )
 
         # TODO: Integrate with OmniFocus MCP in Phase 5
         # For now, just log the task creation
         logger.info(
             "Task creation not yet implemented - would create task",
-            extra={"task_data": analysis.omnifocus_task}
+            extra={"task_data": analysis.omnifocus_task},
         )
 
         self.state.increment("tasks_created")
@@ -813,15 +826,13 @@ class EmailProcessor:
                                 "title": title,
                                 "confidence": confidence,
                                 "email_id": email_id,
-                            }
+                            },
                         )
                     else:
                         result["queued_for_review"] += 1
                 else:
                     result["queued_for_review"] += 1
-                    logger.debug(
-                        f"Proposed note below threshold: {title} (conf={confidence:.2f})"
-                    )
+                    logger.debug(f"Proposed note below threshold: {title} (conf={confidence:.2f})")
 
         # Auto-apply proposed tasks
         if analysis.proposed_tasks:
@@ -839,15 +850,13 @@ class EmailProcessor:
                                 "title": title,
                                 "confidence": confidence,
                                 "email_id": email_id,
-                            }
+                            },
                         )
                     else:
                         result["queued_for_review"] += 1
                 else:
                     result["queued_for_review"] += 1
-                    logger.debug(
-                        f"Proposed task below threshold: {title} (conf={confidence:.2f})"
-                    )
+                    logger.debug(f"Proposed task below threshold: {title} (conf={confidence:.2f})")
 
         return result
 
@@ -895,7 +904,7 @@ class EmailProcessor:
                         "source_email_id": email_id,
                         "note_type": note_type,
                         "auto_applied": True,
-                    }
+                    },
                 )
 
                 self.state.increment("notes_created")
@@ -964,7 +973,7 @@ class EmailProcessor:
                     "tags": tags,
                     "due_date": due_date,
                     "source_email_id": email_id,
-                }
+                },
             )
 
             self.state.increment("tasks_proposed")
@@ -1015,9 +1024,7 @@ _Ajouter vos notes ici..._
         return content
 
     def _validate_email_for_processing(
-        self,
-        metadata: EmailMetadata,
-        content: EmailContent
+        self, metadata: EmailMetadata, content: EmailContent
     ) -> EmailValidationResult:
         """
         Validate email is suitable for AI processing
@@ -1034,7 +1041,7 @@ _Ajouter vos notes ici..._
             return EmailValidationResult(
                 is_valid=False,
                 reason="no_text_content",
-                details="Email has no text content (binary only)"
+                details="Email has no text content (binary only)",
             )
 
         # Check content length
@@ -1044,7 +1051,7 @@ _Ajouter vos notes ici..._
             return EmailValidationResult(
                 is_valid=False,
                 reason="content_too_short",
-                details=f"Email has only {total_length} characters"
+                details=f"Email has only {total_length} characters",
             )
 
         # Check for oversized content (>200KB = ~50k tokens)
@@ -1054,46 +1061,48 @@ _Ajouter vos notes ici..._
                 is_valid=True,
                 should_truncate=True,
                 reason="content_oversized",
-                details=f"Email size {total_length} bytes exceeds {MAX_CONTENT_SIZE}"
+                details=f"Email size {total_length} bytes exceeds {MAX_CONTENT_SIZE}",
             )
 
         # Check for spam indicators (log warning but don't skip)
         subject_lower = metadata.subject.lower()
         spam_keywords = [
-            "viagra", "cialis", "casino", "lottery", "winner",
-            "click here now", "act now", "limited time", "buy now",
-            "free money", "weight loss", "enlarge"
+            "viagra",
+            "cialis",
+            "casino",
+            "lottery",
+            "winner",
+            "click here now",
+            "act now",
+            "limited time",
+            "buy now",
+            "free money",
+            "weight loss",
+            "enlarge",
         ]
 
         if any(keyword in subject_lower for keyword in spam_keywords):
             logger.warning(
                 f"Email {metadata.id} matches spam pattern",
-                extra={"subject": metadata.subject, "from": metadata.from_address}
+                extra={"subject": metadata.subject, "from": metadata.from_address},
             )
             # Don't skip - just flag for review
 
         # Check sender blacklist (if configured)
-        sender_domain = metadata.from_address.split('@')[-1] if '@' in metadata.from_address else ""
-        blocked_domains = getattr(self.config.email, 'blocked_domains', [])
+        sender_domain = metadata.from_address.split("@")[-1] if "@" in metadata.from_address else ""
+        blocked_domains = getattr(self.config.email, "blocked_domains", [])
 
         if sender_domain and sender_domain in blocked_domains:
             return EmailValidationResult(
                 is_valid=False,
                 reason="sender_blocked",
-                details=f"Sender domain {sender_domain} is blocked"
+                details=f"Sender domain {sender_domain} is blocked",
             )
 
         # All checks passed
-        return EmailValidationResult(
-            is_valid=True,
-            should_truncate=False
-        )
+        return EmailValidationResult(is_valid=True, should_truncate=False)
 
-    def _truncate_content(
-        self,
-        content: EmailContent,
-        max_chars: int = 10000
-    ) -> EmailContent:
+    def _truncate_content(self, content: EmailContent, max_chars: int = 10000) -> EmailContent:
         """
         Truncate email content to fit token limits
 
@@ -1118,7 +1127,7 @@ _Ajouter vos notes ici..._
             html=truncated_html,
             attachments=content.attachments,
             preview=content.preview,
-            metadata=content_metadata
+            metadata=content_metadata,
         )
 
     def get_processing_stats(self) -> dict:
@@ -1138,7 +1147,7 @@ _Ajouter vos notes ici..._
             "tasks_created": self.state.get("tasks_created", 0),
             "average_confidence": self._safe_get_average_confidence(),
             "processing_mode": self.state.get("processing_mode", "unknown"),
-            "rate_limit_status": self._safe_get_rate_limit_status()
+            "rate_limit_status": self._safe_get_rate_limit_status(),
         }
 
     def _safe_get_average_confidence(self) -> float:
@@ -1149,11 +1158,11 @@ _Ajouter vos notes ici..._
             Average confidence or 0.0 on error
         """
         try:
-            if hasattr(self.state, 'get_average_confidence'):
+            if hasattr(self.state, "get_average_confidence"):
                 return self.state.get_average_confidence()
             else:
                 # Fallback: calculate manually
-                return self.state.stats.confidence_avg if hasattr(self.state, 'stats') else 0.0
+                return self.state.stats.confidence_avg if hasattr(self.state, "stats") else 0.0
         except Exception as e:
             logger.warning(f"Failed to get average confidence: {e}")
             return 0.0
@@ -1166,7 +1175,7 @@ _Ajouter vos notes ici..._
             Rate limit status dict or empty dict on error
         """
         try:
-            if hasattr(self.ai_router, 'get_rate_limit_status'):
+            if hasattr(self.ai_router, "get_rate_limit_status"):
                 return self.ai_router.get_rate_limit_status()
             else:
                 return {"available": 0, "total": 0}

@@ -104,3 +104,14 @@ class WorkflowStatsResponse(BaseModel):
     escalations: int = 0
     average_confidence: float = 0.0
     average_duration_ms: float = 0.0
+
+
+class ProcessInboxRequest(BaseModel):
+    """Request to process inbox emails with V2 workflow"""
+
+    limit: int | None = Field(default=None, description="Maximum emails to process")
+    auto_execute: bool = Field(default=False, description="Auto-execute high confidence actions")
+    confidence_threshold: int | None = Field(
+        default=None, description="Minimum confidence for auto-execution (deprecated)"
+    )
+    unread_only: bool = Field(default=False, description="Only process unread emails")

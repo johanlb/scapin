@@ -19,6 +19,7 @@ from src.jeeves.api.models.workflow import (
     ApplyExtractionsRequest,
     EnrichmentResultResponse,
     ExtractionResponse,
+    ProcessInboxRequest,
     V2ProcessingResponse,
     WorkflowConfigResponse,
     WorkflowStatsResponse,
@@ -99,12 +100,8 @@ async def get_workflow_stats(
     avg_duration = 0.0
 
     if _workflow_stats["events_processed"] > 0:
-        avg_confidence = (
-            _workflow_stats["total_confidence"] / _workflow_stats["events_processed"]
-        )
-        avg_duration = (
-            _workflow_stats["total_duration_ms"] / _workflow_stats["events_processed"]
-        )
+        avg_confidence = _workflow_stats["total_confidence"] / _workflow_stats["events_processed"]
+        avg_duration = _workflow_stats["total_duration_ms"] / _workflow_stats["events_processed"]
 
     return APIResponse(
         success=True,
@@ -258,6 +255,114 @@ async def analyze_email_v2(
         raise
     except Exception as e:
         logger.error(f"V2 analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/process-inbox")
+async def process_inbox_v2(
+    request: "ProcessInboxRequest",
+    _user: Optional[TokenData] = Depends(get_current_user),
+):
+    """
+    Process inbox emails using V2 workflow (context-aware)
+
+    Fetches emails from IMAP and processes each through V2EmailProcessor:
+    1. Retrieves context notes from knowledge base
+    2. Analyzes with multi-pass AI (Haiku → Sonnet if needed)
+    3. Auto-applies high-confidence enrichments
+    4. Returns results compatible with legacy format
+
+    Args:
+        request: Processing options (limit, auto_execute, etc.)
+
+    Returns:
+        Processing results with emails, analysis, and enrichments
+    """
+    try:
+        from src.core.events.universal_event import EventSource, PerceivedEvent
+        from src.integrations.email.imap_client import IMAPClient
+
+        processor = _get_v2_processor()
+        config = get_config()
+
+        # Initialize IMAP client
+        imap_client = IMAPClient(config.email)
+
+        # Fetch emails from IMAP
+        with imap_client.connect():
+            emails = imap_client.fetch_emails(
+                folder=config.email.get_default_account().inbox_folder,
+                limit=request.limit or 50,
+                unread_only=request.unread_only,
+                unprocessed_only=True,
+            )
+
+            results = []
+
+            # Process each email through V2 pipeline
+            for metadata, content in emails:
+                # Convert to PerceivedEvent
+                event = PerceivedEvent(
+                    event_id=str(metadata.id),
+                    source=EventSource.EMAIL,
+                    timestamp=metadata.date,
+                    title=metadata.subject,
+                    content=content.plain_text or content.preview or "",
+                    metadata={
+                        "from_address": metadata.from_address,
+                        "from_name": metadata.from_name,
+                        "to_addresses": metadata.to_addresses,
+                        "has_attachments": metadata.has_attachments,
+                        "folder": metadata.folder,
+                    },
+                )
+
+                # Process with V2 pipeline (context-aware)
+                result = await processor.process_event(
+                    event=event,
+                    context_notes=None,  # Will be fetched automatically
+                    auto_apply=request.auto_execute,
+                )
+
+                results.append(result)
+
+        # Convert to legacy format for frontend compatibility
+        return {
+            "total_processed": len(results),
+            "auto_executed": sum(1 for r in results if r.auto_applied),
+            "queued": sum(1 for r in results if r.needs_clarification),
+            "skipped": 0,
+            "emails": [
+                {
+                    "metadata": {
+                        "id": r.event_id,
+                        "subject": r.analysis.summary
+                        if r.analysis and hasattr(r.analysis, "summary")
+                        else "N/A",
+                        "confidence": r.analysis.confidence if r.analysis else 0,
+                    },
+                    "analysis": {
+                        "action": r.email_action.value,
+                        "confidence": r.analysis.confidence if r.analysis else 0,
+                        "extractions": r.extraction_count,
+                        "notes_affected": r.notes_affected,
+                        "context_notes_used": len(r.analysis.context_notes) if r.analysis else 0,
+                    },
+                    "enrichment": {
+                        "auto_applied": r.auto_applied,
+                        "needs_clarification": r.needs_clarification,
+                        "pattern_matches": len(r.pattern_matches),
+                    },
+                    "executed": r.auto_applied,
+                }
+                for r in results
+            ],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"V2 inbox processing failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

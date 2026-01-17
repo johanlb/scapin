@@ -994,7 +994,9 @@ export async function processInbox(
 	confidenceThreshold?: number,
 	unreadOnly = false
 ): Promise<ProcessInboxResult> {
-	return fetchApi<ProcessInboxResult>('/email/process', {
+	// Use V2 workflow endpoint for context-aware analysis
+	// Note: This endpoint provides better enrichments by retrieving context from notes
+	return fetchApi<ProcessInboxResult>('/workflow/process-inbox', {
 		method: 'POST',
 		body: JSON.stringify({
 			limit,

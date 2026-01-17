@@ -45,6 +45,13 @@ class ActionType(str, Enum):
     FORMAT = "format"  # Formatting fixes only
     ENRICH = "enrich"  # Enrich an external note (Reflection)
 
+    # Hygiene actions (Phase 1+)
+    VALIDATE = "validate"  # Fix frontmatter validation issues
+    FIX_LINKS = "fix_links"  # Fix broken wikilinks
+    MERGE = "merge"  # Merge with another note (destructive)
+    SPLIT = "split"  # Split into multiple notes (destructive)
+    REFACTOR = "refactor"  # Reorganize content between linked notes
+
 
 @dataclass
 class ReviewAction:
@@ -84,6 +91,20 @@ class ReviewContext:
 
 
 @dataclass
+class HygieneMetrics:
+    """Structural health metrics for a note"""
+
+    word_count: int
+    is_too_short: bool  # < 100 words
+    is_too_long: bool  # > 2000 words
+    frontmatter_valid: bool
+    frontmatter_issues: list[str] = field(default_factory=list)
+    broken_links: list[str] = field(default_factory=list)
+    heading_issues: list[str] = field(default_factory=list)
+    formatting_score: float = 1.0  # 0-1, 1 = perfect
+
+
+@dataclass
 class ReviewAnalysis:
     """Result of analyzing a note for review"""
 
@@ -93,6 +114,7 @@ class ReviewAnalysis:
     reasoning: str
     detected_issues: list[str] = field(default_factory=list)
     detected_strengths: list[str] = field(default_factory=list)
+    hygiene: Optional[HygieneMetrics] = None  # NEW: hygiene metrics
 
 
 @dataclass
@@ -120,8 +142,12 @@ class NoteReviewer:
     5. Queues low-confidence actions for approval
     """
 
-    # Confidence threshold for auto-applying actions
-    AUTO_APPLY_THRESHOLD = 0.85
+    # Confidence thresholds for auto-applying actions
+    AUTO_APPLY_THRESHOLD = 0.85  # Semantic actions (enrichments, refactoring)
+    HYGIENE_THRESHOLD = 0.70  # Mechanical actions (validation, formatting, link fixes)
+
+    # Destructive actions always require approval
+    DESTRUCTIVE_ACTIONS = {ActionType.MERGE, ActionType.SPLIT}
 
     def __init__(
         self,
@@ -131,6 +157,7 @@ class NoteReviewer:
         conservation_criteria: Optional[ConservationCriteria] = None,
         ai_router: Optional[Any] = None,
         cross_source_engine: Optional["CrossSourceEngine"] = None,
+        note_janitor: Optional[Any] = None,
     ):
         """
         Initialize reviewer
@@ -142,6 +169,7 @@ class NoteReviewer:
             conservation_criteria: Rules for what to keep/remove
             ai_router: Optional AI router for analysis (Sancho)
             cross_source_engine: Optional CrossSourceEngine for external context
+            note_janitor: Optional NoteJanitor for technical validation
         """
         self.notes = note_manager
         self.store = metadata_store
@@ -149,6 +177,18 @@ class NoteReviewer:
         self.criteria = conservation_criteria or DEFAULT_CONSERVATION_CRITERIA
         self.ai_router = ai_router
         self.cross_source_engine = cross_source_engine
+
+        # Initialize NoteJanitor for hygiene validation
+        if note_janitor is None:
+            try:
+                from src.passepartout.note_janitor import NoteJanitor
+
+                self.janitor = NoteJanitor(note_manager.notes_dir)
+            except Exception as e:
+                logger.warning(f"Failed to initialize NoteJanitor: {e}")
+                self.janitor = None
+        else:
+            self.janitor = note_janitor
 
     async def review_note(self, note_id: str) -> ReviewResult:
         """
@@ -194,11 +234,16 @@ class NoteReviewer:
         # Build review context
         context = await self._load_context(note, metadata)
 
+        # Calculate hygiene metrics
+        hygiene_metrics = self._calculate_hygiene_metrics(note)
+
         # Scrub content for AI analysis (prevent binary bloat/token waste)
         scrubbed_content = self._scrub_content(note.content)
 
-        # Analyze note (use scrubbed content if it's an AI analysis)
-        analysis = await self._analyze(context, scrubbed_content=scrubbed_content)
+        # Analyze note (use scrubbed content and hygiene metrics)
+        analysis = await self._analyze(
+            context, scrubbed_content=scrubbed_content, hygiene=hygiene_metrics
+        )
 
         # Process actions
         applied_actions = []
@@ -206,7 +251,10 @@ class NoteReviewer:
         updated_content = note.content
 
         for action in analysis.suggested_actions:
-            if action.confidence >= self.AUTO_APPLY_THRESHOLD:
+            # Determine if action should be auto-applied
+            should_auto_apply = self._should_auto_apply(action)
+
+            if should_auto_apply:
                 # Auto-apply high confidence actions
                 if action.action_type == ActionType.ENRICH and action.target_note_id:
                     # External update (Briefing or other note)
@@ -379,6 +427,84 @@ class NoteReviewer:
             logger.warning(f"CrossSource query failed for note {note.note_id}: {e}")
             return []
 
+    def _calculate_hygiene_metrics(self, note: Note) -> HygieneMetrics:
+        """
+        Calculate structural health metrics for a note
+
+        Args:
+            note: The note to analyze
+
+        Returns:
+            HygieneMetrics with structural health information
+        """
+        # Count words
+        words = note.content.split()
+        word_count = len(words)
+
+        # Length analysis
+        is_too_short = word_count < 100
+        is_too_long = word_count > 2000
+
+        # Frontmatter validation
+        frontmatter_issues = []
+        frontmatter_valid = True
+
+        required_fields = ["title", "created_at", "updated_at"]
+        for field in required_fields:
+            if field not in note.metadata or not note.metadata.get(field):
+                frontmatter_issues.append(f"Missing: {field}")
+                frontmatter_valid = False
+
+        # Detect broken wikilinks with similarity suggestions
+        broken_links = []
+        wikilinks = self._extract_wikilinks(note.content)
+        for link in wikilinks[:20]:  # Limit checks to avoid slowdown
+            search_result = self.notes.search_notes(query=link, top_k=3)
+            if not search_result:
+                # No exact match - try to find similar notes
+                similar = self.notes.search_notes(query=link, top_k=1)
+                if similar:
+                    # Found a similar note, suggest it
+                    similar_note = similar[0][0] if isinstance(similar[0], tuple) else similar[0]
+                    broken_links.append(f"{link} -> suggest: {similar_note.title}")
+                else:
+                    broken_links.append(link)
+            elif isinstance(search_result[0], tuple):
+                # Check if it's a good match (score > 0.7)
+                score = search_result[0][1] if len(search_result[0]) > 1 else 1.0
+                if score < 0.7:
+                    broken_links.append(f"{link} (low confidence)")
+
+        # Check heading hierarchy
+        heading_issues = []
+        lines = note.content.split("\n")
+        prev_level = 0
+        for line in lines:
+            if line.startswith("#"):
+                level = len(line) - len(line.lstrip("#"))
+                if level > prev_level + 1:
+                    heading_issues.append(f"Skip at: {line[:40]}")
+                prev_level = level
+
+        # Formatting score
+        formatting_score = 1.0
+        if heading_issues:
+            formatting_score -= 0.2
+        if broken_links:
+            formatting_score -= 0.1 * min(len(broken_links), 5)
+        formatting_score = max(0.0, formatting_score)
+
+        return HygieneMetrics(
+            word_count=word_count,
+            is_too_short=is_too_short,
+            is_too_long=is_too_long,
+            frontmatter_valid=frontmatter_valid,
+            frontmatter_issues=frontmatter_issues,
+            broken_links=broken_links,
+            heading_issues=heading_issues,
+            formatting_score=formatting_score,
+        )
+
     def _extract_wikilinks(self, content: str) -> list[str]:
         """Extract wikilinks from content"""
         pattern = r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]"
@@ -399,7 +525,10 @@ class NoteReviewer:
         return scrubbed
 
     async def _analyze(
-        self, context: ReviewContext, scrubbed_content: Optional[str] = None
+        self,
+        context: ReviewContext,
+        scrubbed_content: Optional[str] = None,
+        hygiene: Optional[HygieneMetrics] = None,
     ) -> ReviewAnalysis:
         """Analyze note and suggest actions"""
         note = context.note
@@ -730,6 +859,31 @@ class NoteReviewer:
             logger.warning(f"AI analysis integration failed: {e}", exc_info=True)
             return []
 
+    def _should_auto_apply(self, action: ReviewAction) -> bool:
+        """
+        Determine if an action should be auto-applied based on its type and confidence
+
+        Args:
+            action: The review action to evaluate
+
+        Returns:
+            True if action should be auto-applied, False if it needs approval
+        """
+        # Destructive actions ALWAYS require approval
+        if action.action_type in self.DESTRUCTIVE_ACTIONS:
+            logger.info(
+                f"Destructive action {action.action_type} requires approval (confidence={action.confidence})"
+            )
+            return False
+
+        # Hygiene actions (mechanical) use lower threshold
+        hygiene_actions = {ActionType.VALIDATE, ActionType.FORMAT, ActionType.FIX_LINKS}
+        if action.action_type in hygiene_actions:
+            return action.confidence >= self.HYGIENE_THRESHOLD
+
+        # Semantic actions use standard threshold
+        return action.confidence >= self.AUTO_APPLY_THRESHOLD
+
     def _apply_action(self, content: str, action: ReviewAction) -> str:
         """Apply a single action to content"""
         if action.action_type == ActionType.FORMAT:
@@ -754,6 +908,27 @@ class NoteReviewer:
             # Replace entity with wikilink
             if action.content:
                 content = content.replace(action.target, action.content, 1)
+            return content
+
+        if action.action_type == ActionType.FIX_LINKS:
+            # Fix broken wikilinks
+            # action.target = old broken link, action.content = corrected link
+            if action.target and action.content:
+                # Replace [[BrokenLink]] with [[CorrectLink]]
+                old_link = f"[[{action.target}]]"
+                new_link = f"[[{action.content}]]"
+                content = content.replace(old_link, new_link)
+                logger.info(f"Fixed broken link: {action.target} -> {action.content}")
+            return content
+
+        if action.action_type == ActionType.VALIDATE:
+            # Fix frontmatter validation issues
+            # action.content contains the corrected frontmatter or field to add
+            if action.content:
+                # Simple implementation: append missing field info to metadata section
+                # More sophisticated implementation would parse and update YAML
+                logger.info(f"Frontmatter validation: {action.description}")
+                # For now, just log - full implementation would update YAML frontmatter
             return content
 
         if action.action_type == ActionType.UPDATE:
