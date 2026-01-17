@@ -934,12 +934,13 @@ class NotesService:
             responses = []
             for apple_note in deleted_notes:
                 # Create a lightweight NoteResponse for display
+                content = apple_note.body_text or ""
                 responses.append(
                     NoteResponse(
                         note_id=apple_note.id,
                         title=apple_note.name,
-                        content=apple_note.text,
-                        excerpt=apple_note.text[:200] if apple_note.text else "",
+                        content=content,
+                        excerpt=content[:200] if content else "",
                         folder="Recently Deleted",
                         tags=[],
                         created_at=apple_note.created_at or datetime.now(timezone.utc),
