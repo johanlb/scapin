@@ -42,8 +42,47 @@ from src.monitoring.logger import get_logger
 
 logger = get_logger("jeeves.api")
 
+# Flag to track if notes service is initialized
+_notes_service_ready = False
+
 # Cleanup interval in seconds (1 hour)
 NOTIFICATION_CLEANUP_INTERVAL = 3600
+
+
+async def init_notes_service_background() -> None:
+    """
+    Initialize NotesService in background at startup.
+
+    This pre-loads the embedding model, vector store, and metadata index
+    so that the first request to /api/notes doesn't have to wait.
+    """
+    global _notes_service_ready
+    import time
+
+    start = time.time()
+    logger.info("Starting background initialization of NotesService...")
+
+    try:
+        # Run in executor to not block the event loop
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _init_notes_service_sync)
+
+        elapsed = time.time() - start
+        _notes_service_ready = True
+        logger.info(f"NotesService initialized in {elapsed:.1f}s")
+    except Exception as e:
+        logger.warning(f"Background NotesService init failed: {e}")
+
+
+def _init_notes_service_sync() -> None:
+    """Synchronous helper to initialize NotesService"""
+    from src.jeeves.api.deps import get_notes_service
+
+    # This triggers the singleton creation
+    gen = get_notes_service()
+    service = next(gen)
+    # Force initialization of the NoteManager
+    _ = service._get_manager()
 
 
 async def notification_cleanup_task() -> None:
@@ -86,7 +125,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # Start background cleanup task for notifications
     cleanup_task = asyncio.create_task(notification_cleanup_task())
 
+    # Start background initialization of NotesService (non-blocking)
+    # This preloads embedding model, vector store, and metadata index
+    notes_init_task = asyncio.create_task(init_notes_service_background())
+
     yield
+
+    # Cancel notes init task if still running
+    if not notes_init_task.done():
+        notes_init_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await notes_init_task
 
     # Cancel cleanup task on shutdown
     cleanup_task.cancel()
