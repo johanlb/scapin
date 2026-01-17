@@ -56,12 +56,17 @@
 	// Notes due for review (for indicators)
 	let notesDueForReview = $state<Set<string>>(new Set());
 
-	// Editing state
+	// Content editing state
 	let isEditing = $state(false);
 	let editContent = $state('');
 	let isSaving = $state(false);
 	let showDeleteModal = $state(false);
 	let isDeleting = $state(false);
+
+	// Title editing state
+	let isEditingTitle = $state(false);
+	let editedTitle = $state('');
+	let titleInputRef: HTMLInputElement | null = null;
 
 	// Expanded folders tracking
 	let expandedFolders = $state<Set<string>>(new Set());
@@ -154,10 +159,14 @@
 	async function selectNote(note: Note) {
 		if (selectedNote?.note_id === note.note_id) return;
 
-		// Cancel any ongoing edit
+		// Cancel any ongoing edits
 		if (isEditing) {
 			isEditing = false;
 			editContent = '';
+		}
+		if (isEditingTitle) {
+			isEditingTitle = false;
+			editedTitle = '';
 		}
 
 		isLoadingNote = true;
@@ -196,6 +205,60 @@
 	function cancelEditing() {
 		isEditing = false;
 		editContent = '';
+	}
+
+	function startEditingTitle() {
+		if (!selectedNote) return;
+		editedTitle = selectedNote.title;
+		isEditingTitle = true;
+		// Focus the input after the DOM updates
+		setTimeout(() => titleInputRef?.focus(), 0);
+	}
+
+	function cancelEditingTitle() {
+		isEditingTitle = false;
+		editedTitle = '';
+	}
+
+	async function saveTitle() {
+		if (!selectedNote || !editedTitle.trim()) {
+			cancelEditingTitle();
+			return;
+		}
+
+		const newTitle = editedTitle.trim();
+		if (newTitle === selectedNote.title) {
+			cancelEditingTitle();
+			return;
+		}
+
+		isSaving = true;
+		try {
+			const updated = await updateNote(selectedNote.note_id, { title: newTitle });
+			selectedNote = updated;
+			// Update the note in the list
+			folderNotes = folderNotes.map(n =>
+				n.note_id === selectedNote!.note_id ? { ...n, title: newTitle } : n
+			);
+			toastStore.success('Titre mis à jour');
+		} catch (error) {
+			console.error('Failed to update title:', error);
+			toastStore.error('Échec de la mise à jour du titre');
+		} finally {
+			isEditingTitle = false;
+			editedTitle = '';
+			isSaving = false;
+		}
+	}
+
+	function handleTitleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			saveTitle();
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			cancelEditingTitle();
+		}
 	}
 
 	async function saveNote(content: string) {
@@ -666,9 +729,49 @@
 			<article class="max-w-3xl mx-auto p-6">
 				<!-- Note Header with Actions -->
 				<div class="flex items-start justify-between mb-4">
-					<h1 class="text-2xl font-bold text-[var(--color-text-primary)] flex-1">
-						{selectedNote.title}
-					</h1>
+					{#if isEditingTitle}
+						<div class="flex items-center gap-2 flex-1">
+							<input
+								type="text"
+								bind:this={titleInputRef}
+								bind:value={editedTitle}
+								onkeydown={handleTitleKeydown}
+								onblur={saveTitle}
+								class="text-2xl font-bold bg-transparent border-b-2 border-amber-500 outline-none flex-1 text-[var(--color-text-primary)]"
+								disabled={isSaving}
+							/>
+							<button
+								type="button"
+								onclick={saveTitle}
+								disabled={isSaving}
+								class="p-1.5 rounded-lg text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+								title="Sauvegarder"
+							>
+								{#if isSaving}
+									<span class="inline-block animate-spin">⟳</span>
+								{:else}
+									✓
+								{/if}
+							</button>
+							<button
+								type="button"
+								onclick={cancelEditingTitle}
+								disabled={isSaving}
+								class="p-1.5 rounded-lg text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+								title="Annuler"
+							>
+								✕
+							</button>
+						</div>
+					{:else}
+						<h1
+							class="text-2xl font-bold text-[var(--color-text-primary)] flex-1 cursor-pointer hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+							ondblclick={startEditingTitle}
+							title="Double-clic pour modifier le titre"
+						>
+							{selectedNote.title}
+						</h1>
+					{/if}
 					<div class="flex items-center gap-2 ml-4">
 						<!-- Edit Button -->
 						{#if !isEditing}
