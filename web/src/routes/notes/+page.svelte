@@ -15,11 +15,13 @@
 		triggerReview,
 		getNotesDue,
 		getDeletedNotes,
+		searchNotes,
 		type Note,
 		type FolderNode,
 		type NotesTree,
 		type NoteSyncStatus,
-		type NoteReviewMetadata
+		type NoteReviewMetadata,
+		type NoteSearchResult
 	} from '$lib/api/client';
 	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
 	import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
@@ -63,6 +65,13 @@
 
 	// Expanded folders tracking
 	let expandedFolders = $state<Set<string>>(new Set());
+
+	// Search state
+	let searchQuery = $state('');
+	let searchResults = $state<NoteSearchResult[]>([]);
+	let isSearching = $state(false);
+	let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let searchInputRef: HTMLInputElement | null = null;
 
 	// Virtual folder paths
 	const ALL_NOTES_PATH = '__all__';
@@ -356,8 +365,83 @@
 		return groups;
 	}
 
+	// Search functions
+	async function performSearch(query: string) {
+		if (!query.trim()) {
+			searchResults = [];
+			return;
+		}
+
+		isSearching = true;
+		try {
+			const response = await searchNotes(query, undefined, 50);
+			searchResults = response.results;
+		} catch (error) {
+			console.error('Search failed:', error);
+			searchResults = [];
+		} finally {
+			isSearching = false;
+		}
+	}
+
+	function handleSearchInput(event: Event) {
+		const input = event.target as HTMLInputElement;
+		searchQuery = input.value;
+
+		// Debounce search
+		if (searchDebounceTimer) {
+			clearTimeout(searchDebounceTimer);
+		}
+
+		if (searchQuery.trim()) {
+			searchDebounceTimer = setTimeout(() => {
+				performSearch(searchQuery);
+			}, 300);
+		} else {
+			searchResults = [];
+		}
+	}
+
+	function clearSearch() {
+		searchQuery = '';
+		searchResults = [];
+		if (searchDebounceTimer) {
+			clearTimeout(searchDebounceTimer);
+		}
+	}
+
+	function handleSearchKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			clearSearch();
+			searchInputRef?.blur();
+		}
+	}
+
+	function handleGlobalKeydown(event: KeyboardEvent) {
+		// Cmd+K or Ctrl+K to focus search
+		if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+			event.preventDefault();
+			searchInputRef?.focus();
+		}
+	}
+
+	async function selectSearchResult(result: NoteSearchResult) {
+		// Clear search and select the note
+		clearSearch();
+		await selectNote(result.note);
+	}
+
 	onMount(() => {
 		loadTree();
+
+		// Global keyboard listener
+		window.addEventListener('keydown', handleGlobalKeydown);
+		return () => {
+			window.removeEventListener('keydown', handleGlobalKeydown);
+			if (searchDebounceTimer) {
+				clearTimeout(searchDebounceTimer);
+			}
+		};
 	});
 
 	const groupedNotes = $derived(groupNotesByDate(folderNotes));
@@ -367,6 +451,7 @@
 		if (selectedFolderPath === DELETED_NOTES_PATH) return 'Supprimées récemment';
 		return selectedFolderPath ?? 'Notes';
 	});
+	const isSearchMode = $derived(searchQuery.trim().length > 0);
 </script>
 
 <div class="h-[calc(100vh-4rem)] flex bg-[var(--color-bg-primary)]">
@@ -465,43 +550,108 @@
 
 	<!-- Column 2: Notes List -->
 	<div class="w-72 flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-bg-primary)] flex flex-col">
+		<!-- Search Bar -->
+		<div class="px-3 py-2 border-b border-[var(--color-border)]">
+			<div class="relative">
+				<input
+					type="text"
+					bind:this={searchInputRef}
+					value={searchQuery}
+					oninput={handleSearchInput}
+					onkeydown={handleSearchKeydown}
+					placeholder="Rechercher..."
+					class="w-full pl-8 pr-8 py-1.5 text-sm rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)] focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)]"
+				/>
+				<span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]">
+					{#if isSearching}
+						<span class="inline-block animate-spin">⟳</span>
+					{:else}
+						🔍
+					{/if}
+				</span>
+				{#if searchQuery}
+					<button
+						type="button"
+						onclick={clearSearch}
+						class="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] p-0.5"
+						title="Effacer (Esc)"
+					>
+						✕
+					</button>
+				{:else}
+					<span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--color-text-tertiary)] bg-[var(--color-bg-tertiary)] px-1 rounded">
+						⌘K
+					</span>
+				{/if}
+			</div>
+		</div>
+
 		<!-- Header -->
-		<header class="px-4 py-3 border-b border-[var(--color-border)]">
-			<h2 class="font-semibold text-[var(--color-text-primary)]">
-				{selectedFolderName()}
-			</h2>
-			<p class="text-xs text-[var(--color-text-tertiary)]">
-				{folderNotes.length} note{folderNotes.length !== 1 ? 's' : ''}
-			</p>
+		<header class="px-4 py-2 border-b border-[var(--color-border)]">
+			{#if isSearchMode}
+				<h2 class="font-semibold text-[var(--color-text-primary)]">
+					Résultats
+				</h2>
+				<p class="text-xs text-[var(--color-text-tertiary)]">
+					{searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''} pour "{searchQuery}"
+				</p>
+			{:else}
+				<h2 class="font-semibold text-[var(--color-text-primary)]">
+					{selectedFolderName()}
+				</h2>
+				<p class="text-xs text-[var(--color-text-tertiary)]">
+					{folderNotes.length} note{folderNotes.length !== 1 ? 's' : ''}
+				</p>
+			{/if}
 		</header>
 
-		<!-- Notes List -->
+		<!-- Notes List / Search Results -->
 		<div class="flex-1 overflow-y-auto">
-			{#if isLoadingNotes}
-				<div class="p-4 text-center text-[var(--color-text-tertiary)] text-sm">
-					Chargement...
-				</div>
-			{:else if folderNotes.length === 0}
-				<div class="p-4 text-center text-[var(--color-text-tertiary)] text-sm">
-					{#if selectedFolderPath === DELETED_NOTES_PATH}
-						Aucune note supprimée
-					{:else}
-						Aucune note
-					{/if}
-				</div>
-			{:else}
-				{#each groupedNotes as group}
-					<div class="px-4 py-2">
-						<h3 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
-							{group.label}
-						</h3>
-						<div class="space-y-1">
-							{#each group.notes as note}
-								{@render noteRow(note)}
-							{/each}
-						</div>
+			{#if isSearchMode}
+				<!-- Search Results -->
+				{#if isSearching}
+					<div class="p-4 text-center text-[var(--color-text-tertiary)] text-sm">
+						Recherche...
 					</div>
-				{/each}
+				{:else if searchResults.length === 0}
+					<div class="p-4 text-center text-[var(--color-text-tertiary)] text-sm">
+						Aucun résultat
+					</div>
+				{:else}
+					<div class="px-3 py-2 space-y-1">
+						{#each searchResults as result}
+							{@render searchResultRow(result)}
+						{/each}
+					</div>
+				{/if}
+			{:else}
+				<!-- Normal Notes List -->
+				{#if isLoadingNotes}
+					<div class="p-4 text-center text-[var(--color-text-tertiary)] text-sm">
+						Chargement...
+					</div>
+				{:else if folderNotes.length === 0}
+					<div class="p-4 text-center text-[var(--color-text-tertiary)] text-sm">
+						{#if selectedFolderPath === DELETED_NOTES_PATH}
+							Aucune note supprimée
+						{:else}
+							Aucune note
+						{/if}
+					</div>
+				{:else}
+					{#each groupedNotes as group}
+						<div class="px-4 py-2">
+							<h3 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
+								{group.label}
+							</h3>
+							<div class="space-y-1">
+								{#each group.notes as note}
+									{@render noteRow(note)}
+								{/each}
+							</div>
+						</div>
+					{/each}
+				{/if}
 			{/if}
 		</div>
 	</div>
@@ -749,6 +899,49 @@
 			<span class="shrink-0">{formatNoteDate(note.updated_at)}</span>
 			<span class="truncate">{note.excerpt?.slice(0, 50) || ''}</span>
 		</div>
+	</button>
+{/snippet}
+
+{#snippet searchResultRow(result: NoteSearchResult)}
+	{@const isSelected = selectedNote?.note_id === result.note.note_id}
+	{@const scorePercent = Math.round(result.score * 100)}
+	{@const folderPath = result.note.path.split('/').slice(0, -1).join('/')}
+
+	<button
+		type="button"
+		onclick={() => selectSearchResult(result)}
+		class="w-full text-left p-2 rounded-lg transition-colors relative
+			{isSelected
+				? 'bg-amber-100 dark:bg-amber-900/30'
+				: 'hover:bg-[var(--color-bg-secondary)]'}"
+	>
+		<div class="flex items-baseline gap-2 mb-0.5">
+			<span class="font-medium text-sm text-[var(--color-text-primary)] truncate flex-1">
+				{result.note.title}
+			</span>
+			<span
+				class="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0
+					{scorePercent >= 80 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' :
+					 scorePercent >= 50 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
+					 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}"
+				title="Score de pertinence"
+			>
+				{scorePercent}%
+			</span>
+		</div>
+		<div class="text-xs text-[var(--color-text-tertiary)]">
+			{#if result.highlights.length > 0}
+				<span class="line-clamp-2">{@html result.highlights[0]}</span>
+			{:else}
+				<span class="truncate">{result.note.excerpt?.slice(0, 80) || ''}</span>
+			{/if}
+		</div>
+		{#if folderPath}
+			<div class="text-[10px] text-[var(--color-text-tertiary)] mt-1 flex items-center gap-1">
+				<span>📁</span>
+				<span>{folderPath}</span>
+			</div>
+		{/if}
 	</button>
 {/snippet}
 
