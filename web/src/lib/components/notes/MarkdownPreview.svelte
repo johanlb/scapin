@@ -136,4 +136,35 @@
 		max-width: 100%;
 		border-radius: 0.5rem;
 	}
+
+	/* Apple Notes media images */
+	.markdown-preview :global(img.apple-media-image) {
+		max-width: 100%;
+		height: auto;
+		border-radius: 0.5rem;
+		margin: 1rem 0;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	}
+
+	/* Audio elements */
+	.markdown-preview :global(audio) {
+		width: 100%;
+		margin: 1rem 0;
+	}
+
+	/* Video elements */
+	.markdown-preview :global(video) {
+		max-width: 100%;
+		border-radius: 0.5rem;
+		margin: 1rem 0;
+	}
+
+	/* PDF iframes */
+	.markdown-preview :global(iframe) {
+		width: 100%;
+		min-height: 400px;
+		border: 1px solid var(--color-border);
+		border-radius: 0.5rem;
+		margin: 1rem 0;
+	}
 </style>

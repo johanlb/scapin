@@ -23,6 +23,49 @@ interface WikilinkToken extends Tokens.Generic {
 	text: string;
 }
 
+// Custom token type for Apple Notes media
+interface AppleMediaToken extends Tokens.Generic {
+	type: 'applemedia';
+	raw: string;
+	alt: string;
+	attachmentId: string;
+}
+
+// Extension for Apple Notes media references: ![alt](apple-media://uuid)
+const appleMediaExtension: TokenizerExtension & RendererExtension = {
+	name: 'applemedia',
+	level: 'inline',
+
+	start(src: string): number | undefined {
+		const index = src.indexOf('![');
+		return index !== -1 ? index : undefined;
+	},
+
+	tokenizer(src: string): AppleMediaToken | undefined {
+		// Match: ![alt](apple-media://attachment-id)
+		const match = /^!\[([^\]]*)\]\(apple-media:\/\/([a-f0-9-]+)\)/.exec(src);
+		if (match) {
+			return {
+				type: 'applemedia',
+				raw: match[0],
+				alt: match[1],
+				attachmentId: match[2]
+			};
+		}
+		return undefined;
+	},
+
+	renderer(token: Tokens.Generic): string {
+		const mediaToken = token as AppleMediaToken;
+		const { alt, attachmentId } = mediaToken;
+		const safeAlt = escapeHtml(alt);
+		const src = `/api/media/${attachmentId}`;
+
+		// Return image with lazy loading
+		return `<img src="${src}" alt="${safeAlt}" loading="lazy" class="apple-media-image" />`;
+	}
+};
+
 // Extension for wikilinks [[Note Title]]
 const wikilinkExtension: TokenizerExtension & RendererExtension = {
 	name: 'wikilink',
@@ -56,7 +99,7 @@ const wikilinkExtension: TokenizerExtension & RendererExtension = {
 
 // Configure marked with extensions
 marked.use({
-	extensions: [wikilinkExtension],
+	extensions: [appleMediaExtension, wikilinkExtension],
 	gfm: true,
 	breaks: true
 });
@@ -72,8 +115,8 @@ export function renderMarkdown(content: string): string {
 	const rawHtml = marked.parse(content) as string;
 	// Sanitize HTML output to prevent XSS attacks
 	return DOMPurify.sanitize(rawHtml, {
-		ADD_ATTR: ['class', 'href', 'target'],
-		ADD_TAGS: ['a']
+		ADD_ATTR: ['class', 'href', 'target', 'src', 'alt', 'loading', 'controls'],
+		ADD_TAGS: ['a', 'img', 'audio', 'video', 'source', 'iframe']
 	});
 }
 
@@ -88,8 +131,8 @@ export async function renderMarkdownAsync(content: string): Promise<string> {
 	const rawHtml = await marked.parse(content);
 	// Sanitize HTML output to prevent XSS attacks
 	return DOMPurify.sanitize(rawHtml, {
-		ADD_ATTR: ['class', 'href', 'target'],
-		ADD_TAGS: ['a']
+		ADD_ATTR: ['class', 'href', 'target', 'src', 'alt', 'loading', 'controls'],
+		ADD_TAGS: ['a', 'img', 'audio', 'video', 'source', 'iframe']
 	});
 }
 

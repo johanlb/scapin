@@ -25,6 +25,7 @@ from src.jeeves.api.routers import (
     email_router,
     events_router,
     journal_router,
+    media_router,
     notes_router,
     notifications_router,
     queue_router,
@@ -160,6 +161,7 @@ def create_app() -> FastAPI:
     app.include_router(calendar_router, prefix="/api/calendar", tags=["Calendar"])
     app.include_router(teams_router, prefix="/api/teams", tags=["Teams"])
     app.include_router(notes_router, prefix="/api/notes", tags=["Notes"])
+    app.include_router(media_router, tags=["Media"])  # Already has /api/media prefix
     app.include_router(search_router, prefix="/api/search", tags=["Search"])
     app.include_router(stats_router, prefix="/api/stats", tags=["Stats"])
     app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
