@@ -122,6 +122,59 @@ def _note_to_response(note: Note) -> NoteResponse:
     )
 
 
+def _summary_to_response(summary: dict[str, Any]) -> NoteResponse:
+    """Convert lightweight summary to API response (FAST - no file read)
+
+    This creates a NoteResponse from cached summary data without reading
+    the full note file. Content is set to excerpt since full content
+    should be loaded via get_note() when needed.
+    """
+    title = str(summary.get("title", "")) if summary.get("title") else ""
+    path = summary.get("path", "")
+    tags = summary.get("tags", [])
+    pinned = summary.get("pinned", False)
+
+    # Parse dates from ISO strings
+    created_str = summary.get("created_at", "")
+    updated_str = summary.get("updated_at", "")
+
+    try:
+        created_at = (
+            datetime.fromisoformat(created_str)
+            if created_str
+            else datetime.now(timezone.utc)
+        )
+    except (ValueError, TypeError):
+        created_at = datetime.now(timezone.utc)
+
+    try:
+        updated_at = (
+            datetime.fromisoformat(updated_str)
+            if updated_str
+            else datetime.now(timezone.utc)
+        )
+    except (ValueError, TypeError):
+        updated_at = datetime.now(timezone.utc)
+
+    # For list views, we don't need full content - excerpt is enough
+    # Full content is loaded via get_note() when user selects a note
+    excerpt = summary.get("excerpt", "")
+
+    return NoteResponse(
+        note_id=summary["note_id"],
+        title=title,
+        content=excerpt,  # Use excerpt as placeholder content for list views
+        excerpt=excerpt,
+        path=path,
+        tags=tags,
+        entities=[],  # Entities loaded with full note
+        created_at=created_at,
+        updated_at=updated_at,
+        pinned=pinned,
+        metadata={},  # Minimal metadata for list views
+    )
+
+
 def _build_folder_tree(notes: list[Note]) -> list[FolderNode]:
     """Build hierarchical folder tree from notes (sorted alphabetically like Apple Notes)"""
     # Count notes per path
@@ -243,10 +296,12 @@ class NotesService:
         recent_limit: int = 10,
     ) -> NotesTreeResponse:
         """
-        Get notes organized in folder tree (OPTIMIZED)
+        Get notes organized in folder tree (ULTRA-FAST)
 
-        Uses lightweight summaries for tree building, only loads full notes
-        for pinned and recent sections.
+        Uses lightweight summaries for EVERYTHING (no file reads).
+        Full note content is loaded when user selects a note.
+
+        CRITICAL: Notes folder is on iCloud - file reads are ~1.6s each!
 
         Args:
             recent_limit: Number of recent notes to include
@@ -257,19 +312,18 @@ class NotesService:
         logger.info("Building notes tree (optimized)")
         manager = self._get_manager()
 
-        # OPTIMIZATION: Use lightweight summaries instead of loading all notes
+        # OPTIMIZATION: Use lightweight summaries for everything (no file reads!)
         summaries = manager.get_notes_summary()
         total_notes = len(summaries)
 
         # Build folder tree from summaries (very fast)
         folders = _build_folder_tree_from_summaries(summaries)
 
-        # Get pinned note IDs from summaries
-        pinned_ids = [s["note_id"] for s in summaries if s.get("pinned", False)]
-        pinned_notes = [manager.get_note(note_id) for note_id in pinned_ids]
-        pinned_responses = [_note_to_response(n) for n in pinned_notes if n]
+        # Get pinned notes from summaries (ULTRA-FAST - no file read!)
+        pinned_summaries = [s for s in summaries if s.get("pinned", False)]
+        pinned_responses = [_summary_to_response(s) for s in pinned_summaries]
 
-        # Get recent note IDs from summaries (sorted by updated_at)
+        # Get recent notes from summaries (sorted by updated_at) - ULTRA-FAST!
         def safe_updated_at(summary: dict[str, Any]) -> datetime:
             dt_str = summary.get("updated_at")
             if not dt_str:
@@ -283,9 +337,8 @@ class NotesService:
                 return datetime.min.replace(tzinfo=timezone.utc)
 
         sorted_summaries = sorted(summaries, key=safe_updated_at, reverse=True)
-        recent_ids = [s["note_id"] for s in sorted_summaries[:recent_limit]]
-        recent_notes = [manager.get_note(note_id) for note_id in recent_ids]
-        recent_responses = [_note_to_response(n) for n in recent_notes if n]
+        recent_summaries = sorted_summaries[:recent_limit]
+        recent_responses = [_summary_to_response(s) for s in recent_summaries]
 
         logger.info(
             f"Notes tree built: {total_notes} total, "
@@ -363,11 +416,9 @@ class NotesService:
         total = len(filtered)
         paginated_summaries = filtered[offset : offset + limit]
 
-        # Only load full notes for paginated subset
-        paginated_ids = [s["note_id"] for s in paginated_summaries]
-        paginated_notes = [manager.get_note(note_id) for note_id in paginated_ids]
-
-        return [_note_to_response(n) for n in paginated_notes if n], total
+        # OPTIMIZATION: Use summaries directly for list views (no file I/O)
+        # Full note content is loaded via get_note() when user selects a note
+        return [_summary_to_response(s) for s in paginated_summaries], total
 
     async def get_note(self, note_id: str) -> NoteResponse | None:
         """

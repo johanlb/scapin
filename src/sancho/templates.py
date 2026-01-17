@@ -10,6 +10,7 @@ Utilise Jinja2 pour templating flexible.
 """
 
 import threading
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
@@ -74,13 +75,15 @@ class TemplateManager:
         )
 
         # Custom filters
-        self.env.filters['truncate_smart'] = self._truncate_smart
+        self.env.filters["truncate_smart"] = self._truncate_smart
 
         # In-memory template cache for performance (thread-safe)
         self._template_cache: dict[str, Template] = {}
         self._cache_lock = threading.Lock()
 
-        logger.info("Template manager initialized", extra={"templates_dir": str(self.templates_dir)})
+        logger.info(
+            "Template manager initialized", extra={"templates_dir": str(self.templates_dir)}
+        )
 
     @staticmethod
     def _truncate_smart(text: str, length: int = 500, suffix: str = "...") -> str:
@@ -99,7 +102,7 @@ class TemplateManager:
             return text
 
         # Try to truncate at last space before length
-        truncated = text[:length].rsplit(' ', 1)[0]
+        truncated = text[:length].rsplit(" ", 1)[0]
         return truncated + suffix
 
     def get_template(self, template_name: str) -> Template:
@@ -116,7 +119,7 @@ class TemplateManager:
             TemplateNotFound: If template doesn't exist
         """
         # Add .j2 extension if not present
-        if not template_name.endswith('.j2'):
+        if not template_name.endswith(".j2"):
             template_name = f"{template_name}.j2"
 
         # Double-check locking for thread-safe cache access
@@ -140,11 +143,7 @@ class TemplateManager:
                 logger.error(f"Template not found: {template_name}")
                 raise
 
-    def render(
-        self,
-        template_name: str,
-        **kwargs
-    ) -> str:
+    def render(self, template_name: str, **kwargs) -> str:
         """
         Render template with context
 
@@ -156,24 +155,22 @@ class TemplateManager:
             Rendered template string
         """
         try:
+            # Ensure 'now' is in context
+            kwargs.setdefault("now", datetime.now(timezone.utc))
+
             template = self.get_template(template_name)
             rendered = template.render(**kwargs)
             logger.debug(
                 "Rendered template",
-                extra={"template": template_name, "context_keys": list(kwargs.keys())}
+                extra={"template": template_name, "context_keys": list(kwargs.keys())},
             )
             return rendered
         except TemplateNotFound:
-            logger.error(
-                "Template not found",
-                extra={"template": template_name}
-            )
+            logger.error("Template not found", extra={"template": template_name})
             raise
         except Exception as e:
             logger.error(
-                f"Template rendering failed: {e}",
-                extra={"template": template_name},
-                exc_info=True
+                f"Template rendering failed: {e}", extra={"template": template_name}, exc_info=True
             )
             raise
 
@@ -201,10 +198,7 @@ class TemplateManager:
         if not self.templates_dir.exists():
             return []
 
-        return [
-            f.name
-            for f in self.templates_dir.glob("**/*.j2")
-        ]
+        return [f.name for f in self.templates_dir.glob("**/*.j2")]
 
     def clear_cache(self) -> None:
         """Clear template cache (thread-safe)"""
@@ -296,11 +290,7 @@ def render_email_analysis_prompt(
     )
 
 
-def render_knowledge_extraction_prompt(
-    email_subject: str,
-    email_body: str,
-    category: str
-) -> str:
+def render_knowledge_extraction_prompt(email_subject: str, email_body: str, category: str) -> str:
     """
     Render knowledge extraction prompt
 

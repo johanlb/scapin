@@ -117,36 +117,37 @@
 		isLoading = true;
 		loadError = null;
 		try {
+			// Critical: Load tree structure first (fast with metadata index)
 			notesData = await getNotesTree(10);
 			folders = notesData.folders;
 
-			// Load notes due for review
-			try {
-				const dueResponse = await getNotesDue(100);
-				notesDueForReview = new Set(dueResponse.notes.map(n => n.note_id));
-			} catch {
-				// Ignore errors loading due notes
-			}
-
-			// Load sync status
-			try {
-				syncStatus = await getNoteSyncStatus();
-			} catch {
-				// Ignore errors
-			}
-
-			// Load deleted notes count (in background)
-			try {
-				const deleted = await getDeletedNotes();
-				deletedNotesCount = deleted.length;
-			} catch {
-				deletedNotesCount = 0;
-			}
-
-			// Auto-select "All Notes" by default
+			// Auto-select "All Notes" immediately so UI renders
 			if (!selectedFolderPath) {
-				await selectFolder(ALL_NOTES_PATH);
+				// Don't await - let folder selection happen in parallel
+				selectFolder(ALL_NOTES_PATH);
 			}
+
+			// Non-critical: Load these in parallel, fire-and-forget style
+			// They update the UI when ready but don't block initial render
+			getNotesDue(100)
+				.then((dueResponse) => {
+					notesDueForReview = new Set(dueResponse.notes.map((n) => n.note_id));
+				})
+				.catch(() => {
+					/* ignore */
+				});
+
+			getNoteSyncStatus()
+				.then((status) => {
+					syncStatus = status;
+				})
+				.catch(() => {
+					/* ignore */
+				});
+
+			// SLOW: getDeletedNotes uses AppleScript (180s timeout!)
+			// Load lazily only when user clicks "Deleted Notes" folder
+			// deletedNotesCount will be loaded on-demand in selectFolder()
 		} catch (error) {
 			loadError = error instanceof Error ? error.message : 'Erreur de chargement';
 		} finally {

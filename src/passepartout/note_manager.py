@@ -377,6 +377,8 @@ class NoteManager:
 
     def _update_metadata_index(self, note: Note) -> None:
         """Update metadata index entry for a note"""
+        import re
+
         # Extract path from file_path relative to notes_dir
         path = ""
         if note.file_path:
@@ -388,12 +390,20 @@ class NoteManager:
             except ValueError:
                 pass
 
+        # Generate excerpt from content for list views
+        content = note.content.strip() if note.content else ""
+        excerpt = content[:200] + "..." if len(content) > 200 else content
+        # Remove markdown headers for cleaner excerpt
+        excerpt = re.sub(r"^#+\s+", "", excerpt)
+
         self._notes_metadata[note.note_id] = {
             "title": note.title,
             "path": path,
+            "created_at": note.created_at.isoformat() if note.created_at else None,
             "updated_at": note.updated_at.isoformat() if note.updated_at else None,
             "pinned": note.metadata.get("pinned", False),
             "tags": note.tags or [],
+            "excerpt": excerpt,
         }
 
     def _remove_from_metadata_index(self, note_id: str) -> None:
@@ -402,10 +412,10 @@ class NoteManager:
 
     def _rebuild_metadata_index(self) -> int:
         """
-        Rebuild metadata index from filesystem
+        Rebuild metadata index from filesystem (ULTRA-FAST - no file reads)
 
-        Scans all .md files and extracts lightweight metadata.
-        Much faster than loading full notes since we only read frontmatter.
+        CRITICAL: Notes folder is on iCloud Drive which has ~1.6s latency per file read.
+        This function NEVER reads file content - only uses filesystem metadata.
 
         Returns:
             Number of notes indexed
@@ -418,25 +428,11 @@ class NoteManager:
 
         for file_path in visible_files:
             try:
-                # Read only the frontmatter (first few lines)
                 note_id = file_path.stem
-                content = file_path.read_text(encoding="utf-8")
 
-                # Extract frontmatter
-                title = note_id
-                tags: list[str] = []
-                pinned = False
-
-                match = FRONTMATTER_PATTERN.match(content)
-                if match:
-                    try:
-                        frontmatter_raw = match.group(1)
-                        frontmatter = yaml.safe_load(frontmatter_raw) or {}
-                        title = frontmatter.get("title", note_id)
-                        tags = frontmatter.get("tags", []) or []
-                        pinned = frontmatter.get("pinned", False)
-                    except Exception:
-                        pass
+                # ULTRA-FAST: NO FILE READS - only filesystem metadata
+                # Title defaults to filename (cleaned up)
+                title = note_id.replace("-", " ").replace("_", " ")
 
                 # Get path from file location
                 try:
@@ -445,16 +441,21 @@ class NoteManager:
                 except ValueError:
                     path = ""
 
-                # Get updated_at from file mtime
-                mtime = file_path.stat().st_mtime
+                # Get dates from file stats only (fast syscall, no content read)
+                stat = file_path.stat()
+                mtime = stat.st_mtime
+                ctime = stat.st_birthtime if hasattr(stat, "st_birthtime") else stat.st_ctime
                 updated_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+                created_at_str = datetime.fromtimestamp(ctime, tz=timezone.utc).isoformat()
 
                 self._notes_metadata[note_id] = {
                     "title": title,
                     "path": path,
+                    "created_at": created_at_str,
                     "updated_at": updated_at,
-                    "pinned": pinned,
-                    "tags": tags,
+                    "pinned": False,  # Loaded when note is accessed
+                    "tags": [],  # Loaded when note is accessed
+                    "excerpt": "",  # Loaded when note is accessed
                 }
                 count += 1
 
