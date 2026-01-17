@@ -66,7 +66,7 @@
 	// Title editing state
 	let isEditingTitle = $state(false);
 	let editedTitle = $state('');
-	let titleInputRef: HTMLInputElement | null = null;
+	let titleInputRef = $state<HTMLInputElement | null>(null);
 
 	// Hygiene review state
 	interface HygieneIssue {

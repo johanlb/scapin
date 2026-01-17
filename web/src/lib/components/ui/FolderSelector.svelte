@@ -157,16 +157,17 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="folder-selector-overlay"
 	onclick={onCancel}
+	onkeydown={(e) => e.key === 'Escape' && onCancel()}
 	role="dialog"
 	aria-modal="true"
 	tabindex="-1"
 >
-	<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-	<div class="folder-selector" onclick={(e) => e.stopPropagation()} data-testid="folder-selector">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="folder-selector" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} data-testid="folder-selector">
 		<header class="selector-header">
 			<h2>Choisir un dossier</h2>
 			<button class="close-btn" onclick={onCancel} aria-label="Fermer">×</button>

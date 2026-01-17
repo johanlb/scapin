@@ -60,9 +60,9 @@ def encode_imap_folder_name(folder_name: str) -> str:
 
     # Fast path: if already ASCII, handle it
     try:
-        folder_name.encode('ascii')
+        folder_name.encode("ascii")
         # Escape & character
-        encoded = folder_name.replace('&', '&-')
+        encoded = folder_name.replace("&", "&-")
 
         # Quote if contains special chars
         if re.search(IMAP_SPECIAL_CHARS, encoded):
@@ -80,12 +80,12 @@ def encode_imap_folder_name(folder_name: str) -> str:
         char = folder_name[i]
 
         # ASCII printable (except &)
-        if 0x20 <= ord(char) <= 0x7E and char != '&':
+        if 0x20 <= ord(char) <= 0x7E and char != "&":
             result.append(char)
             i += 1
         # & character
-        elif char == '&':
-            result.append('&-')
+        elif char == "&":
+            result.append("&-")
             i += 1
         # Non-ASCII - encode sequence
         else:
@@ -100,19 +100,19 @@ def encode_imap_folder_name(folder_name: str) -> str:
                     break
 
             # Encode to UTF-16BE
-            utf16 = ''.join(non_ascii).encode('utf-16-be')
+            utf16 = "".join(non_ascii).encode("utf-16-be")
             # Encode to base64
-            b64 = codecs.encode(utf16, 'base64').decode('ascii')
+            b64 = codecs.encode(utf16, "base64").decode("ascii")
             # Remove newlines and padding
-            b64 = b64.rstrip('\n=')
+            b64 = b64.rstrip("\n=")
             # Replace / with , (IMAP modified UTF-7 uses , instead of /)
-            b64 = b64.replace('/', ',')
+            b64 = b64.replace("/", ",")
             # Surround with & and -
-            result.append(f'&{b64}-')
+            result.append(f"&{b64}-")
 
     import re
 
-    encoded = ''.join(result)
+    encoded = "".join(result)
 
     # Quote if contains special chars
     if re.search(IMAP_SPECIAL_CHARS, encoded):
@@ -156,44 +156,44 @@ def decode_imap_folder_name(folder_name: str) -> str:
     i = 0
 
     while i < len(folder_name):
-        if folder_name[i] == '&':
+        if folder_name[i] == "&":
             # Find the end of the encoded sequence
-            end = folder_name.find('-', i + 1)
+            end = folder_name.find("-", i + 1)
             if end == -1:
                 # No closing -, treat as literal
-                result.append('&')
+                result.append("&")
                 i += 1
                 continue
 
             if end == i + 1:
                 # &- is just &
-                result.append('&')
+                result.append("&")
                 i = end + 1
             else:
                 # Decode the base64 sequence
-                b64 = folder_name[i + 1:end]
+                b64 = folder_name[i + 1 : end]
                 # Replace , with / (IMAP modified UTF-7 uses , instead of /)
-                b64 = b64.replace(',', '/')
+                b64 = b64.replace(",", "/")
                 # Add padding if needed
                 padding = (4 - len(b64) % 4) % 4
-                b64 += '=' * padding
+                b64 += "=" * padding
 
                 try:
                     # Decode from base64
-                    utf16_bytes = codecs.decode(b64.encode('ascii'), 'base64')
+                    utf16_bytes = codecs.decode(b64.encode("ascii"), "base64")
                     # Decode from UTF-16BE
-                    decoded = utf16_bytes.decode('utf-16-be')
+                    decoded = utf16_bytes.decode("utf-16-be")
                     result.append(decoded)
                 except Exception:
                     # If decoding fails, keep the original
-                    result.append(folder_name[i:end + 1])
+                    result.append(folder_name[i : end + 1])
 
                 i = end + 1
         else:
             result.append(folder_name[i])
             i += 1
 
-    return ''.join(result)
+    return "".join(result)
 
 
 def decode_mime_header(header_value: str) -> str:
@@ -228,17 +228,17 @@ def decode_mime_header(header_value: str) -> str:
             if isinstance(part, bytes):
                 # Decode bytes using specified charset or UTF-8 as fallback
                 try:
-                    decoded = part.decode(charset or 'utf-8', errors='replace')
+                    decoded = part.decode(charset or "utf-8", errors="replace")
                 except (LookupError, UnicodeDecodeError):
                     # If charset is unknown or decoding fails, try UTF-8
-                    decoded = part.decode('utf-8', errors='replace')
+                    decoded = part.decode("utf-8", errors="replace")
             else:
                 # Already a string
                 decoded = str(part)
 
             result_parts.append(decoded)
 
-        return ''.join(result_parts)
+        return "".join(result_parts)
 
     except Exception as e:
         # If decoding fails, return original value
@@ -286,8 +286,8 @@ class IMAPClient:
                 "account_name": account_config.account_name,
                 "host": account_config.imap_host,
                 "port": account_config.imap_port,
-                "username": account_config.imap_username
-            }
+                "username": account_config.imap_username,
+            },
         )
 
     def __repr__(self) -> str:
@@ -329,31 +329,25 @@ class IMAPClient:
                     f"Connecting to IMAP server: {self.config.imap_host}:{self.config.imap_port}",
                     extra={
                         "timeout": self.config.imap_timeout,
-                        "read_timeout": self.config.imap_read_timeout
-                    }
+                        "read_timeout": self.config.imap_read_timeout,
+                    },
                 )
 
                 # Set socket timeout for connection
                 socket.setdefaulttimeout(self.config.imap_timeout)
 
                 # Connect to IMAP server
-                self._connection = imaplib.IMAP4_SSL(
-                    self.config.imap_host,
-                    self.config.imap_port
-                )
+                self._connection = imaplib.IMAP4_SSL(self.config.imap_host, self.config.imap_port)
 
                 # Note: We use IMAP modified UTF-7 encoding for folder names
                 # via encode_imap_folder_name() function instead of changing _encoding
 
                 # Set read timeout for operations
-                if hasattr(self._connection, 'sock') and self._connection.sock:
+                if hasattr(self._connection, "sock") and self._connection.sock:
                     self._connection.sock.settimeout(self.config.imap_read_timeout)
 
                 # Login
-                self._connection.login(
-                    self.config.imap_username,
-                    self.config.imap_password
-                )
+                self._connection.login(self.config.imap_username, self.config.imap_password)
 
                 logger.info("IMAP connection established")
 
@@ -399,7 +393,7 @@ class IMAPClient:
 
         try:
             status, folder_data = self._connection.list('""', pattern)
-            if status != 'OK':
+            if status != "OK":
                 logger.error("Failed to list IMAP folders")
                 return []
 
@@ -411,7 +405,7 @@ class IMAPClient:
                 # Example: b'(\\HasNoChildren) "/" "Archive/2024"'
                 try:
                     if isinstance(item, bytes):
-                        item = item.decode('utf-8')
+                        item = item.decode("utf-8")
                     # Extract folder name (last quoted string)
                     parts = item.rsplit('"', 2)
                     if len(parts) >= 2:
@@ -419,7 +413,7 @@ class IMAPClient:
                         # Decode IMAP modified UTF-7 to UTF-8
                         folder_name = decode_imap_folder_name(folder_name)
                         # Skip system folders that start with [
-                        if not folder_name.startswith('['):
+                        if not folder_name.startswith("["):
                             folders.append(folder_name)
                 except Exception as e:
                     logger.debug(f"Failed to parse folder: {item}, error: {e}")
@@ -438,7 +432,7 @@ class IMAPClient:
         folder: str = "INBOX",
         limit: Optional[int] = None,
         unread_only: bool = False,
-        unprocessed_only: bool = False
+        unprocessed_only: bool = False,
     ) -> list[tuple[EmailMetadata, EmailContent]]:
         """
         Fetch emails from specified folder
@@ -460,30 +454,26 @@ class IMAPClient:
         try:
             # Select folder
             status, messages = self._connection.select(folder, readonly=True)
-            if status != 'OK':
+            if status != "OK":
                 logger.error(f"Failed to select folder: {folder}")
                 return []
 
             # Build search criteria
-            # IMAP returns messages in ascending order (oldest first)
-            # NOTE: We do NOT use UNKEYWORD for filtering because iCloud Mail
-            # doesn't support KEYWORD/UNKEYWORD search for custom keywords.
-            # Instead, we use local SQLite tracking (see below).
+            # IMAP returns messages in ascending order by UID if requested via UID SEARCH
             criteria = []
             if unread_only:
                 criteria.append("UNSEEN")
-            # NOTE: unprocessed_only is handled via local tracking, not IMAP search
 
-            # If no specific criteria, fetch all
             search_criteria = " ".join(criteria) if criteria else "ALL"
 
-            status, message_ids = self._connection.search(None, search_criteria)
+            # Use UID SEARCH for stability across folder modifications
+            status, message_ids = self._connection.uid("SEARCH", None, search_criteria)
 
-            if status != 'OK':
-                logger.error(f"Failed to search emails in {folder}")
+            if status != "OK":
+                logger.error(f"Failed to search emails with UIDs in {folder}")
                 return []
 
-            # Get message IDs (already in ascending order - oldest first)
+            # Get message UIDs (already in ascending order)
             id_list = message_ids[0].split()
 
             logger.info(
@@ -493,17 +483,15 @@ class IMAPClient:
                     "total_found": len(id_list),
                     "unread_only": unread_only,
                     "unprocessed_only": unprocessed_only,
-                    "criteria": search_criteria
-                }
+                    "criteria": search_criteria,
+                },
             )
 
             # If unprocessed_only, filter using local SQLite tracker
             # This is necessary because iCloud Mail doesn't support KEYWORD search
             if unprocessed_only and id_list:
                 id_list = self._filter_unprocessed_emails(id_list, folder, limit)
-                logger.info(
-                    f"After local tracking filter: {len(id_list)} unprocessed emails"
-                )
+                logger.info(f"After local tracking filter: {len(id_list)} unprocessed emails")
             elif limit:
                 # Apply limit (take first N = oldest N emails)
                 id_list = id_list[:limit]
@@ -518,8 +506,8 @@ class IMAPClient:
                     "folder": folder,
                     "count": len(id_list),
                     "unread_only": unread_only,
-                    "unprocessed_only": unprocessed_only
-                }
+                    "unprocessed_only": unprocessed_only,
+                },
             )
 
             # Fetch emails in batches for better performance
@@ -534,10 +522,7 @@ class IMAPClient:
             return []
 
     def _filter_unprocessed_emails(
-        self,
-        msg_ids: list[bytes],
-        _folder: str,
-        limit: Optional[int] = None
+        self, msg_ids: list[bytes], _folder: str, limit: Optional[int] = None
     ) -> list[bytes]:
         """
         Filter message IDs to only include unprocessed emails.
@@ -562,7 +547,7 @@ class IMAPClient:
 
         try:
             tracker = get_processed_tracker()
-            unprocessed_imap_ids: list[bytes] = []
+            unprocessed_ids: list[bytes] = []
             batch_size = 200  # Fetch headers in batches of 200
 
             # Process in batches, stopping early when we have enough
@@ -570,18 +555,20 @@ class IMAPClient:
                 batch_end = min(batch_start + batch_size, len(msg_ids))
                 batch_ids = msg_ids[batch_start:batch_end]
 
-                # Fetch Message-ID headers for this batch
+                # Fetch Message-ID headers for this batch using UIDs
                 msg_set = b",".join(batch_ids)
-                status, response = self._connection.fetch(
-                    msg_set, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
+                status, response = self._connection.uid(
+                    "FETCH", msg_set.decode(), "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
                 )
 
-                if status != 'OK':
-                    logger.warning(f"Failed to fetch headers for batch {batch_start}-{batch_end}")
+                if status != "OK":
+                    logger.warning(
+                        f"Failed to fetch headers for UID batch {batch_start}-{batch_end}"
+                    )
                     continue
 
-                # Parse response to get IMAP ID -> Message-ID mapping
-                imap_to_message_id: dict[bytes, str] = {}
+                # Parse response to get UID -> Message-ID mapping
+                uid_to_message_id: dict[bytes, str] = {}
 
                 for item in response:
                     if item is None or item == b")":
@@ -593,18 +580,38 @@ class IMAPClient:
 
                         if isinstance(header, bytes) and isinstance(header_data, bytes):
                             try:
-                                imap_id = header.split()[0]
-                                header_str = header_data.decode('utf-8', errors='replace')
-                                for line in header_str.split('\n'):
-                                    if line.lower().startswith('message-id:'):
-                                        message_id = line.split(':', 1)[1].strip()
-                                        imap_to_message_id[imap_id] = message_id
+                                # Extract UID from header string (format: b'123 (UID 456 BODY[HEADER...])')
+                                parts = header.split()
+                                current_uid = None
+                                for j, part in enumerate(parts):
+                                    if part.upper() == b"UID":
+                                        current_uid = parts[j + 1]
                                         break
+
+                                if not current_uid:
+                                    continue
+
+                                header_str = header_data.decode("utf-8", errors="replace")
+                                message_id = None
+                                for line in header_str.split("\n"):
+                                    if line.lower().startswith("message-id:"):
+                                        message_id = line.split(":", 1)[1].strip()
+                                        if message_id.startswith("<") and message_id.endswith(">"):
+                                            message_id = message_id[1:-1]
+                                        uid_to_message_id[current_uid] = message_id
+                                        break
+
+                                # Fallback if Message-ID is missing
+                                if current_uid not in uid_to_message_id:
+                                    uid_str = current_uid.decode()
+                                    fallback_id = f"UID-{uid_str}@{self.account_id}.scapin.local"
+                                    uid_to_message_id[current_uid] = fallback_id
+
                             except Exception as e:
-                                logger.debug(f"Failed to parse header: {e}")
+                                logger.debug(f"Failed to parse header for UID: {e}")
 
                 # Get Message-IDs for this batch
-                batch_message_ids = list(imap_to_message_id.values())
+                batch_message_ids = list(uid_to_message_id.values())
 
                 if not batch_message_ids:
                     continue
@@ -615,27 +622,27 @@ class IMAPClient:
                 )
 
                 # Add unprocessed emails to result, preserving order
-                for imap_id in batch_ids:
-                    message_id = imap_to_message_id.get(imap_id)
+                for uid in batch_ids:
+                    message_id = uid_to_message_id.get(uid)
                     if message_id and message_id in unprocessed_message_ids:
-                        unprocessed_imap_ids.append(imap_id)
+                        unprocessed_ids.append(uid)
 
                         # Stop early if we have enough!
-                        if limit and len(unprocessed_imap_ids) >= limit:
+                        if limit and len(unprocessed_ids) >= limit:
                             logger.info(
                                 f"Early stop: found {limit} unprocessed emails "
                                 f"after checking {batch_end}/{len(msg_ids)} headers"
                             )
-                            return unprocessed_imap_ids
+                            return unprocessed_ids
 
                 logger.debug(
                     f"Batch {batch_start}-{batch_end}: "
                     f"{len(batch_message_ids)} headers, "
                     f"{len(unprocessed_message_ids)} unprocessed, "
-                    f"{len(unprocessed_imap_ids)} total so far"
+                    f"{len(unprocessed_ids)} total so far"
                 )
 
-            return unprocessed_imap_ids
+            return unprocessed_ids
 
         except Exception as e:
             logger.error(f"Error filtering unprocessed emails: {e}", exc_info=True)
@@ -661,16 +668,14 @@ class IMAPClient:
             msg_id_int = int(msg_id.decode())
             logger.info(
                 f"Flagging failed email {msg_id_int} to prevent re-fetch loop",
-                extra={"folder": folder, "error": error[:100]}
+                extra={"folder": folder, "error": error[:100]},
             )
             # Select folder in write mode and add flag
             self._connection.select(folder, readonly=False)
             result = self._connection.store(
-                str(msg_id_int).encode(),
-                '+FLAGS',
-                f"({SCAPIN_PROCESSED_FLAG})"
+                str(msg_id_int).encode(), "+FLAGS", f"({SCAPIN_PROCESSED_FLAG})"
             )
-            if result[0] == 'OK':
+            if result[0] == "OK":
                 logger.info(f"Successfully flagged failed email {msg_id_int}")
             else:
                 logger.warning(f"Failed to flag email {msg_id_int}: {result}")
@@ -705,17 +710,20 @@ class IMAPClient:
 
         # Process in batches to avoid server timeouts and memory issues
         for i in range(0, len(msg_ids), batch_size):
-            batch = msg_ids[i:i + batch_size]
+            batch = msg_ids[i : i + batch_size]
 
             # Build message set for IMAP FETCH (comma-separated IDs)
             msg_set = b",".join(batch)
 
             try:
                 # Batch fetch using BODY.PEEK[] (doesn't mark as seen)
-                status, response = self._connection.fetch(msg_set, "(BODY.PEEK[])")
+                # Use UID FETCH for stability
+                status, response = self._connection.uid("FETCH", msg_set.decode(), "(BODY.PEEK[])")
 
                 if status != "OK":
-                    logger.warning(f"Batch fetch failed for {len(batch)} emails, falling back to individual fetch")
+                    logger.warning(
+                        f"UID Batch fetch failed for {len(batch)} emails, falling back to individual fetch"
+                    )
                     # Fallback to individual fetch for this batch
                     for msg_id in batch:
                         try:
@@ -723,20 +731,19 @@ class IMAPClient:
                             if email_data:
                                 emails.append(email_data)
                         except Exception as e:
-                            logger.warning(f"Failed to fetch email {msg_id.decode()}: {e}")
+                            logger.warning(f"Failed to fetch email UID {msg_id.decode()}: {e}")
                             # Flag the email to prevent infinite re-fetch loop
                             self._flag_failed_email(msg_id, folder, str(e))
                     continue
 
                 # Parse batch response - response contains multiple email tuples
-                # Format: [(b'1 (BODY[] {size}', b'email1'), b')', (b'2 (BODY[] {size}', b'email2'), b')', ...]
                 batch_emails = self._parse_batch_response(response, folder)
                 emails.extend(batch_emails)
 
-                logger.debug(f"Batch fetched {len(batch_emails)}/{len(batch)} emails")
+                logger.debug(f"Batch fetched {len(batch_emails)}/{len(batch)} emails using UIDs")
 
             except Exception as e:
-                logger.warning(f"Batch fetch error: {e}, falling back to individual fetch")
+                logger.warning(f"UID Batch fetch error: {e}, falling back to individual fetch")
                 # Fallback to individual fetch for this batch
                 for msg_id in batch:
                     try:
@@ -786,36 +793,45 @@ class IMAPClient:
                 raw_email = item[1]
 
                 # Validate this is email data (header should contain BODY[])
-                if isinstance(header, bytes) and b"BODY[]" in header and isinstance(raw_email, bytes):
-                    msg_id = None
+                if (
+                    isinstance(header, bytes)
+                    and b"BODY[]" in header
+                    and isinstance(raw_email, bytes)
+                ):
+                    msg_uid = None
                     try:
-                        # Extract message ID from header (format: b'123 (BODY[] {size}')
-                        msg_id_str = header.split()[0]
-                        msg_id = msg_id_str if isinstance(msg_id_str, bytes) else msg_id_str.encode()
+                        # Extract UID from header (format: b'123 (UID 456 BODY[] {size})')
+                        parts = header.split()
+                        for j, part in enumerate(parts):
+                            if part.upper() == b"UID":
+                                msg_uid = parts[j + 1]
+                                break
+
+                        if not msg_uid:
+                            # Fallback to sequence number if UID not found
+                            msg_uid = parts[0]
 
                         # Parse the email
                         email_message = email.message_from_bytes(raw_email)
-                        metadata = self._extract_metadata(email_message, msg_id, folder)
+                        metadata = self._extract_metadata(email_message, msg_uid, folder)
                         content = self._extract_content(email_message)
                         emails.append((metadata, content))
 
                     except Exception as e:
                         logger.warning(
                             f"Failed to parse email in batch: {e}",
-                            extra={"msg_id": msg_id.decode() if msg_id else "unknown"}
+                            extra={"msg_uid": msg_uid.decode() if msg_uid else "unknown"},
                         )
                         # Flag the unparseable email to prevent infinite re-fetch loop
-                        if msg_id:
-                            self._flag_failed_email(msg_id, folder, str(e))
+                        if msg_uid:
+                            self._flag_failed_email(msg_uid, folder, str(e))
 
             i += 1
 
         return emails
 
     def _fetch_single_email(
-        self,
-        msg_id: bytes,
-        folder: str
+        self, msg_id: bytes, folder: str
     ) -> Optional[tuple[EmailMetadata, EmailContent]]:
         """
         Fetch and parse a single email
@@ -831,10 +847,10 @@ class IMAPClient:
             return None
 
         # Fetch email using BODY.PEEK[] (modern IMAP4rev1, doesn't mark as seen)
-        # Fallback to RFC822 if that fails
-        status, msg_data = self._connection.fetch(msg_id, '(BODY.PEEK[])')
+        # Use UID FETCH for stability
+        status, msg_data = self._connection.uid("FETCH", msg_id.decode(), "(BODY.PEEK[])")
 
-        if status != 'OK' or not msg_data or msg_data[0] is None:
+        if status != "OK" or not msg_data or msg_data[0] is None:
             return None
 
         # Parse email - IMAP response structure varies by server
@@ -843,9 +859,13 @@ class IMAPClient:
         #   - [((b'ID (BODY[] {size}', b'raw_email')), None]  # Some servers
         #
         # Debug the actual structure
-        logger.debug(f"IMAP fetch response type: {type(msg_data)}, length: {len(msg_data) if msg_data else 0}")
+        logger.debug(
+            f"IMAP fetch response type: {type(msg_data)}, length: {len(msg_data) if msg_data else 0}"
+        )
         if msg_data and len(msg_data) > 0:
-            logger.debug(f"msg_data[0] type: {type(msg_data[0])}, value: {msg_data[0][:100] if isinstance(msg_data[0], bytes) else msg_data[0]}")
+            logger.debug(
+                f"msg_data[0] type: {type(msg_data[0])}, value: {msg_data[0][:100] if isinstance(msg_data[0], bytes) else msg_data[0]}"
+            )
 
         # Try to extract email data - handle various response formats
         raw_email = None
@@ -861,7 +881,12 @@ class IMAPClient:
         elif len(msg_data) > 1:
             for item in msg_data:
                 # Check if this tuple contains BODY[] response
-                if isinstance(item, tuple) and len(item) >= 2 and isinstance(item[0], bytes) and b'BODY[]' in item[0]:
+                if (
+                    isinstance(item, tuple)
+                    and len(item) >= 2
+                    and isinstance(item[0], bytes)
+                    and b"BODY[]" in item[0]
+                ):
                     raw_email = item[1]
                     break
 
@@ -890,12 +915,7 @@ class IMAPClient:
 
         return (metadata, content)
 
-    def _extract_metadata(
-        self,
-        msg: Message,
-        msg_id: bytes,
-        folder: str
-    ) -> EmailMetadata:
+    def _extract_metadata(self, msg: Message, msg_id: bytes, folder: str) -> EmailMetadata:
         """
         Extract email metadata
 
@@ -920,10 +940,11 @@ class IMAPClient:
                 # If naive (no timezone), assume UTC (email standard)
                 if date.tzinfo is None:
                     from datetime import timezone
+
                     date = date.replace(tzinfo=timezone.utc)
                     logger.debug(
                         "Email date has no timezone, assuming UTC",
-                        extra={"message_id": msg.get("Message-ID"), "date_str": date_str}
+                        extra={"message_id": msg.get("Message-ID"), "date_str": date_str},
                     )
             except Exception as e:
                 logger.warning(f"Failed to parse date '{date_str}': {e}")
@@ -936,8 +957,7 @@ class IMAPClient:
         to_header = msg.get("To", "")
         # Filter out empty/invalid email addresses (must contain @)
         to_addresses = [
-            addr for _, addr in email.utils.getaddresses([to_header])
-            if addr and '@' in addr
+            addr for _, addr in email.utils.getaddresses([to_header]) if addr and "@" in addr
         ]
 
         # If no valid To addresses found, use a placeholder
@@ -965,7 +985,7 @@ class IMAPClient:
             date=date,
             has_attachments=self._has_attachments(msg),
             size_bytes=len(str(msg)),
-            flags=flags
+            flags=flags,
         )
 
     def _extract_content(self, msg: Message) -> EmailContent:
@@ -1014,21 +1034,23 @@ class IMAPClient:
             # Use chardet for automatic detection
             try:
                 detected = chardet.detect(payload)
-                detected_encoding = detected.get('encoding')
-                confidence = detected.get('confidence', 0)
+                detected_encoding = detected.get("encoding")
+                confidence = detected.get("confidence", 0)
 
                 if detected_encoding:
                     try:
-                        text = payload.decode(detected_encoding, errors='replace')
+                        text = payload.decode(detected_encoding, errors="replace")
 
                         # Log if confidence is low or encoding wasn't UTF-8
-                        if confidence < 0.9 or detected_encoding.lower() not in ['utf-8', 'ascii']:
-                            decoding_errors.append({
-                                "content_type": content_name,
-                                "detected_encoding": detected_encoding,
-                                "confidence": confidence,
-                                "fallback_used": True
-                            })
+                        if confidence < 0.9 or detected_encoding.lower() not in ["utf-8", "ascii"]:
+                            decoding_errors.append(
+                                {
+                                    "content_type": content_name,
+                                    "detected_encoding": detected_encoding,
+                                    "confidence": confidence,
+                                    "fallback_used": True,
+                                }
+                            )
                             logger.warning(
                                 f"Email content used fallback encoding: {detected_encoding} "
                                 f"(confidence: {confidence:.2f})"
@@ -1041,13 +1063,15 @@ class IMAPClient:
                 logger.warning(f"Chardet detection failed: {e}")
 
             # Last resort: latin-1 (never fails but may be incorrect)
-            decoding_errors.append({
-                "content_type": content_name,
-                "error": "All decoding attempts failed, using latin-1 fallback",
-                "fallback_used": True
-            })
+            decoding_errors.append(
+                {
+                    "content_type": content_name,
+                    "error": "All decoding attempts failed, using latin-1 fallback",
+                    "fallback_used": True,
+                }
+            )
             logger.error(f"All decoding attempts failed for {content_name}, using latin-1 fallback")
-            return payload.decode('latin-1', errors='replace')
+            return payload.decode("latin-1", errors="replace")
 
         if msg.is_multipart():
             for part in msg.walk():
@@ -1060,15 +1084,17 @@ class IMAPClient:
                     if filename:
                         # Decode filename if necessary
                         if isinstance(filename, bytes):
-                            filename = filename.decode('utf-8', errors='replace')
+                            filename = filename.decode("utf-8", errors="replace")
                         # Get attachment size
                         payload = part.get_payload(decode=True)
                         size = len(payload) if payload else 0
-                        attachments.append({
-                            "filename": filename,
-                            "size_bytes": size,
-                            "content_type": content_type,
-                        })
+                        attachments.append(
+                            {
+                                "filename": filename,
+                                "size_bytes": size,
+                                "content_type": content_type,
+                            }
+                        )
                     continue
 
                 # Extract text content
@@ -1094,9 +1120,7 @@ class IMAPClient:
                 payload = msg.get_payload(decode=True)
                 if payload:
                     decoded = decode_payload(
-                        payload,
-                        msg,
-                        "html" if content_type == "text/html" else "plain_text"
+                        payload, msg, "html" if content_type == "text/html" else "plain_text"
                     )
                     if content_type == "text/html":
                         html = decoded
@@ -1118,7 +1142,7 @@ class IMAPClient:
             plain_text=plain_text.strip(),
             html=html.strip(),
             attachments=attachment_filenames,
-            metadata=content_metadata
+            metadata=content_metadata,
         )
 
     def _has_attachments(self, msg: Message) -> bool:
@@ -1139,7 +1163,7 @@ class IMAPClient:
 
     def get_attachment(
         self, msg_id: int, filename: str, folder: str = "INBOX"
-    ) -> tuple[bytes, str] | None:
+    ) -> Optional[tuple[bytes, str]]:
         """
         Get attachment content from an email
 
@@ -1161,7 +1185,8 @@ class IMAPClient:
                 return None
 
             # Fetch the email
-            status, data = self._connection.fetch(str(msg_id), "(RFC822)")
+            # Fetch the email
+            status, data = self._connection.uid("FETCH", str(msg_id), "(RFC822)")
             if status != "OK" or not data or not data[0]:
                 logger.warning(f"Failed to fetch email {msg_id}")
                 return None
@@ -1209,7 +1234,8 @@ class IMAPClient:
 
         try:
             self._connection.select(folder)
-            self._connection.store(str(msg_id).encode(), '+FLAGS', '\\Seen')
+            self._connection.select(folder)
+            self._connection.uid("STORE", str(msg_id).encode(), "+FLAGS", "\\Seen")
             logger.debug(f"Marked email {msg_id} as read")
             return True
         except Exception as e:
@@ -1237,7 +1263,7 @@ class IMAPClient:
 
             # Check if folder exists by trying to select it
             status, _ = self._connection.select(folder_encoded, readonly=True)
-            if status == 'OK':
+            if status == "OK":
                 logger.debug(f"Folder {folder} already exists")
                 return True
 
@@ -1247,13 +1273,13 @@ class IMAPClient:
 
             # Try to create the folder directly first
             status, response = self._connection.create(folder_encoded)
-            if status == 'OK':
+            if status == "OK":
                 logger.info(f"Successfully created folder: {folder}")
                 return True
 
             # If direct creation failed, try creating parent folders first
-            if '/' in folder:
-                parts = folder.split('/')
+            if "/" in folder:
+                parts = folder.split("/")
                 current_path = ""
                 for part in parts:
                     current_path = f"{current_path}/{part}" if current_path else part
@@ -1261,17 +1287,17 @@ class IMAPClient:
 
                     # Check if this level exists
                     status, _ = self._connection.select(current_encoded, readonly=True)
-                    if status != 'OK':
+                    if status != "OK":
                         # Create this level
                         status, _ = self._connection.create(current_encoded)
-                        if status == 'OK':
+                        if status == "OK":
                             logger.debug(f"Created folder: {current_path}")
                         else:
                             logger.warning(f"Failed to create folder: {current_path}")
 
                 # Verify the final folder was created
                 status, _ = self._connection.select(folder_encoded, readonly=True)
-                return status == 'OK'
+                return status == "OK"
 
             logger.error(f"Failed to create folder {folder}: {response}")
             return False
@@ -1318,28 +1344,26 @@ class IMAPClient:
         tree: dict = {}
 
         for folder_path in folders:
-            parts = folder_path.split('/')
+            parts = folder_path.split("/")
             current = tree
 
             for i, part in enumerate(parts):
                 if part not in current:
-                    current[part] = {
-                        'name': part,
-                        'path': '/'.join(parts[:i+1]),
-                        'children': {}
-                    }
-                current = current[part]['children']
+                    current[part] = {"name": part, "path": "/".join(parts[: i + 1]), "children": {}}
+                current = current[part]["children"]
 
         # Convert to list format
         def dict_to_list(d: dict) -> list[dict]:
             result = []
             for key in sorted(d.keys()):
                 item = d[key]
-                result.append({
-                    'name': item['name'],
-                    'path': item['path'],
-                    'children': dict_to_list(item['children'])
-                })
+                result.append(
+                    {
+                        "name": item["name"],
+                        "path": item["path"],
+                        "children": dict_to_list(item["children"]),
+                    }
+                )
             return result
 
         return dict_to_list(tree)
@@ -1375,15 +1399,16 @@ class IMAPClient:
 
             logger.debug(f"Folder: '{to_folder}' -> '{to_folder_encoded}'")
 
-            # Copy to destination
-            result = self._connection.copy(str(msg_id).encode(), to_folder_encoded)
-            if result[0] != 'OK':
+            # Copy to destination (using UID COPY)
+            result = self._connection.uid("COPY", str(msg_id).encode(), to_folder_encoded)
+            if result[0] != "OK":
                 logger.error(f"Failed to copy email to {to_folder}")
                 return False
 
-            # Delete from source
-            self._connection.store(str(msg_id).encode(), '+FLAGS', '\\Deleted')
-            self._connection.expunge()
+            # Delete from source (mark as deleted)
+            self._connection.uid("STORE", str(msg_id).encode(), "+FLAGS", "\\Deleted")
+            # We explicitly do NOT call expunge here to avoid shifting sequence numbers
+            # for other operations. Expunge should be done periodically or at session end.
 
             logger.info(f"Moved email {msg_id} from {from_folder} to {to_folder}")
             return True
@@ -1399,7 +1424,7 @@ class IMAPClient:
         flag: str = SCAPIN_PROCESSED_FLAG,
         message_id: Optional[str] = None,
         subject: Optional[str] = None,
-        from_address: Optional[str] = None
+        from_address: Optional[str] = None,
     ) -> bool:
         """
         Add a flag to an email and mark it as processed in local tracker.
@@ -1425,7 +1450,7 @@ class IMAPClient:
         try:
             # Select the folder in WRITE mode (not readonly)
             status, data = self._connection.select(folder, readonly=False)
-            if status != 'OK':
+            if status != "OK":
                 logger.error(f"Failed to select folder {folder} for flagging: {data}")
                 return False
 
@@ -1436,12 +1461,12 @@ class IMAPClient:
             # Add the flag - wrap in parentheses for IMAP protocol
             # STORE command expects: STORE <msg_id> +FLAGS (<flag>)
             flag_with_parens = f"({flag})"
-            result = self._connection.store(str(msg_id).encode(), '+FLAGS', flag_with_parens)
+            result = self._connection.uid("STORE", str(msg_id).encode(), "+FLAGS", flag_with_parens)
 
-            if result[0] != 'OK':
+            if result[0] != "OK":
                 logger.error(
                     f"Failed to add flag {flag} to email {msg_id}",
-                    extra={"result": result, "folder": folder}
+                    extra={"result": result, "folder": folder},
                 )
                 return False
 
@@ -1451,17 +1476,17 @@ class IMAPClient:
             if result[1] and len(result[1]) > 0:
                 response_data = result[1][0]
                 if isinstance(response_data, bytes):
-                    response_str = response_data.decode('utf-8', errors='replace')
+                    response_str = response_data.decode("utf-8", errors="replace")
                     if flag in response_str:
                         logger.info(
                             f"Successfully added flag {flag} to email {msg_id} in {folder}",
-                            extra={"response": response_str}
+                            extra={"response": response_str},
                         )
                         flag_added = True
                     else:
                         logger.warning(
                             f"Flag {flag} not found in STORE response for email {msg_id}",
-                            extra={"response": response_str}
+                            extra={"response": response_str},
                         )
                         # Still continue as the STORE command succeeded
                         flag_added = True
@@ -1477,9 +1502,11 @@ class IMAPClient:
                     message_id=message_id,
                     account_id=self.account_id,
                     subject=subject,
-                    from_address=from_address
+                    from_address=from_address,
                 )
-                logger.debug(f"Marked email in local tracker: {message_id[:50] if message_id else 'N/A'}")
+                logger.debug(
+                    f"Marked email in local tracker: {message_id[:50] if message_id else 'N/A'}"
+                )
 
             return True
 
@@ -1493,7 +1520,7 @@ class IMAPClient:
         folder: str,
         message_id: str,
         subject: Optional[str] = None,
-        from_address: Optional[str] = None
+        from_address: Optional[str] = None,
     ) -> bool:
         """
         Mark an email as processed by Scapin.
@@ -1518,7 +1545,7 @@ class IMAPClient:
             flag=SCAPIN_PROCESSED_FLAG,
             message_id=message_id,
             subject=subject,
-            from_address=from_address
+            from_address=from_address,
         )
 
     def remove_flag(self, msg_id: int, folder: str, flag: str = SCAPIN_PROCESSED_FLAG) -> bool:
@@ -1539,15 +1566,15 @@ class IMAPClient:
         try:
             # Select the folder in WRITE mode (not readonly)
             status, data = self._connection.select(folder, readonly=False)
-            if status != 'OK':
+            if status != "OK":
                 logger.error(f"Failed to select folder {folder} for unflagging: {data}")
                 return False
 
             # Remove the flag - wrap in parentheses for IMAP protocol
             flag_with_parens = f"({flag})"
-            result = self._connection.store(str(msg_id).encode(), '-FLAGS', flag_with_parens)
+            result = self._connection.uid("STORE", str(msg_id).encode(), "-FLAGS", flag_with_parens)
 
-            if result[0] != 'OK':
+            if result[0] != "OK":
                 logger.error(f"Failed to remove flag {flag} from email {msg_id}")
                 return False
 
