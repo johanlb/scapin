@@ -1694,6 +1694,174 @@ def notes_review(
             raise typer.Exit(1) from None
 
 
+@notes_app.command("pending")
+def notes_pending(
+    action: str = typer.Argument(..., help="Action: list, approve, reject"),
+    note_id: Optional[str] = typer.Argument(None, help="Note ID"),
+    index: Optional[int] = typer.Argument(None, help="Action index (0-based)"),
+):
+    """
+    Manage pending review actions.
+
+    Examples:
+        scapin notes pending list
+        scapin notes pending approve my-note-id 0
+        scapin notes pending reject my-note-id 1
+    """
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    from src.core.config_manager import get_config
+    from src.passepartout.note_manager import NoteManager
+    from src.passepartout.note_reviewer import ActionType, NoteReviewer, ReviewAction
+    from src.passepartout.note_scheduler import create_scheduler
+    from src.sancho.router import AIRouter
+
+    logger = get_logger("cli")
+    config = get_config()
+    notes_dir = Path(config.storage.notes_path)
+    manager = NoteManager(notes_dir)
+    scheduler = create_scheduler(config)
+
+    if action == "list":
+        # List all notes with pending actions
+        all_meta = scheduler.store.list_all(limit=10000)
+
+        table = Table(title="📋 Pending Actions")
+        table.add_column("Note", style="cyan", width=30)
+        table.add_column("ID", style="dim", width=20)
+        table.add_column("#", style="yellow", width=3)
+        table.add_column("Action", style="green", width=12)
+        table.add_column("Description", style="white", width=50)
+        table.add_column("Conf", style="magenta", width=5)
+
+        total_pending = 0
+        for meta in all_meta:
+            pending = [h for h in meta.enrichment_history if not h.applied]
+            if pending:
+                note = manager.get_note(meta.note_id)
+                note_title = note.title if note else meta.note_id
+
+                for idx, action in enumerate(pending):
+                    table.add_row(
+                        note_title[:30],
+                        meta.note_id[:20],
+                        str(idx),
+                        action.action_type,
+                        action.reasoning[:50] if action.reasoning else action.target[:50],
+                        f"{action.confidence:.0%}",
+                    )
+                    total_pending += 1
+
+        console.print(table)
+        console.print(f"\n[bold]Total pending actions:[/bold] {total_pending}")
+        console.print(f"[dim]Use 'scapin notes pending approve <note-id> <index>' to approve[/dim]")
+        console.print(f"[dim]Use 'scapin notes pending reject <note-id> <index>' to reject[/dim]")
+
+    elif action == "approve":
+        if not note_id or index is None:
+            console.print("[red]Error: note_id and index required[/red]")
+            console.print("[dim]Usage: scapin notes pending approve <note-id> <index>[/dim]")
+            raise typer.Exit(1)
+
+        # Get metadata
+        meta = scheduler.store.get(note_id)
+        if not meta:
+            console.print(f"[red]Note '{note_id}' not found[/red]")
+            raise typer.Exit(1)
+
+        # Find pending action
+        pending = [h for h in meta.enrichment_history if not h.applied]
+        if index >= len(pending):
+            console.print(
+                f"[red]Invalid index {index}. Note has {len(pending)} pending actions.[/red]"
+            )
+            raise typer.Exit(1)
+
+        action_to_apply = pending[index]
+
+        console.print(f"\n[bold cyan]Approving action:[/bold cyan]")
+        console.print(f"  Type: {action_to_apply.action_type}")
+        console.print(f"  Reasoning: {action_to_apply.reasoning}")
+        console.print(f"  Confidence: {action_to_apply.confidence:.0%}\n")
+
+        # Get note
+        note = manager.get_note(note_id)
+        if not note:
+            console.print(f"[red]Note content not found[/red]")
+            raise typer.Exit(1)
+
+        # Convert EnrichmentRecord to ReviewAction
+        review_action = ReviewAction(
+            action_type=ActionType(action_to_apply.action_type),
+            target=action_to_apply.target,
+            content=action_to_apply.content,
+            confidence=action_to_apply.confidence,
+            reasoning=action_to_apply.reasoning,
+        )
+
+        # Initialize reviewer
+        ai_router = AIRouter(config)
+        reviewer = NoteReviewer(
+            note_manager=manager,
+            metadata_store=scheduler.store,
+            scheduler=scheduler,
+            ai_router=ai_router,
+        )
+
+        # Apply action
+        with console.status("[bold green]Applying action..."):
+            updated_content = reviewer._apply_action(note.content, review_action)
+
+            # Save
+            manager.update_note(note_id=note_id, content=updated_content)
+
+            # Mark as applied in history
+            action_to_apply.applied = True
+            action_to_apply.timestamp = datetime.now(timezone.utc)
+            scheduler.store.update(meta)
+
+        console.print(f"[green]✅ Action approved and applied successfully![/green]")
+
+    elif action == "reject":
+        if not note_id or index is None:
+            console.print("[red]Error: note_id and index required[/red]")
+            console.print("[dim]Usage: scapin notes pending reject <note-id> <index>[/dim]")
+            raise typer.Exit(1)
+
+        # Get metadata
+        meta = scheduler.store.get(note_id)
+        if not meta:
+            console.print(f"[red]Note '{note_id}' not found[/red]")
+            raise typer.Exit(1)
+
+        # Find pending action
+        pending = [h for h in meta.enrichment_history if not h.applied]
+        if index >= len(pending):
+            console.print(
+                f"[red]Invalid index {index}. Note has {len(pending)} pending actions.[/red]"
+            )
+            raise typer.Exit(1)
+
+        action_to_reject = pending[index]
+
+        console.print(f"\n[bold yellow]Rejecting action:[/bold yellow]")
+        console.print(f"  Type: {action_to_reject.action_type}")
+        console.print(f"  Reasoning: {action_to_reject.reasoning}")
+        console.print(f"  Confidence: {action_to_reject.confidence:.0%}\n")
+
+        # Remove from history
+        meta.enrichment_history.remove(action_to_reject)
+        scheduler.store.update(meta)
+
+        console.print(f"[yellow]❌ Action rejected and removed from history[/yellow]")
+
+    else:
+        console.print(f"[red]Unknown action: {action}[/red]")
+        console.print("[dim]Valid actions: list, approve, reject[/dim]")
+        raise typer.Exit(1)
+
+
 def run():
     """Entry point for CLI"""
     app()
