@@ -4,7 +4,11 @@ Scapin CLI Application
 Main CLI entry point using Typer and Rich for elegant interface.
 """
 
+import os
 from typing import Optional
+
+# Suppress HuggingFace tokenizers parallelism warning
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import typer
 from rich.console import Console
@@ -1475,6 +1479,7 @@ def notes_review(
     from src.passepartout.note_scheduler import create_scheduler
     from src.sancho.router import AIRouter
 
+    logger = get_logger("cli")
     config = get_config()
     notes_dir = Path(config.storage.notes_path)
     manager = NoteManager(notes_dir)
@@ -1560,21 +1565,123 @@ def notes_review(
         )
 
         async def run_reviews():
+            from rich.table import Table
+
             count = 0
-            for note_id in notes_to_process_ids:
-                console.print(f"  • Reviewing [bold]{note_id}[/bold]...")
+            for idx, note_id in enumerate(notes_to_process_ids, 1):
+                # Get note for title
+                note = manager.get_note(note_id)
+                note_title = note.title if note else note_id
+
+                # Header panel
+                console.print(
+                    Panel(
+                        f"[bold cyan]{note_title}[/bold cyan]\n[dim]{note_id}[/dim]",
+                        title=f"📝 Review {idx}/{len(notes_to_process_ids)}",
+                        border_style="cyan",
+                    )
+                )
+
                 try:
-                    success = await reviewer.review_note(note_id)
-                    if success:
-                        count += 1
+                    with console.status("[bold green]Analyzing note..."):
+                        result = await reviewer.review_note(note_id)
+
+                    # Display hygiene metrics if available
+                    if (
+                        result.analysis
+                        and hasattr(result.analysis, "hygiene")
+                        and result.analysis.hygiene
+                    ):
+                        hygiene = result.analysis.hygiene
+
+                        hygiene_table = Table(
+                            title="📊 Hygiene Metrics", show_header=False, box=None
+                        )
+                        hygiene_table.add_column("Metric", style="cyan", width=20)
+                        hygiene_table.add_column("Value", style="white")
+
+                        hygiene_table.add_row("Word Count", f"{hygiene.word_count} words")
+                        hygiene_table.add_row(
+                            "Frontmatter",
+                            "✅ Valid"
+                            if hygiene.frontmatter_valid
+                            else f"❌ Issues: {', '.join(hygiene.frontmatter_issues)}",
+                        )
+
+                        if hygiene.broken_links:
+                            hygiene_table.add_row(
+                                "Broken Links", f"⚠️  {len(hygiene.broken_links)} found"
+                            )
+
+                        if hygiene.duplicate_candidates:
+                            hygiene_table.add_row(
+                                "Duplicates",
+                                f"🔍 {len(hygiene.duplicate_candidates)} similar notes",
+                            )
+
+                        if hygiene.is_too_short:
+                            hygiene_table.add_row("Length", "⚠️  Too short (< 100 words)")
+                        elif hygiene.is_too_long:
+                            hygiene_table.add_row("Length", "⚠️  Too long (> 2000 words)")
+
+                        console.print(hygiene_table)
+                        console.print()
+
+                    # Display actions
+                    total_actions = len(result.applied_actions) + len(result.pending_actions)
+
+                    if result.applied_actions:
+                        console.print("[bold green]✅ AUTO-APPLIED ACTIONS:[/bold green]")
+                        for action in result.applied_actions:
+                            action_icon = {
+                                "fix_links": "🔗",
+                                "validate": "✓",
+                                "format": "📝",
+                                "update": "➕",
+                                "enrich": "🌟",
+                            }.get(action.action_type, "•")
+                            console.print(
+                                f"  {action_icon} [cyan][{action.action_type.upper()}][/cyan] {action.description} "
+                                f"[dim](confidence: {action.confidence:.0%})[/dim]"
+                            )
+                        console.print()
+
+                    if result.pending_actions:
+                        console.print("[bold yellow]⏳ PENDING APPROVAL:[/bold yellow]")
+                        for action in result.pending_actions:
+                            action_icon = {
+                                "merge": "🔀",
+                                "split": "✂️",
+                                "refactor": "🔄",
+                            }.get(action.action_type, "•")
+                            console.print(
+                                f"  {action_icon} [yellow][{action.action_type.upper()}][/yellow] {action.description} "
+                                f"[dim](confidence: {action.confidence:.0%})[/dim]"
+                            )
+                        console.print()
+
+                    if total_actions == 0:
+                        console.print("[dim]No actions suggested.[/dim]\n")
+
+                    # Quality score
+                    quality_stars = "⭐" * result.quality
+                    console.print(
+                        f"✨ [bold]Quality Score:[/bold] {quality_stars} ({result.quality}/5)"
+                    )
+
+                    console.print("━" * 60 + "\n")
+                    count += 1
+
                 except Exception as e:
-                    console.print(f"    [red]Error reviewing {note_id}: {e}[/red]")
+                    console.print(f"[red]❌ Error: {str(e)}[/red]\n")
+                    logger.exception(f"Review failed for {note_id}")
+
             return count
 
         try:
             success_count = asyncio.run(run_reviews())
             console.print(
-                f"\n[bold green]Success![/bold green] Processed {success_count}/{len(notes_to_process_ids)} notes."
+                f"\n[bold green]✅ Success![/bold green] Processed {success_count}/{len(notes_to_process_ids)} notes."
             )
             console.print(
                 "[dim]High-confidence updates applied. Check pending actions for others.[/dim]"
