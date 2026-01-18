@@ -51,9 +51,7 @@ def _validate_version_id(version_id: str) -> None:
         ValueError: If version_id contains invalid characters
     """
     if not GIT_VERSION_ID_PATTERN.match(version_id):
-        raise ValueError(
-            "Invalid version_id format: must be 7-40 hexadecimal characters"
-        )
+        raise ValueError("Invalid version_id format: must be 7-40 hexadecimal characters")
 
 
 def _validate_folder_path(path: str, base_dir: Path) -> Path:
@@ -140,18 +138,14 @@ def _summary_to_response(summary: dict[str, Any]) -> NoteResponse:
 
     try:
         created_at = (
-            datetime.fromisoformat(created_str)
-            if created_str
-            else datetime.now(timezone.utc)
+            datetime.fromisoformat(created_str) if created_str else datetime.now(timezone.utc)
         )
     except (ValueError, TypeError):
         created_at = datetime.now(timezone.utc)
 
     try:
         updated_at = (
-            datetime.fromisoformat(updated_str)
-            if updated_str
-            else datetime.now(timezone.utc)
+            datetime.fromisoformat(updated_str) if updated_str else datetime.now(timezone.utc)
         )
     except (ValueError, TypeError):
         updated_at = datetime.now(timezone.utc)
@@ -232,10 +226,7 @@ def _build_folder_tree_from_path_counts(path_counts: dict[str, int]) -> list[Fol
 
     # Convert to FolderNode objects (sorted alphabetically case-insensitive)
     def dict_to_folder(d: dict[str, Any]) -> FolderNode:
-        sorted_children = sorted(
-            d["children"].values(),
-            key=lambda x: x["name"].lower()
-        )
+        sorted_children = sorted(d["children"].values(), key=lambda x: x["name"].lower())
         return FolderNode(
             name=d["name"],
             path=d["path"],
@@ -376,9 +367,7 @@ class NotesService:
         Returns:
             Tuple of (notes, total_count)
         """
-        logger.info(
-            f"Listing notes (path={path}, tags={tags}, pinned={pinned_only})"
-        )
+        logger.info(f"Listing notes (path={path}, tags={tags}, pinned={pinned_only})")
         manager = self._get_manager()
 
         # OPTIMIZATION: Use lightweight summaries for filtering
@@ -387,10 +376,7 @@ class NotesService:
         # Apply filters on summaries
         filtered = summaries
         if path:
-            filtered = [
-                s for s in filtered
-                if s.get("path", "").startswith(path)
-            ]
+            filtered = [s for s in filtered if s.get("path", "").startswith(path)]
         if tags:
             tag_set = set(tags)
             filtered = [s for s in filtered if tag_set.intersection(s.get("tags", []))]
@@ -944,6 +930,10 @@ class NotesService:
                 f"{len(result.skipped)} skipped, "
                 f"{len(result.errors)} errors"
             )
+
+            # FORCE REFRESH: Rebuild metadata index to pick up changes immediately
+            indexed_count = manager.refresh_index()
+            logger.info(f"Refreshed metadata index: {indexed_count} notes")
 
             return NoteSyncStatus(
                 last_sync=result.completed_at or datetime.now(timezone.utc),

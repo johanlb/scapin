@@ -9,10 +9,11 @@ import contextlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from src.core.config_manager import get_config
 from src.jeeves.api.models.responses import APIResponse
@@ -229,6 +230,25 @@ def create_app() -> FastAPI:
             "health": "/api/health",
             "auth": "/api/auth/login",
         }
+
+    # Static assets (Favicon, Apple Touch Icon)
+    # web/static/icons is relative to project root
+    project_root = Path(__file__).resolve().parents[3]
+    static_icons_dir = project_root / "web/static/icons"
+
+    if static_icons_dir.exists():
+
+        @app.get("/favicon.ico", include_in_schema=False)
+        async def favicon():
+            return FileResponse(static_icons_dir / "favicon.ico")
+
+        @app.get("/apple-touch-icon.png", include_in_schema=False)
+        async def apple_touch_icon():
+            return FileResponse(static_icons_dir / "apple-touch-icon.png")
+
+        @app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+        async def apple_touch_icon_precomposed():
+            return FileResponse(static_icons_dir / "apple-touch-icon.png")
 
     return app
 

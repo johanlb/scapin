@@ -8,7 +8,7 @@ See: docs/specs/FRONTMATTER_ENRICHED_SPEC.md
 """
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from src.monitoring.logger import get_logger
 from src.passepartout.frontmatter_schema import (
@@ -151,9 +151,7 @@ class FrontmatterParser:
             first_name=d.get("first_name"),
             last_name=d.get("last_name"),
             relation=Relation.from_string(d.get("relation")),
-            relationship_strength=RelationshipStrength.from_string(
-                d.get("relationship_strength")
-            ),
+            relationship_strength=RelationshipStrength.from_string(d.get("relationship_strength")),
             introduced_by=d.get("introduced_by"),
             organization=d.get("organization"),
             role=d.get("role"),
@@ -314,7 +312,7 @@ class FrontmatterParser:
         except ValueError:
             return NoteType.AUTRE
 
-    def _parse_importance(self, value: Any) -> ImportanceLevel | None:
+    def _parse_importance(self, value: Any) -> Optional[ImportanceLevel]:
         """Parse un ImportanceLevel depuis une valeur."""
         if not value:
             return None
@@ -324,7 +322,7 @@ class FrontmatterParser:
             # Try French mapping
             return ImportanceLevel.from_french(str(value))
 
-    def _parse_datetime(self, value: Any) -> datetime | None:
+    def _parse_datetime(self, value: Any) -> Optional[datetime]:
         """Parse une datetime depuis diverses représentations."""
         if not value:
             return None

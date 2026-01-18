@@ -11,7 +11,7 @@ See: docs/specs/FRONTMATTER_ENRICHED_SPEC.md
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional, Union
 
 from src.passepartout.note_types import (
     Category,
@@ -38,7 +38,7 @@ class PendingUpdate:
     field: str  # Nom du champ à mettre à jour
     value: Any  # Nouvelle valeur proposée
     source: str  # Source de la détection (email_signature, email_content, calendar, etc.)
-    source_ref: str | None  # ID de l'événement source (ex: message_id)
+    source_ref: Optional[str]  # ID de l'événement source (ex: message_id)
     detected_at: datetime  # Date de détection
     confidence: float  # Confiance de la détection (0.0-1.0)
 
@@ -128,15 +128,15 @@ class BaseFrontmatter:
     aliases: list[str] = field(default_factory=list)
 
     # === MÉTADONNÉES SYSTÈME ===
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
-    source: str | None = None  # apple_notes, scapin, manual
-    source_id: str | None = None  # ID source externe si applicable
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    source: Optional[str] = None  # apple_notes, scapin, manual
+    source_id: Optional[str] = None  # ID source externe si applicable
 
     # === CLASSIFICATION ===
-    importance: ImportanceLevel | None = None
+    importance: Optional[ImportanceLevel] = None
     tags: list[str] = field(default_factory=list)
-    category: Category | None = None
+    category: Optional[Category] = None
 
     # === RELATIONS ===
     related: list[str] = field(default_factory=list)  # Wikilinks
@@ -201,34 +201,34 @@ class PersonneFrontmatter(BaseFrontmatter):
     type: NoteType = NoteType.PERSONNE
 
     # === IDENTITÉ ===
-    first_name: str | None = None
-    last_name: str | None = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
     # === RELATION AVEC JOHAN ===
-    relation: Relation | None = None
-    relationship_strength: RelationshipStrength | None = None
-    introduced_by: str | None = None  # Wikilink [[Nom]]
+    relation: Optional[Relation] = None
+    relationship_strength: Optional[RelationshipStrength] = None
+    introduced_by: Optional[str] = None  # Wikilink [[Nom]]
 
     # === PROFESSIONNEL ===
-    organization: str | None = None  # Wikilink [[Entreprise]]
-    role: str | None = None
-    sector: str | None = None
+    organization: Optional[str] = None  # Wikilink [[Entreprise]]
+    role: Optional[str] = None
+    sector: Optional[str] = None
 
     # === COMMUNICATION ===
-    email: str | None = None
-    phone: str | None = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
     preferred_language: str = "français"
-    communication_style: str | None = None  # formel, casual, technique
-    timezone: str | None = None
+    communication_style: Optional[str] = None  # formel, casual, technique
+    timezone: Optional[str] = None
 
     # === CONTEXTE ===
     projects: list[str] = field(default_factory=list)  # Wikilinks [[Projet]]
-    last_contact: datetime | None = None  # Auto-updated
+    last_contact: Optional[datetime] = None  # Auto-updated
     mention_count: int = 0  # Auto-updated
-    first_contact: datetime | None = None
+    first_contact: Optional[datetime] = None
 
     # === NOTES PERSONNELLES ===
-    notes_personnelles: str | None = None  # Manual only
+    notes_personnelles: Optional[str] = None  # Manual only
 
     def to_dict(self) -> dict[str, Any]:
         """Convertit en dict pour sérialisation YAML."""
@@ -291,24 +291,24 @@ class ProjetFrontmatter(BaseFrontmatter):
 
     # === ÉTAT ===
     status: ProjectStatus = ProjectStatus.ACTIF
-    priority: ImportanceLevel | None = None
-    domain: str | None = None
+    priority: Optional[ImportanceLevel] = None
+    domain: Optional[str] = None
 
     # === TEMPORALITÉ ===
-    start_date: datetime | None = None
-    target_date: datetime | None = None
-    deadline: datetime | None = None  # Date butoir ferme
+    start_date: Optional[datetime] = None
+    target_date: Optional[datetime] = None
+    deadline: Optional[datetime] = None  # Date butoir ferme
 
     # === PARTIES PRENANTES ===
     stakeholders: list[Stakeholder] = field(default_factory=list)
 
     # === FINANCIER ===
-    budget_range: str | None = None
+    budget_range: Optional[str] = None
     currency: str = "EUR"
 
     # === CONTEXTE ===
     related_entities: list[str] = field(default_factory=list)  # Wikilinks
-    last_activity: datetime | None = None  # Auto-updated
+    last_activity: Optional[datetime] = None  # Auto-updated
     activity_count: int = 0  # Auto-updated
 
     def to_dict(self) -> dict[str, Any]:
@@ -357,25 +357,25 @@ class EntiteFrontmatter(BaseFrontmatter):
     type: NoteType = NoteType.ENTITE
 
     # === TYPE D'ORGANISATION ===
-    entity_type: EntityType | None = None
-    sector: str | None = None
-    industry: str | None = None
+    entity_type: Optional[EntityType] = None
+    sector: Optional[str] = None
+    industry: Optional[str] = None
 
     # === RELATION ===
-    relationship: str | None = None  # employeur, client, fournisseur, partenaire
+    relationship: Optional[str] = None  # employeur, client, fournisseur, partenaire
 
     # === CONTACTS CLÉS ===
     contacts: list[Contact] = field(default_factory=list)
 
     # === COORDONNÉES ===
-    website: str | None = None
-    email_domain: str | None = None
-    address: str | None = None
-    country: str | None = None
+    website: Optional[str] = None
+    email_domain: Optional[str] = None
+    address: Optional[str] = None
+    country: Optional[str] = None
 
     # === CONTEXTE ===
     projects: list[str] = field(default_factory=list)  # Wikilinks
-    last_interaction: datetime | None = None  # Auto-updated
+    last_interaction: Optional[datetime] = None  # Auto-updated
 
     def to_dict(self) -> dict[str, Any]:
         """Convertit en dict pour sérialisation YAML."""
@@ -422,26 +422,26 @@ class ReunionFrontmatter(BaseFrontmatter):
     type: NoteType = NoteType.REUNION
 
     # === TEMPORALITÉ ===
-    date: datetime | None = None
-    duration_minutes: int | None = None
-    timezone: str | None = None
+    date: Optional[datetime] = None
+    duration_minutes: Optional[int] = None
+    timezone: Optional[str] = None
 
     # === LIEU ===
-    location: str | None = None
-    location_type: str | None = None  # online, physical, hybrid
-    meeting_url: str | None = None
+    location: Optional[str] = None
+    location_type: Optional[str] = None  # online, physical, hybrid
+    meeting_url: Optional[str] = None
 
     # === PARTICIPANTS ===
     participants: list[Stakeholder] = field(default_factory=list)
 
     # === CONTEXTE ===
-    project: str | None = None  # Wikilink [[Projet]]
+    project: Optional[str] = None  # Wikilink [[Projet]]
     agenda: list[str] = field(default_factory=list)
 
     # === RÉSULTATS ===
     decisions: list[str] = field(default_factory=list)
     action_items: list[str] = field(default_factory=list)
-    next_meeting: datetime | None = None
+    next_meeting: Optional[datetime] = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convertit en dict pour sérialisation YAML."""
@@ -491,18 +491,18 @@ class ActifFrontmatter(BaseFrontmatter):
     type: NoteType = NoteType.ENTITE  # Pas de type ACTIF dédié
 
     # === TYPE D'ACTIF ===
-    asset_type: str | None = None  # bien_immobilier, véhicule, investissement, domaine
-    asset_category: str | None = None
+    asset_type: Optional[str] = None  # bien_immobilier, véhicule, investissement, domaine
+    asset_category: Optional[str] = None
 
     # === LOCALISATION ===
-    location: str | None = None
-    address: str | None = None
-    country: str | None = None
+    location: Optional[str] = None
+    address: Optional[str] = None
+    country: Optional[str] = None
 
     # === VALEUR ===
-    acquisition_date: datetime | None = None
-    acquisition_value: str | None = None
-    current_status: str | None = None  # possédé, loué, en_vente, vendu
+    acquisition_date: Optional[datetime] = None
+    acquisition_value: Optional[str] = None
+    current_status: Optional[str] = None  # possédé, loué, en_vente, vendu
 
     # === CONTACTS LIÉS ===
     contacts: list[Contact] = field(default_factory=list)
@@ -544,11 +544,11 @@ class ActifFrontmatter(BaseFrontmatter):
 # === TYPE ALIAS ===
 
 # Union de tous les types de frontmatter
-AnyFrontmatter = (
-    BaseFrontmatter
-    | PersonneFrontmatter
-    | ProjetFrontmatter
-    | EntiteFrontmatter
-    | ReunionFrontmatter
-    | ActifFrontmatter
-)
+AnyFrontmatter = Union[
+    BaseFrontmatter,
+    PersonneFrontmatter,
+    ProjetFrontmatter,
+    EntiteFrontmatter,
+    ReunionFrontmatter,
+    ActifFrontmatter,
+]

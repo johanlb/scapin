@@ -130,6 +130,9 @@ class MultiPassResult:
     coherence_confidence: float = 1.0
     coherence_warnings: list[dict] = field(default_factory=list)
 
+    # Retrieved context for transparency (v2.2.2+)
+    retrieved_context: Optional[dict[str, Any]] = None
+
     @property
     def high_confidence(self) -> bool:
         """Check if result is high confidence (>= 90%)"""
@@ -175,6 +178,8 @@ class MultiPassResult:
             "coherence_duplicates_detected": self.coherence_duplicates_detected,
             "coherence_confidence": self.coherence_confidence,
             "coherence_warnings": self.coherence_warnings,
+            # Retrieved context for transparency (v2.2.2+)
+            "retrieved_context": self.retrieved_context,
         }
 
 
@@ -327,6 +332,7 @@ class MultiPassAnalyzer:
                 escalated,
                 analysis_context,
                 event,
+                context=None,  # No context yet (early stop after Pass 1)
             )
 
         # Get context for subsequent passes
@@ -392,6 +398,7 @@ class MultiPassAnalyzer:
                     escalated,
                     analysis_context,
                     event,
+                    context=context,
                 )
 
             # Search for new entities discovered in this pass
@@ -1585,6 +1592,7 @@ class MultiPassAnalyzer:
         escalated: bool,
         analysis_context: AnalysisContext,
         event: PerceivedEvent,
+        context: Optional["StructuredContext"] = None,
     ) -> MultiPassResult:
         """
         Build the final MultiPassResult.
@@ -1597,6 +1605,7 @@ class MultiPassAnalyzer:
             escalated: Whether model was escalated
             analysis_context: Analysis context
             event: Original event (for age-based adjustments)
+            context: Retrieved context for transparency (v2.2.2+)
 
         Returns:
             MultiPassResult
@@ -1661,6 +1670,64 @@ class MultiPassAnalyzer:
                 f"{final_stop_reason}; coherence_pass: {coherence_corrections} corrected"
             )
 
+        # Serialize retrieved context for transparency (v2.2.2+)
+        serialized_context: Optional[dict[str, Any]] = None
+        if context is not None:
+            serialized_context = {
+                "entities_searched": context.query_entities,
+                "sources_searched": context.sources_searched,
+                "total_results": context.total_results,
+                "notes": [
+                    {
+                        "note_id": n.note_id,
+                        "title": n.title,
+                        "note_type": n.note_type,
+                        "summary": n.summary[:200] if n.summary else "",
+                        "relevance": round(n.relevance, 2),
+                        "tags": n.tags,
+                    }
+                    for n in context.notes
+                ],
+                "calendar": [
+                    {
+                        "event_id": e.event_id,
+                        "title": e.title,
+                        "date": e.date,
+                        "time": e.time,
+                        "relevance": round(e.relevance, 2),
+                    }
+                    for e in context.calendar
+                ],
+                "tasks": [
+                    {
+                        "task_id": t.task_id,
+                        "title": t.title,
+                        "project": t.project,
+                        "due_date": t.due_date,
+                        "relevance": round(t.relevance, 2),
+                    }
+                    for t in context.tasks
+                ],
+                "entity_profiles": {
+                    name: {
+                        "canonical_name": p.canonical_name,
+                        "entity_type": p.entity_type,
+                        "role": p.role,
+                        "relationship": p.relationship,
+                        "key_facts": p.key_facts[:3] if p.key_facts else [],
+                    }
+                    for name, p in context.entity_profiles.items()
+                },
+                "conflicts": [
+                    {
+                        "type": c.conflict_type,
+                        "description": c.description,
+                        "severity": c.severity,
+                    }
+                    for c in context.conflicts
+                ],
+            }
+
         return MultiPassResult(
             extractions=adjusted_extractions,
             action=adjusted_action,
@@ -1680,6 +1747,8 @@ class MultiPassAnalyzer:
             coherence_duplicates_detected=coherence_duplicates,
             coherence_confidence=coherence_confidence,
             coherence_warnings=coherence_warnings,
+            # Retrieved context for transparency (v2.2.2+)
+            retrieved_context=serialized_context,
         )
 
 

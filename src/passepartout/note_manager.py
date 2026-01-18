@@ -410,6 +410,20 @@ class NoteManager:
         """Remove note from metadata index"""
         self._notes_metadata.pop(note_id, None)
 
+    def refresh_index(self) -> int:
+        """
+        Public method to force metadata index rebuild.
+        Useful after external changes (e.g. Apple Notes sync).
+
+        Returns:
+            Number of notes indexed
+        """
+        logger.info("Forcing metadata index rebuild")
+        with self._cache_lock:
+            # Clear cache to force reload of content
+            self._note_cache.clear()
+            return self._rebuild_metadata_index()
+
     def _rebuild_metadata_index(self) -> int:
         """
         Rebuild metadata index from filesystem (ULTRA-FAST - no file reads)
@@ -483,10 +497,7 @@ class NoteManager:
         if not self._notes_metadata and not self._load_metadata_index():
             self._rebuild_metadata_index()
 
-        return [
-            {"note_id": note_id, **meta}
-            for note_id, meta in self._notes_metadata.items()
-        ]
+        return [{"note_id": note_id, **meta} for note_id, meta in self._notes_metadata.items()]
 
     def _populate_cache_from_files(self) -> None:
         """Populate note cache from files (after loading index)"""
@@ -1582,7 +1593,7 @@ class NoteManager:
 
     # === FRONTMATTER ENRICHI (Phase 1) ===
 
-    def get_typed_frontmatter(self, note_id: str) -> AnyFrontmatter | None:
+    def get_typed_frontmatter(self, note_id: str) -> Optional[AnyFrontmatter]:
         """
         Récupère le frontmatter typé d'une note.
 
@@ -1601,7 +1612,7 @@ class NoteManager:
 
     def get_note_with_typed_frontmatter(
         self, note_id: str
-    ) -> tuple[Note, AnyFrontmatter] | None:
+    ) -> Optional[tuple[Note, AnyFrontmatter]]:
         """
         Récupère une note avec son frontmatter typé.
 
@@ -1661,7 +1672,7 @@ class NoteManager:
 
         return index
 
-    def find_note_by_alias(self, alias: str) -> Note | None:
+    def find_note_by_alias(self, alias: str) -> Optional[Note]:
         """
         Trouve une note par son titre ou un de ses alias.
 
@@ -1709,7 +1720,9 @@ class NoteManager:
 
         return result
 
-    def get_persons_with_relation(self, relation: str | None = None) -> list[tuple[Note, PersonneFrontmatter]]:
+    def get_persons_with_relation(
+        self, relation: Optional[str] = None
+    ) -> list[tuple[Note, PersonneFrontmatter]]:
         """
         Retourne toutes les notes PERSONNE, optionnellement filtrées par relation.
 

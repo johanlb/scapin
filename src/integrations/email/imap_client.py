@@ -1439,7 +1439,7 @@ class IMAPClient:
                 return False
 
             # Delete from source (mark as deleted)
-            self._connection.uid("STORE", str(msg_id).encode(), "+FLAGS", "\\Deleted")
+            self._connection.uid("STORE", str(msg_id).encode(), "+FLAGS", "(\\Deleted)")
             # We explicitly do NOT call expunge here to avoid shifting sequence numbers
             # for other operations. Expunge should be done periodically or at session end.
 
