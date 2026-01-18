@@ -20,6 +20,8 @@ from src.integrations.storage.snooze_storage import (
     SnoozeStorage,
     get_snooze_storage,
 )
+from src.core.schemas import EmailAnalysis, EmailMetadata
+from src.integrations.email.processed_tracker import get_processed_tracker
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
 
@@ -170,9 +172,11 @@ class QueueService:
         enrichments_failed = []
 
         if execute_enrichments:
-            enrichment_success, enrichments_executed, enrichments_failed = await self._execute_enrichments(
-                item, only_required=True
-            )
+            (
+                enrichment_success,
+                enrichments_executed,
+                enrichments_failed,
+            ) = await self._execute_enrichments(item, only_required=True)
 
             # Only abort for archive/delete if required enrichments fail
             # For other actions (flag, task, etc.), log warning but continue
@@ -203,7 +207,7 @@ class QueueService:
                 # Non-blocking warning for other actions
                 logger.warning(
                     f"Some enrichments failed for item {item_id}, continuing with action",
-                    extra={"action": action, "failed": enrichments_failed}
+                    extra={"action": action, "failed": enrichments_failed},
                 )
 
         # Execute the IMAP action (only after enrichments succeed)
@@ -222,7 +226,8 @@ class QueueService:
         # Execute optional enrichments (best-effort, don't block on failures)
         if execute_enrichments:
             optional_success, opt_executed, opt_failed = await self._execute_enrichments(
-                item, only_required=False  # Execute ALL remaining enrichments
+                item,
+                only_required=False,  # Execute ALL remaining enrichments
             )
             enrichments_executed.extend([e for e in opt_executed if e not in enrichments_executed])
             enrichments_failed.extend(opt_failed)
@@ -230,7 +235,7 @@ class QueueService:
             if opt_failed:
                 logger.warning(
                     f"Some optional enrichments failed for item {item_id}",
-                    extra={"failed": opt_failed}
+                    extra={"failed": opt_failed},
                 )
 
         if email_id:
@@ -290,7 +295,7 @@ class QueueService:
                 "subject": metadata.get("subject", "")[:50],
                 "enrichments_executed": enrichments_executed,
                 "enrichments_failed": enrichments_failed,
-            }
+            },
         )
 
         # Bug #60 fix: Mark message_id as processed to prevent re-queueing
@@ -318,9 +323,7 @@ class QueueService:
             True if action executed successfully
         """
         # Run blocking IMAP operations in a thread to not block event loop
-        return await asyncio.to_thread(
-            self._execute_email_action_sync, item, action, destination
-        )
+        return await asyncio.to_thread(self._execute_email_action_sync, item, action, destination)
 
     def _execute_email_action_sync(
         self,
@@ -356,7 +359,7 @@ class QueueService:
                     folder=folder,
                     message_id=message_id,
                     subject=subject,
-                    from_address=from_address
+                    from_address=from_address,
                 )
 
                 if action in ("archive", "ARCHIVE"):
@@ -461,7 +464,9 @@ class QueueService:
             notes_to_execute = proposed_notes
 
         if not notes_to_execute:
-            logger.debug(f"No {'required ' if only_required else ''}notes to execute for item {source_id}")
+            logger.debug(
+                f"No {'required ' if only_required else ''}notes to execute for item {source_id}"
+            )
             return True, [], []
 
         # Execute enrichments
@@ -476,7 +481,9 @@ class QueueService:
             importance = note_proposal.get("importance", "moyenne")
 
             if not note_title or not content:
-                logger.warning(f"Skipping enrichment with missing title or content: {note_proposal}")
+                logger.warning(
+                    f"Skipping enrichment with missing title or content: {note_proposal}"
+                )
                 continue
 
             try:
@@ -492,7 +499,7 @@ class QueueService:
                     executed.append(note_title)
                     logger.info(
                         f"Executed enrichment for note '{note_title}'",
-                        extra={"note_type": note_type, "importance": importance}
+                        extra={"note_type": note_type, "importance": importance},
                     )
                 else:
                     failed.append(note_title)
@@ -513,7 +520,7 @@ class QueueService:
 
         logger.info(
             f"Enrichments complete: {len(executed)} executed, {len(failed)} failed, success={overall_success}",
-            extra={"item_id": source_id, "executed": executed, "failed": failed}
+            extra={"item_id": source_id, "executed": executed, "failed": failed},
         )
 
         return overall_success, executed, failed
@@ -583,7 +590,9 @@ class QueueService:
                     existing_title_lower = summary.get("title", "").lower().strip()
                     # Check if requested title starts with existing note title
                     # Minimum 3 chars to avoid matching too broadly (e.g., "A" or "Le")
-                    if len(existing_title_lower) >= 3 and note_title_lower.startswith(existing_title_lower):
+                    if len(existing_title_lower) >= 3 and note_title_lower.startswith(
+                        existing_title_lower
+                    ):
                         candidate_summaries.append(summary)
 
                 if candidate_summaries:
@@ -593,14 +602,17 @@ class QueueService:
                     if matching_note:
                         logger.info(
                             f"Fuzzy matched '{note_title}' to existing note '{matching_note.title}'",
-                            extra={"strategy": "prefix_match", "matched_title": matching_note.title}
+                            extra={
+                                "strategy": "prefix_match",
+                                "matched_title": matching_note.title,
+                            },
                         )
 
             if matching_note:
                 # Note exists - add info to existing note
                 logger.info(
                     f"Found existing note '{matching_note.title}', adding info",
-                    extra={"note_id": matching_note.note_id, "note_type": note_type}
+                    extra={"note_id": matching_note.note_id, "note_type": note_type},
                 )
                 return note_manager.add_info(
                     note_id=matching_note.note_id,
@@ -613,7 +625,7 @@ class QueueService:
                 # Note not found - create new note in appropriate PKM subfolder
                 logger.info(
                     f"Note '{note_title}' not found, creating new note",
-                    extra={"note_title": note_title, "note_type": note_type}
+                    extra={"note_title": note_title, "note_type": note_type},
                 )
                 formatted_content = f"## {note_type.capitalize()}\n\n{content}"
                 if importance:
@@ -712,7 +724,7 @@ class QueueService:
                 "modification_reason": reasoning,
                 "destination": destination,
                 "subject": metadata.get("subject", "")[:50],
-            }
+            },
         )
 
         # Bug #60 fix: Mark message_id as processed to prevent re-queueing
@@ -771,7 +783,7 @@ class QueueService:
                 "original_confidence": original_confidence,
                 "rejection_reason": reason,
                 "subject": metadata.get("subject", "")[:50],
-            }
+            },
         )
 
         return self._storage.get_item(item_id)
@@ -1256,23 +1268,27 @@ class QueueService:
             if ext.note_cible:
                 # Map extraction to proposed_note format expected by router
                 # Router expects: action, note_type, title, content_summary, confidence, reasoning
-                proposed_notes.append({
-                    "action": ext.note_action,  # "enrichir" or "creer"
-                    "note_type": ext.type,  # fait, decision, engagement, deadline, etc.
-                    "title": ext.note_cible,  # Target note title
-                    "content_summary": ext.info,  # The extracted information
-                    "confidence": ext.confidence.to_dict(),  # 4-dimension confidence dict
-                    "reasoning": f"Extraction de type '{ext.type}' (importance: {ext.importance})",
-                    "target_note_id": None,  # Would need lookup to find existing note
-                    "required": ext.required,  # Required for safe archiving
-                    "importance": ext.importance,  # haute, moyenne, basse
-                })
+                proposed_notes.append(
+                    {
+                        "action": ext.note_action,  # "enrichir" or "creer"
+                        "note_type": ext.type,  # fait, decision, engagement, deadline, etc.
+                        "title": ext.note_cible,  # Target note title
+                        "content_summary": ext.info,  # The extracted information
+                        "confidence": ext.confidence.to_dict(),  # 4-dimension confidence dict
+                        "reasoning": f"Extraction de type '{ext.type}' (importance: {ext.importance})",
+                        "target_note_id": None,  # Would need lookup to find existing note
+                        "required": ext.required,  # Required for safe archiving
+                        "importance": ext.importance,  # haute, moyenne, basse
+                    }
+                )
             if ext.omnifocus:
-                proposed_tasks.append({
-                    "title": ext.info,
-                    "due_date": ext.date,
-                    "project": ext.note_cible,
-                })
+                proposed_tasks.append(
+                    {
+                        "title": ext.info,
+                        "due_date": ext.date,
+                        "project": ext.note_cible,
+                    }
+                )
 
         # Build entities dict from entities_discovered
         # Format: {"type": [{"type": "...", "value": "...", "confidence": ...}, ...]}
@@ -1374,9 +1390,7 @@ class QueueService:
                 failed += 1
                 logger.error(f"Error reanalyzing item {item_id}: {e}")
 
-        logger.info(
-            f"Bulk reanalysis complete: {started}/{total} succeeded, {failed} failed"
-        )
+        logger.info(f"Bulk reanalysis complete: {started}/{total} succeeded, {failed} failed")
 
         return {
             "total": total,
@@ -1384,6 +1398,76 @@ class QueueService:
             "failed": failed,
             "status": "complete" if failed == 0 else "partial",
         }
+
+    async def enqueue_email(
+        self,
+        metadata: EmailMetadata,
+        analysis: EmailAnalysis,
+        content_preview: str,
+        account_id: str = "default",
+        html_body: str | None = None,
+        full_text: str | None = None,
+    ) -> str | None:
+        """
+        Enqueue an analyzed email for review.
+
+        Also marks the email as processed in the local tracker to prevent
+        re-fetching by the IMAP client.
+
+        Args:
+            metadata: Email metadata
+            analysis: AI analysis results
+            content_preview: Text preview
+            account_id: Account ID
+            html_body: HTML body (optional)
+            full_text: Full text (optional)
+
+        Returns:
+            Item ID if queued, None if duplicate or failed
+        """
+        # Save to queue storage (unblocking I/O)
+        item_id = await asyncio.to_thread(
+            self._storage.save_item,
+            metadata=metadata,
+            analysis=analysis,
+            content_preview=content_preview,
+            account_id=account_id,
+            html_body=html_body,
+            full_text=full_text,
+        )
+
+        if item_id:
+            # Successfully queued - mark as processed in both trackers
+            # 1. QueueStorage tracker (already done implicitly by save_item check,
+            #    but we should mark it explicitly if not done)
+            #    Actually save_item doesn't mark as processed, it only checks.
+            #    We should mark it processed only after approval usually,
+            #    BUT for preventing re-fetching we need to mark it now in the
+            #    fetch tracker.
+
+            # 2. IMAP fetch tracker (SQLite) - prevents re-fetching
+            if metadata.message_id:
+                try:
+                    tracker = get_processed_tracker()
+                    tracker.mark_processed(
+                        message_id=metadata.message_id,
+                        account_id=account_id,
+                        subject=metadata.subject,
+                        from_address=metadata.from_address,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to mark email as processed in tracker: {e}")
+
+            logger.info(
+                f"Enqueued email {item_id}",
+                extra={
+                    "subject": metadata.subject,
+                    "confidence": analysis.confidence,
+                    "action": analysis.action.value,
+                },
+            )
+
+        return item_id
 
 
 def _parse_datetime(value: str | None) -> datetime | None:
@@ -1457,7 +1541,9 @@ class _EmailEventAdapter:
 
             html_content = content.get("html_body", "")
             # Remove script/style tags and their content
-            html_content = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", html_content, flags=re.DOTALL | re.IGNORECASE)
+            html_content = re.sub(
+                r"<(script|style)[^>]*>.*?</\1>", "", html_content, flags=re.DOTALL | re.IGNORECASE
+            )
             # Remove HTML tags
             text = re.sub(r"<[^>]+>", " ", html_content)
             # Decode HTML entities

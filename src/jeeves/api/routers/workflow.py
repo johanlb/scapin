@@ -7,16 +7,11 @@ API endpoints for knowledge extraction workflow.
 from datetime import datetime, timezone
 from typing import Optional
 
-from src.core.events.universal_event import (
-    EventSource,
-    EventType,
-    PerceivedEvent,
-    UrgencyLevel,
-)
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.core.config_manager import get_config
+from src.core.schemas import EmailAnalysis, EmailCategory
+from src.jeeves.api.services.queue_service import get_queue_service
 from src.jeeves.api.auth import TokenData
 from src.jeeves.api.deps import get_current_user
 from src.jeeves.api.models.responses import APIResponse
@@ -286,7 +281,12 @@ async def process_inbox_v2(
         Processing results with emails, analysis, and enrichments
     """
     try:
-        from src.core.events.universal_event import EventSource, PerceivedEvent
+        from src.core.events.universal_event import (
+            EventSource,
+            EventType,
+            PerceivedEvent,
+            UrgencyLevel,
+        )
         from src.integrations.email.imap_client import IMAPClient
 
         processor = _get_v2_processor()
@@ -353,6 +353,43 @@ async def process_inbox_v2(
                     auto_apply=request.auto_execute,
                 )
 
+                # Persist to queue logic
+                if result.success:
+                    try:
+                        queue_service = get_queue_service()
+
+                        # Default values
+                        email_category = EmailCategory.OTHER
+                        email_reasoning = "Analyzed by V2 Pipeline"
+
+                        if result.analysis:
+                            # Convert confidence to 0-100 int
+                            confidence_int = int(result.analysis.effective_confidence * 100)
+                            email_reasoning = result.analysis.raisonnement or email_reasoning
+
+                            email_analysis = EmailAnalysis(
+                                action=result.analysis.action,
+                                category=email_category,  # V2 doesn't use categories yet
+                                confidence=confidence_int,
+                                reasoning=email_reasoning,
+                                summary=f"Analyzed by {result.analysis.model_used}",
+                                options=[],
+                            )
+
+                            await queue_service.enqueue_email(
+                                metadata=metadata,
+                                analysis=email_analysis,
+                                content_preview=content.preview or "",
+                                html_body=content.html,
+                                full_text=content.plain_text,
+                            )
+                            logger.debug(f"Enqueued email {event.event_id}")
+
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to enqueue email {event.event_id}: {e}", exc_info=True
+                        )
+
                 results.append(result)
 
         # Convert to legacy format for frontend compatibility
@@ -375,7 +412,9 @@ async def process_inbox_v2(
                         "confidence": r.analysis.confidence if r.analysis else 0,
                         "extractions": r.extraction_count,
                         "notes_affected": r.notes_affected,
-                        "context_notes_used": len(r.analysis.context_notes) if r.analysis else 0,
+                        "context_notes_used": len(r.working_memory.context_notes)
+                        if r.working_memory
+                        else 0,
                     },
                     "enrichment": {
                         "auto_applied": r.auto_applied,
