@@ -326,7 +326,7 @@ class CoherenceService:
     # MODE 1: EXTRACTION VALIDATION (during email analysis)
     # =========================================================================
 
-    def validate_extractions(
+    async def validate_extractions(
         self,
         extractions: list[Extraction],
         event: "PerceivedEvent | None" = None,
@@ -394,7 +394,7 @@ class CoherenceService:
         )
 
         # 6. Call AI for validation
-        response_text, usage = self._ai_router.analyze_with_prompt(
+        response_text, usage = await self._ai_router.analyze_with_prompt_async(
             prompt=prompt,
             model=AIModel.CLAUDE_HAIKU,
             max_tokens=2000,
@@ -426,9 +426,7 @@ class CoherenceService:
 
         return result
 
-    def _load_target_notes(
-        self, targets: set[str]
-    ) -> list[FullNoteContext]:
+    def _load_target_notes(self, targets: set[str]) -> list[FullNoteContext]:
         """Load full content of target notes."""
         target_notes = []
 
@@ -444,9 +442,7 @@ class CoherenceService:
                     results = self._entity_searcher.search_entities([target])
                     for result in results[:1]:  # Take best match
                         content = result.note.content or ""
-                        target_notes.append(
-                            FullNoteContext.from_note(result.note, content)
-                        )
+                        target_notes.append(FullNoteContext.from_note(result.note, content))
 
         return target_notes
 
@@ -511,8 +507,7 @@ class CoherenceService:
             # NFD decomposition separates accents from base characters
             # Then filter out combining characters (accents)
             return "".join(
-                c for c in unicodedata.normalize("NFD", text)
-                if unicodedata.category(c) != "Mn"
+                c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn"
             )
 
         project_notes = []
@@ -536,11 +531,29 @@ class CoherenceService:
         # Keywords that suggest specific project contexts
         # Real estate keywords (already normalized - no accents)
         immo_keywords = [
-            "immobilier", "villa", "maison", "appartement", "terrain",
-            "achat", "vente", "offre", "acquisition", "propriete",
-            "maurice", "mauritius", "azuri", "valriche", "anahita",
-            "ocean river", "bluelife", "esperance", "lagesse",
-            "piscine", "location", "loyer", "bail",
+            "immobilier",
+            "villa",
+            "maison",
+            "appartement",
+            "terrain",
+            "achat",
+            "vente",
+            "offre",
+            "acquisition",
+            "propriete",
+            "maurice",
+            "mauritius",
+            "azuri",
+            "valriche",
+            "anahita",
+            "ocean river",
+            "bluelife",
+            "esperance",
+            "lagesse",
+            "piscine",
+            "location",
+            "loyer",
+            "bail",
         ]
 
         for note in projet_notes:
@@ -732,9 +745,7 @@ class CoherenceService:
 
         return response[json_start:json_end]
 
-    def _fallback_result(
-        self, extractions: list[Extraction], error_reason: str
-    ) -> CoherenceResult:
+    def _fallback_result(self, extractions: list[Extraction], error_reason: str) -> CoherenceResult:
         """
         Create a fallback result when coherence validation fails.
 
@@ -832,13 +843,9 @@ class CoherenceService:
         Note:
             This is a STUB for future implementation.
         """
-        raise NotImplementedError(
-            "Related notes search is planned for future implementation."
-        )
+        raise NotImplementedError("Related notes search is planned for future implementation.")
 
-    async def suggest_note_refactoring(
-        self, note_title: str
-    ) -> list[NoteRefactorSuggestion]:
+    async def suggest_note_refactoring(self, note_title: str) -> list[NoteRefactorSuggestion]:
         """
         Suggest refactoring actions for a note.
 

@@ -4,6 +4,7 @@ AI Router
 Routes AI requests to appropriate models with rate limiting and retry logic.
 """
 
+import asyncio
 import json
 import re
 import threading
@@ -788,6 +789,21 @@ class AIRouter:
                 raise
 
         raise RuntimeError(f"Failed after {max_retries} attempts")
+
+    async def analyze_with_prompt_async(
+        self,
+        prompt: str,
+        model: AIModel,
+        system_prompt: Optional[str] = None,
+        max_tokens: int = 2048,
+        max_retries: int = 3,
+    ) -> tuple[str, dict]:
+        """Async wrapper for analyze_with_prompt"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.analyze_with_prompt(prompt, model, system_prompt, max_tokens, max_retries),
+        )
 
     def _call_claude_with_system(
         self,

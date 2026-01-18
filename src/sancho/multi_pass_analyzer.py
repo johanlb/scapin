@@ -27,7 +27,7 @@ See ADR-005 in MULTI_PASS_SPEC.md for design decisions.
 import json
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 from src.core.events.universal_event import PerceivedEvent
@@ -529,7 +529,7 @@ class MultiPassAnalyzer:
             pass_type=pass_type,
         )
 
-    def _run_coherence_pass(
+    async def _run_coherence_pass(
         self,
         extractions: list[Extraction],
         event: PerceivedEvent,
@@ -564,8 +564,8 @@ class MultiPassAnalyzer:
         logger.info(f"Running coherence pass on {len(extractions_with_targets)} extractions")
 
         try:
-            # Run coherence validation (synchronous)
-            coherence_result = self.coherence_service.validate_extractions(
+            # Run coherence validation (asynchronous)
+            coherence_result = await self.coherence_service.validate_extractions(
                 extractions_with_targets, event
             )
 
@@ -962,14 +962,14 @@ class MultiPassAnalyzer:
                     logger.warning("Skipping extraction with empty info")
                     continue
 
-                # CRITICAL: Reject extractions targeting the owner "Johan"
-                # Johan Le Bail is the system owner - his name appears everywhere but should never be a target
+                # CRITICAL: Reject extractions targeting the owner
+                # Use owner_names from config (defaults to Johan variations)
                 note_cible = (ext_data.get("note_cible") or "").strip()
                 if note_cible:
                     note_cible_lower = note_cible.lower()
-                    if note_cible_lower in ("johan", "johan le bail", "johan l.", "johanlb"):
+                    if note_cible_lower in self.config.owner_names:
                         logger.warning(
-                            f"Rejecting extraction targeting owner 'Johan': {info} -> {note_cible}"
+                            f"Rejecting extraction targeting owner '{note_cible}': {info}"
                         )
                         continue
 
@@ -1118,19 +1118,37 @@ class MultiPassAnalyzer:
         Returns:
             True if the date is more than days_threshold days in the past
         """
-        from datetime import datetime, timedelta
-
         if not date_str:
             return False
 
         try:
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-            threshold_date = datetime.now().date() - timedelta(days=days_threshold)
+            date_obj = self._parse_date_string(date_str)
+            if not date_obj:
+                return False
+
+            threshold_date = datetime.now(timezone.utc).date() - timedelta(days=days_threshold)
             return date_obj < threshold_date
-        except ValueError:
-            # If we can't parse the date, don't mark as obsolete
-            logger.warning(f"Could not parse date: {date_str}")
+        except Exception as e:
+            logger.warning(f"Error checking if date is obsolete: {e}")
             return False
+
+    def _parse_date_string(self, date_str: str) -> Optional[date]:
+        """Parse date string robustly handling multiple formats"""
+        from dateutil import parser as date_parser
+
+        try:
+            # Try ISO format first
+            return datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+        try:
+            # Try robust parser
+            dt = date_parser.parse(date_str, fuzzy=True)
+            return dt.date()
+        except (ValueError, TypeError):
+            logger.debug(f"Could not parse date: {date_str}")
+            return None
 
     def _calculate_event_age_days(self, event: PerceivedEvent) -> int:
         """
@@ -1146,7 +1164,16 @@ class MultiPassAnalyzer:
             Age in days (0 if event is from today)
         """
         now = datetime.now(timezone.utc)
+
+        # Get event date and ensure timezone awareness
         event_date = getattr(event, "occurred_at", None) or event.received_at
+
+        if event_date is None:
+            return 0
+
+        if event_date.tzinfo is None:
+            event_date = event_date.replace(tzinfo=timezone.utc)
+
         age = now - event_date
         return max(0, age.days)
 

@@ -13,7 +13,7 @@ Key responsibilities:
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from src.monitoring.logger import get_logger
 from src.sancho.model_selector import ModelTier
@@ -329,6 +329,11 @@ class MultiPassConfig:
 
     # Force model (override automatic selection)
     force_model: Optional["ModelTier"] = None  # Force all passes to use this model
+
+    # Owner names to exclude from extraction targets
+    owner_names: list[str] = field(
+        default_factory=lambda: ["johan", "johan le bail", "johan l.", "johanlb"]
+    )
 
 
 # Status messages for UI (see UI_VOCABULARY.md)
