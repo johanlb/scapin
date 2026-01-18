@@ -1592,3 +1592,15 @@ def _create_email_event_adapter(
         _EmailEventAdapter instance compatible with Jinja2 templates
     """
     return _EmailEventAdapter(metadata, content, user_instruction)
+
+
+# Singleton instance
+_service: QueueService | None = None
+
+
+def get_queue_service() -> QueueService:
+    """Get singleton QueueService instance"""
+    global _service
+    if _service is None:
+        _service = QueueService()
+    return _service
