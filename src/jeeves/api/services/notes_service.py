@@ -22,6 +22,7 @@ from src.jeeves.api.models.notes import (
     FolderNode,
     NoteDiffResponse,
     NoteLinksResponse,
+    NoteMoveResponse,
     NoteResponse,
     NoteSearchResponse,
     NoteSearchResult,
@@ -534,6 +535,39 @@ class NotesService:
         if result:
             logger.info(f"Note deleted: {note_id}")
         return result
+
+    async def move_note(self, note_id: str, target_folder: str) -> NoteMoveResponse | None:
+        """
+        Move a note to a different folder
+
+        Args:
+            note_id: Note identifier
+            target_folder: Target folder path (e.g., "Projects/Alpha" or "" for root)
+
+        Returns:
+            NoteMoveResponse if moved, None if not found
+        """
+        logger.info(f"Moving note: {note_id} to folder: {target_folder}")
+        manager = self._get_manager()
+
+        # Get current path before moving
+        note = manager.get_note(note_id)
+        if not note:
+            return None
+
+        old_path = note.metadata.get("path", "")
+
+        result = manager.move_note(note_id, target_folder)
+        if not result:
+            return None
+
+        logger.info(f"Note moved: {note_id} from '{old_path}' to '{target_folder}'")
+        return NoteMoveResponse(
+            note_id=note_id,
+            old_path=old_path,
+            new_path=target_folder,
+            moved=True,
+        )
 
     async def search_notes(
         self,

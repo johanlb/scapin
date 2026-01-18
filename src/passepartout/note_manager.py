@@ -915,6 +915,95 @@ class NoteManager:
         logger.info("Deleted note", extra={"note_id": note_id})
         return True
 
+    def move_note(self, note_id: str, target_folder: str) -> bool:
+        """
+        Move a note to a different folder
+
+        Args:
+            note_id: Note identifier
+            target_folder: Target folder path (e.g., "Projects/Alpha" or "" for root)
+
+        Returns:
+            True if moved, False if note not found or move failed
+        """
+        note = self.get_note(note_id)
+        if not note:
+            logger.warning("Note not found for move", extra={"note_id": note_id})
+            return False
+
+        # Get current file path
+        old_file_path = self._get_note_path(note_id)
+        if not old_file_path.exists():
+            logger.warning("Note file not found", extra={"file_path": str(old_file_path)})
+            return False
+
+        # Sanitize target folder (remove leading/trailing slashes)
+        target_folder = target_folder.strip().strip("/")
+
+        # Security check: validate target folder path
+        if ".." in target_folder:
+            logger.warning("Path traversal attempt blocked", extra={"target": target_folder})
+            raise ValueError("Invalid folder path")
+
+        # Get current folder from metadata
+        current_folder = ""
+        if note_id in self._notes_metadata:
+            current_folder = self._notes_metadata[note_id].get("path", "")
+
+        # Skip if already in target folder
+        if current_folder == target_folder:
+            logger.info("Note already in target folder", extra={"note_id": note_id})
+            return True
+
+        # Create target folder if needed
+        if target_folder:
+            target_dir = self.notes_dir / target_folder
+            target_dir.mkdir(parents=True, exist_ok=True)
+            new_file_path = target_dir / f"{note_id}.md"
+        else:
+            new_file_path = self.notes_dir / f"{note_id}.md"
+
+        # Check if a note with same name exists in target
+        if new_file_path.exists():
+            logger.warning(
+                "Note with same name exists in target folder",
+                extra={"note_id": note_id, "target": target_folder},
+            )
+            raise ValueError(f"A note named '{note_id}' already exists in the target folder")
+
+        # Move the file
+        import shutil
+
+        shutil.move(str(old_file_path), str(new_file_path))
+        logger.info(
+            "Moved note file",
+            extra={"from": str(old_file_path), "to": str(new_file_path)},
+        )
+
+        # Update note's file_path
+        note.file_path = new_file_path
+
+        # Update cache with new path
+        with self._cache_lock:
+            if note_id in self._note_cache:
+                self._note_cache[note_id] = note
+
+        # Git commit the move
+        if self.git:
+            old_rel = f"{current_folder}/{note_id}.md" if current_folder else f"{note_id}.md"
+            new_rel = f"{target_folder}/{note_id}.md" if target_folder else f"{note_id}.md"
+            self.git.commit_move(old_rel, new_rel, note_title=note.title)
+
+        # Update metadata index with new path
+        self._update_metadata_index(note)
+        self._save_metadata_index()
+
+        logger.info(
+            "Moved note",
+            extra={"note_id": note_id, "from": current_folder, "to": target_folder},
+        )
+        return True
+
     def search_notes(
         self,
         query: str,

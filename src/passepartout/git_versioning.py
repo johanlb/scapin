@@ -285,6 +285,50 @@ class GitVersionManager:
                 logger.error(f"Git delete commit failed: {e}")
                 return None
 
+    def commit_move(
+        self,
+        old_path: str,
+        new_path: str,
+        note_title: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Commit a note move (rename/relocate)
+
+        Args:
+            old_path: Old relative path of the note
+            new_path: New relative path of the note
+            note_title: Optional note title for commit message
+
+        Returns:
+            Commit hash if successful, None otherwise
+        """
+        if self.repo is None:
+            return None
+
+        # Use global lock to prevent concurrent Git index operations
+        with _git_lock:
+            try:
+                # Stage the deletion of old path and addition of new path
+                # Git handles this as a rename/move
+                self.repo.index.remove([old_path])
+                self.repo.index.add([new_path])
+
+                # Commit
+                title_part = f": {note_title}" if note_title else ""
+                commit = self.repo.index.commit(
+                    f"Move note{title_part}",
+                    author=self.author,
+                    committer=self.author,
+                )
+
+                short_hash = commit.hexsha[:7]
+                logger.info(f"Committed note move: {old_path} -> {new_path} ({short_hash})")
+                return short_hash
+
+            except GitCommandError as e:
+                logger.error(f"Git move commit failed: {e}")
+                return None
+
     def list_versions(
         self,
         note_filename: str,

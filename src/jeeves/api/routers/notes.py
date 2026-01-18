@@ -20,6 +20,8 @@ from src.jeeves.api.models.notes import (
     NoteDiffResponse,
     NoteLinksResponse,
     NoteMetadataResponse,
+    NoteMoveRequest,
+    NoteMoveResponse,
     NoteResponse,
     NotesDueResponse,
     NoteSearchResponse,
@@ -512,6 +514,40 @@ async def toggle_pin(
     except Exception as e:
         logger.error(f"Failed to toggle pin for note {note_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to toggle pin status") from e
+
+
+@router.post("/{note_id}/move", response_model=APIResponse[NoteMoveResponse])
+async def move_note(
+    note_id: str,
+    request: NoteMoveRequest,
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[NoteMoveResponse]:
+    """
+    Move a note to a different folder
+
+    Moves the note file to the specified folder path.
+    Use empty string '' to move to the root folder.
+    Git history is preserved with a move commit.
+    """
+    try:
+        result = await service.move_note(note_id, request.target_folder)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Note not found")
+
+        return APIResponse(
+            success=True,
+            data=result,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # ValueError is user input validation - safe to expose
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to move note {note_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to move note") from e
 
 
 # =============================================================================

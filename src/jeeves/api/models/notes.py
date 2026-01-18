@@ -338,3 +338,21 @@ class FolderListResponse(BaseModel):
 
     folders: list[str] = Field(default_factory=list, description="Folder paths")
     total: int = Field(0, description="Total number of folders")
+
+
+class NoteMoveRequest(BaseModel):
+    """Request to move a note to a different folder"""
+
+    target_folder: str = Field(
+        ...,
+        description="Target folder path (e.g., 'Clients/ABC' or '' for root)",
+    )
+
+
+class NoteMoveResponse(BaseModel):
+    """Response after moving a note"""
+
+    note_id: str = Field(..., description="Note identifier")
+    old_path: str = Field(..., description="Previous folder path")
+    new_path: str = Field(..., description="New folder path")
+    moved: bool = Field(..., description="Whether the note was moved")

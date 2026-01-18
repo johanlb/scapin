@@ -703,6 +703,8 @@ export interface ActionOption {
 	reasoning: string;
 	reasoning_detailed: string | null;
 	is_recommended: boolean;
+	/** v2.3.1: Why this option was NOT chosen (for non-recommended options) */
+	rejection_reason: string | null;
 }
 
 // Sprint 2: Entity types
@@ -824,6 +826,8 @@ export interface PassHistoryEntry {
 	notes_found: number;
 	/** Whether this pass triggered escalation */
 	escalation_triggered: boolean;
+	/** v2.3.1: Questions/doubts the AI had for the next pass (Thinking Bubbles) */
+	questions: string[];
 }
 
 export interface MultiPassMetadata {
@@ -1619,6 +1623,15 @@ export async function getNotesTree(recentLimit = 10): Promise<NotesTree> {
 	return fetchApi<NotesTree>(`/notes/tree?recent_limit=${recentLimit}`);
 }
 
+interface NoteFolderListResponse {
+	folders: string[];
+	total: number;
+}
+
+export async function listNoteFolders(): Promise<NoteFolderListResponse> {
+	return fetchApi<NoteFolderListResponse>('/notes/folders');
+}
+
 export async function listNotes(
 	page = 1,
 	pageSize = 20,
@@ -1677,6 +1690,20 @@ export async function updateNote(
 export async function toggleNotePin(noteId: string): Promise<Note> {
 	return fetchApi<Note>(`/notes/${encodeURIComponent(noteId)}/pin`, {
 		method: 'POST'
+	});
+}
+
+interface NoteMoveResponse {
+	note_id: string;
+	old_path: string;
+	new_path: string;
+	moved: boolean;
+}
+
+export async function moveNote(noteId: string, targetFolder: string): Promise<NoteMoveResponse> {
+	return fetchApi<NoteMoveResponse>(`/notes/${encodeURIComponent(noteId)}/move`, {
+		method: 'POST',
+		body: JSON.stringify({ target_folder: targetFolder })
 	});
 }
 

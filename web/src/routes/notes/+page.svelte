@@ -8,9 +8,11 @@
 		syncAppleNotes,
 		getNoteSyncStatus,
 		listNotes,
+		listNoteFolders,
 		getNote,
 		updateNote,
 		deleteNote,
+		moveNote,
 		getNoteReviewMetadata,
 		triggerReview,
 		getNotesDue,
@@ -62,6 +64,12 @@
 	let isSaving = $state(false);
 	let showDeleteModal = $state(false);
 	let isDeleting = $state(false);
+
+	// Move modal state
+	let showMoveModal = $state(false);
+	let isMoving = $state(false);
+	let availableFolders = $state<string[]>([]);
+	let targetMoveFolder = $state('');
 
 	// Title editing state
 	let isEditingTitle = $state(false);
@@ -338,6 +346,54 @@
 			toastStore.error(`Échec de la suppression de la note`);
 		} finally {
 			isDeleting = false;
+		}
+	}
+
+	async function openMoveModal() {
+		if (!selectedNote) return;
+
+		// Load available folders
+		try {
+			const response = await listNoteFolders();
+			availableFolders = response.folders;
+			// Pre-select current folder if any
+			targetMoveFolder = selectedNote.path || '';
+			showMoveModal = true;
+		} catch (error) {
+			console.error('Failed to load folders:', error);
+			toastStore.error('Échec du chargement des dossiers');
+		}
+	}
+
+	async function confirmMove() {
+		if (!selectedNote) return;
+
+		// Don't move if already in target folder
+		if (targetMoveFolder === (selectedNote.path || '')) {
+			showMoveModal = false;
+			return;
+		}
+
+		isMoving = true;
+		try {
+			const result = await moveNote(selectedNote.note_id, targetMoveFolder);
+			if (result.moved) {
+				// Update the selected note's path
+				selectedNote = { ...selectedNote, path: targetMoveFolder };
+				// Update in the folder notes list
+				folderNotes = folderNotes.map((n) =>
+					n.note_id === selectedNote!.note_id ? { ...n, path: targetMoveFolder } : n
+				);
+				// Reload tree to update folder counts
+				await loadTree();
+				toastStore.success(`Note déplacée vers "${targetMoveFolder || 'Racine'}"`);
+			}
+			showMoveModal = false;
+		} catch (error) {
+			console.error('Failed to move note:', error);
+			toastStore.error('Échec du déplacement de la note');
+		} finally {
+			isMoving = false;
 		}
 	}
 
@@ -912,6 +968,15 @@
 								✕
 							</button>
 						{/if}
+						<!-- Move Button -->
+						<button
+							type="button"
+							onclick={openMoveModal}
+							class="p-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+							title="Déplacer vers un dossier"
+						>
+							📁
+						</button>
 						<!-- Delete Button -->
 						<button
 							type="button"
@@ -1320,6 +1385,68 @@
 				Suppression...
 			{:else}
 				Supprimer
+			{/if}
+		</button>
+	</div>
+</Modal>
+
+<!-- Move Note Modal -->
+<Modal bind:open={showMoveModal} title="Déplacer la note" size="sm">
+	<p class="text-[var(--color-text-secondary)] mb-4">
+		Déplacer <strong>"{selectedNote?.title}"</strong> vers un autre dossier :
+	</p>
+	<div class="space-y-2 max-h-64 overflow-y-auto mb-6">
+		<!-- Root folder option -->
+		<button
+			type="button"
+			onclick={() => targetMoveFolder = ''}
+			class="w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2
+				{targetMoveFolder === ''
+					? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+					: 'hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+		>
+			<span>📁</span>
+			<span>Racine</span>
+			{#if selectedNote?.path === ''}
+				<span class="text-xs text-[var(--color-text-tertiary)] ml-auto">(actuel)</span>
+			{/if}
+		</button>
+		<!-- Available folders -->
+		{#each availableFolders as folder}
+			<button
+				type="button"
+				onclick={() => targetMoveFolder = folder}
+				class="w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2
+					{targetMoveFolder === folder
+						? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+						: 'hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+			>
+				<span>📁</span>
+				<span>{folder}</span>
+				{#if selectedNote?.path === folder}
+					<span class="text-xs text-[var(--color-text-tertiary)] ml-auto">(actuel)</span>
+				{/if}
+			</button>
+		{/each}
+	</div>
+	<div class="flex justify-end gap-3">
+		<button
+			type="button"
+			onclick={() => showMoveModal = false}
+			class="px-4 py-2 rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-[var(--color-text-primary)]"
+		>
+			Annuler
+		</button>
+		<button
+			type="button"
+			onclick={confirmMove}
+			disabled={isMoving || targetMoveFolder === (selectedNote?.path || '')}
+			class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-colors disabled:opacity-50"
+		>
+			{#if isMoving}
+				Déplacement...
+			{:else}
+				Déplacer
 			{/if}
 		</button>
 	</div>
