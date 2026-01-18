@@ -27,6 +27,8 @@ Part of the Multi-Pass v2.2+ architecture.
 See COHERENCE_PASS_SPEC.md for design decisions.
 """
 
+import asyncio
+import functools
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -376,40 +378,58 @@ class CoherenceService:
         )
 
         # 2. Load full content of target notes
-        target_notes = self._load_target_notes(unique_targets)
+        # Run in executor to avoid blocking loop with file I/O
+        loop = asyncio.get_running_loop()
 
-        # 3. Find similar notes (alternatives) - includes PROJECT-FIRST search
-        similar_notes = self._find_similar_notes(unique_targets, event)
-
-        # 4. Get index of existing notes
-        existing_notes = self._get_existing_notes_index()
-
-        # 5. Render prompt and call AI
-        prompt = self._render_prompt(
-            extractions=extractions,
-            event=event,
-            target_notes=target_notes,
-            similar_notes=similar_notes,
-            existing_notes=existing_notes,
+        target_notes = await loop.run_in_executor(
+            None, functools.partial(self._load_target_notes, unique_targets)
         )
 
-        # 6. Call AI for validation
+        # 3. Find similar notes (alternatives) - includes PROJECT-FIRST search
+        # Run in executor as it scans many notes
+        similar_notes = await loop.run_in_executor(
+            None, functools.partial(self._find_similar_notes, unique_targets, event)
+        )
+
+        # 4. Get index of existing notes
+        # Run in executor as it lists all notes
+        existing_notes = await loop.run_in_executor(None, self._get_existing_notes_index)
+
+        # 5. Render prompt (CPU-bound) -> Offload to executor
+        prompt = await loop.run_in_executor(
+            None,
+            functools.partial(
+                self._render_prompt,
+                extractions=extractions,
+                event=event,
+                target_notes=target_notes,
+                similar_notes=similar_notes,
+                existing_notes=existing_notes,
+            ),
+        )
+
+        # 6. Call AI for validation (Async I/O)
         response_text, usage = await self._ai_router.analyze_with_prompt_async(
             prompt=prompt,
             model=AIModel.CLAUDE_HAIKU,
             max_tokens=2000,
         )
 
-        # 7. Parse JSON response
+        # 7. Parse response (CPU-bound) -> Offload to executor
+        # We pass the text response and let the executor handle JSON parsing and object creation
         try:
-            response_data = json.loads(self._extract_json(response_text))
-        except json.JSONDecodeError as e:
+            result = await loop.run_in_executor(
+                None,
+                functools.partial(
+                    self._process_ai_response,
+                    response_text=response_text,
+                    original_extractions=extractions,
+                ),
+            )
+        except Exception as e:
             logger.error(f"Failed to parse coherence response: {e}")
-            # Return extractions unchanged if parsing fails
             return self._fallback_result(extractions, str(e))
 
-        # 8. Parse response
-        result = self._parse_response(response_data, extractions)
         result.tokens_used = usage.get("total_tokens", 0)
 
         # Add metadata
@@ -418,13 +438,28 @@ class CoherenceService:
         result.model_used = "haiku"
 
         logger.info(
-            "Coherence validation completed in %.2fms: %d corrected, %d duplicates",
+            "Coherence validation (deeply optimized) completed in %.2fms: %d corrected, %d duplicates",
             duration_ms,
             result.coherence_summary.corrected,
             result.coherence_summary.duplicates_detected,
         )
 
         return result
+
+    def _process_ai_response(
+        self, response_text: str, original_extractions: list[Extraction]
+    ) -> CoherenceResult:
+        """Process AI response text into CoherenceResult (CPU-bound helper)."""
+        try:
+            # CPU-intensive: String search + JSON parsing
+            json_str = self._extract_json(response_text)
+            response_data = json.loads(json_str)
+
+            # CPU-intensive: Object creation and iteration
+            return self._parse_response(response_data, original_extractions)
+        except Exception as e:
+            # Re-raise to be caught by the caller
+            raise e
 
     def _load_target_notes(self, targets: set[str]) -> list[FullNoteContext]:
         """Load full content of target notes."""

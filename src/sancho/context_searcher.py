@@ -15,9 +15,11 @@ Key responsibilities:
 - Return structured context for prompt injection
 """
 
+import asyncio
+import functools
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from src.monitoring.logger import get_logger
 
@@ -359,7 +361,11 @@ class ContextSearcher:
         # 1. Search notes by entity names (Option D: entity search + semantic)
         if self._note_manager is not None:
             sources_searched.append("notes")
-            notes, entity_profiles = await self._search_notes(entities, config)
+            # Run in executor to avoid blocking loop with extensive search/file I/O
+            loop = asyncio.get_running_loop()
+            notes, entity_profiles = await loop.run_in_executor(
+                None, functools.partial(self._search_notes, entities, config)
+            )
 
         # 2. Search cross-source if available
         if self._cross_source is not None:
@@ -405,7 +411,7 @@ class ContextSearcher:
             conflicts=conflicts,
         )
 
-    async def _search_notes(
+    def _search_notes(
         self,
         entities: list[str],
         config: ContextSearchConfig,

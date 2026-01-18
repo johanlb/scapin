@@ -11,16 +11,13 @@ Tests:
 - Concurrent operations
 """
 
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-import os
 import shutil
+from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.passepartout.note_manager import Note, NoteManager
-
+from src.passepartout.note_manager import NoteManager
 
 # ============================================================================
 # Test Fixtures
@@ -501,7 +498,6 @@ class TestDeletedNotesAPI:
     @pytest.mark.asyncio
     async def test_get_deleted_notes_endpoint(self):
         """GET /api/notes/deleted returns deleted notes"""
-        from unittest.mock import patch
 
         with patch(
             "src.jeeves.api.services.notes_service.NotesService.get_deleted_notes"
@@ -529,7 +525,6 @@ class TestDeletedNotesAPI:
     @pytest.mark.asyncio
     async def test_permanent_delete_endpoint(self):
         """DELETE /api/notes/{id}/permanent permanently deletes"""
-        from unittest.mock import patch
 
         with patch(
             "src.jeeves.api.services.notes_service.NotesService.permanent_delete"
@@ -549,7 +544,6 @@ class TestDeletedNotesAPI:
     @pytest.mark.asyncio
     async def test_restore_note_endpoint(self):
         """POST /api/notes/{id}/restore restores from trash"""
-        from unittest.mock import patch
 
         with patch(
             "src.jeeves.api.services.notes_service.NotesService.restore_from_trash"

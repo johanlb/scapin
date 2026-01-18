@@ -9,9 +9,6 @@ Tests the context transparency features:
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock
-
-import pytest
 
 from src.sancho.context_searcher import (
     CalendarContextBlock,
@@ -28,7 +25,6 @@ from src.sancho.convergence import (
     PassType,
 )
 from src.sancho.multi_pass_analyzer import MultiPassResult
-
 
 # ============================================================================
 # StructuredContext Tests

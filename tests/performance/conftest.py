@@ -9,10 +9,11 @@ Provides:
 """
 
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Generator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -32,7 +33,6 @@ from src.sancho.convergence import (
     PassResult,
     PassType,
 )
-
 
 # ============================================================================
 # Performance Metrics

@@ -9,22 +9,18 @@ Tests performance budgets for:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from src.core.events.universal_event import Entity
-from tests.performance.conftest import create_test_event
 from src.sancho.convergence import (
     DecomposedConfidence,
-    Extraction,
-    MultiPassConfig,
     PassResult,
     PassType,
 )
 from src.sancho.model_selector import ModelTier
-from tests.performance.conftest import PerformanceThresholds, measure_time
-
+from tests.performance.conftest import PerformanceThresholds, create_test_event, measure_time
 
 # ============================================================================
 # Test Fixtures
@@ -160,7 +156,7 @@ class TestPassExecutionPerformance:
         )
 
         with measure_time("pass1_blind") as metrics:
-            result = await analyzer._run_pass1(simple_event)
+            await analyzer._run_pass1(simple_event)
 
         metrics.assert_under(
             PerformanceThresholds.PASS1_BLIND_MAX_MS,
@@ -202,7 +198,7 @@ class TestPassExecutionPerformance:
         context = await mock_context_fast(["Marc Dupont"])
 
         with measure_time("pass2_context") as metrics:
-            result = await analyzer._run_pass2(
+            await analyzer._run_pass2(
                 complex_event,
                 previous,
                 context,
@@ -348,7 +344,7 @@ class TestContextRetrievalPerformance:
         entities = [f"Entity_{i}" for i in range(10)]
 
         with measure_time("many_entities_search") as metrics:
-            context = await mock_context_fast(entities)
+            await mock_context_fast(entities)
 
         metrics.assert_under(
             PerformanceThresholds.CONTEXT_SEARCH_MAX_MS * 2,  # Allow 2x for many entities
@@ -443,8 +439,8 @@ class TestMemoryUsage:
     @pytest.mark.asyncio
     async def test_result_memory_footprint(self, complex_event, mock_ai_response_fast):
         """Result objects should have reasonable memory footprint"""
+
         from src.sancho.multi_pass_analyzer import MultiPassAnalyzer
-        import sys
 
         mock_router = AsyncMock()
         mock_router.call.return_value = await mock_ai_response_fast(confidence=95)
@@ -468,8 +464,9 @@ class TestMemoryUsage:
     @pytest.mark.asyncio
     async def test_no_memory_leak_in_loop(self, simple_event, mock_ai_response_fast):
         """Multiple analyses should not leak memory"""
-        from src.sancho.multi_pass_analyzer import MultiPassAnalyzer
         import gc
+
+        from src.sancho.multi_pass_analyzer import MultiPassAnalyzer
 
         mock_router = AsyncMock()
         mock_router.call.return_value = await mock_ai_response_fast(confidence=95)
