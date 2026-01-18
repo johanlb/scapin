@@ -203,6 +203,14 @@ class ScapinLogger:
 
                 root_logger.addHandler(file_handler)
 
+            # Suppress noisy libraries
+            logging.getLogger("urllib3").setLevel(logging.ERROR)
+
+            # Suppress specific warnings about LibreSSL/OpenSSL
+            import warnings
+
+            warnings.filterwarnings("ignore", module="urllib3")
+
             cls._configured = True
 
     @classmethod

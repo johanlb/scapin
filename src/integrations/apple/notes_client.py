@@ -4,13 +4,9 @@ Apple Notes Client
 AppleScript-based client for interacting with Apple Notes.app.
 """
 
-import shutil
 import subprocess
-import tempfile
-import time
 from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Optional
 
 from src.integrations.apple.notes_models import AppleFolder, AppleNote
 from src.monitoring.logger import get_logger
@@ -103,11 +99,12 @@ class AppleNotesClient:
                 folders.append(AppleFolder(name=entry.strip(), path=entry.strip()))
         return folders
 
-    def get_notes_in_folder(self, folder_path: str) -> list[AppleNote]:
+    def get_notes_in_folder(self, folder_path: str, include_body: bool = True) -> list[AppleNote]:
         """Get all notes in a specific folder
 
         Args:
             folder_path: Folder path like "Notes" or "Notes/Entités" for nested folders
+            include_body: If True, fetch full HTML body (slow). If False, only metadata (fast).
         """
         # Build AppleScript to navigate to nested folder
         path_parts = folder_path.split("/")
@@ -121,12 +118,57 @@ class AppleNotesClient:
             # Nested folder: tell folder "A" to tell folder "B"...
             folder_access = " of ".join([f'folder "{p}"' for p in reversed(escaped_parts)])
 
+        # Optimization: Conditionally fetch body
+        body_field = "body of n" if include_body else '""'
+
+        # Robust Date Parsing: extracting components directly in AppleScript
+        # Returns: yyyy-mm-dd HH:MM:SS
+        date_extraction = """
+        -- Capture date objects
+        set cDate to creation date of n
+        set mDate to modification date of n
+        
+        -- Helper to format number with leading zero
+        script DateFormatter
+            on pad(num)
+                if num < 10 then
+                    return "0" & num
+                else
+                    return num as string
+                end if
+            end pad
+            
+            on formatDate(d)
+                try
+                    if d is missing value then
+                        return "1970-01-01 00:00:00"
+                    end if
+                    set y to year of d
+                    set m to month of d as integer
+                    set d_day to day of d
+                    set t_hour to hours of d
+                    set t_min to minutes of d
+                    set t_sec to seconds of d
+                    
+                    return (y as string) & "-" & my pad(m) & "-" & my pad(d_day) & " " & my pad(t_hour) & ":" & my pad(t_min) & ":" & my pad(t_sec)
+                on error
+                    return "1970-01-01 00:00:00"
+                end try
+            end formatDate
+        end script
+        
+        set cDateStr to DateFormatter's formatDate(cDate)
+        set mDateStr to DateFormatter's formatDate(mDate)
+        """
+
         script = f"""
         tell application "Notes"
             set notesList to {{}}
             tell {folder_access}
                 repeat with n in notes
-                    set noteData to {{id of n, name of n, body of n, creation date of n, modification date of n}}
+                    {date_extraction}
+                    
+                    set noteData to {{id of n, name of n, {body_field}, cDateStr, mDateStr}}
                     set end of notesList to noteData
                 end repeat
             end tell
@@ -141,7 +183,7 @@ class AppleNotesClient:
             logger.error(f"Failed to get notes from folder '{folder_path}': {e}")
             return []
 
-    def get_all_notes(self) -> list[AppleNote]:
+    def get_all_notes(self, include_body: bool = True) -> list[AppleNote]:
         """Get all notes from all folders (including nested folders)"""
         folders = self.get_folders()
         all_notes: list[AppleNote] = []
@@ -151,7 +193,7 @@ class AppleNotesClient:
             if folder.name in ("Recently Deleted", "Quick Notes"):
                 continue
             # Use folder.path to access nested folders
-            notes = self.get_notes_in_folder(folder.path)
+            notes = self.get_notes_in_folder(folder.path, include_body=include_body)
             for note in notes:
                 # Update folder field to use full path
                 note.folder = folder.path
@@ -164,19 +206,38 @@ class AppleNotesClient:
 
         Returns a list of notes that have been deleted but not yet permanently removed.
         """
-        script = """
+        # Improved robustness for deleted notes too
+        date_extraction = """
+        set cDate to creation date of n
+        set mDate to modification date of n
+        
+        script DateFormatter
+            on pad(num)
+                if num < 10 then return "0" & num else return num as string
+            end pad
+            on formatDate(d)
+                return (year of d as string) & "-" & my pad(month of d as integer) & "-" & my pad(day of d) & " " & my pad(hours of d) & ":" & my pad(minutes of d) & ":" & my pad(seconds of d)
+            end formatDate
+        end script
+        
+        set cDateStr to DateFormatter's formatDate(cDate)
+        set mDateStr to DateFormatter's formatDate(mDate)
+        """
+
+        script = f"""
         tell application "Notes"
-            set notesList to {}
+            set notesList to {{}}
             try
                 tell folder "Recently Deleted"
                     repeat with n in notes
-                        set noteData to {id of n, name of n, body of n, creation date of n, modification date of n}
+                        {date_extraction}
+                        set noteData to {{id of n, name of n, body of n, cDateStr, mDateStr}}
                         set end of notesList to noteData
                     end repeat
                 end tell
             on error errMsg
                 -- Folder may not exist or be empty
-                return {}
+                return {{}}
             end try
             return notesList
         end tell
@@ -193,12 +254,32 @@ class AppleNotesClient:
         """Get a specific note by its ID"""
         escaped_id = note_id.replace('"', '\\"')
 
+        date_extraction = """
+        set cDate to creation date of n
+        set mDate to modification date of n
+        
+        script DateFormatter
+            on pad(num)
+                if num < 10 then return "0" & num else return num as string
+            end pad
+            on formatDate(d)
+                return (year of d as string) & "-" & my pad(month of d as integer) & "-" & my pad(day of d) & " " & my pad(hours of d) & ":" & my pad(minutes of d) & ":" & my pad(seconds of d)
+            end formatDate
+        end script
+        
+        set cDateStr to DateFormatter's formatDate(cDate)
+        set mDateStr to DateFormatter's formatDate(mDate)
+        """
+
         script = f'''
         tell application "Notes"
             try
                 set n to note id "{escaped_id}"
                 set folderName to name of container of n
-                return {{id of n, name of n, body of n, folderName, creation date of n, modification date of n}}
+                
+                {date_extraction}
+                
+                return {{id of n, name of n, body of n, folderName, cDateStr, mDateStr}}
             on error
                 return ""
             end try
@@ -453,14 +534,26 @@ class AppleNotesClient:
 
         # The result is a complex nested structure
         # Each note is: {id, name, body, creation_date, modification_date}
-        # We need to parse this carefully
 
-        # Split by the pattern that separates notes
-        # Looking for the x-coredata:// pattern as note boundaries
+        # NOTE: AppleScript output with list of lists can be tricky to parse with regex
+        # especially if body contains commas.
+        # But we are getting string representation of a list of lists.
+        # e.g.: {{id, name, body, date, date}, {id, ...}}
+
+        # More robust parsing needed if bodies are large/complex.
+        # For now, relying on the pattern matcher which seems to handle it reasonably well
+        # given AppleScript's string conversion quirks, BUT:
+        # We need to update pattern for our new date format (YYYY-MM-DD HH:MM:SS)
+
         import re
 
         # Find all note entries using the ID pattern
-        note_pattern = r"(x-coredata://[^,]+), ([^,]+), (.*?), date ([^,]+), date ([^,\}]+)"
+        # The new date format is YYYY-MM-DD HH:MM:SS which doesn't contain commas or standard AppleScript date junk
+        # Pattern: (id), (name), (body), (date), (date)
+        # Note: Body might be empty string "" if include_body=False
+
+        # Updated regex to handle standard ISO-like dates
+        note_pattern = r"(x-coredata://[^,]+), ([^,]+), (.*?), (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}), (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})"
         matches = re.findall(note_pattern, result, re.DOTALL)
 
         for match in matches:
@@ -487,7 +580,8 @@ class AppleNotesClient:
         import re
 
         # Pattern: {id, name, body, folder, creation_date, modification_date}
-        pattern = r"(x-coredata://[^,]+), ([^,]+), (.*?), ([^,]+), date ([^,]+), date ([^,\}]+)"
+        # Updated for ISO-like dates
+        pattern = r"(x-coredata://[^,]+), ([^,]+), (.*?), ([^,]+), (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}), (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})"
         match = re.search(pattern, result, re.DOTALL)
 
         if not match:
@@ -504,50 +598,16 @@ class AppleNotesClient:
         )
 
     def _parse_date(self, date_str: str) -> datetime:
-        """Parse a French date string from AppleScript"""
-        # Format: "lundi 5 janvier 2026 à 10:54:45"
-        import re
-
-        # Clean up the date string
+        """Parse Date string from AppleScript (Now ISO-like format)"""
+        # Format: "YYYY-MM-DD HH:MM:SS" (generated by our AppleScript helper)
         date_str = date_str.strip()
 
-        # Extract components using regex
-        # Format: day_name day month year à HH:MM:SS
-        pattern = r"(\w+)\s+(\d+)\s+(\w+)\s+(\d+)\s+à\s+(\d+):(\d+):(\d+)"
-        match = re.search(pattern, date_str)
-
-        if not match:
-            # Try alternative format
+        try:
+            return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            # Fallback just in case
+            logger.warning(f"Date parse failed for '{date_str}', using now()")
             return datetime.now()
-
-        _day_name, day, month_name, year, hour, minute, second = match.groups()
-
-        # French month names
-        months = {
-            "janvier": 1,
-            "février": 2,
-            "mars": 3,
-            "avril": 4,
-            "mai": 5,
-            "juin": 6,
-            "juillet": 7,
-            "août": 8,
-            "septembre": 9,
-            "octobre": 10,
-            "novembre": 11,
-            "décembre": 12,
-        }
-
-        month = months.get(month_name.lower(), 1)
-
-        return datetime(
-            year=int(year),
-            month=month,
-            day=int(day),
-            hour=int(hour),
-            minute=int(minute),
-            second=int(second),
-        )
 
 
 def get_apple_notes_client() -> AppleNotesClient:

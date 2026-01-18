@@ -219,7 +219,7 @@ class AppleNotesSync:
         return result
 
     def _get_apple_notes(self) -> dict[str, AppleNote]:
-        """Get all Apple Notes indexed by ID"""
+        """Get all Apple Notes indexed by ID (METADATA ONLY)"""
         notes: dict[str, AppleNote] = {}
 
         for folder in self.client.get_folders():
@@ -230,13 +230,35 @@ class AppleNotesSync:
                 continue
 
             # Use folder.path for nested folder access
-            folder_notes = self.client.get_notes_in_folder(folder.path)
+            # OPTIMIZATION: Fetch metadata only (fast)
+            folder_notes = self.client.get_notes_in_folder(folder.path, include_body=False)
             for note in folder_notes:
                 # Store the full path in the note's folder field
                 note.folder = folder.path
                 notes[note.id] = note
 
         return notes
+
+    def _ensure_note_content(self, apple_note: AppleNote) -> bool:
+        """
+        Ensure Apple note has content (lazy load if needed)
+
+        Returns:
+            True if content available, False if fetch failed
+        """
+        if apple_note.body_html:
+            return True
+
+        logger.info(f"Lazy loading content for note: {apple_note.name}")
+        full_note = self.client.get_note_by_id(apple_note.id)
+
+        if full_note:
+            apple_note.body_html = full_note.body_html
+            # Re-run post-init logic to generate text/markdown
+            apple_note.__post_init__()
+            return True
+
+        return False
 
     def _get_scapin_notes(self) -> dict[str, tuple[Path, datetime]]:
         """
@@ -484,6 +506,13 @@ class AppleNotesSync:
         if direction == "apple_to_scapin":
             # Create Scapin note from Apple note
             apple_note: AppleNote = data["apple_note"]
+
+            # LAZY LOADING: Ensure we have content
+            if not self._ensure_note_content(apple_note):
+                logger.error(f"Failed to fetch content for note {apple_note.name}")
+                result.errors.append(f"Failed to fetch content: {apple_note.name}")
+                return
+
             scapin_path = self._create_scapin_note(apple_note)
             if scapin_path:
                 self._add_mapping(apple_note.id, scapin_path, apple_note.modified_at)
@@ -512,6 +541,13 @@ class AppleNotesSync:
             # Update Scapin from Apple
             apple_note: AppleNote = data["apple_note"]
             scapin_path: Path = data["scapin_path"]
+
+            # LAZY LOADING: Ensure we have content
+            if not self._ensure_note_content(apple_note):
+                logger.error(f"Failed to fetch content for note {apple_note.name}")
+                result.errors.append(f"Failed to fetch content: {apple_note.name}")
+                return
+
             if self._update_scapin_note(scapin_path, apple_note):
                 self._update_mapping(apple_note.id, apple_note.modified_at)
                 result.updated.append(apple_note.name)
@@ -534,6 +570,12 @@ class AppleNotesSync:
             if self.conflict_resolution == ConflictResolution.NEWER_WINS:
                 if apple_note.modified_at > scapin_modified:
                     # Apple is newer
+                    # LAZY LOADING: Ensure we have content
+                    if not self._ensure_note_content(apple_note):
+                        logger.error(f"Failed to fetch content for note {apple_note.name}")
+                        result.errors.append(f"Failed to fetch content: {apple_note.name}")
+                        return
+
                     if self._update_scapin_note(scapin_path, apple_note):
                         self._update_mapping(apple_note.id, apple_note.modified_at)
                         result.updated.append(f"{apple_note.name} (Apple wins)")
