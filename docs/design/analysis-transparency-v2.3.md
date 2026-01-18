@@ -891,6 +891,53 @@ class MultiPassMetadataResponse(BaseModel):
     pass_history: list[PassHistoryEntryResponse]
 ```
 
+#### Queue Service Implementation (src/jeeves/api/services/queue_service.py)
+
+La méthode `_build_multi_pass_metadata()` construit les métadonnées à partir du `MultiPassResult`:
+
+```python
+def _build_multi_pass_metadata(self, result: Any) -> dict[str, Any]:
+    """Build multi-pass metadata for API response."""
+    models_used = []
+    pass_history = []
+    prev_confidence = 0.0
+
+    for i, pass_result in enumerate(result.pass_history):
+        model = pass_result.model_used
+        models_used.append(model)
+
+        # Detect context search (refine/deep passes)
+        pass_type_value = pass_result.pass_type.value
+        context_searched = pass_type_value in ["refine", "deep"]
+
+        # Build per-pass entry
+        pass_history.append({
+            "pass_number": pass_result.pass_number,
+            "pass_type": pass_type_value,
+            "model": model,
+            "duration_ms": pass_result.duration_ms,
+            "tokens": pass_result.tokens_used,
+            "confidence_before": prev_confidence,
+            "confidence_after": pass_result.confidence.overall,
+            "context_searched": context_searched,
+            "notes_found": len(result.retrieved_context.get("notes", [])) if context_searched else 0,
+            "escalation_triggered": was_escalation(models_used, i),
+        })
+        prev_confidence = pass_result.confidence.overall
+
+    return {
+        "passes_count": result.passes_count,
+        "final_model": result.final_model,
+        "models_used": models_used,
+        "escalated": result.escalated,
+        "stop_reason": result.stop_reason,
+        "high_stakes": result.high_stakes,
+        "total_tokens": result.total_tokens,
+        "total_duration_ms": result.total_duration_ms,
+        "pass_history": pass_history,
+    }
+```
+
 ### Phase 2 : v2.3.1 - Visualisation
 ```
 ┌─────────────────────────────────────────────────────────────┐

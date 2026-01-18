@@ -277,6 +277,155 @@ class TestQueueItemAnalysisWithMultiPass:
         assert json_data["multi_pass"]["final_model"] == "haiku"
 
 
+class TestBuildMultiPassMetadata:
+    """Tests for QueueService._build_multi_pass_metadata method"""
+
+    def test_build_metadata_single_pass(self) -> None:
+        """Test building metadata for single pass analysis"""
+        from unittest.mock import MagicMock
+        from src.jeeves.api.services.queue_service import QueueService
+
+        # Create mock result
+        mock_confidence = MagicMock()
+        mock_confidence.overall = 0.95
+
+        mock_pass = MagicMock()
+        mock_pass.pass_number = 1
+        mock_pass.pass_type = MagicMock(value="blind")
+        mock_pass.model_used = "haiku"
+        mock_pass.duration_ms = 800.0
+        mock_pass.tokens_used = 312
+        mock_pass.confidence = mock_confidence
+
+        mock_result = MagicMock()
+        mock_result.passes_count = 1
+        mock_result.final_model = "haiku"
+        mock_result.escalated = False
+        mock_result.stop_reason = "confidence_sufficient"
+        mock_result.high_stakes = False
+        mock_result.total_tokens = 312
+        mock_result.total_duration_ms = 800.0
+        mock_result.pass_history = [mock_pass]
+        mock_result.retrieved_context = None
+
+        # Create service and call method
+        service = QueueService.__new__(QueueService)
+        metadata = service._build_multi_pass_metadata(mock_result)
+
+        assert metadata["passes_count"] == 1
+        assert metadata["final_model"] == "haiku"
+        assert metadata["models_used"] == ["haiku"]
+        assert metadata["escalated"] is False
+        assert len(metadata["pass_history"]) == 1
+        assert metadata["pass_history"][0]["model"] == "haiku"
+        assert metadata["pass_history"][0]["pass_type"] == "blind"
+
+    def test_build_metadata_multi_pass_with_escalation(self) -> None:
+        """Test building metadata for multi-pass analysis with escalation"""
+        from unittest.mock import MagicMock
+        from src.jeeves.api.services.queue_service import QueueService
+
+        # Create mock passes
+        def create_mock_pass(num: int, ptype: str, model: str, conf: float) -> MagicMock:
+            mock_conf = MagicMock()
+            mock_conf.overall = conf
+            mock_pass = MagicMock()
+            mock_pass.pass_number = num
+            mock_pass.pass_type = MagicMock(value=ptype)
+            mock_pass.model_used = model
+            mock_pass.duration_ms = 500.0 * num
+            mock_pass.tokens_used = 300 * num
+            mock_pass.confidence = mock_conf
+            return mock_pass
+
+        mock_result = MagicMock()
+        mock_result.passes_count = 3
+        mock_result.final_model = "sonnet"
+        mock_result.escalated = True
+        mock_result.stop_reason = "confidence_sufficient"
+        mock_result.high_stakes = False
+        mock_result.total_tokens = 1800
+        mock_result.total_duration_ms = 3000.0
+        mock_result.pass_history = [
+            create_mock_pass(1, "blind", "haiku", 0.67),
+            create_mock_pass(2, "refine", "sonnet", 0.85),
+            create_mock_pass(3, "refine", "sonnet", 0.92),
+        ]
+        mock_result.retrieved_context = {"notes": [{"id": "1"}, {"id": "2"}]}
+
+        service = QueueService.__new__(QueueService)
+        metadata = service._build_multi_pass_metadata(mock_result)
+
+        assert metadata["passes_count"] == 3
+        assert metadata["final_model"] == "sonnet"
+        assert metadata["models_used"] == ["haiku", "sonnet", "sonnet"]
+        assert metadata["escalated"] is True
+
+        # Check pass history
+        assert len(metadata["pass_history"]) == 3
+
+        # Pass 1: blind, haiku
+        assert metadata["pass_history"][0]["pass_type"] == "blind"
+        assert metadata["pass_history"][0]["model"] == "haiku"
+        assert metadata["pass_history"][0]["context_searched"] is False
+        assert metadata["pass_history"][0]["escalation_triggered"] is False
+
+        # Pass 2: refine, sonnet (escalation from haiku)
+        assert metadata["pass_history"][1]["pass_type"] == "refine"
+        assert metadata["pass_history"][1]["model"] == "sonnet"
+        assert metadata["pass_history"][1]["context_searched"] is True
+        assert metadata["pass_history"][1]["notes_found"] == 2
+        assert metadata["pass_history"][1]["escalation_triggered"] is True
+
+        # Pass 3: refine, sonnet (no escalation)
+        assert metadata["pass_history"][2]["escalation_triggered"] is False
+
+    def test_build_metadata_confidence_evolution(self) -> None:
+        """Test that confidence_before and confidence_after are tracked correctly"""
+        from unittest.mock import MagicMock
+        from src.jeeves.api.services.queue_service import QueueService
+
+        def create_mock_pass(num: int, conf: float) -> MagicMock:
+            mock_conf = MagicMock()
+            mock_conf.overall = conf
+            mock_pass = MagicMock()
+            mock_pass.pass_number = num
+            mock_pass.pass_type = MagicMock(value="refine")
+            mock_pass.model_used = "sonnet"
+            mock_pass.duration_ms = 500.0
+            mock_pass.tokens_used = 300
+            mock_pass.confidence = mock_conf
+            return mock_pass
+
+        mock_result = MagicMock()
+        mock_result.passes_count = 3
+        mock_result.final_model = "sonnet"
+        mock_result.escalated = False
+        mock_result.stop_reason = "confidence_sufficient"
+        mock_result.high_stakes = False
+        mock_result.total_tokens = 900
+        mock_result.total_duration_ms = 1500.0
+        mock_result.pass_history = [
+            create_mock_pass(1, 0.45),
+            create_mock_pass(2, 0.72),
+            create_mock_pass(3, 0.91),
+        ]
+        mock_result.retrieved_context = None
+
+        service = QueueService.__new__(QueueService)
+        metadata = service._build_multi_pass_metadata(mock_result)
+
+        # Check confidence evolution
+        assert metadata["pass_history"][0]["confidence_before"] == 0.0
+        assert metadata["pass_history"][0]["confidence_after"] == 0.45
+
+        assert metadata["pass_history"][1]["confidence_before"] == 0.45
+        assert metadata["pass_history"][1]["confidence_after"] == 0.72
+
+        assert metadata["pass_history"][2]["confidence_before"] == 0.72
+        assert metadata["pass_history"][2]["confidence_after"] == 0.91
+
+
 class TestBadgeCalculation:
     """Tests for badge calculation logic (to be used in frontend)"""
 

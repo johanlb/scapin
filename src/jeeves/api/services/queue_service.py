@@ -1323,20 +1323,86 @@ class QueueService:
             "coherence_duplicates_detected": result.coherence_duplicates_detected,
             "coherence_confidence": result.coherence_confidence,
             "coherence_warnings": result.coherence_warnings,
-            # Additional multi-pass metadata
-            "multi_pass": {
-                "passes_count": result.passes_count,
-                "final_model": result.final_model,
-                "escalated": result.escalated,
-                "stop_reason": result.stop_reason,
-                "high_stakes": result.high_stakes,
-                "confidence_details": result.confidence.to_dict(),
-                "total_tokens": result.total_tokens,
-                "duration_ms": result.total_duration_ms,
-            },
+            # Additional multi-pass metadata (v2.3: Analysis Transparency)
+            "multi_pass": self._build_multi_pass_metadata(result),
             # v2.2.2: Context transparency
             "retrieved_context": result.retrieved_context,
             "context_influence": result.context_influence,
+        }
+
+    def _build_multi_pass_metadata(self, result: Any) -> dict[str, Any]:
+        """
+        Build multi-pass metadata dict for API response (v2.3 Analysis Transparency).
+
+        Includes:
+        - passes_count, final_model, models_used
+        - escalated, stop_reason, high_stakes
+        - total_tokens, total_duration_ms
+        - pass_history with per-pass details
+        """
+        # Build models_used list from pass_history
+        models_used: list[str] = []
+        pass_history: list[dict[str, Any]] = []
+
+        prev_confidence = 0.0
+        for i, pass_result in enumerate(result.pass_history):
+            model = getattr(pass_result, "model_used", "unknown")
+            models_used.append(model)
+
+            # Determine if context was searched (refine passes search context)
+            pass_type = getattr(pass_result, "pass_type", None)
+            pass_type_value = pass_type.value if hasattr(pass_type, "value") else str(pass_type)
+            context_searched = pass_type_value in ["refine", "deep"]
+
+            # Count notes found from retrieved_context if available
+            notes_found = 0
+            if context_searched and result.retrieved_context:
+                notes_found = len(result.retrieved_context.get("notes", []))
+
+            # Get confidence after this pass
+            confidence_after = getattr(pass_result, "confidence", None)
+            if confidence_after and hasattr(confidence_after, "overall"):
+                confidence_after = confidence_after.overall
+            elif isinstance(confidence_after, (int, float)):
+                pass  # Already a number
+            else:
+                confidence_after = 0.0
+
+            # Determine if escalation was triggered by this pass
+            # Escalation happens when moving from haiku to sonnet or sonnet to opus
+            escalation_triggered = False
+            if i > 0 and len(models_used) > 1:
+                prev_model = models_used[i - 1]
+                escalation_triggered = (
+                    (prev_model == "haiku" and model in ["sonnet", "opus"])
+                    or (prev_model == "sonnet" and model == "opus")
+                )
+
+            pass_history.append({
+                "pass_number": getattr(pass_result, "pass_number", i + 1),
+                "pass_type": pass_type_value,
+                "model": model,
+                "duration_ms": getattr(pass_result, "duration_ms", 0.0),
+                "tokens": getattr(pass_result, "tokens_used", 0),
+                "confidence_before": prev_confidence,
+                "confidence_after": float(confidence_after) if confidence_after else 0.0,
+                "context_searched": context_searched,
+                "notes_found": notes_found,
+                "escalation_triggered": escalation_triggered,
+            })
+
+            prev_confidence = float(confidence_after) if confidence_after else prev_confidence
+
+        return {
+            "passes_count": result.passes_count,
+            "final_model": result.final_model,
+            "models_used": models_used,
+            "escalated": result.escalated,
+            "stop_reason": result.stop_reason,
+            "high_stakes": result.high_stakes,
+            "total_tokens": result.total_tokens,
+            "total_duration_ms": result.total_duration_ms,
+            "pass_history": pass_history,
         }
 
     async def reanalyze_all_pending(self) -> dict[str, Any]:
