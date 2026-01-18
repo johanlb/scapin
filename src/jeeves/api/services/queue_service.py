@@ -1389,6 +1389,8 @@ class QueueService:
                 "context_searched": context_searched,
                 "notes_found": notes_found,
                 "escalation_triggered": escalation_triggered,
+                # v2.3.1: Thinking Bubbles - Questions/doubts for next pass
+                "questions": getattr(pass_result, "next_pass_questions", []),
             })
 
             prev_confidence = float(confidence_after) if confidence_after else prev_confidence

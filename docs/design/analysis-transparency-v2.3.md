@@ -751,6 +751,99 @@ Suite à une réflexion plus poussée, voici des idées complémentaires :
 
 ---
 
+### 8.11 "Thinking Bubbles" - Dialogue explicite entre passes (v2.3.1)
+
+**Problème** : L'utilisateur voit le résultat mais pas le processus de réflexion de l'IA.
+
+**Solution existante (backend)** : Le champ `next_pass_questions` dans `PassResult` permet aux passes de communiquer leurs doutes :
+
+```
+Pass 1 (Haiku, blind)
+  │
+  │ next_pass_questions: [
+  │   "Qui est 'Marie' mentionnée ?",
+  │   "Le 'Projet Alpha' existe-t-il dans les notes ?"
+  │ ]
+  ▼
+Pass 2 (Sonnet, avec contexte)
+  │ → Recherche contexte pour répondre aux questions
+  │ → Affiche les questions comme "Points d'attention spéciaux"
+  │
+  │ next_pass_questions: [
+  │   "Conflit détecté : Marie = Marie Dupont ou Marie Martin ?"
+  │ ]
+  ▼
+Pass 4 (Expert)
+  → Agrège toutes les questions non résolues
+  → Répond explicitement avant décision finale
+```
+
+**Ce qui existe déjà** :
+- `PassResult.next_pass_questions: list[str]` dans `convergence.py`
+- Parsing dans `MultiPassAnalyzer._parse_response`
+- Templates configurés (`pass1`, `pass2`, `pass4`)
+- Tests de vérification (`tests/verify_cooperation.py`)
+
+**Ce qui manque** :
+- Exposition API (`PassHistoryEntryResponse.questions`)
+- UI "Thinking Bubbles"
+
+**UI proposée** :
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Dans la liste Flux (compact)                                │
+│                                                             │
+│ 📧 Email complexe                        💭 ⚡ 🔍           │
+│    └─ 💭 = L'IA a eu des doutes (hover pour voir)          │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Dans la timeline (détail)                                   │
+│                                                             │
+│  ┌─ Pass 1 ─────────────────────────────────────────────┐  │
+│  │ 🟡 Haiku  •  blind  •  0.8s                          │  │
+│  │ Confidence: 45% → 67%                                 │  │
+│  │                                                       │  │
+│  │ 💭 Questions pour la suite:                          │  │
+│  │    • "Qui est 'Marie' ?"                             │  │
+│  │    • "Projet Alpha existe-t-il ?"                    │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─ Pass 2 ─────────────────────────────────────────────┐  │
+│  │ 🟠 Sonnet  •  refine  •  1.2s                        │  │
+│  │                                                       │  │
+│  │ ✅ Réponses trouvées:                                │  │
+│  │    • Marie = Marie Dupont (note trouvée)             │  │
+│  │    • Projet Alpha = existe (créé le 12/01)           │  │
+│  │                                                       │  │
+│  │ 💭 Nouveau doute:                                    │  │
+│  │    • "Deadline implicite ou explicite ?"             │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Implémentation API** :
+
+```python
+class PassHistoryEntryResponse(BaseModel):
+    # ... champs existants ...
+    questions: list[str] = Field(
+        default_factory=list,
+        description="Questions/doutes pour la passe suivante"
+    )
+```
+
+**Implémentation UI** :
+- Badge 💭 dans la liste si `pass_history.some(p => p.questions.length > 0)`
+- Tooltip/popover au hover montrant les questions
+- Dans la timeline : section collapsible par pass
+
+**Philosophie UX** : "Show Your Work" - Montrer les doutes de l'IA renforce la confiance plus qu'un silence face à l'incertitude.
+
+---
+
 ## 9. Décisions de design (Validées le 18/01/2026)
 
 ### 9.1 Badges
@@ -811,6 +904,18 @@ class ActionOption:
 - Simple ligne avec points aux valeurs de confiance
 - Couleur : dégradé du rouge (bas) au vert (haut)
 
+### 9.7 "Thinking Bubbles" (next_pass_questions)
+
+| Décision | Valeur |
+|----------|--------|
+| Champ API | `questions: list[str]` dans `PassHistoryEntryResponse` |
+| Badge liste | 💭 si au moins une passe a des questions |
+| Position badge | Avant les autres badges (💭 ⚡ 🔍 🧠 🏆) |
+| Affichage détail | Dans la timeline, section par passe |
+| Tooltip liste | "L'IA a eu des doutes pendant l'analyse" |
+
+**Source backend** : `PassResult.next_pass_questions` (déjà implémenté)
+
 ---
 
 ## 10. Scope retenu
@@ -824,6 +929,7 @@ class ActionOption:
 ### P1 - Fort impact (v2.3.1)
 | Idée | Description | Effort |
 |------|-------------|--------|
+| **Thinking Bubbles** | 💭 Afficher les doutes/questions de l'IA | ★★☆☆☆ |
 | **Timeline des passes** | Historique collapsible avec détails | ★★★☆☆ |
 | **Graphique confiance** | Sparkline de l'évolution 45% → 92% | ★★☆☆☆ |
 | **"Why not X?"** | Explication des alternatives rejetées | ★★☆☆☆ |
@@ -877,6 +983,7 @@ class PassHistoryEntryResponse(BaseModel):
     context_searched: bool
     notes_found: int
     escalation_triggered: bool
+    questions: list[str]      # v2.3.1: next_pass_questions (Thinking Bubbles)
 
 class MultiPassMetadataResponse(BaseModel):
     """Metadata from multi-pass analysis (v2.3)"""
@@ -952,6 +1059,7 @@ export interface PassHistoryEntry {
   context_searched: boolean;
   notes_found: number;
   escalation_triggered: boolean;
+  questions: string[];        // v2.3.1: Thinking Bubbles (next_pass_questions)
 }
 
 export interface MultiPassMetadata {

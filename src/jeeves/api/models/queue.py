@@ -131,6 +131,11 @@ class ActionOptionResponse(BaseModel):
     reasoning: str = Field(..., description="Explication courte de l'action")
     reasoning_detailed: str | None = Field(None, description="Explication détaillée de l'action")
     is_recommended: bool = Field(False, description="Option recommandée")
+    # v2.3.1: "Why not X?" - Reason this option was rejected (if not recommended)
+    rejection_reason: str | None = Field(
+        None,
+        description="Why this option was NOT chosen (for non-recommended options)"
+    )
 
 
 class ContextNoteResponse(BaseModel):
@@ -222,6 +227,11 @@ class PassHistoryEntryResponse(BaseModel):
     context_searched: bool = Field(False, description="Whether context was searched in this pass")
     notes_found: int = Field(0, description="Number of notes found (if context searched)")
     escalation_triggered: bool = Field(False, description="Whether this pass triggered escalation")
+    # v2.3.1: Thinking Bubbles - Questions/doubts for next pass
+    questions: list[str] = Field(
+        default_factory=list,
+        description="Questions/doubts the AI had for the next pass (Thinking Bubbles)"
+    )
 
 
 class MultiPassMetadataResponse(BaseModel):

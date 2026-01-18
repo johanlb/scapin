@@ -704,7 +704,7 @@ export interface ActionOption {
 	reasoning_detailed: string | null;
 	is_recommended: boolean;
 	/** v2.3.1: Why this option was NOT chosen (for non-recommended options) */
-	rejection_reason: string | null;
+	rejection_reason?: string | null;
 }
 
 // Sprint 2: Entity types
@@ -827,7 +827,7 @@ export interface PassHistoryEntry {
 	/** Whether this pass triggered escalation */
 	escalation_triggered: boolean;
 	/** v2.3.1: Questions/doubts the AI had for the next pass (Thinking Bubbles) */
-	questions: string[];
+	questions?: string[];
 }
 
 export interface MultiPassMetadata {
