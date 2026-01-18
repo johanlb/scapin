@@ -5,7 +5,7 @@ Provides:
 - Timing decorators and context managers
 - Large dataset fixtures
 - Benchmark assertion helpers
-- Memory profiling utilities
+- Event creation helpers
 """
 
 import time
@@ -17,7 +17,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.core.events.universal_event import Entity, PerceivedEvent, Sender
+from src.core.events.universal_event import (
+    Entity,
+    EventSource,
+    EventType,
+    PerceivedEvent,
+    UrgencyLevel,
+    now_utc,
+)
 from src.sancho.convergence import (
     DecomposedConfidence,
     Extraction,
@@ -136,6 +143,52 @@ class PerformanceThresholds:
 
 
 # ============================================================================
+# Event Creation Helpers
+# ============================================================================
+
+
+def create_test_event(
+    event_id: str = "test-001",
+    title: str = "Test Email",
+    content: str = "Test content",
+    from_person: str = "sender@example.com",
+    entities: list[Entity] | None = None,
+    event_type: EventType = EventType.INFORMATION,
+    urgency: UrgencyLevel = UrgencyLevel.MEDIUM,
+) -> PerceivedEvent:
+    """Create a PerceivedEvent for testing with sensible defaults"""
+    now = now_utc()
+    return PerceivedEvent(
+        event_id=event_id,
+        source=EventSource.EMAIL,
+        source_id=f"email_{event_id}",
+        occurred_at=now,
+        received_at=now,
+        title=title,
+        content=content,
+        event_type=event_type,
+        urgency=urgency,
+        entities=entities or [],
+        topics=[],
+        keywords=[],
+        from_person=from_person,
+        to_people=["recipient@example.com"],
+        cc_people=[],
+        thread_id=None,
+        references=[],
+        in_reply_to=None,
+        has_attachments=False,
+        attachment_count=0,
+        attachment_types=[],
+        urls=[],
+        metadata={},
+        perception_confidence=0.8,
+        needs_clarification=False,
+        clarification_questions=[],
+    )
+
+
+# ============================================================================
 # Large Dataset Fixtures
 # ============================================================================
 
@@ -173,31 +226,22 @@ def large_event_dataset():
 
     def _generate(count: int = 100):
         events = []
-        actions = ["archive", "flag", "reply", "task", "delete"]
-        categories = ["work", "personal", "finance", "newsletter"]
 
         for i in range(count):
-            event = PerceivedEvent(
+            event = create_test_event(
                 event_id=f"event-{i:04d}",
-                event_type="email",
-                source="imap",
-                timestamp=datetime.now(timezone.utc) - timedelta(hours=i),
-                sender=Sender(
-                    name=f"Sender {i}",
-                    email=f"sender{i}@example.com",
-                    is_known=i % 3 == 0,
-                ),
                 title=f"Email Subject {i}",
                 content=f"Email content {i}. " * 100,  # ~1500 chars
+                from_person=f"sender{i}@example.com",
                 entities=[
                     Entity(
                         value=f"Person {i}",
-                        type=person,
+                        type="person",
                         confidence=0.85,
                     ),
                     Entity(
                         value=f"2026-01-{(i % 28) + 1:02d}",
-                        type=EntityType.DATE,
+                        type="date",
                         confidence=0.9,
                     ),
                 ],
@@ -256,6 +300,8 @@ def mock_ai_router_fast():
 
     Simulates typical API latency (100-200ms) without actual API calls.
     """
+    import asyncio
+
     router = AsyncMock()
 
     async def mock_call(prompt: str, model: Any = None, **kwargs):
@@ -282,6 +328,8 @@ def mock_context_searcher_fast():
 
     Simulates typical search latency (50-100ms).
     """
+    import asyncio
+
     from src.sancho.context_searcher import (
         NoteContextBlock,
         StructuredContext,
@@ -321,16 +369,8 @@ def mock_context_searcher_fast():
 @pytest.fixture
 def sample_perceived_event():
     """Create a sample PerceivedEvent for testing"""
-    return PerceivedEvent(
+    return create_test_event(
         event_id="test-event-001",
-        event_type="email",
-        source="imap",
-        timestamp=datetime.now(timezone.utc),
-        sender=Sender(
-            name="Marc Dupont",
-            email="marc.dupont@acme.com",
-            is_known=True,
-        ),
         title="Re: Budget Q1 - Validation requise",
         content="""
         Bonjour Johan,
@@ -346,11 +386,12 @@ def sample_perceived_event():
         Marc Dupont
         Tech Lead - Acme Corp
         """,
+        from_person="marc.dupont@acme.com",
         entities=[
-            Entity(value="Marc Dupont", type=person, confidence=0.95),
-            Entity(value="15000", type=EntityType.MONEY, confidence=0.9),
-            Entity(value="2026-01-31", type=EntityType.DATE, confidence=0.85),
-            Entity(value="Projet Alpha", type=EntityType.PROJECT, confidence=0.8),
+            Entity(value="Marc Dupont", type="person", confidence=0.95),
+            Entity(value="15000", type="money", confidence=0.9),
+            Entity(value="2026-01-31", type="date", confidence=0.85),
+            Entity(value="Projet Alpha", type="project", confidence=0.8),
         ],
     )
 
@@ -401,7 +442,3 @@ def multi_pass_config():
         high_stakes_amount_threshold=10000,
         high_stakes_deadline_hours=48,
     )
-
-
-# Import asyncio for async fixtures
-import asyncio

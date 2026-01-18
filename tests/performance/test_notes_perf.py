@@ -88,7 +88,7 @@ def note_manager_perf(large_notes_dir):
     from src.passepartout.note_manager import NoteManager
 
     manager = NoteManager(
-        notes_path=large_notes_dir,
+        notes_dir=large_notes_dir,
         auto_index=True,
     )
     return manager
@@ -246,7 +246,7 @@ title: New Note {i}
 
         with measure_time("build_metadata_index") as metrics:
             manager = NoteManager(
-                notes_path=large_notes_dir,
+                notes_dir=large_notes_dir,
                 auto_index=True,
             )
             _ = manager.get_notes_summary()
@@ -266,7 +266,7 @@ title: New Note {i}
 
         with measure_time("load_metadata_index") as metrics:
             manager = NoteManager(
-                notes_path=large_notes_dir,
+                notes_dir=large_notes_dir,
                 auto_index=False,
             )
             summaries = manager.get_notes_summary()
@@ -415,7 +415,7 @@ Content content content.
         from src.passepartout.note_manager import NoteManager
 
         manager = NoteManager(
-            notes_path=very_large_notes_dir,
+            notes_dir=very_large_notes_dir,
             auto_index=True,
         )
 
@@ -432,7 +432,7 @@ Content content content.
         from src.passepartout.note_manager import NoteManager
 
         manager = NoteManager(
-            notes_path=very_large_notes_dir,
+            notes_dir=very_large_notes_dir,
             auto_index=True,
         )
 

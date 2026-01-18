@@ -344,7 +344,7 @@ class MultiPassAnalyzer:
             logger.debug(f"Searching context for entities: {current_result.entities_discovered}")
             context = await self.context_searcher.search_for_entities(
                 list(current_result.entities_discovered),
-                sender_email=getattr(event.sender, "email", None) if event.sender else None,
+                sender_email=getattr(event, "from_person", None),
             )
 
             # Update analysis context with conflict info
@@ -1221,7 +1221,7 @@ class MultiPassAnalyzer:
         # Get text for analysis
         # PerceivedEvent uses from_person (string), not sender object
         from_person = (getattr(event, "from_person", "") or "").lower()
-        sender_email = (getattr(event.sender, "email", "") or "").lower() if event.sender else ""
+        sender_email = from_person  # from_person is already the email address
         title = (getattr(event, "title", "") or "").lower()
         content = getattr(event, "content", "") or ""
         full_text = f"{title} {content}".lower()

@@ -426,10 +426,8 @@ class NoteManager:
 
     def _rebuild_metadata_index(self) -> int:
         """
-        Rebuild metadata index from filesystem (ULTRA-FAST - no file reads)
-
-        CRITICAL: Notes folder is on iCloud Drive which has ~1.6s latency per file read.
-        This function NEVER reads file content - only uses filesystem metadata.
+        Rebuild metadata index from filesystem.
+        Now reads frontmatter for accurate dates while remaining reasonably fast.
 
         Returns:
             Number of notes indexed
@@ -440,44 +438,31 @@ class NoteManager:
         self._notes_metadata.clear()
         count = 0
 
-        for file_path in visible_files:
-            try:
-                note_id = file_path.stem
-
-                # ULTRA-FAST: NO FILE READS - only filesystem metadata
-                # Title defaults to filename (cleaned up)
-                title = note_id.replace("-", " ").replace("_", " ")
-
-                # Get path from file location
-                try:
-                    rel_path = file_path.relative_to(self.notes_dir)
-                    path = str(rel_path.parent) if rel_path.parent != Path(".") else ""
-                except ValueError:
+        # Use parallel execution to read frontmatter from all files
+        max_workers = min(32, len(visible_files) + 1)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Map over _read_note_file but we only need it for metadata
+            for note in executor.map(self._read_note_file, visible_files):
+                if note:
+                    # Determine path
                     path = ""
+                    if note.file_path:
+                        try:
+                            rel_path = note.file_path.relative_to(self.notes_dir)
+                            path = str(rel_path.parent) if rel_path.parent != Path(".") else ""
+                        except ValueError:
+                            pass
 
-                # Get dates from file stats only (fast syscall, no content read)
-                stat = file_path.stat()
-                mtime = stat.st_mtime
-                ctime = stat.st_birthtime if hasattr(stat, "st_birthtime") else stat.st_ctime
-                updated_at = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
-                created_at_str = datetime.fromtimestamp(ctime, tz=timezone.utc).isoformat()
-
-                self._notes_metadata[note_id] = {
-                    "title": title,
-                    "path": path,
-                    "created_at": created_at_str,
-                    "updated_at": updated_at,
-                    "pinned": False,  # Loaded when note is accessed
-                    "tags": [],  # Loaded when note is accessed
-                    "excerpt": "",  # Loaded when note is accessed
-                }
-                count += 1
-
-            except Exception as e:
-                logger.warning(
-                    "Failed to index note metadata",
-                    extra={"file": str(file_path), "error": str(e)},
-                )
+                    self._notes_metadata[note.note_id] = {
+                        "title": note.title,
+                        "path": path,
+                        "created_at": note.created_at.isoformat() if note.created_at else None,
+                        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+                        "pinned": note.metadata.get("pinned", False),
+                        "tags": note.tags or [],
+                        "excerpt": note.content[:200] if note.content else "",
+                    }
+                    count += 1
 
         self._save_metadata_index()
         logger.info("Rebuilt metadata index", extra={"count": count})
@@ -1197,6 +1182,26 @@ class NoteManager:
                     # Always cache the note
                     with self._cache_lock:
                         self._cache_put(note.note_id, note)
+
+                    # Also populate metadata index during full indexing
+                    # This ensures metadata index has "real" dates from frontmatter
+                    path = ""
+                    try:
+                        rel_path = file_path.relative_to(self.notes_dir)
+                        path = str(rel_path.parent) if rel_path.parent != Path(".") else ""
+                    except ValueError:
+                        pass
+
+                    self._notes_metadata[note.note_id] = {
+                        "title": note.title,
+                        "path": path,
+                        "created_at": note.created_at.isoformat() if note.created_at else None,
+                        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+                        "pinned": note.metadata.get("pinned", False),
+                        "tags": note.tags or [],
+                        "excerpt": note.content[:200] if note.content else "",
+                    }
+
                     count += 1
 
                     # Batch index when we have enough notes

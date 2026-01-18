@@ -1,0 +1,803 @@
+# Analysis Transparency v2.3 - Design Document
+
+**Version** : Draft v0.1
+**Date** : 18 janvier 2026
+**Auteur** : Claude Code
+**Statut** : Proposition
+
+---
+
+## 1. Contexte et Motivation
+
+### 1.1 Problème actuel
+
+Le système Multi-Pass v2.2 capture des métadonnées riches sur l'analyse, mais l'utilisateur n'y a pas accès :
+
+| Donnée capturée | Exposée à l'API | Affichée UI |
+|-----------------|-----------------|-------------|
+| `passes_count` | Non | Non |
+| `final_model` | Non | Non |
+| `escalated` | Non | Non |
+| `stop_reason` | Non | Non |
+| `pass_history` | Non | Non |
+| `total_tokens` | Non | Non |
+| `total_duration_ms` | Non | Non |
+| `retrieved_context` | Oui | Oui (si non-null) |
+| `context_influence` | Oui | Oui (si non-null) |
+
+**Conséquence** : L'utilisateur ne comprend pas pourquoi certains emails ont du contexte et d'autres non.
+
+### 1.2 Cas d'usage cibles
+
+1. **Comprendre une décision** : "Pourquoi Scapin a classé cet email comme urgent ?"
+2. **Debugger une mauvaise analyse** : "Quel modèle a été utilisé ? Le contexte a-t-il été consulté ?"
+3. **Suivre une réanalyse** : "Où en est l'analyse ? Que se passe-t-il ?"
+4. **Apprendre le système** : "Comment Scapin fonctionne-t-il ?"
+
+---
+
+## 2. Propositions
+
+### 2.1 Niveau 1 : Métadonnées d'analyse (Quick Win)
+
+**Objectif** : Exposer les métadonnées existantes dans l'API et les afficher.
+
+#### 2.1.1 Nouveau modèle API
+
+```python
+class MultiPassMetadata(BaseModel):
+    """Metadata from multi-pass analysis"""
+
+    passes_count: int = Field(..., description="Number of passes executed")
+    final_model: str = Field(..., description="Model used in final pass")
+    escalated: bool = Field(False, description="Whether escalation occurred")
+    stop_reason: str = Field("", description="Why analysis stopped")
+    high_stakes: bool = Field(False, description="High-stakes email flag")
+    total_tokens: int = Field(0, description="Total tokens consumed")
+    total_duration_ms: float = Field(0, description="Total analysis time in ms")
+    confidence_details: ConfidenceDetails | None = Field(None)
+
+
+class PassHistoryEntry(BaseModel):
+    """Single pass in analysis history"""
+
+    pass_number: int
+    pass_type: str  # blind_extraction, contextual_refinement, convergence, deep_reasoning
+    model: str
+    duration_ms: float
+    tokens: int
+    confidence_before: float
+    confidence_after: float
+    escalation_triggered: bool = False
+    context_searched: bool = False
+    notes_found: int = 0
+```
+
+#### 2.1.2 UI - Section "Analyse"
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🔬 Analyse                                                  │
+│                                                             │
+│  ○───○───●      3 passes  •  Haiku → Sonnet                │
+│                                                             │
+│  ⏱ 2.3s   💬 1,247 tokens   📈 Escalade: oui               │
+│  🛑 Arrêt: confidence_sufficient                            │
+│                                                             │
+│  [▼ Voir l'historique des passes]                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Effort estimé** : 2-3h (API + UI)
+
+---
+
+### 2.2 Niveau 2 : Timeline des passes (Détail)
+
+**Objectif** : Permettre de comprendre le cheminement de l'analyse.
+
+#### 2.2.1 UI - Historique collapsible
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 📊 Historique des passes                               [▲]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─ Pass 1 ─────────────────────────────────────────────┐  │
+│  │ 🟡 Haiku  •  blind_extraction  •  0.8s  •  312 tok   │  │
+│  │                                                       │  │
+│  │ Extraction aveugle sans contexte                      │  │
+│  │ Confidence: 45% → 67%                                 │  │
+│  │ 📈 Escalade décidée (< 85% et high_stakes)           │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─ Pass 2 ─────────────────────────────────────────────┐  │
+│  │ 🟠 Sonnet  •  contextual_refinement  •  1.2s         │  │
+│  │                                                       │  │
+│  │ 🔍 Recherche contexte:                               │  │
+│  │    Entités: "Johan Labeeuw", "Acme Corp"             │  │
+│  │    Notes trouvées: 3                                  │  │
+│  │    Calendrier: 1 événement                            │  │
+│  │                                                       │  │
+│  │ Confidence: 67% → 85%                                 │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─ Pass 3 ─────────────────────────────────────────────┐  │
+│  │ 🟠 Sonnet  •  convergence  •  0.3s  •  346 tok       │  │
+│  │                                                       │  │
+│  │ Validation et convergence                             │  │
+│  │ Confidence: 85% → 92%                                 │  │
+│  │ ✅ Arrêt: confidence_sufficient                       │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 2.2.2 Couleurs par modèle
+
+| Modèle | Couleur | Signification |
+|--------|---------|---------------|
+| Haiku | 🟡 Jaune | Rapide, économique |
+| Sonnet | 🟠 Orange | Équilibré |
+| Opus | 🔴 Rouge | Puissant, coûteux |
+
+**Effort estimé** : 3-4h
+
+---
+
+### 2.3 Niveau 3 : Temps réel pendant réanalyse (WebSocket)
+
+**Objectif** : Feedback immédiat pendant l'analyse.
+
+#### 2.3.1 Nouveaux événements WebSocket
+
+```typescript
+// Événements granulaires pour le suivi temps réel
+interface AnalysisStartedEvent {
+  type: 'analysis_started';
+  item_id: string;
+  email_subject: string;
+  estimated_passes: number;  // 1-5 based on complexity hints
+}
+
+interface PassStartedEvent {
+  type: 'pass_started';
+  item_id: string;
+  pass_number: number;
+  pass_type: 'blind_extraction' | 'contextual_refinement' | 'convergence' | 'deep_reasoning' | 'coherence_validation';
+  model: 'haiku' | 'sonnet' | 'opus';
+}
+
+interface ContextSearchingEvent {
+  type: 'context_searching';
+  item_id: string;
+  entities_searching: string[];
+  sources: string[];  // ['notes', 'calendar', 'tasks']
+}
+
+interface ContextFoundEvent {
+  type: 'context_found';
+  item_id: string;
+  notes_count: number;
+  calendar_count: number;
+  tasks_count: number;
+  entity_profiles_count: number;
+}
+
+interface PassCompletedEvent {
+  type: 'pass_completed';
+  item_id: string;
+  pass_number: number;
+  confidence: number;
+  decision: 'continue' | 'escalate' | 'stop';
+  reason?: string;
+}
+
+interface AnalysisCompletedEvent {
+  type: 'analysis_completed';
+  item_id: string;
+  total_passes: number;
+  final_confidence: number;
+  action: string;
+}
+
+interface AnalysisErrorEvent {
+  type: 'analysis_error';
+  item_id: string;
+  error: string;
+  recoverable: boolean;
+}
+```
+
+#### 2.3.2 UI - Composant AnalysisProgress
+
+```svelte
+<!-- Pendant la réanalyse -->
+<div class="analysis-progress">
+  <!-- Stepper visuel -->
+  <div class="stepper">
+    {#each passes as pass, i}
+      <div class="step" class:active={i === currentPass} class:completed={i < currentPass}>
+        <div class="step-circle">
+          {#if i < currentPass}
+            ✓
+          {:else if i === currentPass}
+            <Spinner size="sm" />
+          {:else}
+            {i + 1}
+          {/if}
+        </div>
+        <div class="step-label">{pass.type}</div>
+        <div class="step-model">{pass.model}</div>
+      </div>
+      {#if i < passes.length - 1}
+        <div class="step-connector" class:active={i < currentPass}></div>
+      {/if}
+    {/each}
+  </div>
+
+  <!-- Message en cours -->
+  <div class="current-action">
+    {#if currentAction === 'searching_context'}
+      <SearchingAnimation />
+      <span>Recherche de contexte pour "{currentEntity}"...</span>
+    {:else if currentAction === 'analyzing'}
+      <ThinkingAnimation />
+      <span>Analyse en cours avec {currentModel}...</span>
+    {:else if currentAction === 'validating'}
+      <CheckAnimation />
+      <span>Validation de la cohérence...</span>
+    {/if}
+  </div>
+
+  <!-- Log temps réel -->
+  <div class="live-log">
+    {#each logEntries as entry}
+      <div class="log-entry" class:success={entry.type === 'success'}>
+        <span class="timestamp">{entry.time}</span>
+        <span class="message">{entry.message}</span>
+      </div>
+    {/each}
+  </div>
+</div>
+```
+
+#### 2.3.3 États visuels
+
+| État | Visuel | Son (optionnel) |
+|------|--------|-----------------|
+| Démarrage | Pulse bleu | - |
+| Pass en cours | Spinner + couleur modèle | - |
+| Contexte trouvé | Flash vert | Subtle ding |
+| Escalade | Transition couleur | - |
+| Terminé | Check vert | Success chime |
+| Erreur | Badge rouge | - |
+
+**Effort estimé** : 6-8h (Backend + WebSocket + UI)
+
+---
+
+### 2.4 Niveau 4 : Badge de complexité (Liste Flux)
+
+**Objectif** : Vue d'ensemble rapide de la "profondeur" d'analyse.
+
+#### 2.4.1 Badges proposés
+
+| Badge | Condition | Tooltip |
+|-------|-----------|---------|
+| `⚡` | 1 pass, Haiku | "Analyse rapide (1 pass)" |
+| `⚡⚡` | 2 passes, no escalation | "Analyse standard (2 passes)" |
+| `🔍` | Context searched | "Contexte utilisé" |
+| `🧠` | 3+ passes | "Analyse approfondie" |
+| `🏆` | Opus used | "Modèle premium utilisé" |
+| `⚠️` | High stakes | "Email à enjeux" |
+
+#### 2.4.2 Affichage compact
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 📧 Facture Acme Corp                          ⚡ 🔍        │
+│    Il y a 2h • johan@example.com                            │
+├─────────────────────────────────────────────────────────────┤
+│ 📧 Proposition partenariat stratégique        🧠 🏆 ⚠️     │
+│    Il y a 5h • ceo@bigcorp.com                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Effort estimé** : 1-2h
+
+---
+
+## 3. Architecture technique
+
+### 3.1 Flux de données actuel
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ MultiPass   │────▶│ QueueService│────▶│ API Response│
+│ Analyzer    │     │ (conversion)│     │ (truncated) │
+└─────────────┘     └─────────────┘     └─────────────┘
+      │                                        │
+      │ multi_pass: {                          │ ❌ multi_pass
+      │   passes_count,                        │    non inclus
+      │   final_model,                         │
+      │   pass_history...                      │
+      │ }                                      │
+      ▼                                        ▼
+  Stocké en DB                            Perdu pour UI
+```
+
+### 3.2 Flux de données proposé
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ MultiPass   │────▶│ QueueService│────▶│ API Response│
+│ Analyzer    │     │ (enriched)  │     │ (complete)  │
+└─────────────┘     └─────────────┘     └─────────────┘
+      │                    │                   │
+      │ Événements WS      │                   │ multi_pass: {
+      ▼                    ▼                   │   ...
+┌─────────────┐     ┌─────────────┐           │ }
+│ WebSocket   │────▶│  Frontend   │           │ pass_history: [
+│ Hub         │     │  (live)     │           │   ...
+└─────────────┘     └─────────────┘           │ ]
+                                              ▼
+                                          UI complète
+```
+
+### 3.3 Points d'émission WebSocket
+
+```python
+# Dans multi_pass_analyzer.py
+
+async def analyze(self, event: EmailEvent) -> MultiPassResult:
+    # Émettre début d'analyse
+    await self._emit_event(AnalysisStartedEvent(
+        item_id=event.id,
+        email_subject=event.subject,
+        estimated_passes=self._estimate_complexity(event)
+    ))
+
+    for pass_num in range(1, self.max_passes + 1):
+        pass_type = self._get_pass_type(pass_num)
+        model = self._select_model(pass_num)
+
+        # Émettre début de pass
+        await self._emit_event(PassStartedEvent(
+            item_id=event.id,
+            pass_number=pass_num,
+            pass_type=pass_type,
+            model=model
+        ))
+
+        if pass_type == 'contextual_refinement':
+            # Émettre recherche contexte
+            await self._emit_event(ContextSearchingEvent(...))
+
+            context = await self._search_context(...)
+
+            # Émettre contexte trouvé
+            await self._emit_event(ContextFoundEvent(...))
+
+        result = await self._execute_pass(...)
+
+        # Émettre fin de pass
+        await self._emit_event(PassCompletedEvent(
+            item_id=event.id,
+            pass_number=pass_num,
+            confidence=result.confidence,
+            decision=self._decide_next(result)
+        ))
+
+        if self._should_stop(result):
+            break
+
+    # Émettre fin d'analyse
+    await self._emit_event(AnalysisCompletedEvent(...))
+```
+
+---
+
+## 4. Considérations UX
+
+### 4.1 Progressive Disclosure
+
+L'information doit être présentée en couches :
+
+| Niveau | Visible par défaut | Contenu |
+|--------|-------------------|---------|
+| 1 | Oui | Badge complexité + résumé 1 ligne |
+| 2 | Collapse fermé | Timeline des passes |
+| 3 | Collapse fermé | Détails techniques (tokens, timing) |
+| 4 | Mode debug | JSON brut |
+
+### 4.2 Performance
+
+- Les événements WebSocket doivent être **throttled** (max 1/100ms)
+- L'historique des passes peut être **lazy loaded** au clic
+- Le badge complexité doit être **calculé côté serveur** (pas de logique UI)
+
+### 4.3 Accessibilité
+
+- Les animations doivent respecter `prefers-reduced-motion`
+- Les couleurs doivent avoir un contraste suffisant
+- Le stepper doit être navigable au clavier
+
+---
+
+## 5. Métriques de succès
+
+| Métrique | Baseline | Cible |
+|----------|----------|-------|
+| Temps pour comprendre une analyse | ? (non mesuré) | < 5s |
+| Questions support "pourquoi cette décision" | ? | -50% |
+| Satisfaction utilisateur (debug) | ? | > 4/5 |
+| Latence perçue réanalyse | "long" | "acceptable" |
+
+---
+
+## 6. Phases d'implémentation
+
+### Phase 1 : Fondations (v2.3.0)
+- [ ] Exposer `multi_pass` dans l'API
+- [ ] Afficher métadonnées de base dans UI
+- [ ] Badge complexité dans liste Flux
+
+### Phase 2 : Timeline (v2.3.1)
+- [ ] Historique des passes collapsible
+- [ ] Couleurs par modèle
+- [ ] Détails par pass
+
+### Phase 3 : Temps réel (v2.3.2)
+- [ ] Nouveaux événements WebSocket
+- [ ] Composant AnalysisProgress
+- [ ] Intégration réanalyse
+
+### Phase 4 : Polish (v2.3.3)
+- [ ] Animations
+- [ ] Sons (optionnel)
+- [ ] Mode debug complet
+
+---
+
+## 7. Questions ouvertes
+
+1. **Persistance** : Faut-il stocker l'historique complet des passes en DB ou seulement les métadonnées ?
+2. **Rétrocompatibilité** : Comment gérer les analyses existantes sans `multi_pass` ?
+3. **Mobile** : La timeline est-elle adaptée aux petits écrans ?
+4. **Internationalisation** : Les `pass_type` doivent-ils être traduits ?
+
+---
+
+## 8. Idées avancées (Analyse approfondie)
+
+Suite à une réflexion plus poussée, voici des idées complémentaires :
+
+### 8.1 "Why not X?" - Explication des alternatives rejetées
+
+**Problème** : L'utilisateur voit l'action recommandée mais pas pourquoi les autres ont été écartées.
+
+**Solution** : Section "Alternatives considérées"
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🤔 Pourquoi pas...                                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ ❌ ARCHIVE (confiance: 34%)                                 │
+│    "Contient une question directe nécessitant réponse"      │
+│                                                             │
+│ ❌ DELEGATE (confiance: 12%)                                │
+│    "Aucun destinataire évident dans le contexte"            │
+│                                                             │
+│ ⚠️ REPLY (confiance: 78%) ← Recommandé                      │
+│    "Question directe + deadline implicite"                  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Implémentation** : Déjà capturé dans `options` mais pas affiché avec les raisons de rejet.
+
+---
+
+### 8.2 Graphique d'évolution de la confiance
+
+**Problème** : Difficile de visualiser comment la confiance évolue entre les passes.
+
+**Solution** : Mini-graphique sparkline
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 📈 Évolution de la confiance                                │
+│                                                             │
+│ 100% ┤                                    ●────────────     │
+│  90% ┤                              ●─────┘                 │
+│  80% ┤                        ●─────┘                       │
+│  70% ┤                  ●─────┘                             │
+│  60% ┤            ●─────┘                                   │
+│  50% ┤      ●─────┘                                         │
+│  40% ┤●─────┘                                               │
+│      └──────┬──────┬──────┬──────┬──────┬──────────────     │
+│           Pass 1  Pass 2  Pass 3  Pass 4  Final             │
+│           Haiku   Sonnet  Sonnet  Sonnet                    │
+│                                                             │
+│ Seuil d'arrêt: 90% ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Bibliothèque** : `unovis` (déjà utilisé) ou simple SVG inline.
+
+---
+
+### 8.3 Transparence des coûts
+
+**Problème** : L'utilisateur ne sait pas combien coûte une analyse.
+
+**Solution** : Afficher le coût estimé en tokens et en euros/dollars
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 💰 Coût de l'analyse                                        │
+│                                                             │
+│ Tokens: 1,247 (input: 892, output: 355)                     │
+│ Coût estimé: ~0.003€                                        │
+│                                                             │
+│ 📊 Comparaison:                                             │
+│ ├─ Cette analyse: ████░░░░░░ (moyenne)                      │
+│ ├─ Moyenne globale: 1,100 tokens                            │
+│ └─ Email le plus coûteux: 8,432 tokens                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Note** : Utile pour comprendre quand Opus est utilisé (10x plus cher).
+
+---
+
+### 8.4 Mode "Replay" - Debugger d'analyse
+
+**Problème** : Pour les cas complexes, l'utilisateur veut comprendre étape par étape.
+
+**Solution** : Interface de replay interactive
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🔬 Mode Replay                              [◀ ▶] Step 3/7  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ ┌─ État actuel ─────────────────────────────────────────┐  │
+│ │ Pass: 2 (contextual_refinement)                       │  │
+│ │ Modèle: Sonnet                                         │  │
+│ │ Confiance: 67%                                         │  │
+│ └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│ ┌─ Prompt envoyé ───────────────────────────────────────┐  │
+│ │ Tu es un assistant... [Voir complet]                  │  │
+│ └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│ ┌─ Contexte injecté ────────────────────────────────────┐  │
+│ │ • Note: "Johan Labeeuw" (relevance: 0.89)             │  │
+│ │ • Calendrier: "RDV Acme" (demain 14h)                 │  │
+│ └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│ ┌─ Réponse IA ──────────────────────────────────────────┐  │
+│ │ { "action": "REPLY", "confidence": 0.85, ... }        │  │
+│ └───────────────────────────────────────────────────────┘  │
+│                                                             │
+│ [◀ Précédent]                              [Suivant ▶]     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Cas d'usage** : Debug avancé, formation, audit.
+
+---
+
+### 8.5 Score de contribution du contexte
+
+**Problème** : On sait quel contexte a été trouvé, mais pas son impact réel.
+
+**Solution** : Score de contribution par élément
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🎯 Impact du contexte sur la décision                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ Note "Johan Labeeuw"                                        │
+│ ████████████████████░░░░░ 78% d'influence                  │
+│ "A confirmé la relation professionnelle avec l'expéditeur"  │
+│                                                             │
+│ Calendrier "RDV Acme Corp"                                  │
+│ ██████████░░░░░░░░░░░░░░░ 42% d'influence                  │
+│ "A justifié l'urgence de la réponse"                        │
+│                                                             │
+│ Note "Projet Alpha"                                         │
+│ ███░░░░░░░░░░░░░░░░░░░░░░ 12% d'influence                  │
+│ "Contexte mineur, non déterminant"                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Implémentation** : Demander à l'IA d'évaluer l'influence de chaque élément.
+
+---
+
+### 8.6 Comparaison A/B d'analyses
+
+**Problème** : Après une réanalyse, difficile de voir ce qui a changé.
+
+**Solution** : Vue diff côte à côte
+
+```
+┌──────────────────────────┬──────────────────────────────────┐
+│ Analyse originale        │ Réanalyse (Opus)                 │
+├──────────────────────────┼──────────────────────────────────┤
+│ Action: ARCHIVE          │ Action: REPLY ← Changé           │
+│ Confiance: 72%           │ Confiance: 94% ↑                 │
+│ Passes: 2                │ Passes: 4 ↑                      │
+│ Modèle: Haiku            │ Modèle: Opus ↑                   │
+│                          │                                  │
+│ Contexte: aucun          │ Contexte: 3 notes ← Nouveau      │
+│                          │                                  │
+│ Reasoning:               │ Reasoning:                       │
+│ "Email promotionnel      │ "Email de Johan Labeeuw,         │
+│ sans action requise"     │ contact professionnel important, │
+│                          │ question nécessitant réponse"    │
+└──────────────────────────┴──────────────────────────────────┘
+```
+
+---
+
+### 8.7 Prédiction de précision
+
+**Problème** : L'utilisateur ne sait pas si Scapin a tendance à se tromper sur ce type d'email.
+
+**Solution** : Indicateur basé sur l'historique
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🎯 Fiabilité estimée                                        │
+│                                                             │
+│ Pour ce type d'email (facture, expéditeur connu):           │
+│ ████████████████████░░░░░ 85% de précision historique       │
+│                                                             │
+│ Basé sur 23 emails similaires traités                       │
+│ • 20 décisions confirmées par l'utilisateur                 │
+│ • 3 corrections manuelles                                   │
+│                                                             │
+│ ⚠️ Attention: Confiance plus basse que d'habitude (72%)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Implémentation** : Utiliser Sganarelle (apprentissage) pour calculer.
+
+---
+
+### 8.8 Export et audit trail
+
+**Problème** : Pour des raisons de compliance ou debug, besoin d'exporter l'analyse.
+
+**Solution** : Bouton d'export
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 📥 Exporter l'analyse                                       │
+│                                                             │
+│ ○ JSON complet (technique)                                  │
+│ ○ PDF rapport (lisible)                                     │
+│ ○ Markdown (documentation)                                  │
+│                                                             │
+│ Inclure:                                                    │
+│ ☑ Métadonnées de l'email                                   │
+│ ☑ Historique des passes                                    │
+│ ☑ Contexte utilisé                                         │
+│ ☐ Prompts complets (sensible)                              │
+│ ☐ Réponses IA brutes (sensible)                            │
+│                                                             │
+│ [Exporter]                                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 8.9 Suggestions d'amélioration
+
+**Problème** : L'utilisateur ne sait pas comment améliorer les analyses futures.
+
+**Solution** : Recommandations contextuelles
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 💡 Pour améliorer les analyses futures                      │
+│                                                             │
+│ Cette analyse aurait pu être meilleure si:                  │
+│                                                             │
+│ • Une note "Acme Corp" existait avec les contacts clés      │
+│   [+ Créer cette note]                                      │
+│                                                             │
+│ • Le calendrier contenait plus de contexte sur ce projet    │
+│   [Voir événement]                                          │
+│                                                             │
+│ • L'expéditeur était dans votre carnet d'adresses           │
+│   [+ Ajouter contact]                                       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 8.10 Mode "Explain Like I'm 5" (ELI5)
+
+**Problème** : Les détails techniques ne sont pas accessibles à tous.
+
+**Solution** : Explication simplifiée en langage naturel
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🧒 En résumé simple                                         │
+│                                                             │
+│ "J'ai lu cet email 3 fois pour bien le comprendre.          │
+│  La première fois, je n'étais pas sûr (67%).                │
+│  Alors j'ai cherché dans tes notes et ton calendrier.       │
+│  J'ai trouvé que tu connais cette personne (Johan).         │
+│  Et tu as un rendez-vous avec son entreprise demain.        │
+│  Du coup, je pense qu'il faut répondre vite (92% sûr)."     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Implémentation** : Générer via un prompt supplémentaire ou template.
+
+---
+
+## 9. Matrice de priorisation
+
+| Idée | Impact UX | Effort | Priorité |
+|------|-----------|--------|----------|
+| Métadonnées de base | ★★★★★ | ★★☆☆☆ | **P0** |
+| Badge complexité | ★★★★☆ | ★☆☆☆☆ | **P0** |
+| Timeline des passes | ★★★★☆ | ★★★☆☆ | **P1** |
+| Graphique confiance | ★★★☆☆ | ★★☆☆☆ | **P1** |
+| "Why not X?" | ★★★★☆ | ★★☆☆☆ | **P1** |
+| Temps réel WebSocket | ★★★★★ | ★★★★☆ | **P2** |
+| Mode ELI5 | ★★★★☆ | ★★☆☆☆ | **P2** |
+| Comparaison A/B | ★★★☆☆ | ★★★☆☆ | **P2** |
+| Score contribution | ★★★☆☆ | ★★★★☆ | **P3** |
+| Mode Replay | ★★☆☆☆ | ★★★★★ | **P3** |
+| Coûts | ★★☆☆☆ | ★★☆☆☆ | **P3** |
+| Export audit | ★★☆☆☆ | ★★★☆☆ | **P3** |
+| Prédiction précision | ★★★☆☆ | ★★★★☆ | **P4** |
+| Suggestions amélioration | ★★★☆☆ | ★★★★☆ | **P4** |
+
+---
+
+## 10. Résumé exécutif
+
+### Livrable minimal (v2.3.0)
+
+1. **Exposer `multi_pass`** dans l'API
+2. **Afficher résumé** : "3 passes • Haiku → Sonnet • 2.3s"
+3. **Badge complexité** dans la liste Flux
+4. **"Why not X?"** : montrer les alternatives rejetées
+
+### Vision complète (v2.4+)
+
+- Timeline interactive avec replay
+- Temps réel pendant réanalyse
+- Graphiques et visualisations
+- Mode ELI5 pour accessibilité
+
+---
+
+## Annexes
+
+### A. Références
+
+- [Context Transparency v2.2.2](../archive/session-history/2026-01-07-to-2026-01-17.md)
+- [Multi-Pass Architecture](../../ARCHITECTURE.md#multi-pass-v22)
+- [WebSocket Implementation](../../src/jeeves/api/routers/websocket.py)
+
+### B. Mockups
+
+(À ajouter après validation du concept)

@@ -9,13 +9,12 @@ Tests performance budgets for:
 """
 
 import asyncio
-import time
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.core.events.universal_event import Entity, EntityType, PerceivedEvent, Sender
+from src.core.events.universal_event import Entity
+from tests.performance.conftest import create_test_event
 from src.sancho.convergence import (
     DecomposedConfidence,
     Extraction,
@@ -35,17 +34,11 @@ from tests.performance.conftest import PerformanceThresholds, measure_time
 @pytest.fixture
 def simple_event():
     """A simple email event that should converge quickly"""
-    return PerceivedEvent(
+    return create_test_event(
         event_id="simple-001",
-        event_type="email",
-        source="imap",
-        timestamp=datetime.now(timezone.utc),
-        sender=Sender(
-            name="Newsletter",
-            email="news@example.com",
-        ),
         title="Weekly Newsletter - January 2026",
         content="This is your weekly newsletter. Read the latest updates.",
+        from_person="news@example.com",
         entities=[],
     )
 
@@ -53,16 +46,8 @@ def simple_event():
 @pytest.fixture
 def complex_event():
     """A complex email event requiring multiple passes"""
-    return PerceivedEvent(
+    return create_test_event(
         event_id="complex-001",
-        event_type="email",
-        source="imap",
-        timestamp=datetime.now(timezone.utc),
-        sender=Sender(
-            name="Marc Dupont",
-            email="marc.dupont@acme.com",
-            is_known=True,
-        ),
         title="Re: Budget Q1 - Urgent Decision Required",
         content="""
         Bonjour Johan,
@@ -88,15 +73,16 @@ def complex_event():
         Marc Dupont
         Tech Lead - Acme Corp
         """,
+        from_person="marc.dupont@acme.com",
         entities=[
-            Entity(value="Marc Dupont", type=EntityType.PERSON, confidence=0.95),
-            Entity(value="Marie", type=EntityType.PERSON, confidence=0.85),
-            Entity(value="Pierre", type=EntityType.PERSON, confidence=0.80),
-            Entity(value="Jean", type=EntityType.PERSON, confidence=0.80),
-            Entity(value="15000", type=EntityType.MONEY, confidence=0.90),
-            Entity(value="2026-01-31", type=EntityType.DATE, confidence=0.85),
-            Entity(value="Projet Alpha", type=EntityType.PROJECT, confidence=0.90),
-            Entity(value="Projet Beta", type=EntityType.PROJECT, confidence=0.75),
+            Entity(value="Marc Dupont", type="person", confidence=0.95),
+            Entity(value="Marie", type="person", confidence=0.85),
+            Entity(value="Pierre", type="person", confidence=0.80),
+            Entity(value="Jean", type="person", confidence=0.80),
+            Entity(value="15000", type="money", confidence=0.90),
+            Entity(value="2026-01-31", type="date", confidence=0.85),
+            Entity(value="Projet Alpha", type="project", confidence=0.90),
+            Entity(value="Projet Beta", type="project", confidence=0.75),
         ],
     )
 

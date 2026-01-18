@@ -83,7 +83,7 @@ This was deleted.
 def note_manager(notes_dir):
     """Create a NoteManager with the test notes directory"""
     manager = NoteManager(
-        notes_path=notes_dir,
+        notes_dir=notes_dir,
         auto_index=False,  # Disable auto-indexing for tests
     )
     return manager
@@ -93,7 +93,7 @@ def note_manager(notes_dir):
 def note_manager_with_index(notes_dir):
     """Create a NoteManager with indexing enabled"""
     manager = NoteManager(
-        notes_path=notes_dir,
+        notes_dir=notes_dir,
         auto_index=True,
     )
     return manager
@@ -367,7 +367,7 @@ type: concept
     def test_metadata_index_persistence(self, notes_dir):
         """Metadata index is persisted to disk"""
         # Create manager and build index
-        manager1 = NoteManager(notes_path=notes_dir, auto_index=True)
+        manager1 = NoteManager(notes_dir=notes_dir, auto_index=True)
         manager1.refresh_index()
 
         # Check that index file exists
@@ -375,7 +375,7 @@ type: concept
         assert index_file.exists()
 
         # Create new manager - should load from disk
-        manager2 = NoteManager(notes_path=notes_dir, auto_index=False)
+        manager2 = NoteManager(notes_dir=notes_dir, auto_index=False)
         summaries = manager2.get_notes_summary()
 
         # Should have the same notes
