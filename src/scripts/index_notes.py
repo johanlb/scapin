@@ -1,6 +1,5 @@
-import asyncio
 import logging
-from pathlib import Path
+
 from src.core.config_manager import get_config
 from src.passepartout.note_manager import NoteManager
 

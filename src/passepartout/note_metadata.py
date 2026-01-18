@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Any, Optional, Union
+from typing import Optional
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_types import (

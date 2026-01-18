@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import NoteManager
@@ -129,7 +129,7 @@ class BackgroundWorker:
         self._metadata_store: Optional[NoteMetadataStore] = None
         self._scheduler: Optional[NoteScheduler] = None
         self._reviewer: Optional[NoteReviewer] = None
-        self._processor: Optional["NoteProcessor"] = None
+        self._processor: Optional[NoteProcessor] = None
 
     @property
     def state(self) -> WorkerState:

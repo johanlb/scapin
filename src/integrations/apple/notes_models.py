@@ -7,7 +7,7 @@ Models for representing Apple Notes data in Scapin.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Union
+from typing import Optional
 
 
 class SyncDirection(str, Enum):

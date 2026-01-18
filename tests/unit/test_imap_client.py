@@ -115,7 +115,6 @@ class TestEmailFetching:
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
-        mock_connection.search.return_value = ('OK', [b'1'])
 
         # Mock email fetch - batch format: (header_with_BODY[], raw_email), b')'
         raw_email = sample_email_message.as_bytes()
@@ -123,7 +122,16 @@ class TestEmailFetching:
             (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
             b')',
         ]
-        mock_connection.fetch.return_value = ('OK', batch_response)
+
+        # The implementation uses uid() for all operations
+        def uid_side_effect(command, *args):
+            if command == "SEARCH":
+                return ('OK', [b'1'])
+            elif command == "FETCH":
+                return ('OK', batch_response)
+            return ('OK', [b'Success'])
+
+        mock_connection.uid.side_effect = uid_side_effect
 
         with imap_client.connect():
             emails = imap_client.fetch_emails(folder="INBOX", limit=1)
@@ -142,7 +150,6 @@ class TestEmailFetching:
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'5'])
-        mock_connection.search.return_value = ('OK', [b'1 2 3 4 5'])
 
         # Mock batch response with 2 emails (limited from 5)
         raw_email = sample_email_message.as_bytes()
@@ -152,16 +159,30 @@ class TestEmailFetching:
             (b'2 (BODY[] {%d}' % len(raw_email), raw_email),
             b')',
         ]
-        mock_connection.fetch.return_value = ('OK', batch_response)
+
+        # Track FETCH calls
+        fetch_calls = []
+
+        def uid_side_effect(command, *args):
+            if command == "SEARCH":
+                return ('OK', [b'1 2 3 4 5'])
+            elif command == "FETCH":
+                fetch_calls.append(args)
+                return ('OK', batch_response)
+            return ('OK', [b'Success'])
+
+        mock_connection.uid.side_effect = uid_side_effect
 
         with imap_client.connect():
             emails = imap_client.fetch_emails(folder="INBOX", limit=2)
 
         # With batch fetching, we should have exactly 1 fetch call for all emails in the batch
-        assert mock_connection.fetch.call_count == 1
-        # The fetch should have been called with both message IDs (1,2)
-        call_args = mock_connection.fetch.call_args
-        assert b'1' in call_args[0][0] and b'2' in call_args[0][0]
+        assert len(fetch_calls) == 1
+        # The fetch should have been called with both message IDs (1,2 - the 2 most recent after reverse)
+        # After reversal and limit: [5,4,3,2,1] -> limit 2 -> [5,4] -> sort back -> [4,5]
+        fetch_arg = fetch_calls[0][0]  # First FETCH call, first argument (msg_set)
+        # fetch_arg is a string like "4,5", check it contains both IDs
+        assert '4' in fetch_arg and '5' in fetch_arg
 
     @patch('src.integrations.email.imap_client.imaplib.IMAP4_SSL')
     def test_fetch_emails_unread_only(self, mock_imap, imap_client):
@@ -170,13 +191,26 @@ class TestEmailFetching:
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'0'])
-        mock_connection.search.return_value = ('OK', [b''])
+
+        # Track uid calls
+        uid_calls = []
+
+        def uid_side_effect(command, *args):
+            uid_calls.append((command, args))
+            if command == "SEARCH":
+                return ('OK', [b''])
+            return ('OK', [b'Success'])
+
+        mock_connection.uid.side_effect = uid_side_effect
 
         with imap_client.connect():
             imap_client.fetch_emails(folder="INBOX", unread_only=True)
 
-        # Should search for UNSEEN
-        mock_connection.search.assert_called_with(None, 'UNSEEN')
+        # Should search for UNSEEN via uid command
+        search_calls = [c for c in uid_calls if c[0] == "SEARCH"]
+        assert len(search_calls) >= 1
+        # The search criteria should contain UNSEEN
+        assert "UNSEEN" in search_calls[0][1][1]
 
     @patch('src.integrations.email.imap_client.imaplib.IMAP4_SSL')
     def test_fetch_emails_empty_folder(self, mock_imap, imap_client):
@@ -185,7 +219,13 @@ class TestEmailFetching:
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'0'])
-        mock_connection.search.return_value = ('OK', [b''])
+
+        def uid_side_effect(command, *args):
+            if command == "SEARCH":
+                return ('OK', [b''])
+            return ('OK', [b'Success'])
+
+        mock_connection.uid.side_effect = uid_side_effect
 
         with imap_client.connect():
             emails = imap_client.fetch_emails(folder="INBOX")
@@ -215,7 +255,8 @@ class TestEmailMetadataExtraction:
         assert metadata.from_address == 'john@example.com'
         assert metadata.from_name == 'John Doe'
         assert 'test@example.com' in metadata.to_addresses
-        assert metadata.message_id == '<test123@example.com>'
+        # Implementation strips angle brackets from message_id
+        assert metadata.message_id == 'test123@example.com'
 
     def test_extract_metadata_no_from_name(self, imap_client):
         """Test metadata extraction without from name"""
@@ -294,13 +335,22 @@ class TestEmailActions:
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
-        mock_connection.store.return_value = ('OK', [b'Success'])
+
+        # Track uid STORE calls
+        store_calls = []
+
+        def uid_side_effect(command, *args):
+            if command == "STORE":
+                store_calls.append(args)
+            return ('OK', [b'Success'])
+
+        mock_connection.uid.side_effect = uid_side_effect
 
         with imap_client.connect():
             result = imap_client.mark_as_read(123, "INBOX")
 
         assert result is True
-        mock_connection.store.assert_called_once()
+        assert len(store_calls) >= 1  # At least one STORE call for \\Seen flag
 
     @patch('src.integrations.email.imap_client.imaplib.IMAP4_SSL')
     def test_move_email(self, mock_imap, imap_client):
@@ -309,17 +359,27 @@ class TestEmailActions:
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
-        mock_connection.copy.return_value = ('OK', [b'Success'])
-        mock_connection.store.return_value = ('OK', [b'Success'])
-        mock_connection.expunge.return_value = ('OK', [b'Success'])
+
+        # Track uid COPY and STORE calls
+        uid_calls = []
+
+        def uid_side_effect(command, *args):
+            uid_calls.append((command, args))
+            return ('OK', [b'Success'])
+
+        mock_connection.uid.side_effect = uid_side_effect
 
         with imap_client.connect():
             result = imap_client.move_email(123, "INBOX", "Archive")
 
         assert result is True
-        mock_connection.copy.assert_called_once()
-        mock_connection.store.assert_called_once()
-        mock_connection.expunge.assert_called_once()
+        # Should have COPY and STORE (for delete flag) calls
+        copy_calls = [c for c in uid_calls if c[0] == "COPY"]
+        store_calls = [c for c in uid_calls if c[0] == "STORE"]
+        assert len(copy_calls) >= 1
+        assert len(store_calls) >= 1
+        # Note: Implementation explicitly does NOT call expunge() to avoid
+        # shifting sequence numbers for other operations
 
     def test_mark_as_read_not_connected(self, imap_client):
         """Test mark as read without connection raises error"""
@@ -403,7 +463,8 @@ class TestIMAPRobustness:
 
         # Simulate malformed IMAP response (integer instead of bytes/tuple)
         # This is what we saw in the real bug
-        mock_connection.fetch.return_value = ('OK', [(123, None)])
+        # Implementation uses uid("FETCH", ...) not fetch()
+        mock_connection.uid.return_value = ('OK', [(123, None)])
 
         imap_client._connection = mock_connection
         result = imap_client._fetch_single_email(b'123', 'INBOX')
@@ -418,8 +479,8 @@ class TestIMAPRobustness:
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
 
-        # Empty response
-        mock_connection.fetch.return_value = ('OK', None)
+        # Empty response - implementation uses uid("FETCH", ...)
+        mock_connection.uid.return_value = ('OK', None)
 
         imap_client._connection = mock_connection
         result = imap_client._fetch_single_email(b'123', 'INBOX')
@@ -434,8 +495,8 @@ class TestIMAPRobustness:
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
 
-        # Non-OK status
-        mock_connection.fetch.return_value = ('NO', [b'Error'])
+        # Non-OK status - implementation uses uid("FETCH", ...)
+        mock_connection.uid.return_value = ('NO', [b'Error'])
 
         imap_client._connection = mock_connection
         result = imap_client._fetch_single_email(b'123', 'INBOX')

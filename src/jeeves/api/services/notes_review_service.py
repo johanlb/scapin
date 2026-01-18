@@ -6,7 +6,6 @@ Provides SM-2 spaced repetition review functionality.
 """
 
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from src.core.config_manager import ScapinConfig
 from src.jeeves.api.models.notes import (

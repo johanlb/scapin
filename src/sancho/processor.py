@@ -10,7 +10,7 @@ from typing import Any, Optional
 from src.core.config_manager import get_config
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import NoteManager
-from src.sancho.router import AIModel, AIRouter, NoteAnalysis, NoteMetadata
+from src.sancho.router import AIRouter, NoteAnalysis, NoteMetadata
 
 logger = get_logger("sancho.processor")
 

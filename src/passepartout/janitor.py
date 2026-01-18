@@ -8,11 +8,11 @@ Responsible for maintaining the hygiene of notes:
 """
 
 import re
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import yaml
-from datetime import datetime
 
 from src.monitoring.logger import get_logger
 

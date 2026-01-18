@@ -6,8 +6,7 @@ Responsible for loading, caching, and formatting "Global Context" files
 """
 
 from pathlib import Path
-from typing import Dict, Optional, List
-import logging
+from typing import Dict, List, Optional
 
 from src.core.config_manager import get_config
 from src.monitoring.logger import get_logger

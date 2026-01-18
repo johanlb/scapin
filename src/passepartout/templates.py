@@ -5,10 +5,8 @@ Handles loading and instantiating note templates.
 Ensures notes are created with the correct "Molecular" structure (Sections).
 """
 
-import shutil
 from pathlib import Path
 from typing import Dict, Optional
-from datetime import datetime
 
 from src.monitoring.logger import get_logger
 

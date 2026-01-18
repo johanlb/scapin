@@ -5,7 +5,6 @@ Handles creation and management of notes directory snapshots.
 Used as a safety net before critical operations (like sync).
 """
 
-import shutil
 import zipfile
 from datetime import datetime
 from pathlib import Path

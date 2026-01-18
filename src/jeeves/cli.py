@@ -1755,8 +1755,8 @@ def notes_pending(
 
         console.print(table)
         console.print(f"\n[bold]Total pending actions:[/bold] {total_pending}")
-        console.print(f"[dim]Use 'scapin notes pending approve <note-id> <index>' to approve[/dim]")
-        console.print(f"[dim]Use 'scapin notes pending reject <note-id> <index>' to reject[/dim]")
+        console.print("[dim]Use 'scapin notes pending approve <note-id> <index>' to approve[/dim]")
+        console.print("[dim]Use 'scapin notes pending reject <note-id> <index>' to reject[/dim]")
 
     elif action == "approve":
         if not note_id or index is None:
@@ -1780,7 +1780,7 @@ def notes_pending(
 
         action_to_apply = pending[index]
 
-        console.print(f"\n[bold cyan]Approving action:[/bold cyan]")
+        console.print("\n[bold cyan]Approving action:[/bold cyan]")
         console.print(f"  Type: {action_to_apply.action_type}")
         console.print(f"  Reasoning: {action_to_apply.reasoning}")
         console.print(f"  Confidence: {action_to_apply.confidence:.0%}\n")
@@ -1788,7 +1788,7 @@ def notes_pending(
         # Get note
         note = manager.get_note(note_id)
         if not note:
-            console.print(f"[red]Note content not found[/red]")
+            console.print("[red]Note content not found[/red]")
             raise typer.Exit(1)
 
         # Convert EnrichmentRecord to ReviewAction
@@ -1821,7 +1821,7 @@ def notes_pending(
             action_to_apply.timestamp = datetime.now(timezone.utc)
             scheduler.store.update(meta)
 
-        console.print(f"[green]✅ Action approved and applied successfully![/green]")
+        console.print("[green]✅ Action approved and applied successfully![/green]")
 
     elif action == "reject":
         if not note_id or index is None:
@@ -1845,7 +1845,7 @@ def notes_pending(
 
         action_to_reject = pending[index]
 
-        console.print(f"\n[bold yellow]Rejecting action:[/bold yellow]")
+        console.print("\n[bold yellow]Rejecting action:[/bold yellow]")
         console.print(f"  Type: {action_to_reject.action_type}")
         console.print(f"  Reasoning: {action_to_reject.reasoning}")
         console.print(f"  Confidence: {action_to_reject.confidence:.0%}\n")
@@ -1854,7 +1854,7 @@ def notes_pending(
         meta.enrichment_history.remove(action_to_reject)
         scheduler.store.update(meta)
 
-        console.print(f"[yellow]❌ Action rejected and removed from history[/yellow]")
+        console.print("[yellow]❌ Action rejected and removed from history[/yellow]")
 
     else:
         console.print(f"[red]Unknown action: {action}[/red]")

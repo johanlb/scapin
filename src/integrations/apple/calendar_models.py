@@ -7,7 +7,7 @@ Models for representing Apple Calendar/iCloud Calendar data in Scapin.
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 
 class ICloudEventStatus(str, Enum):

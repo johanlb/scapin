@@ -90,11 +90,13 @@ class TestICloudCalendarEvent:
     @pytest.fixture
     def sample_event(self):
         """Create a sample event for testing"""
+        # Use a future date (7 days from now) to ensure is_past is False
+        future_date = datetime.now(timezone.utc) + timedelta(days=7)
         return ICloudCalendarEvent(
             uid="event-123",
             summary="Team Meeting",
-            start_date=datetime(2026, 1, 15, 10, 0, tzinfo=timezone.utc),
-            end_date=datetime(2026, 1, 15, 11, 0, tzinfo=timezone.utc),
+            start_date=future_date.replace(hour=10, minute=0, second=0, microsecond=0),
+            end_date=future_date.replace(hour=11, minute=0, second=0, microsecond=0),
             calendar_name="Work",
             description="Weekly sync",
             location="Zoom",

@@ -15,10 +15,10 @@ from typing import Any, Optional
 
 from src.core.config_manager import AIConfig
 from src.core.schemas import EmailAnalysis, EmailContent, EmailMetadata, NoteAnalysis
+from src.monitoring.logger import get_logger
+from src.passepartout.context_loader import ContextLoader
 from src.passepartout.note_manager import Note
 from src.passepartout.note_metadata import NoteMetadata
-from src.passepartout.context_loader import ContextLoader
-from src.monitoring.logger import get_logger
 
 logger = get_logger("ai_router")
 

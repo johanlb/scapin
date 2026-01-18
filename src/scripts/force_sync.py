@@ -1,13 +1,12 @@
 import sys
-import asyncio
 from pathlib import Path
 
 # Add src to path
 sys.path.append(str(Path.cwd()))
 
 from src.core.config_manager import get_config
-from src.integrations.apple.notes_sync import AppleNotesSync, SyncDirection
 from src.integrations.apple.notes_models import ConflictResolution
+from src.integrations.apple.notes_sync import AppleNotesSync, SyncDirection
 from src.monitoring.logger import get_logger
 
 # Configure logging
@@ -30,7 +29,7 @@ def main():
         # Run sync
         result = sync_service.sync(direction=SyncDirection.BIDIRECTIONAL)
 
-        print(f"\nSync completed!")
+        print("\nSync completed!")
         print(f"Created: {len(result.created)}")
         for item in result.created:
             print(f"  + {item}")

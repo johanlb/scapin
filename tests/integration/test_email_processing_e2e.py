@@ -16,6 +16,35 @@ from src.integrations.email.imap_client import IMAPClient
 from src.sancho.router import AIRouter
 
 
+def setup_imap_mock_for_uid(mock_connection, raw_emails: list[bytes], search_ids: str = "1"):
+    """
+    Setup IMAP mock to use uid() command properly.
+
+    The IMAPClient implementation uses uid() for all operations:
+    - uid("SEARCH", ...) for searching
+    - uid("FETCH", ...) for fetching
+
+    Args:
+        mock_connection: The MagicMock connection object
+        raw_emails: List of raw email bytes to return
+        search_ids: Space-separated string of message IDs (e.g., "1" or "1 2")
+    """
+    # Build batch response from raw emails
+    batch_response = []
+    for i, raw_email in enumerate(raw_emails, 1):
+        batch_response.append((f'{i} (BODY[] {{{len(raw_email)}}}'.encode(), raw_email))
+        batch_response.append(b')')
+
+    def uid_side_effect(command, *args):
+        if command == "SEARCH":
+            return ('OK', [search_ids.encode()])
+        elif command == "FETCH":
+            return ('OK', batch_response)
+        return ('OK', [b'Success'])
+
+    mock_connection.uid.side_effect = uid_side_effect
+
+
 @pytest.fixture
 def mock_email_config():
     """Create mock email configuration"""
@@ -63,18 +92,12 @@ class TestEmailProcessingE2E:
         msg['Date'] = 'Mon, 15 Jan 2025 10:30:00 +0000'
         msg.set_content('This is a draft email with no recipients.')
 
-        # Setup mock IMAP
+        # Setup mock IMAP using uid() properly
         mock_connection = MagicMock()
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
-        mock_connection.search.return_value = ('OK', [b'1'])
-        # Batch response format for IMAP batch fetch
-        raw_email = msg.as_bytes()
-        mock_connection.fetch.return_value = ('OK', [
-            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
-            b')',
-        ])
+        setup_imap_mock_for_uid(mock_connection, [msg.as_bytes()])
 
         # Setup mock AI response
         mock_client = MagicMock()
@@ -126,18 +149,12 @@ class TestEmailProcessingE2E:
         # No Date header
         msg.set_content('This email has no date.')
 
-        # Setup mock IMAP
+        # Setup mock IMAP using uid() properly
         mock_connection = MagicMock()
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
-        mock_connection.search.return_value = ('OK', [b'1'])
-        # Batch response format for IMAP batch fetch
-        raw_email = msg.as_bytes()
-        mock_connection.fetch.return_value = ('OK', [
-            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
-            b')',
-        ])
+        setup_imap_mock_for_uid(mock_connection, [msg.as_bytes()])
 
         # Create IMAP client and fetch email
         imap_client = IMAPClient(mock_email_config)
@@ -177,18 +194,12 @@ class TestEmailProcessingE2E:
         msg['Date'] = 'Mon, 15 Jan 2025 10:30:00 +0000'
         msg.set_content('This is obvious spam.')
 
-        # Setup mock IMAP
+        # Setup mock IMAP using uid() properly
         mock_connection = MagicMock()
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
-        mock_connection.search.return_value = ('OK', [b'1'])
-        # Batch response format for IMAP batch fetch
-        raw_email = msg.as_bytes()
-        mock_connection.fetch.return_value = ('OK', [
-            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
-            b')',
-        ])
+        setup_imap_mock_for_uid(mock_connection, [msg.as_bytes()])
 
         # Setup mock AI response with UPPERCASE enums
         mock_client = MagicMock()
@@ -240,13 +251,6 @@ class TestEmailProcessingE2E:
         Some IMAP servers return unexpected response structures.
         Should handle gracefully and skip the email.
         """
-        # Setup mock IMAP with malformed response
-        mock_connection = MagicMock()
-        mock_imap.return_value = mock_connection
-        mock_connection.login.return_value = ('OK', [b'Success'])
-        mock_connection.select.return_value = ('OK', [b'1'])
-        mock_connection.search.return_value = ('OK', [b'1 2'])
-
         # Create a valid email message
         msg = EmailMessage()
         msg['From'] = 'sender@example.com'
@@ -255,14 +259,28 @@ class TestEmailProcessingE2E:
         msg['Date'] = 'Mon, 15 Jan 2025 10:30:00 +0000'
         msg.set_content('Valid email content')
 
-        # With batch fetching, both emails are fetched in one call
-        # We include one malformed entry and one valid entry in the batch response
+        # Setup mock IMAP with mixed malformed and valid response
+        mock_connection = MagicMock()
+        mock_imap.return_value = mock_connection
+        mock_connection.login.return_value = ('OK', [b'Success'])
+        mock_connection.select.return_value = ('OK', [b'1'])
+
         raw_email = msg.as_bytes()
-        mock_connection.fetch.return_value = ('OK', [
-            b'malformed_response',  # Malformed entry (skipped)
+        # Build custom response with malformed entry
+        batch_response = [
+            b'malformed_response',  # Malformed entry (should be skipped)
             (b'2 (BODY[] {%d}' % len(raw_email), raw_email),  # Valid entry
             b')',
-        ])
+        ]
+
+        def uid_side_effect(command, *args):
+            if command == "SEARCH":
+                return ('OK', [b'1 2'])
+            elif command == "FETCH":
+                return ('OK', batch_response)
+            return ('OK', [b'Success'])
+
+        mock_connection.uid.side_effect = uid_side_effect
 
         # Create IMAP client and fetch emails
         imap_client = IMAPClient(mock_email_config)
@@ -347,18 +365,12 @@ class TestEmailProcessingE2E:
         msg['Date'] = 'Mon, 15 Jan 2025 10:30:00 +0000'
         msg.set_content('Test content')
 
-        # Setup mock IMAP
+        # Setup mock IMAP using uid() properly
         mock_connection = MagicMock()
         mock_imap.return_value = mock_connection
         mock_connection.login.return_value = ('OK', [b'Success'])
         mock_connection.select.return_value = ('OK', [b'1'])
-        mock_connection.search.return_value = ('OK', [b'1'])
-        # Batch response format for IMAP batch fetch
-        raw_email = msg.as_bytes()
-        mock_connection.fetch.return_value = ('OK', [
-            (b'1 (BODY[] {%d}' % len(raw_email), raw_email),
-            b')',
-        ])
+        setup_imap_mock_for_uid(mock_connection, [msg.as_bytes()])
 
         # Create IMAP client and fetch email
         imap_client = IMAPClient(mock_email_config)

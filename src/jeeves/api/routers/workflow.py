@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from src.core.config_manager import get_config
 from src.core.schemas import EmailAnalysis, EmailCategory
-from src.jeeves.api.services.queue_service import get_queue_service
 from src.jeeves.api.auth import TokenData
 from src.jeeves.api.deps import get_current_user
 from src.jeeves.api.models.responses import APIResponse
@@ -26,6 +25,7 @@ from src.jeeves.api.models.workflow import (
     WorkflowConfigResponse,
     WorkflowStatsResponse,
 )
+from src.jeeves.api.services.queue_service import get_queue_service
 from src.monitoring.logger import get_logger
 
 logger = get_logger("workflow_router")
