@@ -1,11 +1,6 @@
 <script lang="ts">
 	import { Card, Button, Badge } from '$lib/components/ui';
-	import {
-		getJournal,
-		answerQuestion,
-		completeJournal,
-		type JournalEntry
-	} from '$lib/api/client';
+	import { getJournal, answerQuestion, completeJournal, type JournalEntry } from '$lib/api/client';
 
 	// State
 	let journal = $state<JournalEntry | null>(null);
@@ -112,9 +107,7 @@
 	}
 
 	// Computed values
-	let unansweredQuestions = $derived(
-		journal?.questions.filter((q) => !q.answer) || []
-	);
+	let unansweredQuestions = $derived(journal?.questions.filter((q) => !q.answer) || []);
 
 	let tabs = $derived([
 		{ id: 'email', label: 'Emails', count: journal?.emails_count || 0, icon: '📧' },
@@ -131,9 +124,7 @@
 	<!-- Header -->
 	<header class="mb-6">
 		<div class="flex items-center justify-between mb-2">
-			<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-				Journal
-			</h1>
+			<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">Journal</h1>
 			<input
 				type="date"
 				bind:value={selectedDate}
@@ -147,15 +138,15 @@
 
 	{#if loading}
 		<div class="flex items-center justify-center py-12">
-			<div class="animate-spin w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full"></div>
+			<div
+				class="animate-spin w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full"
+			></div>
 		</div>
 	{:else if error}
 		<Card padding="lg">
 			<div class="text-center py-8">
 				<p class="text-[var(--color-error)] mb-4">{error}</p>
-				<Button variant="primary" onclick={() => loadJournal(selectedDate)}>
-					Réessayer
-				</Button>
+				<Button variant="primary" onclick={() => loadJournal(selectedDate)}>Réessayer</Button>
 			</div>
 		</Card>
 	{:else if journal}
@@ -163,31 +154,42 @@
 		<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
 			<Card padding="sm">
 				<div class="text-center">
-					<div class="text-2xl font-bold text-[var(--color-text-primary)]">{journal.emails_count}</div>
+					<div class="text-2xl font-bold text-[var(--color-text-primary)]">
+						{journal.emails_count}
+					</div>
 					<div class="text-xs text-[var(--color-text-secondary)]">Emails</div>
 				</div>
 			</Card>
 			<Card padding="sm">
 				<div class="text-center">
-					<div class="text-2xl font-bold text-[var(--color-text-primary)]">{journal.teams_count}</div>
+					<div class="text-2xl font-bold text-[var(--color-text-primary)]">
+						{journal.teams_count}
+					</div>
 					<div class="text-xs text-[var(--color-text-secondary)]">Teams</div>
 				</div>
 			</Card>
 			<Card padding="sm">
 				<div class="text-center">
-					<div class="text-2xl font-bold text-[var(--color-text-primary)]">{journal.calendar_count}</div>
+					<div class="text-2xl font-bold text-[var(--color-text-primary)]">
+						{journal.calendar_count}
+					</div>
 					<div class="text-xs text-[var(--color-text-secondary)]">Réunions</div>
 				</div>
 			</Card>
 			<Card padding="sm">
 				<div class="text-center">
-					<div class="text-2xl font-bold text-[var(--color-text-primary)]">{journal.omnifocus_count}</div>
+					<div class="text-2xl font-bold text-[var(--color-text-primary)]">
+						{journal.omnifocus_count}
+					</div>
 					<div class="text-xs text-[var(--color-text-secondary)]">Tâches</div>
 				</div>
 			</Card>
 			<Card padding="sm">
 				<div class="text-center">
-					<div class="text-2xl font-bold" style="color: {getConfidenceColor(journal.average_confidence)}">
+					<div
+						class="text-2xl font-bold"
+						style="color: {getConfidenceColor(journal.average_confidence)}"
+					>
 						{journal.average_confidence.toFixed(0)}%
 					</div>
 					<div class="text-xs text-[var(--color-text-secondary)]">Confiance</div>
@@ -213,9 +215,7 @@
 				{/if}
 			</div>
 			{#if journal.status !== 'completed' && unansweredQuestions.length === 0}
-				<Button variant="primary" onclick={handleComplete}>
-					Terminer le journal
-				</Button>
+				<Button variant="primary" onclick={handleComplete}>Terminer le journal</Button>
 			{/if}
 		</div>
 
@@ -223,7 +223,8 @@
 		<div class="flex gap-1 mb-4 overflow-x-auto pb-2">
 			{#each tabs as tab}
 				<button
-					class="flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors {activeTab === tab.id
+					class="flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors {activeTab ===
+					tab.id
 						? 'bg-[var(--color-primary)] text-white'
 						: 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'}"
 					onclick={() => (activeTab = tab.id as typeof activeTab)}
@@ -231,7 +232,11 @@
 					<span>{tab.icon}</span>
 					<span>{tab.label}</span>
 					{#if tab.count > 0}
-						<span class="px-1.5 py-0.5 text-xs rounded-full {activeTab === tab.id ? 'bg-white/20' : 'bg-[var(--color-bg-tertiary)]'}">
+						<span
+							class="px-1.5 py-0.5 text-xs rounded-full {activeTab === tab.id
+								? 'bg-white/20'
+								: 'bg-[var(--color-bg-tertiary)]'}"
+						>
 							{tab.count}
 						</span>
 					{/if}
@@ -250,7 +255,9 @@
 					{#each journal.emails_processed as email (email.email_id)}
 						<Card padding="md">
 							<div class="flex items-start gap-3">
-								<div class="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center text-lg">
+								<div
+									class="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center text-lg"
+								>
 									📧
 								</div>
 								<div class="flex-1 min-w-0">
@@ -259,7 +266,12 @@
 											{email.from_name || email.from_address}
 										</span>
 										<Badge variant="default">{email.action}</Badge>
-										<span class="text-xs px-2 py-0.5 rounded" style="background: {getConfidenceColor(email.confidence)}20; color: {getConfidenceColor(email.confidence)}">
+										<span
+											class="text-xs px-2 py-0.5 rounded"
+											style="background: {getConfidenceColor(
+												email.confidence
+											)}20; color: {getConfidenceColor(email.confidence)}"
+										>
 											{email.confidence}%
 										</span>
 									</div>
@@ -272,7 +284,6 @@
 						</Card>
 					{/each}
 				{/if}
-
 			{:else if activeTab === 'teams'}
 				{#if journal.teams_messages.length === 0}
 					<Card padding="lg">
@@ -282,25 +293,32 @@
 					{#each journal.teams_messages as msg (msg.message_id)}
 						<Card padding="md">
 							<div class="flex items-start gap-3">
-								<div class="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center text-lg">
+								<div
+									class="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center text-lg"
+								>
 									💬
 								</div>
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center gap-2 mb-1">
 										<span class="font-medium text-[var(--color-text-primary)]">{msg.sender}</span>
-										<span class="text-xs text-[var(--color-text-tertiary)]">dans {msg.chat_name}</span>
+										<span class="text-xs text-[var(--color-text-tertiary)]"
+											>dans {msg.chat_name}</span
+										>
 									</div>
-									<p class="text-sm text-[var(--color-text-secondary)] line-clamp-2">{msg.preview}</p>
+									<p class="text-sm text-[var(--color-text-secondary)] line-clamp-2">
+										{msg.preview}
+									</p>
 									<div class="flex items-center gap-2 mt-1">
 										<Badge variant="default">{msg.action}</Badge>
-										<span class="text-xs text-[var(--color-text-tertiary)]">{formatTime(msg.processed_at)}</span>
+										<span class="text-xs text-[var(--color-text-tertiary)]"
+											>{formatTime(msg.processed_at)}</span
+										>
 									</div>
 								</div>
 							</div>
 						</Card>
 					{/each}
 				{/if}
-
 			{:else if activeTab === 'calendar'}
 				{#if journal.calendar_events.length === 0}
 					<Card padding="lg">
@@ -310,7 +328,9 @@
 					{#each journal.calendar_events as event (event.event_id)}
 						<Card padding="md">
 							<div class="flex items-start gap-3">
-								<div class="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center text-lg">
+								<div
+									class="w-10 h-10 rounded-full bg-[var(--color-bg-tertiary)] flex items-center justify-center text-lg"
+								>
 									📅
 								</div>
 								<div class="flex-1 min-w-0">
@@ -336,7 +356,6 @@
 						</Card>
 					{/each}
 				{/if}
-
 			{:else if activeTab === 'omnifocus'}
 				{#if journal.omnifocus_items.length === 0}
 					<Card padding="lg">
@@ -346,17 +365,29 @@
 					{#each journal.omnifocus_items as task (task.task_id)}
 						<Card padding="md">
 							<div class="flex items-start gap-3">
-								<div class="w-10 h-10 rounded-full flex items-center justify-center text-lg {task.status === 'completed' ? 'bg-[var(--color-success)]/10' : 'bg-[var(--color-bg-tertiary)]'}">
+								<div
+									class="w-10 h-10 rounded-full flex items-center justify-center text-lg {task.status ===
+									'completed'
+										? 'bg-[var(--color-success)]/10'
+										: 'bg-[var(--color-bg-tertiary)]'}"
+								>
 									{task.status === 'completed' ? '✅' : task.flagged ? '🚩' : '⏳'}
 								</div>
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center gap-2 mb-1">
-										<span class="font-medium text-[var(--color-text-primary)] {task.status === 'completed' ? 'line-through opacity-60' : ''}">
+										<span
+											class="font-medium text-[var(--color-text-primary)] {task.status ===
+											'completed'
+												? 'line-through opacity-60'
+												: ''}"
+										>
 											{task.title}
 										</span>
 										<span
 											class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-											style="background: {getTaskStatusColor(task.status)}20; color: {getTaskStatusColor(task.status)}"
+											style="background: {getTaskStatusColor(
+												task.status
+											)}20; color: {getTaskStatusColor(task.status)}"
 										>
 											{task.status}
 										</span>
@@ -366,10 +397,14 @@
 									{/if}
 									<div class="flex items-center gap-2 mt-1 flex-wrap">
 										{#each task.tags as tag}
-											<span class="text-xs px-2 py-0.5 bg-[var(--color-bg-tertiary)] rounded">{tag}</span>
+											<span class="text-xs px-2 py-0.5 bg-[var(--color-bg-tertiary)] rounded"
+												>{tag}</span
+											>
 										{/each}
 										{#if task.estimated_minutes}
-											<span class="text-xs text-[var(--color-text-tertiary)]">{task.estimated_minutes}min</span>
+											<span class="text-xs text-[var(--color-text-tertiary)]"
+												>{task.estimated_minutes}min</span
+											>
 										{/if}
 									</div>
 								</div>
@@ -377,7 +412,6 @@
 						</Card>
 					{/each}
 				{/if}
-
 			{:else if activeTab === 'questions'}
 				{#if journal.questions.length === 0}
 					<Card padding="lg">
@@ -388,21 +422,29 @@
 						<Card padding="md" class={question.answer ? 'opacity-60' : ''}>
 							<div class="space-y-3">
 								<div class="flex items-start gap-3">
-									<div class="w-10 h-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center text-lg">
+									<div
+										class="w-10 h-10 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center text-lg"
+									>
 										❓
 									</div>
 									<div class="flex-1">
 										<div class="flex items-center gap-2 mb-2">
 											<Badge>{getCategoryLabel(question.category)}</Badge>
 											{#if question.answer}
-												<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--color-success)]/10 text-[var(--color-success)]">
+												<span
+													class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--color-success)]/10 text-[var(--color-success)]"
+												>
 													Répondu
 												</span>
 											{/if}
 										</div>
-										<p class="font-medium text-[var(--color-text-primary)]">{question.question_text}</p>
+										<p class="font-medium text-[var(--color-text-primary)]">
+											{question.question_text}
+										</p>
 										{#if question.context}
-											<p class="text-sm text-[var(--color-text-secondary)] mt-1">{question.context}</p>
+											<p class="text-sm text-[var(--color-text-secondary)] mt-1">
+												{question.context}
+											</p>
 										{/if}
 									</div>
 								</div>
@@ -410,7 +452,8 @@
 								{#if question.answer}
 									<div class="ml-13 pl-3 border-l-2 border-[var(--color-success)]">
 										<p class="text-sm text-[var(--color-text-primary)]">
-											<span class="text-[var(--color-text-tertiary)]">Réponse:</span> {question.answer}
+											<span class="text-[var(--color-text-tertiary)]">Réponse:</span>
+											{question.answer}
 										</p>
 									</div>
 								{:else}

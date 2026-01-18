@@ -1,11 +1,12 @@
 <script lang="ts">
+	import MarkdownToolbar from './MarkdownToolbar.svelte';
+	import MarkdownPreview from './MarkdownPreview.svelte';
+	import EditorTextarea from './EditorTextarea.svelte';
+
 	/**
 	 * MarkdownEditor Component
 	 * Full-featured markdown editor with toolbar, preview, and auto-save
 	 */
-	import MarkdownToolbar from './MarkdownToolbar.svelte';
-	import MarkdownPreview from './MarkdownPreview.svelte';
-	import EditorTextarea from './EditorTextarea.svelte';
 
 	type EditorMode = 'edit' | 'preview' | 'split';
 	type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -164,7 +165,10 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="editor-container rounded-lg border border-[var(--color-border)] overflow-hidden {className}" onkeydown={handleKeydown}>
+<div
+	class="editor-container rounded-lg border border-[var(--color-border)] overflow-hidden {className}"
+	onkeydown={handleKeydown}
+>
 	<MarkdownToolbar
 		{mode}
 		onFormat={handleFormat}
@@ -172,10 +176,7 @@
 		disabled={mode === 'preview'}
 	/>
 
-	<div
-		class="editor-content bg-[var(--color-bg-primary)]"
-		class:split={mode === 'split'}
-	>
+	<div class="editor-content bg-[var(--color-bg-primary)]" class:split={mode === 'split'}>
 		{#if mode !== 'preview'}
 			<div class="editor-pane" class:half={mode === 'split'}>
 				<EditorTextarea bind:this={editorRef} bind:content {placeholder} />
@@ -194,7 +195,9 @@
 	</div>
 
 	<!-- Status bar -->
-	<div class="status-bar flex items-center justify-between px-3 py-1.5 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-xs text-[var(--color-text-tertiary)]">
+	<div
+		class="status-bar flex items-center justify-between px-3 py-1.5 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-xs text-[var(--color-text-tertiary)]"
+	>
 		<span>
 			{#if content}
 				{content.length} caractères

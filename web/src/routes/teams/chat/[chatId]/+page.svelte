@@ -69,7 +69,7 @@
 			// Reload messages to see the reply
 			await loadMessages();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Erreur lors de l\'envoi';
+			error = e instanceof Error ? e.message : "Erreur lors de l'envoi";
 		} finally {
 			sendingReply = false;
 		}
@@ -88,7 +88,7 @@
 			// Reload messages to see the reply
 			await loadMessages();
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Erreur lors de l\'envoi';
+			error = e instanceof Error ? e.message : "Erreur lors de l'envoi";
 		} finally {
 			sendingReply = false;
 		}
@@ -163,12 +163,7 @@
 					{messages.length} message{messages.length !== 1 ? 's' : ''}
 				</p>
 			</div>
-			<Button
-				variant="glass"
-				size="sm"
-				onclick={handleMarkAsRead}
-				disabled={markingAsRead}
-			>
+			<Button variant="glass" size="sm" onclick={handleMarkAsRead} disabled={markingAsRead}>
 				{#if markingAsRead}
 					<span class="animate-pulse">...</span>
 				{:else}
@@ -180,7 +175,12 @@
 
 	{#if loading}
 		<!-- Loading state -->
-		<main class="p-4 md:p-6 max-w-4xl mx-auto space-y-4" role="status" aria-busy="true" aria-label="Chargement des messages">
+		<main
+			class="p-4 md:p-6 max-w-4xl mx-auto space-y-4"
+			role="status"
+			aria-busy="true"
+			aria-label="Chargement des messages"
+		>
 			<span class="sr-only">Chargement des messages en cours...</span>
 			{#each Array(3) as _}
 				<Card variant="glass-subtle">
@@ -232,7 +232,10 @@
 											{message.sender.display_name}
 										</span>
 										{#if message.importance !== 'normal'}
-											<Badge variant="urgency" urgency={message.importance === 'high' ? 'urgent' : 'high'}>
+											<Badge
+												variant="urgency"
+												urgency={message.importance === 'high' ? 'urgent' : 'high'}
+											>
 												{message.importance}
 											</Badge>
 										{/if}
@@ -269,7 +272,12 @@
 							{#if message.attachments_count > 0}
 								<div class="mt-3 flex items-center gap-2 text-sm text-[var(--color-text-tertiary)]">
 									<span>&#128206;</span>
-									<span>{message.attachments_count} pièce{message.attachments_count > 1 ? 's' : ''} jointe{message.attachments_count > 1 ? 's' : ''}</span>
+									<span
+										>{message.attachments_count} pièce{message.attachments_count > 1 ? 's' : ''} jointe{message.attachments_count >
+										1
+											? 's'
+											: ''}</span
+									>
 								</div>
 							{/if}
 
@@ -305,7 +313,10 @@
 										<Button
 											variant="ghost"
 											size="sm"
-											onclick={() => { replyingToId = null; inlineReplyContent = ''; }}
+											onclick={() => {
+												replyingToId = null;
+												inlineReplyContent = '';
+											}}
 										>
 											Annuler
 										</Button>
@@ -313,11 +324,7 @@
 								</div>
 							{:else}
 								<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
-									<Button
-										variant="ghost"
-										size="sm"
-										onclick={() => replyingToId = message.id}
-									>
+									<Button variant="ghost" size="sm" onclick={() => (replyingToId = message.id)}>
 										&#8617; Répondre
 									</Button>
 								</div>

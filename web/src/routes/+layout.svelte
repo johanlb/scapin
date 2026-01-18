@@ -1,9 +1,27 @@
 <script lang="ts">
 	import '../app.css';
 	import { Sidebar, MobileNav, ChatPanel, NotificationsPanel } from '$lib/components/layout';
-	import { CommandPalette, ToastContainer, KeyboardShortcutsHelp, QuickActionsMenu } from '$lib/components/ui';
-	import { showCommandPalette, openCommandPalette, closeCommandPalette, authStore, wsStore, notificationStore, notificationCenterStore, getQuickActions } from '$lib/stores';
-	import { initializeShortcuts, isHelpVisible, registerShortcut } from '$lib/utils/keyboard-shortcuts';
+	import {
+		CommandPalette,
+		ToastContainer,
+		KeyboardShortcutsHelp,
+		QuickActionsMenu
+	} from '$lib/components/ui';
+	import {
+		showCommandPalette,
+		openCommandPalette,
+		closeCommandPalette,
+		authStore,
+		wsStore,
+		notificationStore,
+		notificationCenterStore,
+		getQuickActions
+	} from '$lib/stores';
+	import {
+		initializeShortcuts,
+		isHelpVisible,
+		registerShortcut
+	} from '$lib/utils/keyboard-shortcuts';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -44,7 +62,8 @@
 
 			// Register service worker for PWA
 			if (browser && 'serviceWorker' in navigator) {
-				navigator.serviceWorker.register('/sw.js')
+				navigator.serviceWorker
+					.register('/sw.js')
 					.then((registration) => {
 						console.log('[PWA] Service worker registered:', registration.scope);
 					})
@@ -87,7 +106,8 @@
 	$effect(() => {
 		// Access state object directly for reactive tracking
 		const authState = authStore.state;
-		const shouldRedirect = browser &&
+		const shouldRedirect =
+			browser &&
 			authState.initialized &&
 			authState.authRequired &&
 			!authState.isAuthenticated &&
@@ -166,13 +186,15 @@
 
 <!-- Show loading state while auth is initializing -->
 {#if !authStore.state.initialized}
-	<div class="min-h-screen min-h-[100dvh] bg-[var(--color-bg-primary)] flex items-center justify-center">
+	<div
+		class="min-h-screen min-h-[100dvh] bg-[var(--color-bg-primary)] flex items-center justify-center"
+	>
 		<div class="text-center">
 			<div class="spinner mx-auto mb-4"></div>
 			<p class="text-[var(--color-text-secondary)]">Chargement...</p>
 		</div>
 	</div>
-<!-- Login page has its own layout -->
+	<!-- Login page has its own layout -->
 {:else if isLoginPage}
 	<div class="min-h-screen min-h-[100dvh] bg-[var(--color-bg-primary)] overflow-x-hidden relative">
 		<!-- Ambient Background Gradient -->
@@ -183,7 +205,7 @@
 		></div>
 		{@render children()}
 	</div>
-<!-- Main app layout -->
+	<!-- Main app layout -->
 {:else}
 	<div class="min-h-screen min-h-[100dvh] bg-[var(--color-bg-primary)] overflow-x-hidden relative">
 		<!-- Ambient Background Gradient (Liquid Glass ambiance) -->
@@ -199,7 +221,9 @@
 		</div>
 
 		<!-- Main Content - adapts to sidebar and chat panel -->
-		<main class="layout-main md:ml-16 lg:mr-72 pb-20 md:pb-0 transition-[margin] duration-[var(--transition-normal)] ease-[var(--spring-fluid)] relative z-10">
+		<main
+			class="layout-main md:ml-16 lg:mr-72 pb-20 md:pb-0 transition-[margin] duration-[var(--transition-normal)] ease-[var(--spring-fluid)] relative z-10"
+		>
 			{@render children()}
 		</main>
 
@@ -218,10 +242,7 @@
 
 		<!-- Global Command Palette (Cmd+K) -->
 		{#if $showCommandPalette}
-			<CommandPalette
-				onclose={closeCommandPalette}
-				onselect={handleSearchSelect}
-			/>
+			<CommandPalette onclose={closeCommandPalette} onselect={handleSearchSelect} />
 		{/if}
 
 		<!-- Toast Notifications -->
@@ -232,11 +253,7 @@
 
 		<!-- Quick Actions FAB (mobile only - desktop has sidebar) -->
 		<div class="md:hidden">
-			<QuickActionsMenu
-				actions={quickActions}
-				position="bottom-right"
-				trigger="click"
-			/>
+			<QuickActionsMenu actions={quickActions} position="bottom-right" trigger="click" />
 		</div>
 	</div>
 {/if}
@@ -252,6 +269,8 @@
 	}
 
 	@keyframes spin {
-		to { transform: rotate(360deg); }
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>

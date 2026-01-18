@@ -42,10 +42,13 @@
 					date: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
 					folder: 'INBOX',
 					has_attachments: Math.random() > 0.7,
-					attachments: Math.random() > 0.7 ? [
-						{ filename: 'document.pdf', size_bytes: 102400, content_type: 'application/pdf' },
-						{ filename: 'photo.jpg', size_bytes: 256000, content_type: 'image/jpeg' }
-					] : []
+					attachments:
+						Math.random() > 0.7
+							? [
+									{ filename: 'document.pdf', size_bytes: 102400, content_type: 'application/pdf' },
+									{ filename: 'photo.jpg', size_bytes: 256000, content_type: 'image/jpeg' }
+								]
+							: []
 				},
 				analysis: {
 					action,
@@ -55,32 +58,101 @@
 					summary: generateRandomSummary(),
 					options: [],
 					// Sprint 2: Entity extraction fields
-					entities: i % 5 === 0 ? { person: [{ value: 'Jean Dupont', confidence: 0.9, type: 'person', source: 'extraction', metadata: {} }] } : {},
-					proposed_notes: i % 7 === 0 ? [{ action: 'create' as const, note_type: 'personne', title: 'Jean Dupont', content_summary: 'Contact professionnel', confidence: 0.85, confidence_details: { quality: 0.90, target_match: 0.85, relevance: 0.88, completeness: 0.78, overall: 0.85 }, weakness_label: 'info incomplète', reasoning: 'Nouvelle personne détectée', auto_applied: false, target_note_id: null, required: false, importance: 'moyenne' as const, manually_approved: null }] : [],
-					proposed_tasks: i % 10 === 0 ? [{ title: 'Répondre à Jean', note: 'Email urgent', project: 'Communications', due_date: '2026-01-10', confidence: 0.9, reasoning: 'Action requise', auto_applied: false, manually_approved: null }] : [],
+					entities:
+						i % 5 === 0
+							? {
+									person: [
+										{
+											value: 'Jean Dupont',
+											confidence: 0.9,
+											type: 'person',
+											source: 'extraction',
+											metadata: {}
+										}
+									]
+								}
+							: {},
+					proposed_notes:
+						i % 7 === 0
+							? [
+									{
+										action: 'create' as const,
+										note_type: 'personne',
+										title: 'Jean Dupont',
+										content_summary: 'Contact professionnel',
+										confidence: 0.85,
+										confidence_details: {
+											quality: 0.9,
+											target_match: 0.85,
+											relevance: 0.88,
+											completeness: 0.78,
+											overall: 0.85
+										},
+										weakness_label: 'info incomplète',
+										reasoning: 'Nouvelle personne détectée',
+										auto_applied: false,
+										target_note_id: null,
+										required: false,
+										importance: 'moyenne' as const,
+										manually_approved: null
+									}
+								]
+							: [],
+					proposed_tasks:
+						i % 10 === 0
+							? [
+									{
+										title: 'Répondre à Jean',
+										note: 'Email urgent',
+										project: 'Communications',
+										due_date: '2026-01-10',
+										confidence: 0.9,
+										reasoning: 'Action requise',
+										auto_applied: false,
+										manually_approved: null
+									}
+								]
+							: [],
 					context_used: i % 6 === 0 ? ['note-jean-dupont-abc123', 'note-projet-xyz-789'] : [],
 					// Sprint 3: Draft replies
-					draft_reply: action === 'reply' ? `Bonjour,\n\nMerci pour votre email.\n\nCordialement,\nJohan` : null,
+					draft_reply:
+						action === 'reply'
+							? `Bonjour,\n\nMerci pour votre email.\n\nCordialement,\nJohan`
+							: null,
 					// v2.2.2: Context transparency
-					retrieved_context: i % 6 === 0 ? {
-						entities_searched: ['Jean Dupont', 'Projet XYZ'],
-						sources_searched: ['notes', 'calendar'],
-						total_results: 2,
-						notes: [
-							{ note_id: 'jean-dupont', title: 'Jean Dupont', note_type: 'personne', summary: 'Tech Lead chez Acme Corp', relevance: 0.92, tags: ['contact', 'tech'] }
-						],
-						calendar: [],
-						tasks: [],
-						entity_profiles: {},
-						conflicts: []
-					} : null,
-					context_influence: i % 6 === 0 ? {
-						notes_used: ['Jean Dupont'],
-						explanation: 'La note Jean Dupont confirme son rôle de Tech Lead et son implication dans le projet.',
-						confirmations: ['Jean Dupont est Tech Lead chez Acme Corp'],
-						contradictions: [],
-						missing_info: ['Date de dernière interaction non trouvée']
-					} : null
+					retrieved_context:
+						i % 6 === 0
+							? {
+									entities_searched: ['Jean Dupont', 'Projet XYZ'],
+									sources_searched: ['notes', 'calendar'],
+									total_results: 2,
+									notes: [
+										{
+											note_id: 'jean-dupont',
+											title: 'Jean Dupont',
+											note_type: 'personne',
+											summary: 'Tech Lead chez Acme Corp',
+											relevance: 0.92,
+											tags: ['contact', 'tech']
+										}
+									],
+									calendar: [],
+									tasks: [],
+									entity_profiles: {},
+									conflicts: []
+								}
+							: null,
+					context_influence:
+						i % 6 === 0
+							? {
+									notes_used: ['Jean Dupont'],
+									explanation:
+										'La note Jean Dupont confirme son rôle de Tech Lead et son implication dans le projet.',
+									confirmations: ['Jean Dupont est Tech Lead chez Acme Corp'],
+									contradictions: [],
+									missing_info: ['Date de dernière interaction non trouvée']
+								}
+							: null
 				},
 				content: {
 					preview: `Ceci est le contenu de l'email ${i + 1}...`
@@ -116,7 +188,7 @@
 			"Mise à jour sur l'avancement du projet en cours.",
 			'Question nécessitant une réponse rapide.',
 			'Confirmation de votre récente commande en ligne.',
-			"Rappel concernant une échéance à ne pas manquer.",
+			'Rappel concernant une échéance à ne pas manquer.',
 			'Le rapport mensuel est maintenant disponible pour consultation.',
 			'Annonce de nouvelles fonctionnalités dans le service.'
 		];
@@ -250,7 +322,9 @@
 							<div class="flex items-start gap-3">
 								<div
 									class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg"
-									style="background-color: color-mix(in srgb, {getActionColor(item.analysis.action)} 20%, transparent)"
+									style="background-color: color-mix(in srgb, {getActionColor(
+										item.analysis.action
+									)} 20%, transparent)"
 								>
 									{getActionIcon(item.analysis.action)}
 								</div>
@@ -291,9 +365,7 @@
 				{/snippet}
 
 				{#snippet empty()}
-					<div class="text-center py-8 text-[var(--color-text-secondary)]">
-						Aucun item généré
-					</div>
+					<div class="text-center py-8 text-[var(--color-text-secondary)]">Aucun item généré</div>
 				{/snippet}
 			</VirtualList>
 		</section>
