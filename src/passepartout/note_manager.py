@@ -1314,7 +1314,8 @@ class NoteManager:
         Get file path for note with safety checks
 
         Ensures the resolved path is within notes_dir to prevent
-        directory traversal attacks.
+        directory traversal attacks. Uses metadata index to find notes
+        in subfolders.
 
         Args:
             note_id: Note identifier
@@ -1325,8 +1326,16 @@ class NoteManager:
         Raises:
             ValueError: If resolved path is outside notes_dir
         """
-        # Construct path
-        file_path = (self.notes_dir / f"{note_id}.md").resolve()
+        # Check metadata index for the note's folder path
+        folder_path = ""
+        if note_id in self._notes_metadata:
+            folder_path = self._notes_metadata[note_id].get("path", "")
+
+        # Construct path using folder from metadata
+        if folder_path:
+            file_path = (self.notes_dir / folder_path / f"{note_id}.md").resolve()
+        else:
+            file_path = (self.notes_dir / f"{note_id}.md").resolve()
 
         # Security check: ensure path is within notes_dir
         notes_dir_resolved = self.notes_dir.resolve()
