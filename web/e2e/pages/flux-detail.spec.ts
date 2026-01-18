@@ -450,4 +450,76 @@ test.describe('Flux Detail Page', () => {
       }
     });
   });
+
+  test.describe('Why Not Section (v2.3.1)', () => {
+    test('should display rejection reasons on non-recommended options', async ({ authenticatedPage: page }) => {
+      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      const fluxItems = page.locator('[data-testid^="flux-item-"]');
+      const itemCount = await fluxItems.count();
+
+      // Check multiple items to find one with rejection reasons
+      for (let i = 0; i < Math.min(itemCount, 5); i++) {
+        await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(1000);
+
+        const items = page.locator('[data-testid^="flux-item-"]');
+        await items.nth(i).click();
+        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForTimeout(1000);
+
+        // Look for rejection reasons inline
+        const rejectionReasons = page.locator(SELECTORS.optionRejectionReason);
+        if ((await rejectionReasons.count()) > 0) {
+          // Verify tooltip
+          const tooltip = await rejectionReasons.first().getAttribute('title');
+          expect(tooltip).toBeTruthy();
+          expect(tooltip).toContain('recommand');
+          return; // Found one, test passes
+        }
+      }
+
+      // No items with rejection reasons is valid (depends on AI responses)
+    });
+
+    test('should display Why Not collapsible section when available', async ({ authenticatedPage: page }) => {
+      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      const fluxItems = page.locator('[data-testid^="flux-item-"]');
+      const itemCount = await fluxItems.count();
+
+      // Check multiple items to find one with Why Not section
+      for (let i = 0; i < Math.min(itemCount, 5); i++) {
+        await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(1000);
+
+        const items = page.locator('[data-testid^="flux-item-"]');
+        await items.nth(i).click();
+        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForTimeout(1000);
+
+        // Look for Why Not section
+        const whyNotSection = page.locator(SELECTORS.whyNotSection);
+        if (await whyNotSection.isVisible()) {
+          // Expand the section
+          const summary = whyNotSection.locator('summary');
+          await expect(summary).toContainText('Pourquoi pas');
+          await summary.click();
+          await page.waitForTimeout(300);
+
+          // Should have items listed
+          const whyNotItems = page.locator(SELECTORS.whyNotItem);
+          const count = await whyNotItems.count();
+          expect(count).toBeGreaterThanOrEqual(1);
+          return; // Found one, test passes
+        }
+      }
+
+      // No items with Why Not section is valid (depends on AI responses)
+    });
+  });
 });

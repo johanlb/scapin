@@ -105,6 +105,11 @@ export const SELECTORS = {
   // Confidence Sparkline (v2.3.1)
   confidenceSparkline: '[data-testid="confidence-sparkline"]',
 
+  // Why Not Section (v2.3.1)
+  whyNotSection: '[data-testid="why-not-section"]',
+  whyNotItem: '[data-testid="why-not-item"]',
+  optionRejectionReason: '[data-testid="option-rejection-reason"]',
+
   // Flux List - Complexity Badges (v2.3)
   badgesLegend: '[data-testid="badges-legend"]',
   badgeQuick: '[data-testid="badge-quick"]',

@@ -869,6 +869,12 @@
 											<p class="text-sm text-[var(--color-text-secondary)] mt-2">
 												{option.reasoning}
 											</p>
+											<!-- v2.3.1: Why not X? -->
+											{#if !option.is_recommended && option.rejection_reason}
+												<p class="text-xs text-[var(--color-text-tertiary)] mt-2 italic" title="Raison pour laquelle cette option n'a pas ete recommandee" data-testid="option-rejection-reason">
+													💡 {option.rejection_reason}
+												</p>
+											{/if}
 										</div>
 										<div class="text-right shrink-0">
 											<span class="text-sm font-medium text-[var(--color-text-primary)]">
@@ -880,6 +886,24 @@
 							</Card>
 						{/each}
 					</div>
+
+					<!-- v2.3.1: Why Not Alternatives Section -->
+					{#if item.analysis.options.some(o => !o.is_recommended && o.rejection_reason)}
+						<details class="mt-3" data-testid="why-not-section">
+							<summary class="text-xs text-[var(--color-text-tertiary)] cursor-pointer hover:text-[var(--color-text-secondary)]" title="Voir pourquoi les autres options n'ont pas ete recommandees">
+								🤔 Pourquoi pas les autres options ?
+							</summary>
+							<div class="mt-2 p-3 rounded-lg bg-[var(--glass-bg)] border border-[var(--glass-border-subtle)] space-y-2">
+								{#each item.analysis.options.filter(o => !o.is_recommended && o.rejection_reason) as option}
+									<div class="text-sm" data-testid="why-not-item">
+										<span class="font-medium text-[var(--color-text-secondary)]">{option.action}</span>
+										<span class="text-[var(--color-text-tertiary)]">:</span>
+										<span class="text-[var(--color-text-tertiary)] italic ml-1">{option.rejection_reason}</span>
+									</div>
+								{/each}
+							</div>
+						</details>
+					{/if}
 
 					<!-- Snooze and Reject buttons -->
 					<div class="mt-4 flex items-center gap-3 flex-wrap">
