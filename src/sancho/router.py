@@ -790,6 +790,34 @@ class AIRouter:
 
         raise RuntimeError(f"Failed after {max_retries} attempts")
 
+    async def analyze_email_async(
+        self,
+        email_content: str,
+        metadata: EmailMetadata,
+        model: AIModel = AIModel.CLAUDE_HAIKU,
+        max_retries: int = 3,
+    ) -> Optional[EmailAnalysis]:
+        """Async wrapper for analyze_email"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.analyze_email(email_content, metadata, model, max_retries),
+        )
+
+    async def analyze_note_async(
+        self,
+        note: Note,
+        metadata: NoteMetadata,
+        model: AIModel = AIModel.CLAUDE_SONNET,
+        max_retries: int = 3,
+    ) -> Optional[NoteAnalysis]:
+        """Async wrapper for analyze_note"""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            lambda: self.analyze_note(note, metadata, model, max_retries),
+        )
+
     async def analyze_with_prompt_async(
         self,
         prompt: str,

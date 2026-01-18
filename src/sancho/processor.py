@@ -10,7 +10,7 @@ from typing import Any, Optional
 from src.core.config_manager import get_config
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import NoteManager
-from src.sancho.router import AIRouter, AIModel, NoteAnalysis
+from src.sancho.router import AIModel, AIRouter, NoteAnalysis, NoteMetadata
 
 logger = get_logger("sancho.processor")
 
@@ -60,7 +60,9 @@ class NoteProcessor:
 
         # 2. Analyze Note
         try:
-            analysis = await self.ai_router.analyze_note(note)
+            analysis = await self.ai_router.analyze_note_async(
+                note, NoteMetadata(note_id=note.note_id)
+            )
             if not analysis:
                 logger.warning(f"Analysis returned None for note {note_id}")
                 return False
