@@ -9,7 +9,7 @@
 	 */
 
 	type EditorMode = 'edit' | 'preview' | 'split';
-	type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+	type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'unsaved';
 
 	interface Props {
 		content: string;
@@ -30,42 +30,50 @@
 	let mode = $state<EditorMode>('edit');
 	let editorRef = $state<EditorTextarea | null>(null);
 	let saveStatus = $state<SaveStatus>('idle');
-	let saveTimeout: ReturnType<typeof setTimeout>;
+	let saveTimeout: ReturnType<typeof setTimeout> | undefined;
 	let lastSavedContent = $state(content);
 	let isSaving = $state(false);
 
-	// Auto-save with debounce
+	// Track unsaved changes
 	$effect(() => {
-		if (onSave && content !== lastSavedContent && !isSaving) {
-			clearTimeout(saveTimeout);
-			saveStatus = 'idle';
+		if (content !== lastSavedContent && saveStatus !== 'saving') {
+			saveStatus = 'unsaved';
+		}
+	});
 
-			// Capture content at this moment to avoid race conditions
-			const contentToSave = content;
+	// Manual save function
+	async function triggerSave(): Promise<void> {
+		if (!onSave || content === lastSavedContent || isSaving) return;
 
-			saveTimeout = setTimeout(async () => {
-				// Check if content is still the same (user didn't type more)
-				if (content !== contentToSave) return;
+		clearTimeout(saveTimeout);
+		const contentToSave = content;
 
-				try {
-					isSaving = true;
-					saveStatus = 'saving';
-					await onSave(contentToSave);
-					lastSavedContent = contentToSave;
-					saveStatus = 'saved';
+		try {
+			isSaving = true;
+			saveStatus = 'saving';
+			await onSave(contentToSave);
+			lastSavedContent = contentToSave;
+			saveStatus = 'saved';
 
-					// Reset status after 2 seconds
-					setTimeout(() => {
-						if (saveStatus === 'saved') {
-							saveStatus = 'idle';
-						}
-					}, 2000);
-				} catch {
-					saveStatus = 'error';
-				} finally {
-					isSaving = false;
+			// Reset status after 2 seconds
+			setTimeout(() => {
+				if (saveStatus === 'saved') {
+					saveStatus = 'idle';
 				}
-			}, autosaveDelay);
+			}, 2000);
+		} catch {
+			saveStatus = 'error';
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	// Auto-save with debounce (disabled - now using manual save button)
+	// Keeping for Cmd+S shortcut
+	$effect(() => {
+		// Clear any pending auto-save when content changes
+		if (content !== lastSavedContent) {
+			clearTimeout(saveTimeout);
 		}
 
 		return () => clearTimeout(saveTimeout);
@@ -127,23 +135,7 @@
 				case 's':
 					e.preventDefault();
 					// Trigger immediate save
-					if (onSave && content !== lastSavedContent && !isSaving) {
-						clearTimeout(saveTimeout);
-						const contentToSave = content;
-						isSaving = true;
-						saveStatus = 'saving';
-						Promise.resolve(onSave(contentToSave))
-							.then(() => {
-								lastSavedContent = contentToSave;
-								saveStatus = 'saved';
-							})
-							.catch(() => {
-								saveStatus = 'error';
-							})
-							.finally(() => {
-								isSaving = false;
-							});
-					}
+					triggerSave();
 					break;
 			}
 		}
@@ -158,6 +150,8 @@
 				return 'Enregistré';
 			case 'error':
 				return 'Erreur';
+			case 'unsaved':
+				return 'Modifications non enregistrées';
 			default:
 				return '';
 		}
@@ -173,6 +167,8 @@
 		{mode}
 		onFormat={handleFormat}
 		onModeChange={(m) => (mode = m)}
+		onSave={onSave ? triggerSave : undefined}
+		{saveStatus}
 		disabled={mode === 'preview'}
 	/>
 
@@ -212,6 +208,7 @@
 				class:text-[var(--color-accent)]={saveStatus === 'saving'}
 				class:text-green-500={saveStatus === 'saved'}
 				class:text-red-500={saveStatus === 'error'}
+				class:text-orange-500={saveStatus === 'unsaved'}
 			>
 				{#if saveStatus === 'saving'}
 					<span class="animate-spin">⟳</span>
@@ -219,6 +216,8 @@
 					<span>✓</span>
 				{:else if saveStatus === 'error'}
 					<span>✗</span>
+				{:else if saveStatus === 'unsaved'}
+					<span>●</span>
 				{/if}
 				{getSaveStatusText()}
 			</span>
