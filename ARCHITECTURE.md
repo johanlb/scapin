@@ -1,7 +1,7 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 2.2.1 (Workflow v2.2: Multi-Pass Extraction + Atomic Transactions)
-**Date**: 2026-01-12
+**Version**: 2.2.2 (Workflow v2.2: Multi-Pass + Atomic Transactions + Context Transparency)
+**Date**: 2026-01-18
 **Status**: ✅ v1.0.0-rc.1 RELEASED — All features implemented
 
 > Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
@@ -1007,6 +1007,98 @@ class ProposedNoteResponse(BaseModel):
 **UI Indication**:
 
 Required enrichments display a "Requis" badge in the Flux interface, allowing users to understand which extractions are critical before approving.
+
+### Context Transparency (v2.2.2)
+
+**Module**: `src/sancho/multi_pass_analyzer.py`
+**Purpose**: Provide visibility into what context was retrieved and how it influenced the AI's analysis.
+
+**Problem Statement**:
+Users couldn't verify whether the multi-pass analysis was using the right context from their knowledge base. There was no way to debug why Scapin made certain decisions.
+
+**Solution**: Two-level Context Visibility
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   CONTEXT TRANSPARENCY v2.2.2                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Level 1: AI Explanation (context_influence)                     │
+│  ├── notes_used: ["Marc Dupont", "Projet Alpha"]                │
+│  ├── explanation: "La note Marc Dupont confirme son rôle..."    │
+│  ├── confirmations: ["Le budget Q1 est bien de 15k€"]           │
+│  ├── contradictions: []                                          │
+│  └── missing_info: ["Date exacte de la deadline"]               │
+│                                                                  │
+│  Level 2: Raw Context (retrieved_context)                        │
+│  ├── entities_searched: ["Marc Dupont", "Budget Q1"]            │
+│  ├── sources_searched: ["notes", "calendar", "omnifocus"]       │
+│  ├── total_results: 3                                            │
+│  ├── notes: [{note_id, title, type, summary, relevance}]        │
+│  ├── calendar: [{event_id, title, start, relevance}]            │
+│  ├── tasks: [{task_id, title, project, due_date}]               │
+│  ├── entity_profiles: {name: {role, company, last_seen}}        │
+│  └── conflicts: []                                               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation Details**:
+
+1. **MultiPassResult** stores both context fields:
+   ```python
+   @dataclass
+   class MultiPassResult:
+       # ... existing fields ...
+       retrieved_context: Optional[dict[str, Any]] = None
+       context_influence: Optional[dict[str, Any]] = None
+   ```
+
+2. **PassResult** captures context_influence per pass:
+   ```python
+   @dataclass
+   class PassResult:
+       # ... existing fields ...
+       context_influence: Optional[dict[str, Any]] = None
+   ```
+
+3. **Prompts** (Pass 2+) request `context_influence` in JSON output:
+   ```json
+   {
+     "action": "archive",
+     "confidence": 92,
+     "context_influence": {
+       "notes_used": ["Marc Dupont"],
+       "explanation": "La note confirme son rôle de Tech Lead...",
+       "confirmations": ["Marc est bien Tech Lead chez Acme"],
+       "contradictions": [],
+       "missing_info": ["Date de dernière interaction"]
+     }
+   }
+   ```
+
+4. **API Response** includes both fields in `QueueItemAnalysis`:
+   ```python
+   class QueueItemAnalysis(BaseModel):
+       # ... existing fields ...
+       retrieved_context: Optional[RetrievedContextResponse] = None
+       context_influence: Optional[ContextInfluenceResponse] = None
+   ```
+
+**UI Display**:
+
+- **"Influence du contexte"** section: Human-readable AI explanation
+- **"Contexte brut"** section: Collapsible technical details for debugging
+- Both sections only appear when context was actually retrieved (Pass 2+)
+
+**Benefits**:
+
+| Benefit | Description |
+|---------|-------------|
+| **Debugging** | Verify the right notes are being found |
+| **Trust** | Understand why Scapin made a decision |
+| **Quality** | Identify missing notes to improve PKM |
+| **Transparency** | No "black box" - full visibility into AI reasoning |
 
 ---
 

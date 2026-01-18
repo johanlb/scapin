@@ -87,6 +87,36 @@ python scapin.py --help
 
 ## 📝 Notes de Session
 
+### 18 Janvier 2026 (Suite 2) — Context Transparency v2.2.2 📊
+**Objectif** : Donner de la visibilité sur le contexte utilisé lors de l'analyse multi-pass.
+
+**Fonctionnalités v2.2.2 :**
+- ✅ **retrieved_context** : Contexte brut récupéré (notes, calendar, tasks, entity_profiles)
+- ✅ **context_influence** : Explication IA de l'impact du contexte sur l'analyse
+- ✅ **Section "Influence du contexte"** : Affichage dans la page détail Flux
+- ✅ **Section "Contexte brut"** : Données techniques collapsibles pour debugging
+- ✅ **Fix sync blocking** : `asyncio.to_thread()` pour les appels AppleScript
+
+**Champs context_influence :**
+- `notes_used` : Liste des notes ayant influencé l'analyse
+- `explanation` : Explication textuelle de l'influence
+- `confirmations` : Informations confirmées par le contexte
+- `contradictions` : Contradictions détectées
+- `missing_info` : Informations manquantes identifiées
+
+**Fichiers modifiés :**
+- `src/sancho/multi_pass_analyzer.py` : Ajout `retrieved_context` et `context_influence` à `MultiPassResult`
+- `src/sancho/convergence.py` : Ajout `context_influence` à `PassResult`
+- `templates/ai/v2/pass2_contextual_refinement.j2` : Prompt enrichi avec `context_influence`
+- `templates/ai/v2/pass4_deep_reasoning.j2` : Prompt enrichi avec `context_influence`
+- `src/jeeves/api/models/queue.py` : Nouveaux modèles API (`RetrievedContextResponse`, `ContextInfluenceResponse`)
+- `src/jeeves/api/services/queue_service.py` : Inclusion du contexte dans les résultats
+- `src/jeeves/api/services/notes_service.py` : `asyncio.to_thread()` pour sync non-bloquante
+- `web/src/lib/api/client.ts` : Types TypeScript pour le contexte
+- `web/src/routes/flux/[id]/+page.svelte` : UI d'affichage du contexte
+
+**Commit** : `431ec3e`
+
 ### 18 Janvier 2026 (Suite) — Notes UX & Dev Stability 🔧
 **Objectif** : Améliorer l'expérience utilisateur des notes et la stabilité du développement.
 

@@ -176,6 +176,35 @@ Cliquer sur un item pour voir :
 - Pièces jointes
 - Actions disponibles
 - Raisonnement IA détaillé
+- **Contexte utilisé** (v2.2.2+)
+
+### Transparence du Contexte (v2.2.2)
+
+La vue détail affiche maintenant le contexte qui a influencé l'analyse IA :
+
+#### Influence du Contexte
+
+Section qui explique **comment** le contexte a été utilisé :
+
+| Champ | Description |
+|-------|-------------|
+| **Notes utilisées** | Liste des notes PKM consultées |
+| **Explication** | Résumé de l'influence sur l'analyse |
+| **Confirmations** | Informations confirmées par le contexte |
+| **Contradictions** | Incohérences détectées |
+| **Infos manquantes** | Données recherchées mais non trouvées |
+
+#### Contexte Brut (collapsible)
+
+Pour le debugging technique, une section dépliable affiche les données brutes :
+
+- **Entités recherchées** : Personnes, projets, concepts identifiés
+- **Sources consultées** : Notes, Calendrier, OmniFocus, Email
+- **Notes trouvées** : Détail de chaque note avec score de pertinence
+- **Événements calendrier** : Réunions et rendez-vous liés
+- **Tâches OmniFocus** : Actions en cours associées
+
+> **Conseil** : Utilisez cette section pour vérifier que Scapin consulte bien les bonnes notes et comprend correctement le contexte de vos emails
 
 ---
 
