@@ -467,25 +467,28 @@
 						}}
 						{@const modelsDisplay = mp.models_used.join(' → ')}
 						{@const durationSec = (mp.total_duration_ms / 1000).toFixed(1)}
-						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
-							<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
+						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]" data-testid="multipass-section">
+							<h4
+								class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2"
+								title="Détails du processus d'analyse multi-pass : nombre de passes, modèles utilisés, et temps d'exécution"
+							>
 								🔬 Analyse
 							</h4>
 
 							<!-- Summary line -->
-							<div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]">
-								<span>{mp.passes_count} {mp.passes_count === 1 ? 'pass' : 'passes'}</span>
+							<div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]" data-testid="multipass-summary">
+								<span title="Nombre de passes d'analyse effectuées (1 à 5). Plus de passes = email plus complexe" data-testid="multipass-passes-count">{mp.passes_count} {mp.passes_count === 1 ? 'pass' : 'passes'}</span>
 								<span class="text-[var(--color-text-tertiary)]">•</span>
-								<span class="font-mono text-xs">{modelsDisplay}</span>
+								<span class="font-mono text-xs" title="Séquence des modèles IA utilisés : Haiku (rapide), Sonnet (équilibré), Opus (puissant)" data-testid="multipass-models">{modelsDisplay}</span>
 								<span class="text-[var(--color-text-tertiary)]">•</span>
-								<span>{durationSec}s</span>
+								<span title="Temps total d'analyse par l'IA" data-testid="multipass-duration">{durationSec}s</span>
 								{#if mp.escalated}
-									<span class="text-xs px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400" title="Le modèle a été escaladé vers un plus puissant">
+									<span class="text-xs px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400" title="L'IA a escaladé vers un modèle plus puissant car la confiance initiale était insuffisante" data-testid="multipass-escalated">
 										↑ Escalade
 									</span>
 								{/if}
 								{#if mp.high_stakes}
-									<span class="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-400" title="Email à enjeux élevés">
+									<span class="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-400" title="Email détecté comme important : contient des enjeux financiers, juridiques ou personnels significatifs" data-testid="multipass-high-stakes">
 										⚠️ High stakes
 									</span>
 								{/if}
@@ -498,31 +501,42 @@
 									'max_passes': 'Maximum de passes atteint',
 									'no_changes': 'Pas de changement'
 								}}
-								<div class="mt-2 text-xs text-[var(--color-text-tertiary)]">
+								{@const stopReasonTooltips: Record<string, string> = {
+									'confidence_sufficient': 'L\'analyse s\'est arrêtée car le niveau de confiance requis a été atteint',
+									'max_passes': 'L\'analyse a atteint le nombre maximum de passes autorisées (5)',
+									'no_changes': 'L\'analyse s\'est arrêtée car la passe supplémentaire n\'a pas amélioré la confiance'
+								}}
+								<div class="mt-2 text-xs text-[var(--color-text-tertiary)]" title={stopReasonTooltips[mp.stop_reason] ?? 'Raison de l\'arrêt de l\'analyse'} data-testid="multipass-stop-reason">
 									Arrêt : {stopReasonLabels[mp.stop_reason] ?? mp.stop_reason}
 								</div>
 							{/if}
 
 							<!-- Tokens & technical info (collapsible) -->
-							<details class="mt-2">
-								<summary class="text-xs text-[var(--color-text-tertiary)] cursor-pointer hover:text-[var(--color-text-secondary)]">
-									💬 {mp.total_tokens.toLocaleString()} tokens
+							<details class="mt-2" data-testid="multipass-details">
+								<summary class="text-xs text-[var(--color-text-tertiary)] cursor-pointer hover:text-[var(--color-text-secondary)]" title="Cliquez pour voir le détail de chaque passe d'analyse">
+									💬 {mp.total_tokens.toLocaleString()} tokens <span class="opacity-60">(détails)</span>
 								</summary>
-								<div class="mt-2 pl-4 text-xs text-[var(--color-text-tertiary)] space-y-1">
+								<div class="mt-2 pl-4 text-xs text-[var(--color-text-tertiary)] space-y-1" data-testid="multipass-pass-history">
 									{#each mp.pass_history as pass, i}
-										<div class="flex items-center gap-2">
+										{@const passTypeLabels: Record<string, string> = {
+											'blind': 'Extraction aveugle (sans contexte)',
+											'refine': 'Raffinement avec contexte',
+											'deep': 'Analyse approfondie',
+											'expert': 'Expertise maximale'
+										}}
+										<div class="flex items-center gap-2" title={passTypeLabels[pass.pass_type] ?? pass.pass_type} data-testid={`multipass-pass-${pass.pass_number}`}>
 											<span class="w-16">Pass {pass.pass_number}</span>
-											<span class="px-1.5 py-0.5 rounded {modelColors[pass.model] ?? 'bg-gray-500/20 text-gray-400'}">
+											<span class="px-1.5 py-0.5 rounded {modelColors[pass.model] ?? 'bg-gray-500/20 text-gray-400'}" title="Modèle IA utilisé pour cette passe">
 												{pass.model}
 											</span>
-											<span class="text-[var(--color-text-tertiary)]">
+											<span class="text-[var(--color-text-tertiary)]" title="Évolution de la confiance : avant → après cette passe">
 												{Math.round(pass.confidence_before * 100)}% → {Math.round(pass.confidence_after * 100)}%
 											</span>
 											{#if pass.context_searched}
-												<span title="{pass.notes_found} notes trouvées">🔍</span>
+												<span title="Recherche de contexte effectuée : {pass.notes_found} note{pass.notes_found !== 1 ? 's' : ''} trouvée{pass.notes_found !== 1 ? 's' : ''}">🔍</span>
 											{/if}
 											{#if pass.escalation_triggered}
-												<span title="Escalade déclenchée">↑</span>
+												<span title="Cette passe a déclenché une escalade vers un modèle plus puissant">↑</span>
 											{/if}
 										</div>
 									{/each}
@@ -531,8 +545,8 @@
 						</div>
 					{:else}
 						<!-- Legacy analysis (no multi_pass data) -->
-						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
-							<span class="text-xs text-[var(--color-text-tertiary)] italic">
+						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]" data-testid="multipass-legacy">
+							<span class="text-xs text-[var(--color-text-tertiary)] italic" title="Cet email a été analysé avec une version antérieure du système, les métadonnées détaillées ne sont pas disponibles">
 								Analyse legacy
 							</span>
 						</div>

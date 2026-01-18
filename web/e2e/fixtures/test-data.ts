@@ -81,6 +81,19 @@ export const SELECTORS = {
   // Flux Re-analyze (SC-18)
   reanalyzeButton: '[data-testid="reanalyze-button"]',
 
+  // Flux Detail - Multi-Pass Analysis (v2.3)
+  multiPassSection: '[data-testid="multipass-section"]',
+  multiPassSummary: '[data-testid="multipass-summary"]',
+  multiPassPassesCount: '[data-testid="multipass-passes-count"]',
+  multiPassModels: '[data-testid="multipass-models"]',
+  multiPassDuration: '[data-testid="multipass-duration"]',
+  multiPassEscalated: '[data-testid="multipass-escalated"]',
+  multiPassHighStakes: '[data-testid="multipass-high-stakes"]',
+  multiPassStopReason: '[data-testid="multipass-stop-reason"]',
+  multiPassDetails: '[data-testid="multipass-details"]',
+  multiPassPassHistory: '[data-testid="multipass-pass-history"]',
+  multiPassLegacy: '[data-testid="multipass-legacy"]',
+
   // Folder Picker (SC-19)
   folderPath: '[data-testid="folder-path"]',
   folderAutocomplete: '[data-testid="folder-autocomplete"]',
