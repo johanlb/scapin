@@ -7,6 +7,7 @@
 	import { ConfidenceBar } from '$lib/components/ui';
 	import { FileAttachment } from '$lib/components/files';
 	import PassTimeline from '$lib/components/flux/PassTimeline.svelte';
+	import ConfidenceSparkline from '$lib/components/flux/ConfidenceSparkline.svelte';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { getQueueItem, approveQueueItem, rejectQueueItem, snoozeQueueItem, undoQueueItem, canUndoQueueItem } from '$lib/api';
 	import type { QueueItem, SnoozeOption } from '$lib/api';
@@ -480,6 +481,11 @@
 							<div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]" data-testid="multipass-summary">
 								<span title="Nombre de passes d'analyse effectuées (1 à 5). Plus de passes = email plus complexe" data-testid="multipass-passes-count">{mp.passes_count} {mp.passes_count === 1 ? 'pass' : 'passes'}</span>
 								<span class="text-[var(--color-text-tertiary)]">•</span>
+								<!-- Confidence Sparkline (v2.3.1) -->
+								{#if mp.pass_history && mp.pass_history.length > 0}
+									<ConfidenceSparkline passHistory={mp.pass_history} id={item.id} />
+									<span class="text-[var(--color-text-tertiary)]">•</span>
+								{/if}
 								<span class="font-mono text-xs" title="Séquence des modèles IA utilisés : Haiku (rapide), Sonnet (équilibré), Opus (puissant)" data-testid="multipass-models">{modelsDisplay}</span>
 								<span class="text-[var(--color-text-tertiary)]">•</span>
 								<span title="Temps total d'analyse par l'IA" data-testid="multipass-duration">{durationSec}s</span>

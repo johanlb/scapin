@@ -414,5 +414,40 @@ test.describe('Flux Detail Page', () => {
 
       // No items with questions is also valid (depends on data)
     });
+
+    test('should display confidence sparkline in summary', async ({ authenticatedPage: page }) => {
+      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      const fluxItems = page.locator('[data-testid^="flux-item-"]');
+      const itemCount = await fluxItems.count();
+
+      if (itemCount > 0) {
+        await fluxItems.first().click();
+        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForTimeout(1500);
+
+        const multiPassSection = page.locator(SELECTORS.multiPassSection);
+
+        if (await multiPassSection.isVisible()) {
+          // Sparkline should be visible in summary
+          const sparkline = page.locator(SELECTORS.confidenceSparkline);
+          await expect(sparkline).toBeVisible();
+
+          // Should be an SVG element
+          const tagName = await sparkline.evaluate(el => el.tagName.toLowerCase());
+          expect(tagName).toBe('svg');
+
+          // Should have accessible title
+          const title = sparkline.locator('title');
+          await expect(title).toHaveText(/Confiance.*→/);
+        } else {
+          test.skip(true, 'Item does not have multi-pass metadata');
+        }
+      } else {
+        test.skip(true, 'No flux items available for testing');
+      }
+    });
   });
 });

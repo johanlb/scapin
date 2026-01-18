@@ -102,6 +102,9 @@ export const SELECTORS = {
   timelineThinkingBadge: '[data-testid="timeline-thinking-badge"]',
   timelineQuestions: '[data-testid="timeline-questions"]',
 
+  // Confidence Sparkline (v2.3.1)
+  confidenceSparkline: '[data-testid="confidence-sparkline"]',
+
   // Flux List - Complexity Badges (v2.3)
   badgesLegend: '[data-testid="badges-legend"]',
   badgeQuick: '[data-testid="badge-quick"]',
