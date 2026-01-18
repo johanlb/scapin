@@ -275,4 +275,144 @@ test.describe('Flux Detail Page', () => {
       // No legacy items found is also valid (all items have multi-pass)
     });
   });
+
+  test.describe('Pass Timeline (v2.3.1)', () => {
+    test('should display timeline with passes when expanded', async ({ authenticatedPage: page }) => {
+      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      const fluxItems = page.locator('[data-testid^="flux-item-"]');
+      const itemCount = await fluxItems.count();
+
+      if (itemCount > 0) {
+        await fluxItems.first().click();
+        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForTimeout(1500);
+
+        const multiPassSection = page.locator(SELECTORS.multiPassSection);
+
+        if (await multiPassSection.isVisible()) {
+          // Expand the details
+          const details = page.locator(SELECTORS.multiPassDetails);
+          const summary = details.locator('summary');
+          await summary.click();
+          await page.waitForTimeout(300);
+
+          // Timeline should be visible
+          const timeline = page.locator(SELECTORS.passTimeline);
+          await expect(timeline).toBeVisible();
+
+          // Should have at least one pass entry
+          const passEntries = timeline.locator('[data-testid^="timeline-pass-"]');
+          const passCount = await passEntries.count();
+          expect(passCount).toBeGreaterThanOrEqual(1);
+        } else {
+          test.skip(true, 'Item does not have multi-pass metadata');
+        }
+      } else {
+        test.skip(true, 'No flux items available for testing');
+      }
+    });
+
+    test('should display proper badges in timeline passes', async ({ authenticatedPage: page }) => {
+      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      const fluxItems = page.locator('[data-testid^="flux-item-"]');
+      const itemCount = await fluxItems.count();
+
+      if (itemCount > 0) {
+        await fluxItems.first().click();
+        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForTimeout(1500);
+
+        const multiPassSection = page.locator(SELECTORS.multiPassSection);
+
+        if (await multiPassSection.isVisible()) {
+          // Expand the details
+          const details = page.locator(SELECTORS.multiPassDetails);
+          const summary = details.locator('summary');
+          await summary.click();
+          await page.waitForTimeout(300);
+
+          // Check for context badges
+          const contextBadges = page.locator(SELECTORS.timelineContextBadge);
+          const contextCount = await contextBadges.count();
+
+          // If context badges exist, verify they have tooltips
+          if (contextCount > 0) {
+            const tooltip = await contextBadges.first().getAttribute('title');
+            expect(tooltip).toBeTruthy();
+            expect(tooltip).toContain('contexte');
+          }
+
+          // Check for escalation badges
+          const escalationBadges = page.locator(SELECTORS.timelineEscalationBadge);
+          const escalationCount = await escalationBadges.count();
+
+          if (escalationCount > 0) {
+            const tooltip = await escalationBadges.first().getAttribute('title');
+            expect(tooltip).toBeTruthy();
+            expect(tooltip).toContain('escalade');
+          }
+        } else {
+          test.skip(true, 'Item does not have multi-pass metadata');
+        }
+      } else {
+        test.skip(true, 'No flux items available for testing');
+      }
+    });
+
+    test('should display Thinking Bubbles when AI had questions', async ({ authenticatedPage: page }) => {
+      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      const fluxItems = page.locator('[data-testid^="flux-item-"]');
+      const itemCount = await fluxItems.count();
+
+      // Check multiple items to find one with questions
+      for (let i = 0; i < Math.min(itemCount, 5); i++) {
+        await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(1000);
+
+        const items = page.locator('[data-testid^="flux-item-"]');
+        await items.nth(i).click();
+        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForTimeout(1000);
+
+        const multiPassSection = page.locator(SELECTORS.multiPassSection);
+        if (!(await multiPassSection.isVisible())) continue;
+
+        // Expand the details
+        const details = page.locator(SELECTORS.multiPassDetails);
+        const summary = details.locator('summary');
+        await summary.click();
+        await page.waitForTimeout(300);
+
+        // Look for thinking badges
+        const thinkingBadges = page.locator(SELECTORS.timelineThinkingBadge);
+        if ((await thinkingBadges.count()) > 0) {
+          // Verify badge has proper tooltip
+          const tooltip = await thinkingBadges.first().getAttribute('title');
+          expect(tooltip).toBeTruthy();
+          expect(tooltip).toContain('question');
+
+          // Check for questions section
+          const questionsSection = page.locator(SELECTORS.timelineQuestions);
+          if (await questionsSection.isVisible()) {
+            // Should display questions list
+            const questionItems = questionsSection.locator('li');
+            const questionCount = await questionItems.count();
+            expect(questionCount).toBeGreaterThanOrEqual(1);
+          }
+          return; // Found one, test passes
+        }
+      }
+
+      // No items with questions is also valid (depends on data)
+    });
+  });
 });

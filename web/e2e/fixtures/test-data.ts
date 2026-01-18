@@ -94,6 +94,14 @@ export const SELECTORS = {
   multiPassPassHistory: '[data-testid="multipass-pass-history"]',
   multiPassLegacy: '[data-testid="multipass-legacy"]',
 
+  // Pass Timeline (v2.3.1)
+  passTimeline: '[data-testid="pass-timeline"]',
+  timelinePass: (n: number) => `[data-testid="timeline-pass-${n}"]`,
+  timelineContextBadge: '[data-testid="timeline-context-badge"]',
+  timelineEscalationBadge: '[data-testid="timeline-escalation-badge"]',
+  timelineThinkingBadge: '[data-testid="timeline-thinking-badge"]',
+  timelineQuestions: '[data-testid="timeline-questions"]',
+
   // Flux List - Complexity Badges (v2.3)
   badgesLegend: '[data-testid="badges-legend"]',
   badgeQuick: '[data-testid="badge-quick"]',

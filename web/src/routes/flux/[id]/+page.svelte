@@ -6,6 +6,7 @@
 	import { Card, Badge, Button, Skeleton } from '$lib/components/ui';
 	import { ConfidenceBar } from '$lib/components/ui';
 	import { FileAttachment } from '$lib/components/files';
+	import PassTimeline from '$lib/components/flux/PassTimeline.svelte';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { getQueueItem, approveQueueItem, rejectQueueItem, snoozeQueueItem, undoQueueItem, canUndoQueueItem } from '$lib/api';
 	import type { QueueItem, SnoozeOption } from '$lib/api';
@@ -511,35 +512,13 @@
 								</div>
 							{/if}
 
-							<!-- Tokens & technical info (collapsible) -->
-							<details class="mt-2" data-testid="multipass-details">
-								<summary class="text-xs text-[var(--color-text-tertiary)] cursor-pointer hover:text-[var(--color-text-secondary)]" title="Cliquez pour voir le détail de chaque passe d'analyse">
-									💬 {mp.total_tokens.toLocaleString()} tokens <span class="opacity-60">(détails)</span>
+							<!-- Pass Timeline (v2.3.1) -->
+							<details class="mt-3" data-testid="multipass-details">
+								<summary class="text-xs text-[var(--color-text-tertiary)] cursor-pointer hover:text-[var(--color-text-secondary)]" title="Cliquez pour voir le detail de chaque passe d'analyse avec les questions/doutes de l'IA">
+									💬 {mp.total_tokens.toLocaleString()} tokens <span class="opacity-60">(voir timeline)</span>
 								</summary>
-								<div class="mt-2 pl-4 text-xs text-[var(--color-text-tertiary)] space-y-1" data-testid="multipass-pass-history">
-									{#each mp.pass_history as pass, i}
-										{@const passTypeLabels: Record<string, string> = {
-											'blind': 'Extraction aveugle (sans contexte)',
-											'refine': 'Raffinement avec contexte',
-											'deep': 'Analyse approfondie',
-											'expert': 'Expertise maximale'
-										}}
-										<div class="flex items-center gap-2" title={passTypeLabels[pass.pass_type] ?? pass.pass_type} data-testid={`multipass-pass-${pass.pass_number}`}>
-											<span class="w-16">Pass {pass.pass_number}</span>
-											<span class="px-1.5 py-0.5 rounded {modelColors[pass.model] ?? 'bg-gray-500/20 text-gray-400'}" title="Modèle IA utilisé pour cette passe">
-												{pass.model}
-											</span>
-											<span class="text-[var(--color-text-tertiary)]" title="Évolution de la confiance : avant → après cette passe">
-												{Math.round(pass.confidence_before * 100)}% → {Math.round(pass.confidence_after * 100)}%
-											</span>
-											{#if pass.context_searched}
-												<span title="Recherche de contexte effectuée : {pass.notes_found} note{pass.notes_found !== 1 ? 's' : ''} trouvée{pass.notes_found !== 1 ? 's' : ''}">🔍</span>
-											{/if}
-											{#if pass.escalation_triggered}
-												<span title="Cette passe a déclenché une escalade vers un modèle plus puissant">↑</span>
-											{/if}
-										</div>
-									{/each}
+								<div class="mt-3" data-testid="multipass-pass-history">
+									<PassTimeline passHistory={mp.pass_history} />
 								</div>
 							</details>
 						</div>
