@@ -152,6 +152,46 @@
 									contradictions: [],
 									missing_info: ['Date de dernière interaction non trouvée']
 								}
+							: null,
+					// v2.3: Analysis transparency
+					multi_pass:
+						i % 4 === 0
+							? {
+									passes_count: 2,
+									final_model: 'sonnet',
+									models_used: ['haiku', 'sonnet'],
+									escalated: true,
+									stop_reason: 'confidence_sufficient',
+									high_stakes: false,
+									total_tokens: 1247,
+									total_duration_ms: 2345.6,
+									pass_history: [
+										{
+											pass_number: 1,
+											pass_type: 'blind',
+											model: 'haiku',
+											duration_ms: 800,
+											tokens: 312,
+											confidence_before: 0,
+											confidence_after: 0.67,
+											context_searched: false,
+											notes_found: 0,
+											escalation_triggered: false
+										},
+										{
+											pass_number: 2,
+											pass_type: 'refine',
+											model: 'sonnet',
+											duration_ms: 1545.6,
+											tokens: 935,
+											confidence_before: 0.67,
+											confidence_after: 0.92,
+											context_searched: true,
+											notes_found: 2,
+											escalation_triggered: true
+										}
+									]
+								}
 							: null
 				},
 				content: {

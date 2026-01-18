@@ -802,6 +802,51 @@ export interface ContextInfluence {
 	missing_info: string[];
 }
 
+// v2.3: Analysis transparency types
+export interface PassHistoryEntry {
+	/** Pass number (1-5) */
+	pass_number: number;
+	/** Pass type: blind, refine, deep, expert */
+	pass_type: 'blind' | 'refine' | 'deep' | 'expert' | string;
+	/** Model used: haiku, sonnet, opus */
+	model: 'haiku' | 'sonnet' | 'opus' | string;
+	/** Duration in milliseconds */
+	duration_ms: number;
+	/** Tokens used in this pass */
+	tokens: number;
+	/** Confidence before this pass (0-1) */
+	confidence_before: number;
+	/** Confidence after this pass (0-1) */
+	confidence_after: number;
+	/** Whether context was searched */
+	context_searched: boolean;
+	/** Number of notes found (if context searched) */
+	notes_found: number;
+	/** Whether this pass triggered escalation */
+	escalation_triggered: boolean;
+}
+
+export interface MultiPassMetadata {
+	/** Total number of passes executed (1-5) */
+	passes_count: number;
+	/** Model used in final pass */
+	final_model: 'haiku' | 'sonnet' | 'opus' | string;
+	/** All models used in order */
+	models_used: string[];
+	/** Whether escalation occurred */
+	escalated: boolean;
+	/** Why analysis stopped */
+	stop_reason: 'confidence_sufficient' | 'max_passes' | 'no_changes' | string;
+	/** High-stakes email flag */
+	high_stakes: boolean;
+	/** Total tokens consumed */
+	total_tokens: number;
+	/** Total duration in milliseconds */
+	total_duration_ms: number;
+	/** Detailed history of each pass */
+	pass_history: PassHistoryEntry[];
+}
+
 export interface QueueItemAnalysis {
 	action: string;
 	confidence: number;
@@ -819,6 +864,8 @@ export interface QueueItemAnalysis {
 	// v2.2.2: Context transparency
 	retrieved_context: RetrievedContext | null;
 	context_influence: ContextInfluence | null;
+	// v2.3: Analysis transparency
+	multi_pass: MultiPassMetadata | null;
 }
 
 export interface QueueItem {

@@ -938,6 +938,35 @@ def _build_multi_pass_metadata(self, result: Any) -> dict[str, Any]:
     }
 ```
 
+#### TypeScript Types (web/src/lib/api/client.ts)
+
+```typescript
+export interface PassHistoryEntry {
+  pass_number: number;
+  pass_type: 'blind' | 'refine' | 'deep' | 'expert' | string;
+  model: 'haiku' | 'sonnet' | 'opus' | string;
+  duration_ms: number;
+  tokens: number;
+  confidence_before: number;  // 0-1
+  confidence_after: number;   // 0-1
+  context_searched: boolean;
+  notes_found: number;
+  escalation_triggered: boolean;
+}
+
+export interface MultiPassMetadata {
+  passes_count: number;
+  final_model: 'haiku' | 'sonnet' | 'opus' | string;
+  models_used: string[];
+  escalated: boolean;
+  stop_reason: 'confidence_sufficient' | 'max_passes' | 'no_changes' | string;
+  high_stakes: boolean;
+  total_tokens: number;
+  total_duration_ms: number;
+  pass_history: PassHistoryEntry[];
+}
+```
+
 ### Phase 2 : v2.3.1 - Visualisation
 ```
 ┌─────────────────────────────────────────────────────────────┐
