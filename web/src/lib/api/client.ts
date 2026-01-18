@@ -749,6 +749,59 @@ interface ProposedTask {
 	manually_approved: boolean | null;  // User override: true=force, false=reject, null=auto
 }
 
+// v2.2.2: Context transparency types
+interface ContextNote {
+	note_id: string;
+	title: string;
+	note_type: string;
+	summary: string;
+	relevance: number;
+	tags: string[];
+}
+
+interface ContextCalendar {
+	event_id: string;
+	title: string;
+	date: string;
+	time: string | null;
+	relevance: number;
+}
+
+interface ContextTask {
+	task_id: string;
+	title: string;
+	project: string | null;
+	due_date: string | null;
+	relevance: number;
+}
+
+interface EntityProfile {
+	canonical_name: string;
+	entity_type: string;
+	role: string | null;
+	relationship: string | null;
+	key_facts: string[];
+}
+
+interface RetrievedContext {
+	entities_searched: string[];
+	sources_searched: string[];
+	total_results: number;
+	notes: ContextNote[];
+	calendar: ContextCalendar[];
+	tasks: ContextTask[];
+	entity_profiles: Record<string, EntityProfile>;
+	conflicts: Array<{ type: string; description: string; severity: string }>;
+}
+
+interface ContextInfluence {
+	notes_used: string[];
+	explanation: string;
+	confirmations: string[];
+	contradictions: string[];
+	missing_info: string[];
+}
+
 interface QueueItemAnalysis {
 	action: string;
 	confidence: number;
@@ -763,6 +816,9 @@ interface QueueItemAnalysis {
 	context_used: string[];
 	// Sprint 3: Draft replies
 	draft_reply: string | null;
+	// v2.2.2: Context transparency
+	retrieved_context: RetrievedContext | null;
+	context_influence: ContextInfluence | null;
 }
 
 interface QueueItem {

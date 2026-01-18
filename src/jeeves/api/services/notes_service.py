@@ -5,6 +5,7 @@ Async wrapper around NoteManager for API use.
 Provides CRUD operations, search, and tree navigation.
 """
 
+import asyncio
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -915,8 +916,10 @@ class NotesService:
                 conflict_resolution=ConflictResolution.NEWER_WINS,
             )
 
-            # Perform bidirectional sync
-            result = sync_service.sync(direction=SyncDirection.BIDIRECTIONAL)
+            # Perform bidirectional sync in thread pool (blocking AppleScript calls)
+            result = await asyncio.to_thread(
+                sync_service.sync, direction=SyncDirection.BIDIRECTIONAL
+            )
 
             # Convert result to NoteSyncStatus
             errors = result.errors.copy()
@@ -931,8 +934,8 @@ class NotesService:
                 f"{len(result.errors)} errors"
             )
 
-            # FORCE REFRESH: Rebuild metadata index to pick up changes immediately
-            indexed_count = manager.refresh_index()
+            # FORCE REFRESH: Rebuild metadata index in thread pool (file I/O)
+            indexed_count = await asyncio.to_thread(manager.refresh_index)
             logger.info(f"Refreshed metadata index: {indexed_count} notes")
 
             return NoteSyncStatus(

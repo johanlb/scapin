@@ -247,6 +247,9 @@ class PassResult:
     # For Chain-of-Thought (Sprint 8)
     thinking: str = ""
 
+    # Context influence explanation (v2.2.2+)
+    context_influence: Optional[dict[str, Any]] = None
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
@@ -283,6 +286,7 @@ class PassResult:
             "reasoning": self.reasoning,
             "tokens_used": self.tokens_used,
             "duration_ms": self.duration_ms,
+            "context_influence": self.context_influence,
         }
 
 

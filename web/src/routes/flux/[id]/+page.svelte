@@ -515,8 +515,154 @@
 						</div>
 					{/if}
 
-					<!-- Context Used -->
-					{#if item.analysis.context_used && item.analysis.context_used.length > 0}
+					<!-- Context Influence (AI explanation) -->
+					{#if item.analysis.context_influence}
+						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
+							<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
+								🧠 Influence du contexte
+							</h4>
+
+							<!-- AI Explanation -->
+							{#if item.analysis.context_influence.explanation}
+								<p class="text-sm text-[var(--color-text-secondary)] mb-3">
+									{item.analysis.context_influence.explanation}
+								</p>
+							{/if}
+
+							<!-- Notes used -->
+							{#if item.analysis.context_influence.notes_used?.length > 0}
+								<div class="flex flex-wrap gap-1 mb-2">
+									{#each item.analysis.context_influence.notes_used as noteName}
+										<span class="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-400">
+											📝 {noteName}
+										</span>
+									{/each}
+								</div>
+							{/if}
+
+							<!-- Confirmations -->
+							{#if item.analysis.context_influence.confirmations?.length > 0}
+								<div class="mb-2">
+									<span class="text-xs text-green-400 font-medium">✓ Confirmé :</span>
+									<ul class="text-xs text-[var(--color-text-tertiary)] ml-4 mt-1">
+										{#each item.analysis.context_influence.confirmations as confirmation}
+											<li>{confirmation}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+
+							<!-- Contradictions -->
+							{#if item.analysis.context_influence.contradictions?.length > 0}
+								<div class="mb-2">
+									<span class="text-xs text-orange-400 font-medium">⚠ Contradiction :</span>
+									<ul class="text-xs text-[var(--color-text-tertiary)] ml-4 mt-1">
+										{#each item.analysis.context_influence.contradictions as contradiction}
+											<li>{contradiction}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+
+							<!-- Missing info -->
+							{#if item.analysis.context_influence.missing_info?.length > 0}
+								<div class="mb-2">
+									<span class="text-xs text-[var(--color-text-tertiary)] font-medium">❓ Manquant :</span>
+									<ul class="text-xs text-[var(--color-text-tertiary)] ml-4 mt-1">
+										{#each item.analysis.context_influence.missing_info as missing}
+											<li>{missing}</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+						</div>
+					{/if}
+
+					<!-- Retrieved Context (raw data, collapsible) -->
+					{#if item.analysis.retrieved_context && item.analysis.retrieved_context.total_results > 0}
+						<details class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
+							<summary class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2 cursor-pointer hover:text-[var(--color-text-secondary)]">
+								📊 Contexte brut ({item.analysis.retrieved_context.total_results} résultats)
+							</summary>
+
+							<div class="mt-3 space-y-3">
+								<!-- Entities searched -->
+								{#if item.analysis.retrieved_context.entities_searched?.length > 0}
+									<div>
+										<span class="text-xs text-[var(--color-text-tertiary)]">Entités recherchées :</span>
+										<div class="flex flex-wrap gap-1 mt-1">
+											{#each item.analysis.retrieved_context.entities_searched as entity}
+												<span class="text-xs px-2 py-0.5 rounded bg-[var(--glass-tint)] text-[var(--color-text-secondary)]">
+													{entity}
+												</span>
+											{/each}
+										</div>
+									</div>
+								{/if}
+
+								<!-- Notes found -->
+								{#if item.analysis.retrieved_context.notes?.length > 0}
+									<div>
+										<span class="text-xs text-[var(--color-text-tertiary)]">Notes trouvées :</span>
+										<div class="mt-1 space-y-1">
+											{#each item.analysis.retrieved_context.notes as note}
+												<div class="flex items-center gap-2 text-xs">
+													<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
+														{note.note_type}
+													</span>
+													<a href="/notes/{note.note_id}" class="text-[var(--color-accent)] hover:underline">
+														{note.title}
+													</a>
+													<span class="text-[var(--color-text-tertiary)]">
+														({Math.round(note.relevance * 100)}%)
+													</span>
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
+
+								<!-- Calendar events -->
+								{#if item.analysis.retrieved_context.calendar?.length > 0}
+									<div>
+										<span class="text-xs text-[var(--color-text-tertiary)]">Événements calendrier :</span>
+										<div class="mt-1 space-y-1">
+											{#each item.analysis.retrieved_context.calendar as event}
+												<div class="text-xs text-[var(--color-text-secondary)]">
+													📅 {event.date} - {event.title}
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
+
+								<!-- Tasks -->
+								{#if item.analysis.retrieved_context.tasks?.length > 0}
+									<div>
+										<span class="text-xs text-[var(--color-text-tertiary)]">Tâches OmniFocus :</span>
+										<div class="mt-1 space-y-1">
+											{#each item.analysis.retrieved_context.tasks as task}
+												<div class="text-xs text-[var(--color-text-secondary)]">
+													⚡ {task.title}
+													{#if task.project}
+														<span class="text-[var(--color-text-tertiary)]">[{task.project}]</span>
+													{/if}
+												</div>
+											{/each}
+										</div>
+									</div>
+								{/if}
+
+								<!-- Sources searched -->
+								{#if item.analysis.retrieved_context.sources_searched?.length > 0}
+									<div class="text-xs text-[var(--color-text-tertiary)]">
+										Sources : {item.analysis.retrieved_context.sources_searched.join(', ')}
+									</div>
+								{/if}
+							</div>
+						</details>
+					{:else if item.analysis.context_used && item.analysis.context_used.length > 0}
+						<!-- Fallback: old context_used format -->
 						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
 							<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
 								Contexte utilisé

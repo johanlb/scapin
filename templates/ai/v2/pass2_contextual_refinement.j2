@@ -189,8 +189,22 @@ Reponds UNIQUEMENT avec ce JSON :
     "Ajoute contexte: Tech Lead du Projet Alpha",
     "Detecte reunion existante -> calendar: false"
   ],
+  "context_influence": {
+    "notes_used": ["Marc Dupont", "Projet Alpha"],
+    "explanation": "La note 'Marc Dupont' confirme son role de Tech Lead. La note 'Projet Alpha' indique que le budget Q1 est de 15k€, ce qui correspond au montant mentionne.",
+    "confirmations": ["Le montant 15k€ correspond au budget Q1 du projet"],
+    "contradictions": [],
+    "missing_info": ["Date exacte de la deadline non confirmee par le calendrier"]
+  },
   "reasoning": "Avec le contexte des notes, j'ai pu identifier Marc comme Marc Dupont, Tech Lead du Projet Alpha depuis mars 2025..."
 }
 ```
 
-**Important** : Le champ `changes_made` doit lister TOUS les changements par rapport a la Pass precedente.
+**Important** :
+- `changes_made` : liste TOUS les changements par rapport a la Pass precedente
+- `context_influence` : explique comment le contexte a influence l'analyse
+  - `notes_used` : les notes qui ont ete utiles
+  - `explanation` : synthese de l'influence du contexte (2-3 phrases)
+  - `confirmations` : ce qui a ete confirme par le contexte
+  - `contradictions` : ce qui a ete contredit (si applicable)
+  - `missing_info` : ce qui manquait dans le contexte

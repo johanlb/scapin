@@ -100,6 +100,82 @@ class ActionOptionResponse(BaseModel):
     is_recommended: bool = Field(False, description="Option recommandée")
 
 
+class ContextNoteResponse(BaseModel):
+    """Note found during context search"""
+
+    note_id: str = Field(..., description="Note identifier")
+    title: str = Field(..., description="Note title")
+    note_type: str = Field(..., description="Note type (personne, projet, etc.)")
+    summary: str = Field("", description="Brief excerpt from the note")
+    relevance: float = Field(..., description="Relevance score 0-1")
+    tags: list[str] = Field(default_factory=list, description="Note tags")
+
+
+class ContextCalendarResponse(BaseModel):
+    """Calendar event found during context search"""
+
+    event_id: str = Field(..., description="Event identifier")
+    title: str = Field(..., description="Event title")
+    date: str = Field(..., description="Event date (YYYY-MM-DD)")
+    time: str | None = Field(None, description="Event time (HH:MM)")
+    relevance: float = Field(..., description="Relevance score 0-1")
+
+
+class ContextTaskResponse(BaseModel):
+    """Task found during context search"""
+
+    task_id: str = Field(..., description="Task identifier")
+    title: str = Field(..., description="Task title")
+    project: str | None = Field(None, description="Project name")
+    due_date: str | None = Field(None, description="Due date")
+    relevance: float = Field(..., description="Relevance score 0-1")
+
+
+class EntityProfileResponse(BaseModel):
+    """Entity profile built from context"""
+
+    canonical_name: str = Field(..., description="Canonical name in PKM")
+    entity_type: str = Field(..., description="Entity type (personne, projet, etc.)")
+    role: str | None = Field(None, description="Role or position")
+    relationship: str | None = Field(None, description="Relationship to user")
+    key_facts: list[str] = Field(default_factory=list, description="Key facts about entity")
+
+
+class RetrievedContextResponse(BaseModel):
+    """Full context retrieved during analysis"""
+
+    entities_searched: list[str] = Field(default_factory=list, description="Entities searched for")
+    sources_searched: list[str] = Field(default_factory=list, description="Sources searched")
+    total_results: int = Field(0, description="Total results found")
+    notes: list[ContextNoteResponse] = Field(default_factory=list, description="Notes found")
+    calendar: list[ContextCalendarResponse] = Field(
+        default_factory=list, description="Calendar events found"
+    )
+    tasks: list[ContextTaskResponse] = Field(default_factory=list, description="Tasks found")
+    entity_profiles: dict[str, EntityProfileResponse] = Field(
+        default_factory=dict, description="Entity profiles built"
+    )
+    conflicts: list[dict[str, Any]] = Field(
+        default_factory=list, description="Conflicts detected"
+    )
+
+
+class ContextInfluenceResponse(BaseModel):
+    """AI explanation of how context influenced the analysis"""
+
+    notes_used: list[str] = Field(default_factory=list, description="Notes that were useful")
+    explanation: str = Field("", description="Summary of how context influenced analysis")
+    confirmations: list[str] = Field(
+        default_factory=list, description="What was confirmed by context"
+    )
+    contradictions: list[str] = Field(
+        default_factory=list, description="What was contradicted by context"
+    )
+    missing_info: list[str] = Field(
+        default_factory=list, description="Information missing from context"
+    )
+
+
 class QueueItemAnalysis(BaseModel):
     """AI analysis in queue item"""
 
@@ -133,6 +209,15 @@ class QueueItemAnalysis(BaseModel):
     draft_reply: str | None = Field(
         None,
         description="AI-generated draft reply when action is REPLY"
+    )
+    # v2.2.2: Context transparency
+    retrieved_context: RetrievedContextResponse | None = Field(
+        None,
+        description="Full context retrieved during analysis (notes, calendar, tasks)"
+    )
+    context_influence: ContextInfluenceResponse | None = Field(
+        None,
+        description="AI explanation of how context influenced the analysis"
     )
 
 

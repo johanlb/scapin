@@ -60,7 +60,27 @@
 					proposed_tasks: i % 10 === 0 ? [{ title: 'Répondre à Jean', note: 'Email urgent', project: 'Communications', due_date: '2026-01-10', confidence: 0.9, reasoning: 'Action requise', auto_applied: false, manually_approved: null }] : [],
 					context_used: i % 6 === 0 ? ['note-jean-dupont-abc123', 'note-projet-xyz-789'] : [],
 					// Sprint 3: Draft replies
-					draft_reply: action === 'reply' ? `Bonjour,\n\nMerci pour votre email.\n\nCordialement,\nJohan` : null
+					draft_reply: action === 'reply' ? `Bonjour,\n\nMerci pour votre email.\n\nCordialement,\nJohan` : null,
+					// v2.2.2: Context transparency
+					retrieved_context: i % 6 === 0 ? {
+						entities_searched: ['Jean Dupont', 'Projet XYZ'],
+						sources_searched: ['notes', 'calendar'],
+						total_results: 2,
+						notes: [
+							{ note_id: 'jean-dupont', title: 'Jean Dupont', note_type: 'personne', summary: 'Tech Lead chez Acme Corp', relevance: 0.92, tags: ['contact', 'tech'] }
+						],
+						calendar: [],
+						tasks: [],
+						entity_profiles: {},
+						conflicts: []
+					} : null,
+					context_influence: i % 6 === 0 ? {
+						notes_used: ['Jean Dupont'],
+						explanation: 'La note Jean Dupont confirme son rôle de Tech Lead et son implication dans le projet.',
+						confirmations: ['Jean Dupont est Tech Lead chez Acme Corp'],
+						contradictions: [],
+						missing_info: ['Date de dernière interaction non trouvée']
+					} : null
 				},
 				content: {
 					preview: `Ceci est le contenu de l'email ${i + 1}...`

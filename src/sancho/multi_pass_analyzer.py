@@ -133,6 +133,9 @@ class MultiPassResult:
     # Retrieved context for transparency (v2.2.2+)
     retrieved_context: Optional[dict[str, Any]] = None
 
+    # Context influence from last contextual pass (v2.2.2+)
+    context_influence: Optional[dict[str, Any]] = None
+
     @property
     def high_confidence(self) -> bool:
         """Check if result is high confidence (>= 90%)"""
@@ -180,6 +183,7 @@ class MultiPassResult:
             "coherence_warnings": self.coherence_warnings,
             # Retrieved context for transparency (v2.2.2+)
             "retrieved_context": self.retrieved_context,
+            "context_influence": self.context_influence,
         }
 
 
@@ -426,6 +430,7 @@ class MultiPassAnalyzer:
             escalated,
             analysis_context,
             event,
+            context=context,
         )
 
     async def _run_pass1(self, event: PerceivedEvent) -> PassResult:
@@ -864,6 +869,9 @@ class MultiPassAnalyzer:
             # Get thinking (for Opus Pass 5)
             thinking = data.get("thinking", "")
 
+            # Get context influence (v2.2.2+ - only in Pass 2+)
+            context_influence = data.get("context_influence")
+
             return PassResult(
                 pass_number=pass_number,
                 pass_type=pass_type,
@@ -878,6 +886,7 @@ class MultiPassAnalyzer:
                 tokens_used=usage.get("total_tokens", 0),
                 duration_ms=duration_ms,
                 thinking=thinking,
+                context_influence=context_influence,
             )
 
         except json.JSONDecodeError as e:
@@ -1670,6 +1679,13 @@ class MultiPassAnalyzer:
                 f"{final_stop_reason}; coherence_pass: {coherence_corrections} corrected"
             )
 
+        # Extract context_influence from last contextual pass (v2.2.2+)
+        last_context_influence: Optional[dict[str, Any]] = None
+        for p in reversed(pass_history):
+            if p.context_influence is not None:
+                last_context_influence = p.context_influence
+                break
+
         # Serialize retrieved context for transparency (v2.2.2+)
         serialized_context: Optional[dict[str, Any]] = None
         if context is not None:
@@ -1749,6 +1765,7 @@ class MultiPassAnalyzer:
             coherence_warnings=coherence_warnings,
             # Retrieved context for transparency (v2.2.2+)
             retrieved_context=serialized_context,
+            context_influence=last_context_influence,
         )
 
 

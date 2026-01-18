@@ -8,6 +8,8 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Any
 
+from src.core.schemas import EmailAnalysis, EmailMetadata
+from src.integrations.email.processed_tracker import get_processed_tracker
 from src.integrations.storage.action_history import (
     ActionHistoryStorage,
     ActionType,
@@ -20,8 +22,6 @@ from src.integrations.storage.snooze_storage import (
     SnoozeStorage,
     get_snooze_storage,
 )
-from src.core.schemas import EmailAnalysis, EmailMetadata
-from src.integrations.email.processed_tracker import get_processed_tracker
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
 
@@ -1334,6 +1334,9 @@ class QueueService:
                 "total_tokens": result.total_tokens,
                 "duration_ms": result.total_duration_ms,
             },
+            # v2.2.2: Context transparency
+            "retrieved_context": result.retrieved_context,
+            "context_influence": result.context_influence,
         }
 
     async def reanalyze_all_pending(self) -> dict[str, Any]:
