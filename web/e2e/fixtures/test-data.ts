@@ -94,6 +94,13 @@ export const SELECTORS = {
   multiPassPassHistory: '[data-testid="multipass-pass-history"]',
   multiPassLegacy: '[data-testid="multipass-legacy"]',
 
+  // Flux List - Complexity Badges (v2.3)
+  badgesLegend: '[data-testid="badges-legend"]',
+  badgeQuick: '[data-testid="badge-quick"]',
+  badgeContext: '[data-testid="badge-context"]',
+  badgeComplex: '[data-testid="badge-complex"]',
+  badgeOpus: '[data-testid="badge-opus"]',
+
   // Folder Picker (SC-19)
   folderPath: '[data-testid="folder-path"]',
   folderAutocomplete: '[data-testid="folder-autocomplete"]',

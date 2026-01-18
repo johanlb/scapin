@@ -1152,6 +1152,15 @@
 			</span>
 			<span>écartés</span>
 		</button>
+
+		<!-- Badges legend (v2.3) -->
+		<div class="ml-auto flex items-center gap-1 text-xs text-[var(--color-text-tertiary)]" data-testid="badges-legend">
+			<span class="hidden sm:inline" title="Légende des badges de complexité d'analyse">Badges:</span>
+			<span title="Analyse rapide : 1 pass avec Haiku">⚡</span>
+			<span title="Contexte personnel utilisé">🔍</span>
+			<span title="Analyse complexe : 3+ passes">🧠</span>
+			<span title="Opus utilisé">🏆</span>
+		</div>
 	</section>
 
 	<!-- Loading state -->
@@ -1952,15 +1961,37 @@
 
 								<!-- Status indicator and actions (outside link) -->
 								<div class="shrink-0 text-right flex flex-col items-end gap-2 ml-auto">
-									<span
-										class="text-xs px-2 py-1 rounded-full"
-										class:bg-green-100={item.status === 'approved'}
-										class:text-green-700={item.status === 'approved'}
-										class:bg-red-100={item.status === 'rejected'}
-										class:text-red-700={item.status === 'rejected'}
-									>
-										{getActionLabel(item.analysis.action)}
-									</span>
+									<div class="flex items-center gap-1">
+										<!-- Complexity badges (v2.3) -->
+										{#if item.analysis.multi_pass}
+											{@const mp = item.analysis.multi_pass}
+											{@const isQuick = mp.passes_count === 1 && mp.final_model === 'haiku'}
+											{@const hasContext = mp.pass_history?.some(p => p.context_searched)}
+											{@const isComplex = mp.passes_count >= 3}
+											{@const usedOpus = mp.final_model === 'opus' || mp.models_used?.includes('opus')}
+											{#if isQuick}
+												<span class="text-xs" title="Analyse rapide : 1 pass avec Haiku" data-testid="badge-quick">⚡</span>
+											{/if}
+											{#if hasContext}
+												<span class="text-xs" title="Contexte personnel utilisé" data-testid="badge-context">🔍</span>
+											{/if}
+											{#if isComplex}
+												<span class="text-xs" title="Analyse complexe : {mp.passes_count} passes" data-testid="badge-complex">🧠</span>
+											{/if}
+											{#if usedOpus}
+												<span class="text-xs" title="Analyse avec Opus (modèle le plus puissant)" data-testid="badge-opus">🏆</span>
+											{/if}
+										{/if}
+										<span
+											class="text-xs px-2 py-1 rounded-full"
+											class:bg-green-100={item.status === 'approved'}
+											class:text-green-700={item.status === 'approved'}
+											class:bg-red-100={item.status === 'rejected'}
+											class:text-red-700={item.status === 'rejected'}
+										>
+											{getActionLabel(item.analysis.action)}
+										</span>
+									</div>
 									{#if item.reviewed_at}
 										<p class="text-xs text-[var(--color-text-tertiary)]">
 											{formatRelativeTime(item.reviewed_at)}
