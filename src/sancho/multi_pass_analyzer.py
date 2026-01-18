@@ -328,7 +328,7 @@ class MultiPassAnalyzer:
         stop, reason = should_stop(current_result, None, self.config)
         if stop:
             logger.info(f"Stopping after Pass 1: {reason}")
-            return self._build_result(
+            return await self._build_result(
                 pass_history,
                 start_time,
                 total_tokens,
@@ -394,7 +394,7 @@ class MultiPassAnalyzer:
             stop, reason = should_stop(current_result, previous_result, self.config)
             if stop:
                 logger.info(f"Stopping after Pass {pass_num}: {reason}")
-                return self._build_result(
+                return await self._build_result(
                     pass_history,
                     start_time,
                     total_tokens,
@@ -422,7 +422,7 @@ class MultiPassAnalyzer:
 
         # Max passes reached
         logger.warning(f"Max passes ({self.config.max_passes}) reached without convergence")
-        return self._build_result(
+        return await self._build_result(
             pass_history,
             start_time,
             total_tokens,
@@ -1596,7 +1596,7 @@ class MultiPassAnalyzer:
 
         return adjusted_action, adjusted_extractions, adjustment_reason
 
-    def _build_result(
+    async def _build_result(
         self,
         pass_history: list[PassResult],
         start_time: float,
@@ -1659,7 +1659,7 @@ class MultiPassAnalyzer:
         coherence_warnings: list[dict] = []
 
         if adjusted_extractions:
-            validated_extractions, coherence_result = self._run_coherence_pass(
+            validated_extractions, coherence_result = await self._run_coherence_pass(
                 adjusted_extractions, event
             )
             if coherence_result is not None:
