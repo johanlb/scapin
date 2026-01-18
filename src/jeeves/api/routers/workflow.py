@@ -7,6 +7,13 @@ API endpoints for knowledge extraction workflow.
 from datetime import datetime, timezone
 from typing import Optional
 
+from src.core.events.universal_event import (
+    EventSource,
+    EventType,
+    PerceivedEvent,
+    UrgencyLevel,
+)
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.core.config_manager import get_config
@@ -302,12 +309,31 @@ async def process_inbox_v2(
             # Process each email through V2 pipeline
             for metadata, content in emails:
                 # Convert to PerceivedEvent
+                # Convert to PerceivedEvent
                 event = PerceivedEvent(
                     event_id=str(metadata.id),
                     source=EventSource.EMAIL,
-                    timestamp=metadata.date,
-                    title=metadata.subject,
+                    source_id=str(metadata.id),
+                    occurred_at=metadata.date,
+                    received_at=metadata.date,
+                    perceived_at=datetime.now(timezone.utc),
+                    title=metadata.subject or "No Subject",
                     content=content.plain_text or content.preview or "",
+                    event_type=EventType.INFORMATION,
+                    urgency=UrgencyLevel.LOW,
+                    entities=[],
+                    topics=[],
+                    keywords=[],
+                    from_person=metadata.from_name or metadata.from_address or "Unknown",
+                    to_people=metadata.to_addresses or [],
+                    cc_people=[],
+                    thread_id=None,
+                    references=[],
+                    in_reply_to=None,
+                    has_attachments=metadata.has_attachments,
+                    attachment_count=1 if metadata.has_attachments else 0,
+                    attachment_types=["unknown"] if metadata.has_attachments else [],
+                    urls=[],
                     metadata={
                         "from_address": metadata.from_address,
                         "from_name": metadata.from_name,
@@ -315,6 +341,9 @@ async def process_inbox_v2(
                         "has_attachments": metadata.has_attachments,
                         "folder": metadata.folder,
                     },
+                    perception_confidence=1.0,
+                    needs_clarification=False,
+                    clarification_questions=[],
                 )
 
                 # Process with V2 pipeline (context-aware)
