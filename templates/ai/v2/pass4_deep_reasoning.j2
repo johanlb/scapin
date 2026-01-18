@@ -147,8 +147,6 @@ Les passes precedentes ont identifie ces problemes non resolus :
 
 {% for issue in unresolved_issues %}
 {{ loop.index }}. {{ issue }}
-{% for issue in unresolved_issues %}
-{{ loop.index }}. {{ issue }}
 {% endfor %}
 
 ### QUESTIONS TRANSMISES
@@ -189,9 +187,6 @@ Les passes precedentes ont identifie ces problemes non resolus :
 
 ### QUESTIONS A RESOUDRE
 
-- Pourquoi la confiance est-elle restee basse apres {{ passes | length }} passes ?
-- Quelles informations manquent-elles encore ?
-- L'action est-elle vraiment la bonne ?
 - Pourquoi la confiance est-elle restee basse apres {{ passes | length }} passes ?
 - Quelles informations manquent-elles encore ?
 - L'action est-elle vraiment la bonne ?
