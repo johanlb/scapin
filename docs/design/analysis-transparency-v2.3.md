@@ -1,9 +1,9 @@
 # Analysis Transparency v2.3 - Design Document
 
-**Version** : Draft v0.1
+**Version** : v1.0
 **Date** : 18 janvier 2026
 **Auteur** : Claude Code
-**Statut** : Proposition
+**Statut** : Validé
 
 ---
 
@@ -751,42 +751,185 @@ Suite à une réflexion plus poussée, voici des idées complémentaires :
 
 ---
 
-## 9. Matrice de priorisation
+## 9. Décisions de design (Validées le 18/01/2026)
 
-| Idée | Impact UX | Effort | Priorité |
-|------|-----------|--------|----------|
-| Métadonnées de base | ★★★★★ | ★★☆☆☆ | **P0** |
-| Badge complexité | ★★★★☆ | ★☆☆☆☆ | **P0** |
-| Timeline des passes | ★★★★☆ | ★★★☆☆ | **P1** |
-| Graphique confiance | ★★★☆☆ | ★★☆☆☆ | **P1** |
-| "Why not X?" | ★★★★☆ | ★★☆☆☆ | **P1** |
-| Temps réel WebSocket | ★★★★★ | ★★★★☆ | **P2** |
-| Mode ELI5 | ★★★★☆ | ★★☆☆☆ | **P2** |
-| Comparaison A/B | ★★★☆☆ | ★★★☆☆ | **P2** |
-| Score contribution | ★★★☆☆ | ★★★★☆ | **P3** |
-| Mode Replay | ★★☆☆☆ | ★★★★★ | **P3** |
-| Coûts | ★★☆☆☆ | ★★☆☆☆ | **P3** |
-| Export audit | ★★☆☆☆ | ★★★☆☆ | **P3** |
-| Prédiction précision | ★★★☆☆ | ★★★★☆ | **P4** |
-| Suggestions amélioration | ★★★☆☆ | ★★★★☆ | **P4** |
+### 9.1 Badges
+
+| Décision | Valeur |
+|----------|--------|
+| Cumul | **Oui** - Les badges se cumulent (ex: `🧠 🔍 🏆`) |
+| `⚡` | 1 pass uniquement, modèle Haiku |
+| `🔍` | `retrieved_context` non vide (contexte recherché) |
+| `🧠` | 3 passes ou plus |
+| `🏆` | Opus utilisé (dans n'importe quel pass) |
+
+**Exemple d'affichage** :
+```
+📧 Email simple               ⚡
+📧 Email avec contexte        ⚡ 🔍
+📧 Analyse approfondie        🧠 🔍
+📧 Analyse premium            🧠 🔍 🏆
+```
+
+### 9.2 Format métadonnées
+
+| Élément | Format | Exemple |
+|---------|--------|---------|
+| Passes | Nombre entier | "3 passes" |
+| Modèles | Tous les intermédiaires | "Haiku → Sonnet → Sonnet" |
+| Durée | Secondes avec 1 décimale | "0.8s", "2.3s" |
+| Séparateur | Bullet (•) | "3 passes • Haiku → Sonnet • 2.3s" |
+
+### 9.3 Fallback anciennes analyses
+
+Pour les analyses sans données `multi_pass` :
+- Afficher : **"Analyse legacy"**
+- Masquer la section timeline
+- Les badges ne s'affichent pas
+
+### 9.4 "Why not X?" - Backend enrichi
+
+Le backend doit capturer les raisons de rejet pour chaque alternative :
+
+```python
+class ActionOption:
+    action: str
+    confidence: float
+    reasoning: str           # Pourquoi cette option
+    rejection_reason: str    # Pourquoi PAS cette option (si non recommandée)
+```
+
+### 9.5 Affichage confiance
+
+- **Score global uniquement** (pas de décomposition 4D)
+- Format : "67% → 85% → 92%"
+- Dans la timeline : afficher avant/après par pass
+
+### 9.6 Sparkline
+
+- **SVG inline** (pas de librairie externe)
+- Simple ligne avec points aux valeurs de confiance
+- Couleur : dégradé du rouge (bas) au vert (haut)
 
 ---
 
-## 10. Résumé exécutif
+## 10. Scope retenu
 
-### Livrable minimal (v2.3.0)
+### P0 - Quick wins (v2.3.0)
+| Idée | Description | Effort |
+|------|-------------|--------|
+| **Métadonnées de base** | "3 passes • Haiku → Sonnet • 2.3s" | ★★☆☆☆ |
+| **Badge complexité** | `⚡` `🔍` `🧠` `🏆` dans la liste | ★☆☆☆☆ |
 
-1. **Exposer `multi_pass`** dans l'API
-2. **Afficher résumé** : "3 passes • Haiku → Sonnet • 2.3s"
-3. **Badge complexité** dans la liste Flux
-4. **"Why not X?"** : montrer les alternatives rejetées
+### P1 - Fort impact (v2.3.1)
+| Idée | Description | Effort |
+|------|-------------|--------|
+| **Timeline des passes** | Historique collapsible avec détails | ★★★☆☆ |
+| **Graphique confiance** | Sparkline de l'évolution 45% → 92% | ★★☆☆☆ |
+| **"Why not X?"** | Explication des alternatives rejetées | ★★☆☆☆ |
 
-### Vision complète (v2.4+)
+### P2 - Différenciants (v2.3.2+)
+| Idée | Description | Effort |
+|------|-------------|--------|
+| **Temps réel WebSocket** | Feedback live pendant réanalyse | ★★★★☆ |
+| **Mode ELI5** | "J'ai lu cet email 3 fois..." | ★★☆☆☆ |
+| **Score contribution** | % d'influence par note | ★★★☆☆ |
+| **Coûts** | "~0.003€" | ★★☆☆☆ |
+| **Suggestions** | "Une note Acme Corp améliorerait..." | ★★★☆☆ |
 
-- Timeline interactive avec replay
-- Temps réel pendant réanalyse
-- Graphiques et visualisations
-- Mode ELI5 pour accessibilité
+### Exclu du scope
+- ~~Mode Replay~~ (trop complexe)
+- ~~Export audit~~ (pas prioritaire)
+- ~~Prédiction précision~~ (dépend de Sganarelle maturity)
+- ~~Comparaison A/B~~ (peut-être plus tard)
+
+---
+
+## 10. Plan d'implémentation
+
+### Phase 1 : v2.3.0 - Fondations
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Backend                                                     │
+│ ├─ Ajouter MultiPassMetadata à QueueItemAnalysis           │
+│ ├─ Ajouter PassHistoryEntry[] à QueueItemAnalysis          │
+│ └─ Exposer dans queue_service.py                           │
+├─────────────────────────────────────────────────────────────┤
+│ Frontend                                                    │
+│ ├─ Types TypeScript pour multi_pass                        │
+│ ├─ Section "Analyse" dans flux/[id]                        │
+│ └─ Badge complexité dans flux list                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Modèles API implémentés (src/jeeves/api/models/queue.py)
+
+```python
+class PassHistoryEntryResponse(BaseModel):
+    """Single pass in multi-pass analysis history (v2.3)"""
+    pass_number: int          # 1-5
+    pass_type: str            # blind, refine, deep, expert
+    model: str                # haiku, sonnet, opus
+    duration_ms: float
+    tokens: int
+    confidence_before: float  # 0-1
+    confidence_after: float   # 0-1
+    context_searched: bool
+    notes_found: int
+    escalation_triggered: bool
+
+class MultiPassMetadataResponse(BaseModel):
+    """Metadata from multi-pass analysis (v2.3)"""
+    passes_count: int         # 1-5
+    final_model: str          # haiku, sonnet, opus
+    models_used: list[str]    # ['haiku', 'sonnet', 'sonnet']
+    escalated: bool
+    stop_reason: str          # confidence_sufficient, max_passes, no_changes
+    high_stakes: bool
+    total_tokens: int
+    total_duration_ms: float
+    pass_history: list[PassHistoryEntryResponse]
+```
+
+### Phase 2 : v2.3.1 - Visualisation
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Frontend                                                    │
+│ ├─ Composant <PassTimeline>                                │
+│ ├─ Composant <ConfidenceSparkline>                         │
+│ └─ Section "Pourquoi pas X?" avec options rejetées         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Phase 3 : v2.3.2 - Temps réel
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Backend                                                     │
+│ ├─ Nouveaux événements WebSocket (pass_started, etc.)      │
+│ └─ Émission dans multi_pass_analyzer.py                    │
+├─────────────────────────────────────────────────────────────┤
+│ Frontend                                                    │
+│ ├─ Composant <AnalysisProgress>                            │
+│ ├─ Animations et feedback visuel                           │
+│ └─ Intégration dans réanalyse                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Phase 4 : v2.3.3 - Polish
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Backend                                                     │
+│ ├─ Génération ELI5 (prompt ou template)                    │
+│ ├─ Calcul score contribution contexte                      │
+│ └─ Calcul coût en euros                                    │
+├─────────────────────────────────────────────────────────────┤
+│ Frontend                                                    │
+│ ├─ Section "En résumé simple" (ELI5)                       │
+│ ├─ Barres de contribution par note                         │
+│ ├─ Affichage coût                                          │
+│ └─ Suggestions d'amélioration                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 

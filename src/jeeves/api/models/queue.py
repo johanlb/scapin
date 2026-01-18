@@ -2,6 +2,39 @@
 Queue API Models
 
 Pydantic models for queue API requests and responses.
+
+## Version History
+
+- v2.3 (Jan 2026): Added MultiPassMetadataResponse and PassHistoryEntryResponse
+  for analysis transparency. These expose the multi-pass analysis metadata
+  (passes count, models used, timing, escalation) to the frontend.
+
+- v2.2.2 (Jan 2026): Added RetrievedContextResponse and ContextInfluenceResponse
+  for context transparency.
+
+## Multi-Pass Analysis Models (v2.3)
+
+The multi-pass analysis system uses up to 5 passes with escalating models:
+- Pass 1: Haiku (blind extraction, no context)
+- Pass 2-3: Sonnet (contextual refinement with PKM/calendar context)
+- Pass 4: Sonnet (deep reasoning for complex cases)
+- Pass 5: Opus (expert analysis for high-stakes emails)
+
+The `MultiPassMetadataResponse` captures:
+- `passes_count`: Number of passes executed (1-5)
+- `final_model`: Model used in the final pass
+- `models_used`: Sequence of models used (e.g., ['haiku', 'sonnet', 'sonnet'])
+- `escalated`: Whether escalation occurred (moved to a more powerful model)
+- `stop_reason`: Why analysis stopped (confidence_sufficient, max_passes, no_changes)
+- `total_tokens`, `total_duration_ms`: Resource consumption
+- `pass_history`: Detailed history of each pass
+
+The `PassHistoryEntryResponse` captures per-pass details:
+- `pass_type`: blind, refine, deep, expert
+- `model`: haiku, sonnet, opus
+- `confidence_before/after`: Confidence evolution
+- `context_searched`, `notes_found`: Context usage
+- `escalation_triggered`: Whether this pass triggered escalation
 """
 
 from datetime import datetime
@@ -176,6 +209,39 @@ class ContextInfluenceResponse(BaseModel):
     )
 
 
+class PassHistoryEntryResponse(BaseModel):
+    """Single pass in multi-pass analysis history (v2.3)"""
+
+    pass_number: int = Field(..., description="Pass number (1-5)")
+    pass_type: str = Field(..., description="Pass type: blind, refine, deep, expert")
+    model: str = Field(..., description="Model used: haiku, sonnet, opus")
+    duration_ms: float = Field(0.0, description="Pass duration in milliseconds")
+    tokens: int = Field(0, description="Tokens used in this pass")
+    confidence_before: float = Field(0.0, description="Confidence before this pass (0-1)")
+    confidence_after: float = Field(0.0, description="Confidence after this pass (0-1)")
+    context_searched: bool = Field(False, description="Whether context was searched in this pass")
+    notes_found: int = Field(0, description="Number of notes found (if context searched)")
+    escalation_triggered: bool = Field(False, description="Whether this pass triggered escalation")
+
+
+class MultiPassMetadataResponse(BaseModel):
+    """Metadata from multi-pass analysis (v2.3)"""
+
+    passes_count: int = Field(..., description="Total number of passes executed (1-5)")
+    final_model: str = Field(..., description="Model used in final pass: haiku, sonnet, opus")
+    models_used: list[str] = Field(
+        default_factory=list, description="All models used in order (e.g., ['haiku', 'sonnet', 'sonnet'])"
+    )
+    escalated: bool = Field(False, description="Whether escalation occurred during analysis")
+    stop_reason: str = Field("", description="Why analysis stopped: confidence_sufficient, max_passes, no_changes")
+    high_stakes: bool = Field(False, description="Whether email was flagged as high-stakes")
+    total_tokens: int = Field(0, description="Total tokens consumed across all passes")
+    total_duration_ms: float = Field(0.0, description="Total analysis duration in milliseconds")
+    pass_history: list[PassHistoryEntryResponse] = Field(
+        default_factory=list, description="Detailed history of each pass"
+    )
+
+
 class QueueItemAnalysis(BaseModel):
     """AI analysis in queue item"""
 
@@ -218,6 +284,11 @@ class QueueItemAnalysis(BaseModel):
     context_influence: ContextInfluenceResponse | None = Field(
         None,
         description="AI explanation of how context influenced the analysis"
+    )
+    # v2.3: Analysis transparency
+    multi_pass: MultiPassMetadataResponse | None = Field(
+        None,
+        description="Multi-pass analysis metadata (passes count, models, timing)"
     )
 
 
