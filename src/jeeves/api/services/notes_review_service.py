@@ -58,8 +58,9 @@ class NotesReviewService:
     def _get_store(self) -> NoteMetadataStore:
         """Get or create NoteMetadataStore instance"""
         if self._metadata_store is None:
-            data_dir = getattr(self.config, "storage_dir", "data")
-            db_path = Path(data_dir) / "notes_meta.db"
+            # Use database directory for notes metadata
+            data_dir = self.config.storage.database_path.parent
+            db_path = data_dir / "notes_meta.db"
             self._metadata_store = NoteMetadataStore(db_path)
         return self._metadata_store
 
@@ -243,11 +244,7 @@ class NotesReviewService:
 
         # Calculate average easiness factor
         all_notes = self._get_store().list_all(limit=10000)
-        avg_ef = (
-            sum(m.easiness_factor for m in all_notes) / len(all_notes)
-            if all_notes
-            else 2.5
-        )
+        avg_ef = sum(m.easiness_factor for m in all_notes) / len(all_notes) if all_notes else 2.5
 
         return ReviewStatsResponse(
             total_notes=stats["total"],

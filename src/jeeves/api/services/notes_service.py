@@ -262,12 +262,8 @@ class NotesService:
     def _get_manager(self) -> NoteManager:
         """Get or create NoteManager instance"""
         if self._note_manager is None:
-            # Use configured notes directory from config or default
-            notes_dir = getattr(self.config, "notes_dir", None)
-            if notes_dir is None:
-                notes_dir = Path.home() / "Documents" / "Notes"
-            else:
-                notes_dir = Path(notes_dir)
+            # Use configured notes directory from config
+            notes_dir = self.config.storage.notes_path
             self._note_manager = NoteManager(notes_dir, auto_index=True)
         return self._note_manager
 
@@ -275,11 +271,7 @@ class NotesService:
         """Get or create GitVersionManager instance"""
         if self._git_manager is None:
             # Use same notes directory as NoteManager
-            notes_dir = getattr(self.config, "notes_dir", None)
-            if notes_dir is None:
-                notes_dir = Path.home() / "Documents" / "Notes"
-            else:
-                notes_dir = Path(notes_dir)
+            notes_dir = self.config.storage.notes_path
             self._git_manager = GitVersionManager(notes_dir)
         return self._git_manager
 
