@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
-**Dernière mise à jour** : 18 janvier 2026
-**Version** : v1.0.0-rc.1 (Release Candidate 1)
+**Dernière mise à jour** : 19 janvier 2026
+**Version** : v1.0.0-rc.1 (Release Candidate 1) + Analysis Transparency v2.3.1
 **Projet** : Scapin
 **Dépôt** : https://github.com/johanlb/scapin
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -86,6 +86,37 @@ python scapin.py --help
 ---
 
 ## 📝 Notes de Session
+
+### 19 Janvier 2026 — Analysis Transparency v2.3.1 🔬
+**Objectif** : Donner aux utilisateurs une visibilité complète sur le processus d'analyse multi-pass.
+
+**Phase 1 (v2.3.0) - Fondations :**
+- ✅ **API multi_pass** : Exposition des métadonnées d'analyse (passes_count, models_used, etc.)
+- ✅ **Section Analyse** : Affichage résumé dans la page détail flux
+- ✅ **Badges Complexité** : ⚡🔍🧠🏆 dans la liste flux avec légende
+
+**Phase 2 (v2.3.1) - Visualisation :**
+- ✅ **PassTimeline** : Composant timeline visuelle des passes avec nœuds colorés
+- ✅ **ConfidenceSparkline** : Mini graphique SVG de l'évolution de confiance
+- ✅ **Thinking Bubbles (💭)** : Questions/doutes de l'IA entre passes
+- ✅ **Why Not Section** : Explication des alternatives rejetées
+
+**Nouveaux composants créés :**
+- `web/src/lib/components/flux/PassTimeline.svelte`
+- `web/src/lib/components/flux/ConfidenceSparkline.svelte`
+
+**Nouveaux champs API :**
+- `PassHistoryEntryResponse.questions` : Doutes IA entre passes
+- `ActionOptionResponse.rejection_reason` : Pourquoi pas cette option
+
+**Commits** : `f46d033`, `8def936`, `0f6cb4b`, `22b9eb1`
+
+**Documentation mise à jour :**
+- `docs/design/analysis-transparency-v2.3.md` : Design doc complet avec statut
+- `ARCHITECTURE.md` : Section "Analysis Transparency UI (v2.3)"
+- `docs/user-guide/03-flux.md` : Guide utilisateur Transparence de l'Analyse
+
+---
 
 ### 18 Janvier 2026 (Suite 2) — Context Transparency v2.2.2 📊
 **Objectif** : Donner de la visibilité sur le contexte utilisé lors de l'analyse multi-pass.

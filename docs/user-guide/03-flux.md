@@ -208,6 +208,102 @@ Pour le debugging technique, une section dépliable affiche les données brutes 
 
 ---
 
+### Transparence de l'Analyse (v2.3)
+
+Scapin utilise une analyse **multi-pass** qui s'adapte à la complexité de chaque email. La v2.3 vous donne une visibilité complète sur ce processus.
+
+#### Badges de Complexité (Liste)
+
+Dans la liste des items Flux, des badges indiquent le type d'analyse effectuée :
+
+| Badge | Nom | Signification |
+|-------|-----|---------------|
+| ⚡ | Quick | Analyse rapide (1 passe, modèle léger) |
+| 🔍 | Context | Contexte personnel consulté (notes, calendrier) |
+| 🧠 | Complex | Escalade vers un modèle plus puissant |
+| 🏆 | Opus | Modèle expert utilisé (email complexe ou à enjeux) |
+
+> **Astuce** : Survolez la légende des badges pour voir les explications détaillées.
+
+#### Section Analyse (Détail)
+
+La vue détail affiche une section "🔬 Analyse" avec :
+
+- **Nombre de passes** : Combien de fois l'IA a analysé l'email (1 à 5)
+- **Modèles utilisés** : Haiku (rapide) → Sonnet (équilibré) → Opus (expert)
+- **Durée totale** : Temps d'analyse
+- **Badges spéciaux** :
+  - `↑ Escalade` : L'IA a eu besoin d'un modèle plus puissant
+  - `⚠️ High stakes` : Email détecté comme important (montant élevé, deadline proche, VIP)
+- **Raison d'arrêt** : Pourquoi l'analyse s'est terminée
+
+##### Mini-graphique de Confiance
+
+Un petit graphique SVG montre l'évolution de la confiance de l'IA au fil des passes :
+- Couleur verte = confiance élevée
+- Couleur orange = confiance moyenne
+- Couleur rouge = confiance faible
+
+##### Timeline des Passes (Collapsible)
+
+Cliquez sur "💬 X tokens (voir timeline)" pour voir le détail de chaque passe :
+
+```
+┌─ Pass 1 ───────────────────────────────────────┐
+│ 🟢 Haiku  •  Extraction aveugle  •  0.8s      │
+│ Confiance: 45% → 67%                           │
+│                                                 │
+│ 💭 Questions pour la suite:                    │
+│    • "Qui est 'Marie' mentionnée ?"            │
+│    • "Le 'Projet Alpha' existe-t-il ?"         │
+└─────────────────────────────────────────────────┘
+           │
+           ▼
+┌─ Pass 2 ───────────────────────────────────────┐
+│ 🟠 Sonnet  •  Raffinement contextuel  •  1.2s │
+│ 🔍 3 notes  •  ↑ Escalade                      │
+│ Confiance: 67% → 92%                           │
+└─────────────────────────────────────────────────┘
+```
+
+**Codes couleur des nœuds** :
+- 🟢 Vert = Haiku (modèle rapide et économique)
+- 🟠 Orange = Sonnet (modèle équilibré)
+- 🔴 Rouge = Opus (modèle expert)
+
+##### Thinking Bubbles (💭)
+
+Quand l'IA a des doutes ou questions pendant l'analyse, elle les note pour la passe suivante. Ces "bulles de pensée" sont affichées avec le badge 💭 :
+
+- Montre le raisonnement interne de l'IA
+- Aide à comprendre pourquoi elle a escaladé
+- Révèle les ambiguïtés détectées
+
+> **Philosophie** : Montrer les doutes de l'IA renforce la confiance plus que le silence face à l'incertitude.
+
+#### Pourquoi Pas les Autres Options ? (v2.3.1)
+
+Quand plusieurs actions sont proposées, Scapin explique maintenant pourquoi les alternatives n'ont pas été recommandées :
+
+- Chaque option non recommandée affiche une explication (💡)
+- Une section collapsible "🤔 Pourquoi pas les autres options ?" liste toutes les alternatives rejetées
+
+**Exemple** :
+```
+Archive ✓ Recommandé (92%)
+  → Newsletters/Tech
+
+Répondre (35%)
+  💡 "Pas de question directe posée dans l'email"
+
+Tâche (28%)
+  💡 "Aucune action concrète demandée"
+```
+
+> **Conseil** : Utilisez cette section pour comprendre le raisonnement de Scapin et améliorer votre confiance dans ses décisions
+
+---
+
 ## Filtres
 
 ### Par Status

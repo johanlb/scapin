@@ -1128,3 +1128,136 @@ export interface MultiPassMetadata {
 ### B. Mockups
 
 (À ajouter après validation du concept)
+
+---
+
+## 11. Implementation Status
+
+### Phase 1 : v2.3.0 - Fondations ✅ COMPLETED
+
+**Commits**: `fc3cd70`, `f63c734` (18 janvier 2026)
+
+| Composant | Fichier | Status |
+|-----------|---------|--------|
+| API Models | `src/jeeves/api/models/queue.py` | ✅ |
+| Queue Service | `src/jeeves/api/services/queue_service.py` | ✅ |
+| TypeScript Types | `web/src/lib/api/client.ts` | ✅ |
+| Section Analyse UI | `web/src/routes/flux/[id]/+page.svelte` | ✅ |
+| Badges Complexité | `web/src/routes/flux/+page.svelte` | ✅ |
+| Légende Badges | `web/src/routes/flux/+page.svelte` | ✅ |
+| Tests E2E | `web/e2e/pages/flux.spec.ts`, `flux-detail.spec.ts` | ✅ |
+| Sélecteurs Test | `web/e2e/fixtures/test-data.ts` | ✅ |
+
+**Fonctionnalités livrées** :
+- Métadonnées multi-pass exposées via API (`multi_pass` dans `QueueItemAnalysis`)
+- Section "🔬 Analyse" dans page détail flux avec:
+  - Nombre de passes, modèles utilisés, durée
+  - Badge escalade si applicable
+  - Badge high-stakes si applicable
+  - Raison d'arrêt traduite
+  - Détails techniques collapsibles (tokens, historique)
+- Badges de complexité dans la liste flux:
+  - ⚡ Quick (1 pass Haiku)
+  - 🔍 Context (contexte recherché)
+  - 🧠 Complex (escalade)
+  - 🏆 Opus (modèle expert utilisé)
+- Légende des badges avec tooltips
+
+---
+
+### Phase 2 : v2.3.1 - Visualisation ✅ COMPLETED
+
+**Commits**: `f46d033`, `8def936`, `0f6cb4b`, `22b9eb1` (19 janvier 2026)
+
+| Composant | Fichier | Status |
+|-----------|---------|--------|
+| API: questions field | `src/jeeves/api/models/queue.py` | ✅ |
+| API: rejection_reason | `src/jeeves/api/models/queue.py` | ✅ |
+| Propagation questions | `src/jeeves/api/services/queue_service.py` | ✅ |
+| PassTimeline Component | `web/src/lib/components/flux/PassTimeline.svelte` | ✅ |
+| ConfidenceSparkline | `web/src/lib/components/flux/ConfidenceSparkline.svelte` | ✅ |
+| Why Not Section | `web/src/routes/flux/[id]/+page.svelte` | ✅ |
+| TypeScript Types | `web/src/lib/api/client.ts` | ✅ |
+| Tests E2E | `web/e2e/pages/flux-detail.spec.ts` | ✅ |
+
+**Fonctionnalités livrées** :
+
+#### 2.1 API Fields (commit `f46d033`)
+- `questions: list[str]` dans `PassHistoryEntryResponse` - Questions/doutes de l'IA entre passes (Thinking Bubbles)
+- `rejection_reason: str | None` dans `ActionOptionResponse` - Explication de pourquoi une option n'est pas recommandée
+
+#### 2.2 PassTimeline (commit `8def936`)
+- Composant `<PassTimeline>` avec timeline visuelle
+- Nœuds colorés par modèle (🟢 Haiku, 🟠 Sonnet, 🔴 Opus)
+- Affichage par passe : type, durée, évolution confiance
+- Badges : 🔍 contexte, ↑ escalade, 💭 questions
+- Section "Thinking Bubbles" avec liste des questions/doutes
+- Tooltips d'aide utilisateur sur tous les éléments
+
+#### 2.3 ConfidenceSparkline (commit `0f6cb4b`)
+- Composant SVG `<ConfidenceSparkline>` inline
+- Graphique mini montrant l'évolution de la confiance
+- Couleur adaptative (vert/orange/rouge selon résultat)
+- Points sur chaque valeur avec tooltips
+- Intégré dans la ligne de résumé multi-pass
+
+#### 2.4 Why Not Section (commit `22b9eb1`)
+- `rejection_reason` affiché inline sur les options non recommandées
+- Section collapsible "🤔 Pourquoi pas les autres options?"
+- Liste des alternatives rejetées avec leurs raisons
+- Tooltips explicatifs
+
+---
+
+### Phase 3 : v2.3.2 - Temps Réel (PLANNED)
+
+**Status**: Non démarré
+
+| Fonctionnalité | Description | Priorité |
+|----------------|-------------|----------|
+| WebSocket events | `pass_started`, `pass_completed`, `analysis_done` | P1 |
+| AnalysisProgress | Composant de progression en temps réel | P1 |
+| Animations | Feedback visuel pendant analyse | P2 |
+
+---
+
+### Phase 4 : v2.3.3 - Polish (PLANNED)
+
+**Status**: Non démarré
+
+| Fonctionnalité | Description | Priorité |
+|----------------|-------------|----------|
+| Mode ELI5 | "J'ai lu cet email 3 fois..." | P2 |
+| Score contribution | % d'influence par note | P2 |
+| Affichage coût | "~0.003€" par analyse | P3 |
+| Suggestions | "Une note Acme Corp améliorerait..." | P3 |
+
+---
+
+### Composants créés
+
+```
+web/src/lib/components/flux/
+├── PassTimeline.svelte        # Timeline visuelle des passes (v2.3.1)
+└── ConfidenceSparkline.svelte # Mini graphique confiance (v2.3.1)
+```
+
+### Sélecteurs E2E ajoutés
+
+```typescript
+// Pass Timeline (v2.3.1)
+passTimeline: '[data-testid="pass-timeline"]'
+timelinePass: (n) => `[data-testid="timeline-pass-${n}"]`
+timelineContextBadge: '[data-testid="timeline-context-badge"]'
+timelineEscalationBadge: '[data-testid="timeline-escalation-badge"]'
+timelineThinkingBadge: '[data-testid="timeline-thinking-badge"]'
+timelineQuestions: '[data-testid="timeline-questions"]'
+
+// Confidence Sparkline (v2.3.1)
+confidenceSparkline: '[data-testid="confidence-sparkline"]'
+
+// Why Not Section (v2.3.1)
+whyNotSection: '[data-testid="why-not-section"]'
+whyNotItem: '[data-testid="why-not-item"]'
+optionRejectionReason: '[data-testid="option-rejection-reason"]'
+```

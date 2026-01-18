@@ -1,7 +1,7 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 2.2.2 (Workflow v2.2: Multi-Pass + Atomic Transactions + Context Transparency)
-**Date**: 2026-01-18
+**Version**: 2.3.1 (Workflow v2.2 + Analysis Transparency UI)
+**Date**: 2026-01-19
 **Status**: ✅ v1.0.0-rc.1 RELEASED — All features implemented
 
 > Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
@@ -11,7 +11,7 @@
 ## 📋 Table of Contents
 
 - [Vision](#vision)
-- [Workflow v2: Knowledge Extraction](#workflow-v2-knowledge-extraction) ⭐ NEW
+- [Workflow v2: Knowledge Extraction](#workflow-v2-knowledge-extraction) ⭐ NEW (v2.3: Explicit Dialogue & Async I/O)
 - [Core Principles](#core-principles)
 - [Architecture Overview](#architecture-overview)
 - [Component Specifications](#component-specifications)
@@ -619,6 +619,12 @@ Instead of fixed passes, Sancho stops when:
 2. Analysis has converged (no significant changes between passes).
 3. Maximum passes (5) are reached.
 
+### Cooperation & Dialogue Explicite (New in v2.3)
+Les passes ne sont pas isolées. Elles dialoguent explicitement via le champ `next_pass_questions`.
+- **Pass N** peut formuler des doutes précis ("Est-ce que 'Projet X' existe ?").
+- **Pass N+1** reçoit ces questions en entrée comme "Points d'Attention".
+- **Expert (Pass 4/5)** doit répondre explicitement à toutes les questions accumulées avant de trancher.
+
 ### Note Granularity: "Project-First"
 Scapin prioritizes meaningful context over atomic isolation.
 - **Principle**: Information is extracted into the most relevant "Project" or "Asset" note rather than creating separate notes for every person or entity.
@@ -1099,6 +1105,88 @@ Users couldn't verify whether the multi-pass analysis was using the right contex
 | **Trust** | Understand why Scapin made a decision |
 | **Quality** | Identify missing notes to improve PKM |
 | **Transparency** | No "black box" - full visibility into AI reasoning |
+
+---
+
+### Analysis Transparency UI (v2.3)
+
+**Module**: `web/src/lib/components/flux/`
+**Purpose**: Expose the multi-pass analysis process to users with intuitive visualizations.
+
+**Problem Statement**:
+The multi-pass analysis captured rich metadata (passes, models, confidence evolution, AI questions), but users had no visibility into how their emails were analyzed.
+
+**Solution**: Progressive disclosure of analysis intelligence
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  ANALYSIS TRANSPARENCY v2.3.1                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Level 1: Flux List Badges (v2.3.0)                              │
+│  ├── ⚡ Quick: 1 pass Haiku, simple email                        │
+│  ├── 🔍 Context: Context was searched                            │
+│  ├── 🧠 Complex: Model escalation occurred                       │
+│  └── 🏆 Opus: Expert model used (high-stakes)                    │
+│                                                                  │
+│  Level 2: Analysis Summary (v2.3.0)                              │
+│  ├── "3 passes • Haiku → Sonnet • 2.3s"                         │
+│  ├── Confidence Sparkline: 45% → 92%                             │
+│  ├── Escalation badge if applicable                              │
+│  └── Stop reason (confidence_sufficient, max_passes, no_changes) │
+│                                                                  │
+│  Level 3: Pass Timeline (v2.3.1)                                 │
+│  ├── Visual timeline with colored nodes per model                │
+│  ├── Per-pass details: type, duration, confidence delta          │
+│  ├── Context/escalation badges                                   │
+│  └── 💭 Thinking Bubbles: AI questions/doubts between passes     │
+│                                                                  │
+│  Level 4: Why Not Section (v2.3.1)                               │
+│  ├── rejection_reason on non-recommended options                 │
+│  └── Collapsible "Pourquoi pas les autres options?" section      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Components**:
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `PassTimeline` | `PassTimeline.svelte` | Visual timeline of analysis passes |
+| `ConfidenceSparkline` | `ConfidenceSparkline.svelte` | Mini SVG confidence graph |
+
+**API Extensions** (v2.3.1):
+
+```python
+class PassHistoryEntryResponse(BaseModel):
+    # ... existing fields ...
+    questions: list[str]  # AI doubts for next pass (Thinking Bubbles)
+
+class ActionOptionResponse(BaseModel):
+    # ... existing fields ...
+    rejection_reason: str | None  # Why not recommended
+```
+
+**UI Features**:
+
+| Feature | Description | Location |
+|---------|-------------|----------|
+| **Complexity Badges** | ⚡🔍🧠🏆 based on analysis | Flux list |
+| **Badges Legend** | Hover explanation of each badge | Flux list header |
+| **Analysis Section** | Summary with passes/models/duration | Flux detail |
+| **Sparkline** | Confidence evolution graph | Analysis summary |
+| **Pass Timeline** | Collapsible detailed history | Analysis section |
+| **Thinking Bubbles** | AI questions (💭) per pass | Timeline entries |
+| **Why Not Section** | Rejected alternatives explained | Options section |
+
+**Design Principles**:
+
+1. **Progressive Disclosure**: Simple badges → Summary → Full timeline
+2. **Show Your Work**: AI transparency builds trust more than silence
+3. **Tooltips Everywhere**: Every element has contextual help
+4. **No Information Overload**: Technical details are collapsible
+
+**Design Document**: [docs/design/analysis-transparency-v2.3.md](docs/design/analysis-transparency-v2.3.md)
 
 ---
 
