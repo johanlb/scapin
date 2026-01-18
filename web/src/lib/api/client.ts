@@ -679,13 +679,13 @@ export async function exportJournal(
 // QUEUE TYPES
 // ============================================================================
 
-interface Attachment {
+export interface Attachment {
 	filename: string;
 	size_bytes: number;
 	content_type: string;
 }
 
-interface QueueItemMetadata {
+export interface QueueItemMetadata {
 	id: string;
 	subject: string;
 	from_address: string;
@@ -696,7 +696,7 @@ interface QueueItemMetadata {
 	folder: string | null;
 }
 
-interface ActionOption {
+export interface ActionOption {
 	action: string;
 	destination: string | null;
 	confidence: number;
@@ -706,7 +706,7 @@ interface ActionOption {
 }
 
 // Sprint 2: Entity types
-interface Entity {
+export interface Entity {
 	type: string;
 	value: string;
 	confidence: number;
@@ -722,7 +722,7 @@ interface ExtractionConfidence {
 	overall: number;
 }
 
-interface ProposedNote {
+export interface ProposedNote {
 	action: 'create' | 'enrich';
 	note_type: string;
 	title: string;
@@ -738,7 +738,7 @@ interface ProposedNote {
 	manually_approved: boolean | null;  // User override: true=force, false=reject, null=auto
 }
 
-interface ProposedTask {
+export interface ProposedTask {
 	title: string;
 	note: string;
 	project: string | null;
@@ -783,7 +783,7 @@ interface EntityProfile {
 	key_facts: string[];
 }
 
-interface RetrievedContext {
+export interface RetrievedContext {
 	entities_searched: string[];
 	sources_searched: string[];
 	total_results: number;
@@ -794,7 +794,7 @@ interface RetrievedContext {
 	conflicts: Array<{ type: string; description: string; severity: string }>;
 }
 
-interface ContextInfluence {
+export interface ContextInfluence {
 	notes_used: string[];
 	explanation: string;
 	confirmations: string[];
@@ -802,7 +802,7 @@ interface ContextInfluence {
 	missing_info: string[];
 }
 
-interface QueueItemAnalysis {
+export interface QueueItemAnalysis {
 	action: string;
 	confidence: number;
 	category: string | null;
@@ -821,7 +821,7 @@ interface QueueItemAnalysis {
 	context_influence: ContextInfluence | null;
 }
 
-interface QueueItem {
+export interface QueueItem {
 	id: string;
 	account_id: string | null;
 	queued_at: string;
@@ -2513,17 +2513,17 @@ export type {
 	Calibration,
 	PaginatedResponse,
 	// Queue types
-	Attachment,
-	ActionOption,
-	QueueItem,
-	QueueItemMetadata,
-	QueueItemAnalysis,
+
+
+
+
+
 	QueueStats,
 	// Sprint 2: Entity types
-	Entity,
+
 	ExtractionConfidence,
-	ProposedNote,
-	ProposedTask,
+
+
 	// Email types
 	EmailAccount,
 	EmailStats,
