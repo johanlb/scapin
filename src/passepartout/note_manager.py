@@ -1864,7 +1864,7 @@ def get_note_manager(notes_dir: Optional[Path] = None, git_enabled: bool = True)
     Uses double-check locking pattern for thread-safe lazy initialization.
 
     Args:
-        notes_dir: Directory for notes (default: ~/Documents/Notes)
+        notes_dir: Directory for notes (default: ~/Documents/Scapin/Notes)
         git_enabled: Enable Git operations
 
     Returns:

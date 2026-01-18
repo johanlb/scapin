@@ -586,7 +586,7 @@ def get_git_manager(notes_dir: Optional[Path] = None) -> GitVersionManager:
     Get or create singleton GitVersionManager instance
 
     Args:
-        notes_dir: Directory for notes (default: ~/Documents/Notes)
+        notes_dir: Directory for notes (default: ~/Documents/Scapin/Notes)
 
     Returns:
         GitVersionManager singleton instance
