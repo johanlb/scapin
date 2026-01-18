@@ -1187,8 +1187,9 @@ class NoteManager:
                     # This ensures metadata index has "real" dates from frontmatter
                     path = ""
                     try:
-                        rel_path = file_path.relative_to(self.notes_dir)
-                        path = str(rel_path.parent) if rel_path.parent != Path(".") else ""
+                        if note.file_path:
+                            rel_path = note.file_path.relative_to(self.notes_dir)
+                            path = str(rel_path.parent) if rel_path.parent != Path(".") else ""
                     except ValueError:
                         pass
 

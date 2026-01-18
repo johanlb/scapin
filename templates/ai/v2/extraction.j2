@@ -206,6 +206,13 @@ Chaque extraction a un objet `confidence` avec 4 scores indépendants [0.0-1.0] 
 Le score global est la **moyenne géométrique** des 4 dimensions.
 Une dimension faible tire le score vers le bas (ex: target_match=0.5 avec les autres à 0.9 → global ≈ 0.78)
 
+### ⛔ RÈGLE DE DOUTE (Ambiguïté)
+Si plusieurs `note_cible` semblent valides (ex: hésitation entre "Projet A" et "Projet B") :
+1. NE CHOISIS PAS au hasard.
+2. Ta dimension `target_match` NE DOIT PAS dépasser 0.60.
+3. Cela forcera le système à mettre l'email en `queue` pour validation humaine.
+Mieux vaut demander à Johan que de classer au mauvais endroit.
+
 ### ⚠️ Règles CRITIQUES pour `required` et `confidence` par extraction
 
 **Principe fondamental** : On ne peut PAS archiver/supprimer un email si les extractions importantes ne sont pas fiables.

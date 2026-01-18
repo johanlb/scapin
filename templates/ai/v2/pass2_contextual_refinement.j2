@@ -59,6 +59,14 @@ Utilise-le pour corriger, enrichir ou confirmer l'analyse initiale.
 ### Raisonnement Pass {{ previous_result.pass_number | default(1) }}
 {{ previous_result.reasoning }}
 
+{% if previous_result.next_pass_questions %}
+### ⚠️  QUESTIONS SPÉCIFIQUES DU PASS {{ previous_result.pass_number | default(1) }}
+La passe précédente a des doutes. Vérifie particulièrement ces points (sans ignorer le reste) :
+{% for q in previous_result.next_pass_questions %}
+- [ ] {{ q }}
+{% endfor %}
+{% endif %}
+
 ---
 
 ## CONTEXTE RETROUVE
@@ -196,7 +204,14 @@ Reponds UNIQUEMENT avec ce JSON :
     "contradictions": [],
     "missing_info": ["Date exacte de la deadline non confirmee par le calendrier"]
   },
-  "reasoning": "Avec le contexte des notes, j'ai pu identifier Marc comme Marc Dupont, Tech Lead du Projet Alpha depuis mars 2025..."
+    "missing_info": ["Date exacte de la deadline non confirmee par le calendrier"]
+  },
+  "reasoning": "Avec le contexte des notes, j'ai pu identifier Marc comme Marc Dupont, Tech Lead du Projet Alpha depuis mars 2025...",
+  "next_pass_questions": [
+    "Question pour l'expert (Pass 4/5) si incertitude persiste...",
+    "Ex: Le contexte contredit l'email sur le budget, qui croire ?"
+  ]
+}
 }
 ```
 

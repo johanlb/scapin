@@ -250,6 +250,9 @@ class PassResult:
     # Context influence explanation (v2.2.2+)
     context_influence: Optional[dict[str, Any]] = None
 
+    # Explicit questions for the next pass (Cooperation v2.3)
+    next_pass_questions: list[str] = field(default_factory=list)
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
@@ -287,6 +290,7 @@ class PassResult:
             "tokens_used": self.tokens_used,
             "duration_ms": self.duration_ms,
             "context_influence": self.context_influence,
+            "next_pass_questions": self.next_pass_questions,
         }
 
 

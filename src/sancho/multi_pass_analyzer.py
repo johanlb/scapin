@@ -872,6 +872,9 @@ class MultiPassAnalyzer:
             # Get context influence (v2.2.2+ - only in Pass 2+)
             context_influence = data.get("context_influence")
 
+            # Get explicit questions for next pass (v2.3)
+            next_pass_questions = data.get("next_pass_questions", [])
+
             return PassResult(
                 pass_number=pass_number,
                 pass_type=pass_type,
@@ -887,6 +890,7 @@ class MultiPassAnalyzer:
                 duration_ms=duration_ms,
                 thinking=thinking,
                 context_influence=context_influence,
+                next_pass_questions=next_pass_questions,
             )
 
         except json.JSONDecodeError as e:

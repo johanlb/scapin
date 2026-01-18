@@ -147,6 +147,18 @@ Les passes precedentes ont identifie ces problemes non resolus :
 
 {% for issue in unresolved_issues %}
 {{ loop.index }}. {{ issue }}
+{% for issue in unresolved_issues %}
+{{ loop.index }}. {{ issue }}
+{% endfor %}
+
+### QUESTIONS TRANSMISES
+{% for pass in passes %}
+  {% if pass.next_pass_questions %}
+  **De Pass {{ pass.pass_number }}** :
+  {% for q in pass.next_pass_questions %}
+  - {{ q }}
+  {% endfor %}
+  {% endif %}
 {% endfor %}
 
 ---
@@ -180,7 +192,11 @@ Les passes precedentes ont identifie ces problemes non resolus :
 - Pourquoi la confiance est-elle restee basse apres {{ passes | length }} passes ?
 - Quelles informations manquent-elles encore ?
 - L'action est-elle vraiment la bonne ?
+- Pourquoi la confiance est-elle restee basse apres {{ passes | length }} passes ?
+- Quelles informations manquent-elles encore ?
+- L'action est-elle vraiment la bonne ?
 - Y a-t-il des implications non detectees ?
+- **Reponds explicitement aux QUESTIONS TRANSMISES ci-dessus.**
 
 ---
 

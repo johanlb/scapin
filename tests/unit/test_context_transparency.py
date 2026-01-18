@@ -42,8 +42,8 @@ class TestStructuredContext:
         """Can create an empty context"""
         ctx = StructuredContext(
             query_entities=[],
+            search_timestamp=datetime.now(timezone.utc),
             sources_searched=[],
-            total_results=0,
             notes=[],
             calendar=[],
             tasks=[],
@@ -52,8 +52,8 @@ class TestStructuredContext:
             conflicts=[],
         )
 
-        assert ctx.total_results == 0
         assert len(ctx.notes) == 0
+        assert len(ctx.sources_searched) == 0
 
     def test_context_with_notes(self):
         """Context with notes is correctly structured"""
@@ -77,8 +77,8 @@ class TestStructuredContext:
 
         ctx = StructuredContext(
             query_entities=["Marc Dupont", "Projet Alpha"],
+            search_timestamp=datetime.now(timezone.utc),
             sources_searched=["notes"],
-            total_results=2,
             notes=notes,
             calendar=[],
             tasks=[],
@@ -87,7 +87,6 @@ class TestStructuredContext:
             conflicts=[],
         )
 
-        assert ctx.total_results == 2
         assert len(ctx.notes) == 2
         assert ctx.notes[0].title == "Marc Dupont"
         assert ctx.notes[0].relevance == 0.92
@@ -106,8 +105,8 @@ class TestStructuredContext:
 
         ctx = StructuredContext(
             query_entities=["Marc Dupont"],
+            search_timestamp=datetime.now(timezone.utc),
             sources_searched=["calendar"],
-            total_results=1,
             notes=[],
             calendar=calendar,
             tasks=[],
@@ -133,8 +132,8 @@ class TestStructuredContext:
 
         ctx = StructuredContext(
             query_entities=["Projet Alpha"],
+            search_timestamp=datetime.now(timezone.utc),
             sources_searched=["omnifocus"],
-            total_results=1,
             notes=[],
             calendar=[],
             tasks=tasks,
@@ -150,6 +149,7 @@ class TestStructuredContext:
         """Context with entity profiles is correctly structured"""
         profiles = {
             "Marc Dupont": EntityProfile(
+                name="Marc Dupont",
                 canonical_name="Marc Dupont",
                 entity_type="person",
                 role="Tech Lead",
@@ -160,8 +160,8 @@ class TestStructuredContext:
 
         ctx = StructuredContext(
             query_entities=["Marc Dupont"],
+            search_timestamp=datetime.now(timezone.utc),
             sources_searched=["notes"],
-            total_results=1,
             notes=[],
             calendar=[],
             tasks=[],
@@ -186,8 +186,8 @@ class TestStructuredContext:
 
         ctx = StructuredContext(
             query_entities=["Meeting"],
+            search_timestamp=datetime.now(timezone.utc),
             sources_searched=["calendar"],
-            total_results=0,
             notes=[],
             calendar=[],
             tasks=[],
@@ -238,8 +238,8 @@ class TestContextSerialization:
         """Full StructuredContext can be serialized"""
         ctx = StructuredContext(
             query_entities=["Marc Dupont", "Projet Alpha"],
+            search_timestamp=datetime.now(timezone.utc),
             sources_searched=["notes", "calendar", "omnifocus"],
-            total_results=5,
             notes=[
                 NoteContextBlock(
                     note_id="n1",
@@ -270,6 +270,7 @@ class TestContextSerialization:
             emails=[],
             entity_profiles={
                 "Marc Dupont": EntityProfile(
+                    name="Marc Dupont",
                     canonical_name="Marc Dupont",
                     entity_type="person",
                     role="Tech Lead",
@@ -343,7 +344,6 @@ class TestContextSerialization:
 
         # Verify structure
         assert serialized["entities_searched"] == ["Marc Dupont", "Projet Alpha"]
-        assert serialized["total_results"] == 5
         assert len(serialized["notes"]) == 1
         assert len(serialized["notes"][0]["summary"]) <= 200  # Truncated
         assert len(serialized["calendar"]) == 1
@@ -574,7 +574,6 @@ class TestAPIModelCompatibility:
         context_response = {
             "entities_searched": ["Marc Dupont"],
             "sources_searched": ["notes", "calendar"],
-            "total_results": 2,
             "notes": [],
             "calendar": [],
             "tasks": [],
@@ -586,7 +585,6 @@ class TestAPIModelCompatibility:
         required_fields = [
             "entities_searched",
             "sources_searched",
-            "total_results",
             "notes",
             "calendar",
             "tasks",
@@ -681,6 +679,7 @@ class TestEdgeCases:
     def test_many_key_facts_limited(self):
         """Key facts are limited to 3"""
         profile = EntityProfile(
+            name="Person",
             canonical_name="Person",
             entity_type="person",
             key_facts=["Fact 1", "Fact 2", "Fact 3", "Fact 4", "Fact 5"],

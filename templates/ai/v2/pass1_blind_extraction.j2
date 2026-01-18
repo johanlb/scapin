@@ -133,6 +133,9 @@ Pour chaque information pertinente, determine son type parmi :
 - **delete** : Spam, promo, ou info sans valeur (même archivistique)
 - **rien** : Incertain, besoin de plus de contexte
 
+### QUESTIONS POUR LA SUITE
+Si tu as un doute spécifique (ex: "Est-ce que 'Projet X' existe ?", "Qui est 'Marie' ?"), pose la question dans `next_pass_questions`. Cela guidera la recherche de contexte.
+
 ---
 
 ## FORMAT DE SORTIE
@@ -164,7 +167,12 @@ Reponds UNIQUEMENT avec ce JSON (pas de texte avant/apres) :
     "completeness": 0.65
   },
   "entities_discovered": ["Projet X", "Actif Y"],
-  "reasoning": "Explication courte (2-3 phrases). Justifier si extractions=[] (email social, obsolète, etc.)"
+  "reasoning": "Explication courte (2-3 phrases). Justifier si extractions=[] (email social, obsolète, etc.)",
+  "next_pass_questions": [
+    "Question specifique 1 pour le contexte ?",
+    "Question specifique 2 ?"
+  ]
+}
 }
 ```
 

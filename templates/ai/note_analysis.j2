@@ -42,11 +42,18 @@ RÈGLES D'HYGIÈNE STRUCTURELLE:
   * Exemples : détails sur une personne dans une note de réunion → déplacer vers la note de la personne.
   * Utilise `action.target` pour le contenu à déplacer et `action.target_note_id` pour la destination.
   * Explique clairement pourquoi le refactoring améliore l'organisation.
+  * Explique clairement pourquoi le refactoring améliore l'organisation.
 
+RÈGLES DE JARDINAGE (Lifecycle):
+- **Obsolescence** : Si la note contient des dates passées (> 1 an) ou des statuts dépassés (ex: "Objectifs 2023"), propose un tag `archive` ou un status `archived`.
+- **Orphelins** : Si une note est très courte, sans tags, et sans liens entrants/sortants, propose soit de la supprimer, soit de la fusionner ("merge") avec une note parente.
+- **Cohérence Sémantique** : Vérifie que le titre correspond bien au contenu. Si le contenu a évolué (ex: note "Idées Vrac" devenue une spec technique), propose un "rename".
 RÈGLES DE RÉFLEXION (Briefing):
 - Identifie les informations qui impactent le PROFIL de l'utilisateur (nouveaux rôles, compétences, valeurs, changements de vie).
 - Identifie les nouveaux PROJETS ou les changements de statut des projets existants.
-- Identifie les nouveaux OBJECTIFS (Goals) ou les étapes franchies.
+- Authentifie les nouveaux OBJECTIFS (Goals) ou les étapes franchies.
+- **Signaux de surcharge** : Si la note exprime de la frustration, du stress ou une surcharge ("je n'y arrive plus", "trop de tâches"), signale-le pour le Briefing (Suggérer : "Focus Review").
+- **Intérêts émergents** : Si l'utilisateur écrit beaucoup sur un nouveau sujet (ex: "Jardinage", "Rust"), propose de créer une "Area of Interest" dans le profil.
 - Si une information est pertinente pour le Briefing, propose d'ENRICHIR la note correspondante ("Profile", "Projects", ou "Goals").
 
 FORMAT DE RÉPONSE (JSON):

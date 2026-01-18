@@ -457,6 +457,87 @@
 						</span>
 					</div>
 
+					<!-- Multi-Pass Analysis Metadata (v2.3) -->
+					{#if item.analysis.multi_pass}
+						{@const mp = item.analysis.multi_pass}
+						{@const modelColors: Record<string, string> = {
+							haiku: 'bg-yellow-500/20 text-yellow-400',
+							sonnet: 'bg-orange-500/20 text-orange-400',
+							opus: 'bg-red-500/20 text-red-400'
+						}}
+						{@const modelsDisplay = mp.models_used.join(' → ')}
+						{@const durationSec = (mp.total_duration_ms / 1000).toFixed(1)}
+						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
+							<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
+								🔬 Analyse
+							</h4>
+
+							<!-- Summary line -->
+							<div class="flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+								<span>{mp.passes_count} {mp.passes_count === 1 ? 'pass' : 'passes'}</span>
+								<span class="text-[var(--color-text-tertiary)]">•</span>
+								<span class="font-mono text-xs">{modelsDisplay}</span>
+								<span class="text-[var(--color-text-tertiary)]">•</span>
+								<span>{durationSec}s</span>
+								{#if mp.escalated}
+									<span class="text-xs px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400" title="Le modèle a été escaladé vers un plus puissant">
+										↑ Escalade
+									</span>
+								{/if}
+								{#if mp.high_stakes}
+									<span class="text-xs px-1.5 py-0.5 rounded bg-red-500/20 text-red-400" title="Email à enjeux élevés">
+										⚠️ High stakes
+									</span>
+								{/if}
+							</div>
+
+							<!-- Stop reason -->
+							{#if mp.stop_reason}
+								{@const stopReasonLabels: Record<string, string> = {
+									'confidence_sufficient': 'Confiance suffisante',
+									'max_passes': 'Maximum de passes atteint',
+									'no_changes': 'Pas de changement'
+								}}
+								<div class="mt-2 text-xs text-[var(--color-text-tertiary)]">
+									Arrêt : {stopReasonLabels[mp.stop_reason] ?? mp.stop_reason}
+								</div>
+							{/if}
+
+							<!-- Tokens & technical info (collapsible) -->
+							<details class="mt-2">
+								<summary class="text-xs text-[var(--color-text-tertiary)] cursor-pointer hover:text-[var(--color-text-secondary)]">
+									💬 {mp.total_tokens.toLocaleString()} tokens
+								</summary>
+								<div class="mt-2 pl-4 text-xs text-[var(--color-text-tertiary)] space-y-1">
+									{#each mp.pass_history as pass, i}
+										<div class="flex items-center gap-2">
+											<span class="w-16">Pass {pass.pass_number}</span>
+											<span class="px-1.5 py-0.5 rounded {modelColors[pass.model] ?? 'bg-gray-500/20 text-gray-400'}">
+												{pass.model}
+											</span>
+											<span class="text-[var(--color-text-tertiary)]">
+												{Math.round(pass.confidence_before * 100)}% → {Math.round(pass.confidence_after * 100)}%
+											</span>
+											{#if pass.context_searched}
+												<span title="{pass.notes_found} notes trouvées">🔍</span>
+											{/if}
+											{#if pass.escalation_triggered}
+												<span title="Escalade déclenchée">↑</span>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							</details>
+						</div>
+					{:else}
+						<!-- Legacy analysis (no multi_pass data) -->
+						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
+							<span class="text-xs text-[var(--color-text-tertiary)] italic">
+								Analyse legacy
+							</span>
+						</div>
+					{/if}
+
 					<!-- Entities (Sprint 2) -->
 					{#if item.analysis.entities && Object.keys(item.analysis.entities).length > 0}
 						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
