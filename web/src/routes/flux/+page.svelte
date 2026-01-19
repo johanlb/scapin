@@ -13,6 +13,9 @@
 	} from '$lib/components/ui';
 	import type { MenuItem } from '$lib/components/ui/LongPressMenu.svelte';
 	import { formatRelativeTime } from '$lib/utils/formatters';
+	// v2.3: Analysis Transparency components
+	import PassTimeline from '$lib/components/flux/PassTimeline.svelte';
+	import ConfidenceSparkline from '$lib/components/flux/ConfidenceSparkline.svelte';
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import {
@@ -1744,6 +1747,94 @@
 								<span>📧 {currentItem.metadata.from_address}</span>
 								<span>📁 {currentItem.metadata.folder || 'INBOX'}</span>
 								<span>🕐 {formatRelativeTime(currentItem.queued_at)}</span>
+							</div>
+						{/if}
+
+						<!-- SECTION 8.5: Analysis Transparency (v2.3) -->
+						{#if showLevel3 && currentItem.analysis.multi_pass}
+							{@const mp = currentItem.analysis.multi_pass}
+							<div class="p-3 rounded-lg bg-[var(--color-bg-secondary)] space-y-3">
+								<div class="flex items-center justify-between">
+									<p class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase">
+										Transparence de l'Analyse
+									</p>
+									<span class="text-xs text-[var(--color-text-tertiary)]">
+										{mp.passes_count} pass{mp.passes_count > 1 ? 'es' : ''} • {mp.final_model}
+										{#if mp.escalated}
+											• <span class="text-amber-500">escaladé</span>
+										{/if}
+									</span>
+								</div>
+
+								<!-- Confidence Sparkline -->
+								{#if mp.pass_history && mp.pass_history.length > 0}
+									<div>
+										<p class="text-xs text-[var(--color-text-tertiary)] mb-1">Évolution de la confiance</p>
+										<ConfidenceSparkline passHistory={mp.pass_history} id={currentItem.id} />
+									</div>
+								{/if}
+
+								<!-- Pass Timeline -->
+								{#if mp.pass_history && mp.pass_history.length > 0}
+									<div>
+										<p class="text-xs text-[var(--color-text-tertiary)] mb-1">Détail des passes</p>
+										<PassTimeline passHistory={mp.pass_history} />
+									</div>
+								{/if}
+
+								<!-- Context Influence (v2.2.2) -->
+								{#if currentItem.analysis.context_influence}
+									{@const ci = currentItem.analysis.context_influence}
+									<div class="p-2 rounded bg-[var(--color-bg-tertiary)]">
+										<p class="text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+											💡 Influence du contexte
+										</p>
+										{#if ci.explanation}
+											<p class="text-xs text-[var(--color-text-secondary)]">{ci.explanation}</p>
+										{/if}
+										{#if ci.confirmations && ci.confirmations.length > 0}
+											<div class="mt-1">
+												<span class="text-xs text-green-600">✓ Confirmé :</span>
+												<span class="text-xs text-[var(--color-text-tertiary)]">
+													{ci.confirmations.join(', ')}
+												</span>
+											</div>
+										{/if}
+										{#if ci.contradictions && ci.contradictions.length > 0}
+											<div class="mt-1">
+												<span class="text-xs text-red-600">✗ Contradictions :</span>
+												<span class="text-xs text-[var(--color-text-tertiary)]">
+													{ci.contradictions.join(', ')}
+												</span>
+											</div>
+										{/if}
+									</div>
+								{/if}
+
+								<!-- Thinking Bubbles: Questions between passes -->
+								{#if mp.pass_history?.some(p => p.questions && p.questions.length > 0)}
+									<div class="p-2 rounded bg-blue-50 dark:bg-blue-900/20">
+										<p class="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1">
+											💭 Questions soulevées
+										</p>
+										<ul class="text-xs text-blue-600 dark:text-blue-400 space-y-0.5">
+											{#each mp.pass_history as pass}
+												{#if pass.questions && pass.questions.length > 0}
+													{#each pass.questions as question}
+														<li>• {question}</li>
+													{/each}
+												{/if}
+											{/each}
+										</ul>
+									</div>
+								{/if}
+
+								<!-- Stop reason -->
+								{#if mp.stop_reason}
+									<p class="text-xs text-[var(--color-text-tertiary)]">
+										Raison d'arrêt : <span class="font-mono">{mp.stop_reason}</span>
+									</p>
+								{/if}
 							</div>
 						{/if}
 
