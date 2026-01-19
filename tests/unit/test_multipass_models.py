@@ -7,7 +7,7 @@ Tests for PassHistoryEntryResponse and MultiPassMetadataResponse models.
 import pytest
 from pydantic import ValidationError
 
-from src.jeeves.api.models.queue import (
+from src.frontin.api.models.queue import (
     MultiPassMetadataResponse,
     PassHistoryEntryResponse,
     QueueItemAnalysis,
@@ -283,7 +283,7 @@ class TestBuildMultiPassMetadata:
     def test_build_metadata_single_pass(self) -> None:
         """Test building metadata for single pass analysis"""
         from unittest.mock import MagicMock
-        from src.jeeves.api.services.queue_service import QueueService
+        from src.frontin.api.services.queue_service import QueueService
 
         # Create mock result
         mock_confidence = MagicMock()
@@ -323,7 +323,7 @@ class TestBuildMultiPassMetadata:
     def test_build_metadata_multi_pass_with_escalation(self) -> None:
         """Test building metadata for multi-pass analysis with escalation"""
         from unittest.mock import MagicMock
-        from src.jeeves.api.services.queue_service import QueueService
+        from src.frontin.api.services.queue_service import QueueService
 
         # Create mock passes
         def create_mock_pass(num: int, ptype: str, model: str, conf: float) -> MagicMock:
@@ -383,7 +383,7 @@ class TestBuildMultiPassMetadata:
     def test_build_metadata_confidence_evolution(self) -> None:
         """Test that confidence_before and confidence_after are tracked correctly"""
         from unittest.mock import MagicMock
-        from src.jeeves.api.services.queue_service import QueueService
+        from src.frontin.api.services.queue_service import QueueService
 
         def create_mock_pass(num: int, conf: float) -> MagicMock:
             mock_conf = MagicMock()

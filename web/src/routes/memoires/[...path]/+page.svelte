@@ -22,7 +22,7 @@
 	// 3. Handle loading states and errors
 	// 4. Parse noteId from route params (currently path-based)
 	//
-	// See: src/jeeves/api/routers/notes.py for available endpoints
+	// See: src/frontin/api/routers/notes.py for available endpoints
 	// ==========================================================================
 	let note = $state({
 		id: 'reunion-projet-alpha-abc123', // Mock ID for history

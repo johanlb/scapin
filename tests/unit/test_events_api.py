@@ -18,7 +18,7 @@ from src.integrations.storage.snooze_storage import (
     SnoozeReason,
     SnoozeStorage,
 )
-from src.jeeves.api.services.events_service import EventsService
+from src.frontin.api.services.events_service import EventsService
 
 
 class TestActionHistoryStorage:
@@ -451,8 +451,8 @@ class TestEventsRouter:
     @pytest.fixture
     def app_with_mock_service(self) -> tuple:
         """Create app with mock service dependency override"""
-        from src.jeeves.api.app import create_app
-        from src.jeeves.api.routers.events import _get_events_service
+        from src.frontin.api.app import create_app
+        from src.frontin.api.routers.events import _get_events_service
 
         mock_service = AsyncMock(spec=EventsService)
         app = create_app()

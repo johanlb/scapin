@@ -500,7 +500,7 @@ class TestDeletedNotesAPI:
         """GET /api/notes/deleted returns deleted notes"""
 
         with patch(
-            "src.jeeves.api.services.notes_service.NotesService.get_deleted_notes"
+            "src.frontin.api.services.notes_service.NotesService.get_deleted_notes"
         ) as mock:
             mock.return_value = [
                 MagicMock(
@@ -511,7 +511,7 @@ class TestDeletedNotesAPI:
                 )
             ]
 
-            from src.jeeves.api.services.notes_service import NotesService
+            from src.frontin.api.services.notes_service import NotesService
 
             service = NotesService.__new__(NotesService)
             service.note_manager = MagicMock()
@@ -527,11 +527,11 @@ class TestDeletedNotesAPI:
         """DELETE /api/notes/{id}/permanent permanently deletes"""
 
         with patch(
-            "src.jeeves.api.services.notes_service.NotesService.permanent_delete"
+            "src.frontin.api.services.notes_service.NotesService.permanent_delete"
         ) as mock:
             mock.return_value = True
 
-            from src.jeeves.api.services.notes_service import NotesService
+            from src.frontin.api.services.notes_service import NotesService
 
             service = NotesService.__new__(NotesService)
             service.note_manager = MagicMock()
@@ -546,11 +546,11 @@ class TestDeletedNotesAPI:
         """POST /api/notes/{id}/restore restores from trash"""
 
         with patch(
-            "src.jeeves.api.services.notes_service.NotesService.restore_from_trash"
+            "src.frontin.api.services.notes_service.NotesService.restore_from_trash"
         ) as mock:
             mock.return_value = True
 
-            from src.jeeves.api.services.notes_service import NotesService
+            from src.frontin.api.services.notes_service import NotesService
 
             service = NotesService.__new__(NotesService)
             service.note_manager = MagicMock()

@@ -32,12 +32,12 @@ mock_pkg("requests")
 
 # Mock Scapin modules to isolate CLI logic
 with (
-    patch("src.jeeves.cli.get_config") as mock_get_config,
-    patch("src.jeeves.cli.NoteManager") as mock_manager_cls,
-    patch("src.jeeves.cli.NoteReviewer") as mock_reviewer_cls,
-    patch("src.jeeves.cli.create_scheduler") as mock_create_scheduler,
-    patch("src.jeeves.cli.AIRouter") as mock_ai_router_cls,
-    patch("src.jeeves.cli.console") as mock_console,
+    patch("src.frontin.cli.get_config") as mock_get_config,
+    patch("src.frontin.cli.NoteManager") as mock_manager_cls,
+    patch("src.frontin.cli.NoteReviewer") as mock_reviewer_cls,
+    patch("src.frontin.cli.create_scheduler") as mock_create_scheduler,
+    patch("src.frontin.cli.AIRouter") as mock_ai_router_cls,
+    patch("src.frontin.cli.console") as mock_console,
 ):
     # Setup config mock
     mock_config = MagicMock()
@@ -66,7 +66,7 @@ with (
     mock_reviewer = mock_reviewer_cls.return_value
 
     # Import the command function after mocking
-    from src.jeeves.cli import notes_review
+    from src.frontin.cli import notes_review
 
     print("--- Running CLI Plumbing Test ---")
 

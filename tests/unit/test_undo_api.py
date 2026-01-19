@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
+from src.frontin.api.app import create_app
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def test_client(mock_queue_service):
     app = create_app()
 
     # Override the queue service dependency
-    from src.jeeves.api.deps import get_queue_service
+    from src.frontin.api.deps import get_queue_service
 
     app.dependency_overrides[get_queue_service] = lambda: mock_queue_service
     return TestClient(app)
@@ -119,7 +119,7 @@ class TestQueueServiceUndo:
     async def test_undo_item_success(self, mock_storage):
         """Undo item moves email back and updates status"""
         from src.integrations.storage.action_history import ActionRecord, ActionStatus, ActionType
-        from src.jeeves.api.services.queue_service import QueueService
+        from src.frontin.api.services.queue_service import QueueService
 
         queue_storage, snooze_storage, action_history = mock_storage
 
@@ -163,7 +163,7 @@ class TestQueueServiceUndo:
     @pytest.mark.asyncio
     async def test_undo_item_no_action_found(self, mock_storage):
         """Undo returns None when no action found"""
-        from src.jeeves.api.services.queue_service import QueueService
+        from src.frontin.api.services.queue_service import QueueService
 
         queue_storage, snooze_storage, action_history = mock_storage
         action_history.get_last_action_for_item.return_value = None
@@ -182,7 +182,7 @@ class TestQueueServiceUndo:
     async def test_can_undo_item_true(self, mock_storage):
         """Can undo returns True for completed action"""
         from src.integrations.storage.action_history import ActionRecord, ActionStatus, ActionType
-        from src.jeeves.api.services.queue_service import QueueService
+        from src.frontin.api.services.queue_service import QueueService
 
         queue_storage, snooze_storage, action_history = mock_storage
 
@@ -210,7 +210,7 @@ class TestQueueServiceUndo:
     @pytest.mark.asyncio
     async def test_can_undo_item_false_no_action(self, mock_storage):
         """Can undo returns False when no action exists"""
-        from src.jeeves.api.services.queue_service import QueueService
+        from src.frontin.api.services.queue_service import QueueService
 
         queue_storage, snooze_storage, action_history = mock_storage
         action_history.get_last_action_for_item.return_value = None

@@ -11,9 +11,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.core.events import EventSource, EventType, PerceivedEvent, UrgencyLevel
-from src.jeeves.api.app import create_app
-from src.jeeves.api.deps import get_briefing_service
-from src.jeeves.briefing.models import (
+from src.frontin.api.app import create_app
+from src.frontin.api.deps import get_briefing_service
+from src.frontin.briefing.models import (
     AttendeeContext,
     BriefingItem,
     MorningBriefing,

@@ -7,8 +7,8 @@ Tests conflict detection for overlaps and travel time issues.
 from datetime import datetime, timezone
 
 from src.core.events import EventSource, EventType, PerceivedEvent, UrgencyLevel
-from src.jeeves.api.models.calendar import ConflictSeverity, ConflictType
-from src.jeeves.api.services.conflict_detector import ConflictDetector
+from src.frontin.api.models.calendar import ConflictSeverity, ConflictType
+from src.frontin.api.services.conflict_detector import ConflictDetector
 
 
 def _make_calendar_event(

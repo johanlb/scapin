@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
-from src.jeeves.api.routers.teams import _get_teams_service
+from src.frontin.api.app import create_app
+from src.frontin.api.routers.teams import _get_teams_service
 
 
 @pytest.fixture
@@ -89,9 +89,9 @@ class TestTeamsServiceMarkAsRead:
         """mark_chat_as_read returns False when Teams disabled"""
         from unittest.mock import patch
 
-        from src.jeeves.api.services.teams_service import TeamsService
+        from src.frontin.api.services.teams_service import TeamsService
 
-        with patch("src.jeeves.api.services.teams_service.get_config") as mock_config:
+        with patch("src.frontin.api.services.teams_service.get_config") as mock_config:
             mock_config.return_value.teams.enabled = False
             service = TeamsService()
 
@@ -104,9 +104,9 @@ class TestTeamsServiceMarkAsRead:
         """mark_chat_as_read calls processor teams_client"""
         from unittest.mock import MagicMock, patch
 
-        from src.jeeves.api.services.teams_service import TeamsService
+        from src.frontin.api.services.teams_service import TeamsService
 
-        with patch("src.jeeves.api.services.teams_service.get_config") as mock_config:
+        with patch("src.frontin.api.services.teams_service.get_config") as mock_config:
             mock_config.return_value.teams.enabled = True
 
             service = TeamsService()
@@ -124,11 +124,11 @@ class TestTeamsServiceMarkAsRead:
         """mark_chat_as_read increments state counter on success"""
         from unittest.mock import MagicMock, patch
 
-        from src.jeeves.api.services.teams_service import TeamsService
+        from src.frontin.api.services.teams_service import TeamsService
 
         with (
-            patch("src.jeeves.api.services.teams_service.get_config") as mock_config,
-            patch("src.jeeves.api.services.teams_service.get_state_manager") as mock_state_mgr,
+            patch("src.frontin.api.services.teams_service.get_config") as mock_config,
+            patch("src.frontin.api.services.teams_service.get_state_manager") as mock_state_mgr,
         ):
             mock_config.return_value.teams.enabled = True
             mock_state = MagicMock()
@@ -148,9 +148,9 @@ class TestTeamsServiceMarkAsRead:
         """mark_chat_as_read handles exceptions gracefully"""
         from unittest.mock import MagicMock, patch
 
-        from src.jeeves.api.services.teams_service import TeamsService
+        from src.frontin.api.services.teams_service import TeamsService
 
-        with patch("src.jeeves.api.services.teams_service.get_config") as mock_config:
+        with patch("src.frontin.api.services.teams_service.get_config") as mock_config:
             mock_config.return_value.teams.enabled = True
 
             service = TeamsService()

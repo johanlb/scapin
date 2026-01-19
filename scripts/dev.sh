@@ -89,13 +89,13 @@ kill_scapin_zombies() {
     echo -e "${CYAN}🧹 Nettoyage des processus précédents...${NC}"
 
     # Tuer les processus uvicorn/python liés à scapin
-    local uvicorn_pids=$(pgrep -f "uvicorn.*src.jeeves" 2>/dev/null || true)
+    local uvicorn_pids=$(pgrep -f "uvicorn.*src.frontin" 2>/dev/null || true)
     if [ -n "$uvicorn_pids" ]; then
         echo -e "  Arrêt des processus uvicorn Scapin"
         echo "$uvicorn_pids" | xargs kill -15 2>/dev/null || true
         sleep 1
         # Force kill si encore présents
-        uvicorn_pids=$(pgrep -f "uvicorn.*src.jeeves" 2>/dev/null || true)
+        uvicorn_pids=$(pgrep -f "uvicorn.*src.frontin" 2>/dev/null || true)
         if [ -n "$uvicorn_pids" ]; then
             echo "$uvicorn_pids" | xargs kill -9 2>/dev/null || true
         fi
@@ -170,7 +170,7 @@ echo -e "${YELLOW}→ Démarrage du backend sur :$BACKEND_PORT...${NC}"
 
 # Activer venv et lancer le backend en arrière-plan
 source .venv/bin/activate
-python -m src.jeeves.cli serve --host 0.0.0.0 --port $BACKEND_PORT 2>&1 &
+python -m src.frontin.cli serve --host 0.0.0.0 --port $BACKEND_PORT 2>&1 &
 BACKEND_PID=$!
 
 # Attendre que le backend soit prêt (max 30 secondes)

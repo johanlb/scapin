@@ -173,7 +173,7 @@ function getValetIcon(name: string): string {
 		planchet: '📋',
 		figaro: '⚡',
 		sganarelle: '🎓',
-		jeeves: '🎭'
+		frontin: '🎭'
 	};
 	return icons[name] || '🤖';
 }

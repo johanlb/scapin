@@ -10,12 +10,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.jeeves.journal.generator import (
+from src.frontin.journal.generator import (
     JournalGenerator,
     JournalGeneratorConfig,
     JsonFileHistoryProvider,
 )
-from src.jeeves.journal.models import QuestionCategory
+from src.frontin.journal.models import QuestionCategory
 
 # ============================================================================
 # FIXTURES

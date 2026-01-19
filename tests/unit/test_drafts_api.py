@@ -15,13 +15,13 @@ from src.integrations.storage.draft_storage import (
     DraftStatus,
     DraftStorage,
 )
-from src.jeeves.api.models.drafts import (
+from src.frontin.api.models.drafts import (
     DraftCreateRequest,
     DraftResponse,
     DraftUpdateRequest,
     GenerateDraftRequest,
 )
-from src.jeeves.api.services.drafts_service import DraftsService
+from src.frontin.api.services.drafts_service import DraftsService
 
 
 class TestDraftsModels:
@@ -264,8 +264,8 @@ class TestDraftsEndpoints:
     @pytest.fixture
     def client(self, mock_service):
         """Create test client with mocked service"""
-        from src.jeeves.api.app import create_app
-        from src.jeeves.api.services.drafts_service import get_drafts_service
+        from src.frontin.api.app import create_app
+        from src.frontin.api.services.drafts_service import get_drafts_service
 
         app = create_app()
         app.dependency_overrides[get_drafts_service] = lambda: mock_service
@@ -476,8 +476,8 @@ class TestDraftsEndpoints:
         """Should generate AI-assisted draft"""
         from unittest.mock import patch
 
-        from src.jeeves.api.app import create_app
-        from src.jeeves.api.services.drafts_service import get_drafts_service
+        from src.frontin.api.app import create_app
+        from src.frontin.api.services.drafts_service import get_drafts_service
 
         # Create shared storage for both service and action
         shared_storage = DraftStorage(drafts_dir=temp_dir)

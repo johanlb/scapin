@@ -39,7 +39,7 @@ Scapin est un **gardien cognitif personnel** avec une architecture cognitive ins
 | **Planchet** | `src/planchet/` | Planification & évaluation risques | ✅ |
 | **Figaro** | `src/figaro/` | Orchestration DAG avec rollback | ✅ |
 | **Sganarelle** | `src/sganarelle/` | Apprentissage continu du feedback | ✅ |
-| **Jeeves** | `src/jeeves/` | Interface API & CLI | ✅ |
+| **Frontin** | `src/frontin/` | Interface API & CLI | ✅ |
 
 ---
 
@@ -106,8 +106,8 @@ python scapin.py --help
 - ✅ **Transparence sur page principale Flux** : Ajout de la section "Transparence de l'Analyse" avec PassTimeline, ConfidenceSparkline, context influence et thinking bubbles directement sur `/flux/+page.svelte` (les composants étaient uniquement sur la page détail `/flux/[id]/+page.svelte`)
 
 **Fichiers modifiés (Phase 3) :**
-- `src/jeeves/api/routers/queue.py` : Ajout de `_convert_multi_pass_metadata()`, `_convert_retrieved_context()`, `_convert_context_influence()` + passage des champs à `QueueItemAnalysis`
-- `src/jeeves/api/services/queue_service.py` : Debug logging pour tracer le flux de données
+- `src/frontin/api/routers/queue.py` : Ajout de `_convert_multi_pass_metadata()`, `_convert_retrieved_context()`, `_convert_context_influence()` + passage des champs à `QueueItemAnalysis`
+- `src/frontin/api/services/queue_service.py` : Debug logging pour tracer le flux de données
 - `web/src/routes/flux/+page.svelte` : Section 8.5 "Analysis Transparency" avec tous les composants de visualisation
 
 **Nouveaux composants créés :**
@@ -149,9 +149,9 @@ python scapin.py --help
 - `src/sancho/convergence.py` : Ajout `context_influence` à `PassResult`
 - `templates/ai/v2/pass2_contextual_refinement.j2` : Prompt enrichi avec `context_influence`
 - `templates/ai/v2/pass4_deep_reasoning.j2` : Prompt enrichi avec `context_influence`
-- `src/jeeves/api/models/queue.py` : Nouveaux modèles API (`RetrievedContextResponse`, `ContextInfluenceResponse`)
-- `src/jeeves/api/services/queue_service.py` : Inclusion du contexte dans les résultats
-- `src/jeeves/api/services/notes_service.py` : `asyncio.to_thread()` pour sync non-bloquante
+- `src/frontin/api/models/queue.py` : Nouveaux modèles API (`RetrievedContextResponse`, `ContextInfluenceResponse`)
+- `src/frontin/api/services/queue_service.py` : Inclusion du contexte dans les résultats
+- `src/frontin/api/services/notes_service.py` : `asyncio.to_thread()` pour sync non-bloquante
 - `web/src/lib/api/client.ts` : Types TypeScript pour le contexte
 - `web/src/routes/flux/[id]/+page.svelte` : UI d'affichage du contexte
 
@@ -188,7 +188,7 @@ python scapin.py --help
 | Liste notes avec filtre | 5+ min | ~0.01s | ~30,000x |
 
 **Fichiers clés créés/modifiés :**
-- `src/jeeves/api/routers/media.py` (nouveau) : Endpoint `/api/media/{uuid}` pour médias Apple Notes
+- `src/frontin/api/routers/media.py` (nouveau) : Endpoint `/api/media/{uuid}` pour médias Apple Notes
 - `web/src/lib/utils/markdown.ts` : Extension `apple-media://` pour marked.js
 - `scripts/dev.sh` (refonte) : Gestion robuste des processus
 - `scripts/stop.sh` (nouveau) : Arrêt manuel des serveurs

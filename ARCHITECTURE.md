@@ -284,7 +284,7 @@ Scapin's architecture follows a valet-themed design, where each module represent
 | **Figaro** | Orchestration | Beaumarchais' *The Barber of Seville* | Action execution - the master of coordination |
 | **Sganarelle** | Learning & Adaptation | Molière's recurring character | Learning engine - adapts from experience |
 | **Passepartout** | Navigation & Search | Verne's *Around the World in 80 Days* | Knowledge management - finds anything |
-| **Jeeves** | Service & API | Wodehouse's stories | API layer - the perfect butler interface |
+| **Frontin** | Service & API | Lesage/Regnard's comedies | API layer - the elegant French valet interface |
 
 ---
 
@@ -943,7 +943,7 @@ class SendNotificationAction(Action):
 
 ### Atomic Transaction Logic (v2.2.1)
 
-**Module**: `src/jeeves/api/services/queue_service.py`
+**Module**: `src/frontin/api/services/queue_service.py`
 **Purpose**: Ensure email actions and enrichments are treated as one atomic unit.
 
 **Problem Statement**:
@@ -1858,8 +1858,8 @@ src/core/
 
 ### Integration with Existing Phases
 
-**Phase 2** (Interactive Menu) → Event source + UI for review (via Jeeves)
-**Phase 0.7** (Jeeves API) → Web/Mobile interface to cognitive architecture
+**Phase 2** (Interactive Menu) → Event source + UI for review (via Frontin)
+**Phase 0.7** (Frontin API) → Web/Mobile interface to cognitive architecture
 **Phase 3** (Knowledge System) → ✅ COMPLETE (2026-01-15)
 **Phase 4** (Integration & Sync) → ✅ COMPLETE (2026-01-17)
 **Phase 5** (Interaction) → In Progress
@@ -1868,7 +1868,7 @@ src/core/
 ### Valet Module Integration Map
 
 ```
-Jeeves (API Layer)
+Frontin (API Layer)
     ↓
 Trivelin (Perception) → Working Memory ← Passepartout (Knowledge)
     ↓                         ↓
@@ -1990,7 +1990,7 @@ on Dec 30. She confirmed the revenue target of $500K and
 15% cost reduction. The deadline for your review is Jan 15."
 ```
 
-**Architecture Support**: Question events already designed for this. Jeeves API (Phase 0.7) will provide the conversational interface.
+**Architecture Support**: Question events already designed for this. Frontin API (Phase 0.7) will provide the conversational interface.
 
 #### Feature: Re-analysis (Autre)
 The "Other" option in the Review Queue allows users to provide explicit instructions (e.g., "Classify in Archive/Taxes"). 
@@ -2153,7 +2153,7 @@ When an event arrives (email, file, question), here's how Scapin's team responds
 3. **Planchet** devises an action plan based on Sancho's understanding
 4. **Figaro** orchestrates the execution of actions in proper order
 5. **Sganarelle** learns from the outcome, updating **Passepartout's** knowledge
-6. **Jeeves** provides the elegant API interface for web/mobile clients
+6. **Frontin** provides the elegant API interface for web/mobile clients
 
 Each valet excels at their specialty, working together like a well-trained household staff.
 

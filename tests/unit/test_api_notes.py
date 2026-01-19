@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
-from src.jeeves.api.deps import get_notes_service
-from src.jeeves.api.models.notes import (
+from src.frontin.api.app import create_app
+from src.frontin.api.deps import get_notes_service
+from src.frontin.api.models.notes import (
     FolderNode,
     NoteLinksResponse,
     NoteResponse,
@@ -148,8 +148,8 @@ def client(mock_notes_service: MagicMock) -> Generator[TestClient, None, None]:
     """Create test client with mocked service"""
     from datetime import timedelta, timezone
 
-    from src.jeeves.api.auth import TokenData
-    from src.jeeves.api.deps import get_current_user
+    from src.frontin.api.auth import TokenData
+    from src.frontin.api.deps import get_current_user
 
     app = create_app()
     app.dependency_overrides[get_notes_service] = lambda: mock_notes_service

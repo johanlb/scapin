@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
-from src.jeeves.api.routers.calendar import _get_calendar_service
+from src.frontin.api.app import create_app
+from src.frontin.api.routers.calendar import _get_calendar_service
 
 
 @pytest.fixture

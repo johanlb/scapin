@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
-from src.jeeves.api.deps import get_cached_config
+from src.frontin.api.app import create_app
+from src.frontin.api.deps import get_cached_config
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ class TestHealthEndpoint:
         """Test health endpoint returns success response"""
         # Health check calls get_cached_config() directly, so we patch it
         with patch(
-            "src.jeeves.api.routers.system.get_cached_config",
+            "src.frontin.api.routers.system.get_cached_config",
         ) as mock_get_config:
             # Set up return value for direct call
             mock_config = MagicMock()
@@ -79,7 +79,7 @@ class TestHealthEndpoint:
     def test_health_includes_checks(self, client: TestClient) -> None:
         """Test health endpoint includes individual checks"""
         with patch(
-            "src.jeeves.api.routers.system.get_cached_config",
+            "src.frontin.api.routers.system.get_cached_config",
         ) as mock_get_config:
             mock_config = MagicMock()
             account = MagicMock()
@@ -106,7 +106,7 @@ class TestHealthEndpoint:
     def test_health_status_when_no_accounts(self, client: TestClient) -> None:
         """Test health shows degraded when no email accounts"""
         with patch(
-            "src.jeeves.api.routers.system.get_cached_config",
+            "src.frontin.api.routers.system.get_cached_config",
         ) as mock_get_config:
             mock_config = MagicMock()
             mock_config.email.get_enabled_accounts.return_value = []

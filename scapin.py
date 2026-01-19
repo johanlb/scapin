@@ -7,7 +7,7 @@ Entry point for the Scapin CLI application.
 Named after Scapin, Molière's cunning and resourceful valet.
 """
 
-from src.jeeves.cli import run
+from src.frontin.cli import run
 
 if __name__ == "__main__":
     run()

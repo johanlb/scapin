@@ -11,14 +11,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.core.state_manager import ProcessingState
-from src.jeeves.api.app import create_app
-from src.jeeves.api.deps import get_cached_config
-from src.jeeves.api.models.responses import (
+from src.frontin.api.app import create_app
+from src.frontin.api.deps import get_cached_config
+from src.frontin.api.models.responses import (
     ComponentStatus,
     SessionStatsResponse,
     SystemStatusResponse,
 )
-from src.jeeves.api.services.status_service import StatusService
+from src.frontin.api.services.status_service import StatusService
 
 
 @pytest.fixture
@@ -172,15 +172,15 @@ class TestStatusService:
         """Test get_status returns idle state"""
         with (
             patch(
-                "src.jeeves.api.services.status_service.get_config",
+                "src.frontin.api.services.status_service.get_config",
                 return_value=mock_config,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_state_manager",
+                "src.frontin.api.services.status_service.get_state_manager",
                 return_value=mock_state_manager,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_connection_manager"
+                "src.frontin.api.services.status_service.get_connection_manager"
             ) as mock_ws,
         ):
             mock_ws.return_value.active_connection_count = 0
@@ -205,15 +205,15 @@ class TestStatusService:
 
         with (
             patch(
-                "src.jeeves.api.services.status_service.get_config",
+                "src.frontin.api.services.status_service.get_config",
                 return_value=mock_config,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_state_manager",
+                "src.frontin.api.services.status_service.get_state_manager",
                 return_value=mock_state_manager,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_connection_manager"
+                "src.frontin.api.services.status_service.get_connection_manager"
             ) as mock_ws,
         ):
             mock_ws.return_value.active_connection_count = 1
@@ -233,15 +233,15 @@ class TestStatusService:
         """Test components are properly built"""
         with (
             patch(
-                "src.jeeves.api.services.status_service.get_config",
+                "src.frontin.api.services.status_service.get_config",
                 return_value=mock_config,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_state_manager",
+                "src.frontin.api.services.status_service.get_state_manager",
                 return_value=mock_state_manager,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_connection_manager"
+                "src.frontin.api.services.status_service.get_connection_manager"
             ) as mock_ws,
         ):
             mock_ws.return_value.active_connection_count = 0
@@ -264,15 +264,15 @@ class TestStatusService:
         """Test session stats are populated"""
         with (
             patch(
-                "src.jeeves.api.services.status_service.get_config",
+                "src.frontin.api.services.status_service.get_config",
                 return_value=mock_config,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_state_manager",
+                "src.frontin.api.services.status_service.get_state_manager",
                 return_value=mock_state_manager,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_connection_manager"
+                "src.frontin.api.services.status_service.get_connection_manager"
             ) as mock_ws,
         ):
             mock_ws.return_value.active_connection_count = 0
@@ -300,15 +300,15 @@ class TestStatusService:
 
         with (
             patch(
-                "src.jeeves.api.services.status_service.get_config",
+                "src.frontin.api.services.status_service.get_config",
                 return_value=config,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_state_manager",
+                "src.frontin.api.services.status_service.get_state_manager",
                 return_value=mock_state_manager,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_connection_manager"
+                "src.frontin.api.services.status_service.get_connection_manager"
             ) as mock_ws,
         ):
             mock_ws.return_value.active_connection_count = 0
@@ -331,11 +331,11 @@ class TestStatusEndpoint:
         """Test GET /api/status returns success"""
         with (
             patch(
-                "src.jeeves.api.services.status_service.get_state_manager",
+                "src.frontin.api.services.status_service.get_state_manager",
                 return_value=mock_state_manager,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_connection_manager"
+                "src.frontin.api.services.status_service.get_connection_manager"
             ) as mock_ws,
         ):
             mock_ws.return_value.active_connection_count = 0
@@ -354,11 +354,11 @@ class TestStatusEndpoint:
         """Test GET /api/status returns correct data structure"""
         with (
             patch(
-                "src.jeeves.api.services.status_service.get_state_manager",
+                "src.frontin.api.services.status_service.get_state_manager",
                 return_value=mock_state_manager,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_connection_manager"
+                "src.frontin.api.services.status_service.get_connection_manager"
             ) as mock_ws,
         ):
             mock_ws.return_value.active_connection_count = 2
@@ -390,11 +390,11 @@ class TestStatusEndpoint:
         """Test GET /api/status returns component statuses"""
         with (
             patch(
-                "src.jeeves.api.services.status_service.get_state_manager",
+                "src.frontin.api.services.status_service.get_state_manager",
                 return_value=mock_state_manager,
             ),
             patch(
-                "src.jeeves.api.services.status_service.get_connection_manager"
+                "src.frontin.api.services.status_service.get_connection_manager"
             ) as mock_ws,
         ):
             mock_ws.return_value.active_connection_count = 0

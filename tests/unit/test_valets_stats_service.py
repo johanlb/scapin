@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.jeeves.api.services.valets_stats_service import (
+from src.frontin.api.services.valets_stats_service import (
     ValetsStatsService,
     get_valets_stats_service,
 )
@@ -137,7 +137,7 @@ class TestValetsStatsService:
             assert len(all_stats) == 7
             assert all_stats["trivelin"]["tasks_today"] == 10
             assert all_stats["sancho"]["tasks_today"] == 50
-            assert all_stats["jeeves"]["status"] == "running"
+            assert all_stats["frontin"]["status"] == "running"
 
     def test_get_aggregate_metrics(self) -> None:
         """Test aggregate metrics calculation."""
@@ -157,7 +157,7 @@ class TestValetsStatsService:
                     "errors_today": 3,
                     "details": {},
                 },
-                "jeeves": {
+                "frontin": {
                     "status": "running",
                     "tasks_today": 100,
                     "errors_today": 0,
@@ -238,7 +238,7 @@ class TestValetsRouterIntegration:
             "planchet": base_stats.copy(),
             "figaro": base_stats.copy(),
             "sganarelle": base_stats.copy(),
-            "jeeves": {**base_stats, "status": "running"},
+            "frontin": {**base_stats, "status": "running"},
         }
         return mock
 
@@ -247,10 +247,10 @@ class TestValetsRouterIntegration:
         """Test dashboard endpoint uses real stats."""
         mock_service = self._create_mock_stats_service()
         with patch(
-            "src.jeeves.api.routers.valets.get_valets_stats_service",
+            "src.frontin.api.routers.valets.get_valets_stats_service",
             return_value=mock_service,
         ):
-            from src.jeeves.api.routers.valets import get_valets_dashboard
+            from src.frontin.api.routers.valets import get_valets_dashboard
 
             response = await get_valets_dashboard(None)
 
@@ -263,10 +263,10 @@ class TestValetsRouterIntegration:
         """Test metrics endpoint uses real stats."""
         mock_service = self._create_mock_stats_service()
         with patch(
-            "src.jeeves.api.routers.valets.get_valets_stats_service",
+            "src.frontin.api.routers.valets.get_valets_stats_service",
             return_value=mock_service,
         ):
-            from src.jeeves.api.routers.valets import get_valets_metrics
+            from src.frontin.api.routers.valets import get_valets_metrics
 
             response = await get_valets_metrics(period="today", _user=None)
 

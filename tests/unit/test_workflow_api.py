@@ -19,7 +19,7 @@ class TestExtractionResponse:
 
     def test_extraction_response_model(self):
         """Test ExtractionResponse model"""
-        from src.jeeves.api.models.workflow import ExtractionResponse
+        from src.frontin.api.models.workflow import ExtractionResponse
 
         extraction = ExtractionResponse(
             info="Test info",
@@ -39,7 +39,7 @@ class TestExtractionResponse:
 
     def test_extraction_response_with_omnifocus(self):
         """Test ExtractionResponse with omnifocus enabled"""
-        from src.jeeves.api.models.workflow import ExtractionResponse
+        from src.frontin.api.models.workflow import ExtractionResponse
 
         extraction = ExtractionResponse(
             info="Deadline task",
@@ -58,7 +58,7 @@ class TestWorkflowConfigResponse:
 
     def test_workflow_config_response_model(self):
         """Test WorkflowConfigResponse model"""
-        from src.jeeves.api.models.workflow import WorkflowConfigResponse
+        from src.frontin.api.models.workflow import WorkflowConfigResponse
 
         config = WorkflowConfigResponse(
             enabled=True,
@@ -82,7 +82,7 @@ class TestWorkflowConfigResponse:
 
     def test_workflow_config_response_disabled(self):
         """Test WorkflowConfigResponse when disabled"""
-        from src.jeeves.api.models.workflow import WorkflowConfigResponse
+        from src.frontin.api.models.workflow import WorkflowConfigResponse
 
         config = WorkflowConfigResponse(
             enabled=False,
@@ -103,7 +103,7 @@ class TestV2ProcessingResponse:
 
     def test_v2_processing_response_success(self):
         """Test V2ProcessingResponse model for successful processing"""
-        from src.jeeves.api.models.workflow import V2ProcessingResponse
+        from src.frontin.api.models.workflow import V2ProcessingResponse
 
         response = V2ProcessingResponse(
             success=True,
@@ -121,7 +121,7 @@ class TestV2ProcessingResponse:
 
     def test_v2_processing_response_failure(self):
         """Test V2ProcessingResponse model for failed processing"""
-        from src.jeeves.api.models.workflow import V2ProcessingResponse
+        from src.frontin.api.models.workflow import V2ProcessingResponse
 
         response = V2ProcessingResponse(
             success=False,
@@ -143,7 +143,7 @@ class TestAnalysisResultResponse:
 
     def test_analysis_result_response(self):
         """Test AnalysisResultResponse model"""
-        from src.jeeves.api.models.workflow import (
+        from src.frontin.api.models.workflow import (
             AnalysisResultResponse,
             ExtractionResponse,
         )
@@ -175,7 +175,7 @@ class TestAnalysisResultResponse:
 
     def test_analysis_result_response_escalated(self):
         """Test AnalysisResultResponse when escalated"""
-        from src.jeeves.api.models.workflow import AnalysisResultResponse
+        from src.frontin.api.models.workflow import AnalysisResultResponse
 
         response = AnalysisResultResponse(
             extractions=[],
@@ -197,7 +197,7 @@ class TestEnrichmentResultResponse:
 
     def test_enrichment_result_response(self):
         """Test EnrichmentResultResponse model"""
-        from src.jeeves.api.models.workflow import EnrichmentResultResponse
+        from src.frontin.api.models.workflow import EnrichmentResultResponse
 
         response = EnrichmentResultResponse(
             notes_updated=["note_123", "note_456"],
@@ -214,7 +214,7 @@ class TestEnrichmentResultResponse:
 
     def test_enrichment_result_response_with_errors(self):
         """Test EnrichmentResultResponse with errors"""
-        from src.jeeves.api.models.workflow import EnrichmentResultResponse
+        from src.frontin.api.models.workflow import EnrichmentResultResponse
 
         response = EnrichmentResultResponse(
             notes_updated=[],
@@ -233,7 +233,7 @@ class TestWorkflowStatsResponse:
 
     def test_workflow_stats_response(self):
         """Test WorkflowStatsResponse model"""
-        from src.jeeves.api.models.workflow import WorkflowStatsResponse
+        from src.frontin.api.models.workflow import WorkflowStatsResponse
 
         stats = WorkflowStatsResponse(
             events_processed=100,
@@ -253,7 +253,7 @@ class TestWorkflowStatsResponse:
 
     def test_workflow_stats_response_defaults(self):
         """Test WorkflowStatsResponse default values"""
-        from src.jeeves.api.models.workflow import WorkflowStatsResponse
+        from src.frontin.api.models.workflow import WorkflowStatsResponse
 
         stats = WorkflowStatsResponse()
 
@@ -272,7 +272,7 @@ class TestAnalyzeEmailRequest:
 
     def test_analyze_email_request(self):
         """Test AnalyzeEmailRequest model"""
-        from src.jeeves.api.models.workflow import AnalyzeEmailRequest
+        from src.frontin.api.models.workflow import AnalyzeEmailRequest
 
         request = AnalyzeEmailRequest(
             email_id="msg_123",
@@ -284,7 +284,7 @@ class TestAnalyzeEmailRequest:
 
     def test_analyze_email_request_auto_apply_default(self):
         """Test AnalyzeEmailRequest default auto_apply value"""
-        from src.jeeves.api.models.workflow import AnalyzeEmailRequest
+        from src.frontin.api.models.workflow import AnalyzeEmailRequest
 
         request = AnalyzeEmailRequest(email_id="msg_456")
 
@@ -296,7 +296,7 @@ class TestApplyExtractionsRequest:
 
     def test_apply_extractions_request(self):
         """Test ApplyExtractionsRequest model"""
-        from src.jeeves.api.models.workflow import (
+        from src.frontin.api.models.workflow import (
             ApplyExtractionsRequest,
             ExtractionResponse,
         )
@@ -335,10 +335,10 @@ class TestGetV2Processor:
         mock_config.workflow_v2.enabled = False
 
         with patch(
-            "src.jeeves.api.routers.workflow.get_config",
+            "src.frontin.api.routers.workflow.get_config",
             return_value=mock_config
         ):
-            from src.jeeves.api.routers.workflow import _get_v2_processor
+            from src.frontin.api.routers.workflow import _get_v2_processor
             from fastapi import HTTPException
 
             with pytest.raises(HTTPException) as exc_info:
@@ -358,7 +358,7 @@ class TestStatsTracking:
 
     def test_stats_module_variable_exists(self):
         """Test that stats tracking variable exists"""
-        from src.jeeves.api.routers import workflow
+        from src.frontin.api.routers import workflow
 
         assert hasattr(workflow, "_workflow_stats")
         assert "events_processed" in workflow._workflow_stats
@@ -367,7 +367,7 @@ class TestStatsTracking:
 
     def test_stats_can_be_updated(self):
         """Test that stats can be updated"""
-        from src.jeeves.api.routers import workflow
+        from src.frontin.api.routers import workflow
 
         original_count = workflow._workflow_stats["events_processed"]
         workflow._workflow_stats["events_processed"] += 1
