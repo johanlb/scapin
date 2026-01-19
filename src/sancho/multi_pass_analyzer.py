@@ -25,10 +25,13 @@ See ADR-005 in MULTI_PASS_SPEC.md for design decisions.
 """
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional
+
+from dateutil import parser as date_parser
 
 from src.core.events.universal_event import PerceivedEvent
 from src.monitoring.logger import get_logger
@@ -217,6 +220,70 @@ class MultiPassAnalyzer:
         ModelTier.SONNET: AIModel.CLAUDE_SONNET,
         ModelTier.OPUS: AIModel.CLAUDE_OPUS,
     }
+
+    # Ephemeral content detection constants
+    # Financial documents that must ALWAYS be archived (never ephemeral)
+    FINANCIAL_INDICATORS = frozenset([
+        "bilan", "bilan financier", "bilan annuel", "annual report",
+        "financial statement", "financial report", "rapport financier",
+        "comptes annuels", "états financiers", "compte de résultat",
+        "résumé financier", "financial summary", "audit", "comptes",
+        "rapport annuel", "yearly report", "fiscal year", "clôture comptable",
+        "exercice comptable", "year end",
+    ])
+
+    # Legal/corporate documents that must ALWAYS be archived (never ephemeral)
+    LEGAL_INDICATORS = frozenset([
+        "contrat", "contract", "facture", "invoice", "bon de commande",
+        "purchase order", "devis signé", "procès-verbal", "pv de réunion",
+        "procuration", "power of attorney", "statuts sociaux", "bylaws",
+        "certificat", "certificate", "attestation officielle",
+        "déclaration fiscale", "companies act", "accord commercial",
+        "accord signé", "legal agreement", "avenant au contrat", "amendment",
+        "résiliation", "termination notice", "licence commerciale",
+        "business license", "permis de construire",
+    ])
+
+    # Newsletter/digest indicators (periodic content, no lasting value)
+    NEWSLETTER_INDICATORS = frozenset([
+        "newsletter", "digest", "daily", "weekly", "monthly", "highlights",
+        "roundup", "recap", "summary", "bulletin", "noreply", "no-reply",
+        "mailer", "news@", "updates@", "medium", "substack", "mailchimp",
+        "sendinblue",
+    ])
+
+    # OTP/verification code indicators (always ephemeral)
+    OTP_INDICATORS = frozenset([
+        "otp", "one-time password", "code de vérification", "verification code",
+        "code d'authentification", "authentication code", "code de sécurité",
+        "security code", "code de confirmation", "confirmation code",
+        "code à usage unique", "single-use code", "2fa", "two-factor",
+        "mot de passe temporaire", "temporary password", "code pin",
+        "entrer le code", "enter the code", "saisissez le code",
+        "pour vous authentifier", "to authenticate", "pour confirmer",
+        "code suivant", "following code", "voici votre code",
+    ])
+
+    # Event/invitation indicators (time-bound content)
+    EVENT_INDICATORS = frozenset([
+        "vous invite", "invitation", "événement", "event", "rendez-vous",
+        "rencontrer", "découvrir", "jeudi", "vendredi", "samedi", "dimanche",
+        "lundi", "mardi", "mercredi", "à 17h", "à 18h", "à 19h", "à 20h",
+        "offre valable", "jusqu'au", "expire", "limited time",
+    ])
+
+    # Date patterns for extraction (French/English)
+    DATE_PATTERNS = [
+        r"\d{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s*\d{0,4}",
+        r"\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{0,4}",
+        r"\d{1,2}/\d{1,2}/\d{2,4}",
+        r"\d{4}-\d{2}-\d{2}",
+        r"jusqu'au\s+\d{1,2}\s+\w+\s*\d{0,4}",
+        r"until\s+\d{1,2}\s+\w+\s*\d{0,4}",
+    ]
+
+    # Extraction types that indicate time-bound content
+    TIME_BOUND_TYPES = frozenset(["evenement", "deadline", "fait"])
 
     def __init__(
         self,
@@ -1197,225 +1264,94 @@ class MultiPassAnalyzer:
         age = now - event_date
         return max(0, age.days)
 
-    def _is_ephemeral_content(
-        self,
-        extractions: list[Extraction],
-        event: PerceivedEvent,
-    ) -> tuple[bool, Optional[str]]:
+    # --- Ephemeral content detection helpers ---
+
+    def _is_protected_document(self, full_text: str, from_person: str) -> bool:
         """
-        Check if email contains ephemeral content with no lasting value.
+        Check if content is a protected document that should NEVER be ephemeral.
 
-        Detects:
-        1. Event invitations with dates that have passed
-        2. Time-limited offers that have expired
-        3. Newsletters/digests (periodic content aggregations)
-
-        NEVER marks as ephemeral:
-        - Financial documents (bilans, rapports financiers, etc.)
-        - Legal documents (contrats, factures, etc.)
-        - Corporate documents (statuts, PV, etc.)
+        Protected documents include financial reports, legal contracts, invoices, etc.
 
         Args:
-            extractions: List of extractions from the email
-            event: The event being analyzed (for email date context)
+            full_text: Combined title and content in lowercase
+            from_person: Sender identifier in lowercase
 
         Returns:
-            Tuple of (is_ephemeral, reason)
+            True if this is a protected document
         """
-        # Get text for analysis
-        # PerceivedEvent uses from_person (string), not sender object
-        from_person = (getattr(event, "from_person", "") or "").lower()
-        sender_email = from_person  # from_person is already the email address
-        title = (getattr(event, "title", "") or "").lower()
-        content = getattr(event, "content", "") or ""
-        full_text = f"{title} {content}".lower()
-
-        # FIRST: Check for protected document types (NEVER ephemeral)
-        # Financial documents that must ALWAYS be archived
-        financial_indicators = [
-            "bilan",
-            "bilan financier",
-            "bilan annuel",
-            "annual report",
-            "financial statement",
-            "financial report",
-            "rapport financier",
-            "comptes annuels",
-            "états financiers",
-            "compte de résultat",
-            "résumé financier",
-            "financial summary",
-            "audit",
-            "comptes",
-            "rapport annuel",
-            "yearly report",
-            "fiscal year",
-            "clôture comptable",
-            "exercice comptable",
-            "year end",
-        ]
-
-        # Legal/corporate documents that must ALWAYS be archived
-        # NOTE: Avoid short words that could match common text (e.g., "accord" matches "according")
-        legal_indicators = [
-            "contrat",
-            "contract",
-            "facture",
-            "invoice",
-            "bon de commande",
-            "purchase order",
-            "devis signé",
-            "procès-verbal",
-            "pv de réunion",
-            "procuration",
-            "power of attorney",
-            "statuts sociaux",
-            "bylaws",
-            "certificat",
-            "certificate",
-            "attestation officielle",
-            "déclaration fiscale",
-            "companies act",
-            "accord commercial",
-            "accord signé",
-            "legal agreement",
-            "avenant au contrat",
-            "amendment",
-            "résiliation",
-            "termination notice",
-            "licence commerciale",
-            "business license",
-            "permis de construire",
-        ]
-
-        # Check if this is a protected document type
-        is_financial = any(ind in full_text for ind in financial_indicators)
-        is_legal = any(ind in full_text for ind in legal_indicators)
+        is_financial = any(ind in full_text for ind in self.FINANCIAL_INDICATORS)
+        is_legal = any(ind in full_text for ind in self.LEGAL_INDICATORS)
 
         if is_financial or is_legal:
-            # Find which indicator matched
             matched_ind = next(
-                (ind for ind in financial_indicators + legal_indicators if ind in full_text),
+                (ind for ind in self.FINANCIAL_INDICATORS | self.LEGAL_INDICATORS if ind in full_text),
                 "unknown",
             )
             logger.info(
                 f"Protected document detected (NOT ephemeral): matched='{matched_ind}' "
                 f"in from='{from_person}'"
             )
-            return False, None
+            return True
+        return False
 
-        # Now proceed with ephemeral content detection
-        newsletter_indicators = [
-            "newsletter",
-            "digest",
-            "daily",
-            "weekly",
-            "monthly",
-            "highlights",
-            "roundup",
-            "recap",
-            "summary",
-            "bulletin",
-            "noreply",
-            "no-reply",
-            "mailer",
-            "news@",
-            "updates@",
-            "medium",
-            "substack",
-            "mailchimp",
-            "sendinblue",
-        ]
+    def _is_newsletter(self, from_person: str, title: str) -> bool:
+        """
+        Check if content is a newsletter or digest.
 
-        is_newsletter = any(ind in from_person or ind in title for ind in newsletter_indicators)
+        Args:
+            from_person: Sender identifier in lowercase
+            title: Email title in lowercase
 
-        logger.info(
-            f"Ephemeral check: from_person='{from_person}', title='{title[:50]}', "
-            f"is_newsletter={is_newsletter}"
-        )
+        Returns:
+            True if this appears to be a newsletter/digest
+        """
+        return any(ind in from_person or ind in title for ind in self.NEWSLETTER_INDICATORS)
 
-        if is_newsletter:
-            logger.info(f"Detected newsletter/digest: from_person='{from_person}'")
-            return True, "newsletter/digest (periodic content, no lasting value)"
+    def _is_otp_code(self, full_text: str, sender_email: str) -> bool:
+        """
+        Check if content is an OTP or verification code.
 
-        # Second check: OTP/verification codes (always ephemeral)
-        otp_indicators = [
-            "otp",
-            "one-time password",
-            "code de vérification",
-            "verification code",
-            "code d'authentification",
-            "authentication code",
-            "code de sécurité",
-            "security code",
-            "code de confirmation",
-            "confirmation code",
-            "code à usage unique",
-            "single-use code",
-            "2fa",
-            "two-factor",
-            "mot de passe temporaire",
-            "temporary password",
-            "code pin",
-            "entrer le code",
-            "enter the code",
-            "saisissez le code",
-            "pour vous authentifier",
-            "to authenticate",
-            "pour confirmer",
-            "code suivant",
-            "following code",
-            "voici votre code",
-        ]
+        Args:
+            full_text: Combined title and content in lowercase
+            sender_email: Sender email address in lowercase
 
-        is_otp = any(ind in full_text or ind in sender_email for ind in otp_indicators)
+        Returns:
+            True if this appears to be an OTP/verification code
+        """
+        return any(ind in full_text or ind in sender_email for ind in self.OTP_INDICATORS)
 
-        if is_otp:
-            return True, "OTP/verification code (expired, no lasting value)"
+    def _extract_dates_from_extractions(
+        self,
+        extractions: list[Extraction],
+        event_date: datetime,
+    ) -> tuple[list[datetime], bool]:
+        """
+        Extract dates from extraction info and detect time-bound content.
 
-        # Third check: Does email contain past events/invitations?
-        import re
+        Args:
+            extractions: List of extractions to analyze
+            event_date: The event date for year inference
 
-        from dateutil import parser as date_parser
-
-        now = datetime.now(timezone.utc)
-        event_date = getattr(event, "occurred_at", None) or getattr(event, "received_at", now)
-
-        # Types that indicate time-bound content
-        time_bound_types = {"evenement", "deadline", "fait"}
-
-        # Look for dates in extractions
-        dates_found = []
+        Returns:
+            Tuple of (list of parsed dates, has_time_bound_content flag)
+        """
+        dates_found: list[datetime] = []
         has_time_bound_content = False
 
         for ext in extractions:
             # Check if extraction type suggests time-bound content
-            if ext.type in time_bound_types:
+            if ext.type in self.TIME_BOUND_TYPES:
                 has_time_bound_content = True
 
             # Try to extract dates from the extraction info
             info = ext.info or ""
 
-            # Common date patterns in French/English
-            # Examples: "30 septembre", "31 mars 2022", "September 30", "2021-09-30"
-            date_patterns = [
-                r"\d{1,2}\s+(?:janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\s*\d{0,4}",
-                r"\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s*\d{0,4}",
-                r"\d{1,2}/\d{1,2}/\d{2,4}",
-                r"\d{4}-\d{2}-\d{2}",
-                r"jusqu'au\s+\d{1,2}\s+\w+\s*\d{0,4}",
-                r"until\s+\d{1,2}\s+\w+\s*\d{0,4}",
-            ]
-
-            for pattern in date_patterns:
+            for pattern in self.DATE_PATTERNS:
                 matches = re.findall(pattern, info.lower())
                 for match in matches:
                     try:
-                        # Try to parse the date
-                        # Add year from email if not present
                         date_str = match
                         if not re.search(r"\d{4}", date_str):
-                            # Add year from email date
                             date_str = f"{date_str} {event_date.year}"
 
                         parsed = date_parser.parse(date_str, fuzzy=True, dayfirst=True)
@@ -1435,57 +1371,103 @@ class MultiPassAnalyzer:
                 except (ValueError, TypeError):
                     pass
 
-        # If we found time-bound content and dates, check if all dates are past
+        return dates_found, has_time_bound_content
+
+    def _check_past_dates(
+        self,
+        dates_found: list[datetime],
+        now: datetime,
+    ) -> tuple[bool, Optional[str]]:
+        """
+        Check if all found dates are in the past.
+
+        Args:
+            dates_found: List of parsed dates
+            now: Current datetime for comparison
+
+        Returns:
+            Tuple of (all_past, reason_string or None)
+        """
+        if not dates_found:
+            return False, None
+
+        all_past = all(d < now for d in dates_found)
+        if all_past:
+            oldest = min(dates_found)
+            days_ago = (now - oldest).days
+            return True, f"{oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)"
+        return False, None
+
+    def _is_ephemeral_content(
+        self,
+        extractions: list[Extraction],
+        event: PerceivedEvent,
+    ) -> tuple[bool, Optional[str]]:
+        """
+        Check if email contains ephemeral content with no lasting value.
+
+        Detects:
+        1. Newsletters/digests (periodic content aggregations)
+        2. OTP/verification codes (always ephemeral)
+        3. Event invitations with dates that have passed
+        4. Time-limited offers that have expired
+
+        NEVER marks as ephemeral:
+        - Financial documents (bilans, rapports financiers, etc.)
+        - Legal documents (contrats, factures, etc.)
+        - Corporate documents (statuts, PV, etc.)
+
+        Args:
+            extractions: List of extractions from the email
+            event: The event being analyzed (for email date context)
+
+        Returns:
+            Tuple of (is_ephemeral, reason)
+        """
+        # Extract text for analysis
+        from_person = (getattr(event, "from_person", "") or "").lower()
+        sender_email = from_person
+        title = (getattr(event, "title", "") or "").lower()
+        content = getattr(event, "content", "") or ""
+        full_text = f"{title} {content}".lower()
+
+        # Check 1: Protected documents are NEVER ephemeral
+        if self._is_protected_document(full_text, from_person):
+            return False, None
+
+        # Check 2: Newsletters/digests
+        is_newsletter = self._is_newsletter(from_person, title)
+        logger.info(
+            f"Ephemeral check: from_person='{from_person}', title='{title[:50]}', "
+            f"is_newsletter={is_newsletter}"
+        )
+        if is_newsletter:
+            logger.info(f"Detected newsletter/digest: from_person='{from_person}'")
+            return True, "newsletter/digest (periodic content, no lasting value)"
+
+        # Check 3: OTP/verification codes
+        if self._is_otp_code(full_text, sender_email):
+            return True, "OTP/verification code (expired, no lasting value)"
+
+        # Check 4: Past events/invitations
+        now = datetime.now(timezone.utc)
+        event_date = getattr(event, "occurred_at", None) or getattr(event, "received_at", now)
+        dates_found, has_time_bound_content = self._extract_dates_from_extractions(
+            extractions, event_date
+        )
+
+        # Check time-bound extraction types (evenement, deadline, fait)
         if has_time_bound_content and dates_found:
-            all_past = all(d < now for d in dates_found)
+            all_past, date_info = self._check_past_dates(dates_found, now)
             if all_past:
-                oldest = min(dates_found)
-                days_ago = (now - oldest).days
-                return (
-                    True,
-                    f"event/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)",
-                )
+                return True, f"event/offer dated {date_info}"
 
-        # Also check the email content directly for event indicators
-        # (full_text already set above for OTP check)
-
-        # Event/invitation indicators
-        event_indicators = [
-            "vous invite",
-            "invitation",
-            "événement",
-            "event",
-            "rendez-vous",
-            "rencontrer",
-            "découvrir",
-            "jeudi",
-            "vendredi",
-            "samedi",
-            "dimanche",
-            "lundi",
-            "mardi",
-            "mercredi",
-            "à 17h",
-            "à 18h",
-            "à 19h",
-            "à 20h",
-            "offre valable",
-            "jusqu'au",
-            "expire",
-            "limited time",
-        ]
-
-        has_event_indicator = any(ind in full_text for ind in event_indicators)
-
+        # Check event indicators in content
+        has_event_indicator = any(ind in full_text for ind in self.EVENT_INDICATORS)
         if has_event_indicator and dates_found:
-            all_past = all(d < now for d in dates_found)
+            all_past, date_info = self._check_past_dates(dates_found, now)
             if all_past:
-                oldest = min(dates_found)
-                days_ago = (now - oldest).days
-                return (
-                    True,
-                    f"invitation/offer dated {oldest.strftime('%Y-%m-%d')} ({days_ago} days ago)",
-                )
+                return True, f"invitation/offer dated {date_info}"
 
         return False, None
 
