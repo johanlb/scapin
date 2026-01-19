@@ -1578,6 +1578,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 | 1.2 | Corriger les liens cassés (`/flux/` → `/peripeties/`) | Routes, navigation | ✅ |
 | 1.3 | Renommer `$lib/components/flux/` → `peripeties/` | Structure fichiers | ✅ |
 
+🧪 **Tests Phase 1** : Vérifier tests E2E après changements vocabulaire
+
 📝 **Documenter, commit et push Phase 1**
 
 ---
@@ -1592,6 +1594,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 | 2.3 | Script de migration des données existantes | `scripts/migrate_queue_v2.py` (nouveau) |
 | 2.4 | Adapter les endpoints API (`/peripeties`, `/peripeties/stats`) | `src/frontin/routes/queue.py` |
 
+🧪 **Tests Phase 2** : Tests unitaires nouveaux types + tests API migration
+
 📝 **Documenter, commit et push Phase 2**
 
 ---
@@ -1604,6 +1608,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 | 3.1 | Calcul stats séparé par `state` | Compter par queued/analyzing/awaiting_review/processed/error |
 | 3.2 | Ajouter stats par `resolution_type` | auto_applied vs manual_approved vs manual_rejected |
 | 3.3 | Corriger le bug comptage 39 vs 18 | Stats = items affichés dans chaque onglet |
+
+🧪 **Tests Phase 3** : Tests unitaires calcul stats + test E2E comptage correct
 
 📝 **Documenter, commit et push Phase 3**
 
@@ -1619,6 +1625,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 | 4.3 | Repositionner Mode Focus comme bouton | Bouton + raccourci `F`, pas un filtre |
 | 4.4 | Ajouter recherche avec filtres | `Cmd+K` / `/`, filtres source/période/confiance |
 
+🧪 **Tests Phase 4** : Tests E2E navigation onglets + recherche + Mode Focus
+
 📝 **Documenter, commit et push Phase 4**
 
 ---
@@ -1631,6 +1639,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 | 5.1 | Ajouter canal WebSocket `QUEUE` | `ChannelType.QUEUE` dans `websocket_manager.py` |
 | 5.2 | Émettre événements côté backend | `item_added`, `item_state_changed`, `item_resolved` |
 | 5.3 | Implémenter écoute frontend + supprimer polling | Store Svelte réactif, suppression `setInterval` |
+
+🧪 **Tests Phase 5** : Tests WebSocket events + tests E2E sync temps réel
 
 📝 **Documenter, commit et push Phase 5**
 
@@ -1651,6 +1661,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 | 6.8 | Contenu original | Email HTML/texte, pièces jointes téléchargeables |
 | 6.9 | Feedback Sganarelle | Modification raison, quick tags, patterns appris |
 
+🧪 **Tests Phase 6** : Tests composants sections + tests E2E vue détail complète
+
 📝 **Documenter, commit et push Phase 6**
 
 ---
@@ -1667,6 +1679,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 | 7.5 | Flux de réponse | Édition brouillon, enregistrement, envoi |
 | 7.6 | Indicateurs contexte expéditeur | 🔗 fiche, 🏢 organisation, ⭐ VIP, ➕ suggérer création |
 
+🧪 **Tests Phase 7** : Tests composants UX + tests E2E états/erreurs/undo
+
 📝 **Documenter, commit et push Phase 7**
 
 ---
@@ -1679,6 +1693,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 | 8.1 | Large Desktop | 1440-2560px | Split view (40% liste / 60% détail) |
 | 8.2 | Ultra-wide / 5K | > 2560px | 3 colonnes (20% nav / 45% détail / 35% contexte) |
 | 8.3 | Mobile | < 640px | Navigation bas, gestes swipe, pull-to-refresh |
+
+🧪 **Tests Phase 8** : Tests E2E responsive (viewport mobile, desktop, 5K)
 
 📝 **Documenter, commit et push Phase 8**
 
@@ -1711,19 +1727,19 @@ def migrate_queue_item(old_item: dict) -> dict:
 
 ### Résumé
 
-| Phase | Tâches | Focus |
-|-------|--------|-------|
-| 1. Vocabulaire | 3 | Terminologie |
-| 2. Backend | 4 | Modèle de données |
-| 3. Stats | 3 | Bug comptage |
-| 4. Navigation | 4 | 5 onglets, recherche |
-| 5. Temps réel | 3 | WebSocket |
-| 6. Vue Détail | 9 | 9 sections |
-| 7. UX | 6 | États, erreurs, undo |
-| 8. Responsive | 3 | Mobile → 5K |
-| 9. Tests | 3 | E2E, unit, API |
-| 10. Documentation | 2 | User guide |
-| **Total** | **40 + 8 commits** | |
+| Phase | Tâches | Tests | Focus |
+|-------|--------|-------|-------|
+| 1. Vocabulaire | 3 | 🧪 E2E vocabulaire | Terminologie |
+| 2. Backend | 4 | 🧪 Unit types + API | Modèle de données |
+| 3. Stats | 3 | 🧪 Unit stats + E2E comptage | Bug comptage |
+| 4. Navigation | 4 | 🧪 E2E onglets/recherche | 5 onglets, recherche |
+| 5. Temps réel | 3 | 🧪 WebSocket + E2E sync | WebSocket |
+| 6. Vue Détail | 9 | 🧪 Composants + E2E détail | 9 sections |
+| 7. UX | 6 | 🧪 Composants + E2E UX | États, erreurs, undo |
+| 8. Responsive | 3 | 🧪 E2E viewports | Mobile → 5K |
+| 9. Tests | 3 | — | Revue couverture complète |
+| 10. Documentation | 2 | — | User guide |
+| **Total** | **40 impl + 8 tests + 10 commits** | |
 
 ---
 
