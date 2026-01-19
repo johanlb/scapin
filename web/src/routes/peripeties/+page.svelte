@@ -17,6 +17,7 @@
 	import PassTimeline from '$lib/components/peripeties/PassTimeline.svelte';
 	import ConfidenceSparkline from '$lib/components/peripeties/ConfidenceSparkline.svelte';
 	import { queueStore } from '$lib/stores';
+	import { queueWsStore } from '$lib/stores/queueWebsocket.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import {
 		approveQueueItem,
@@ -177,11 +178,45 @@
 	// Cleanup function for keyboard shortcuts
 	let unregisterShortcuts: (() => void) | null = null;
 
+	// v2.4: WebSocket event handlers
+	function handleQueueItemAdded(event: CustomEvent) {
+		// A new item was added - refresh stats and optionally show notification
+		queueStore.fetchStats();
+		console.log('[Peripeties] New item added:', event.detail?.id);
+	}
+
+	function handleQueueItemUpdated(event: CustomEvent) {
+		// An item was updated - refresh stats
+		queueStore.fetchStats();
+		console.log('[Peripeties] Item updated:', event.detail?.item?.id);
+	}
+
+	function handleQueueItemRemoved(event: CustomEvent) {
+		// Item already removed from store by queueWsStore
+		console.log('[Peripeties] Item removed:', event.detail?.itemId);
+	}
+
+	function handleQueueStatsUpdated(event: CustomEvent) {
+		// Stats were updated - could update UI directly
+		console.log('[Peripeties] Stats updated:', event.detail?.total);
+	}
+
 	// Load queue on mount
 	onMount(async () => {
 		await queueStore.fetchQueueByTab('to_process');
 		await queueStore.fetchStats();
 		document.addEventListener('keydown', handleKeyboard);
+
+		// v2.4: Connect to queue WebSocket for real-time updates
+		queueWsStore.connect();
+
+		// v2.4: Listen for queue events
+		if (browser) {
+			window.addEventListener('scapin:queue:item_added', handleQueueItemAdded as EventListener);
+			window.addEventListener('scapin:queue:item_updated', handleQueueItemUpdated as EventListener);
+			window.addEventListener('scapin:queue:item_removed', handleQueueItemRemoved as EventListener);
+			window.addEventListener('scapin:queue:stats_updated', handleQueueStatsUpdated as EventListener);
+		}
 
 		// Bug #49: Check if we need to auto-fetch after initial load
 		checkAutoFetch();
@@ -222,6 +257,18 @@
 	onDestroy(() => {
 		document.removeEventListener('keydown', handleKeyboard);
 		unregisterShortcuts?.();
+
+		// v2.4: Disconnect from queue WebSocket
+		queueWsStore.disconnect();
+
+		// v2.4: Remove queue event listeners
+		if (browser) {
+			window.removeEventListener('scapin:queue:item_added', handleQueueItemAdded as EventListener);
+			window.removeEventListener('scapin:queue:item_updated', handleQueueItemUpdated as EventListener);
+			window.removeEventListener('scapin:queue:item_removed', handleQueueItemRemoved as EventListener);
+			window.removeEventListener('scapin:queue:stats_updated', handleQueueStatsUpdated as EventListener);
+		}
+
 		// Clear all pending timeouts
 		if (undoErrorTimeout) clearTimeout(undoErrorTimeout);
 		if (snoozeSuccessTimeout) clearTimeout(snoozeSuccessTimeout);
@@ -1052,9 +1099,25 @@
 	<header class="mb-6">
 		<div class="flex items-start justify-between gap-4">
 			<div>
-				<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-					Péripéties
-				</h1>
+				<div class="flex items-center gap-2">
+					<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
+						Péripéties
+					</h1>
+					<!-- v2.4: Real-time connection indicator -->
+					<span
+						class="inline-flex items-center px-1.5 py-0.5 text-xs rounded-full {queueWsStore.isConnected
+							? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+							: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}"
+						title={queueWsStore.isConnected ? 'Temps réel actif' : 'Connexion temps réel...'}
+					>
+						<span
+							class="w-1.5 h-1.5 rounded-full mr-1 {queueWsStore.isConnected
+								? 'bg-green-500 animate-pulse'
+								: 'bg-gray-400'}"
+						></span>
+						{queueWsStore.isConnected ? 'Live' : '...'}
+					</span>
+				</div>
 				<p class="text-[var(--color-text-secondary)] mt-1" aria-live="polite" aria-atomic="true">
 					{#if queueStore.loading}
 						Chargement...

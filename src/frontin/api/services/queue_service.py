@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from src.core.schemas import EmailAnalysis, EmailMetadata
+from src.frontin.api.websocket.queue_events import QueueEventEmitter, get_queue_event_emitter
 from src.integrations.email.processed_tracker import get_processed_tracker
 from src.integrations.storage.action_history import (
     ActionHistoryStorage,
@@ -49,6 +50,7 @@ class QueueService:
         queue_storage: QueueStorage | None = None,
         snooze_storage: SnoozeStorage | None = None,
         action_history: ActionHistoryStorage | None = None,
+        event_emitter: QueueEventEmitter | None = None,
     ):
         """
         Initialize queue service
@@ -57,10 +59,12 @@ class QueueService:
             queue_storage: Optional QueueStorage instance (uses singleton if None)
             snooze_storage: Optional SnoozeStorage instance (uses singleton if None)
             action_history: Optional ActionHistoryStorage instance (uses singleton if None)
+            event_emitter: Optional QueueEventEmitter instance (uses singleton if None)
         """
         self._storage = queue_storage or get_queue_storage()
         self._snooze_storage = snooze_storage or get_snooze_storage()
         self._action_history = action_history or get_action_history()
+        self._event_emitter = event_emitter or get_queue_event_emitter()
 
     async def list_items(
         self,
@@ -344,7 +348,12 @@ class QueueService:
         if message_id:
             self._storage.mark_message_processed(message_id)
 
-        return self._storage.get_item(item_id)
+        # v2.4: Emit WebSocket events for real-time updates
+        updated_item = self._storage.get_item(item_id)
+        if updated_item:
+            await self._emit_item_event(updated_item, changes=["status", "resolution"])
+
+        return updated_item
 
     async def _execute_email_action(
         self,
@@ -773,7 +782,12 @@ class QueueService:
         if message_id:
             self._storage.mark_message_processed(message_id)
 
-        return self._storage.get_item(item_id)
+        # v2.4: Emit WebSocket events for real-time updates
+        updated_item = self._storage.get_item(item_id)
+        if updated_item:
+            await self._emit_item_event(updated_item, changes=["status", "modified_action"])
+
+        return updated_item
 
     async def reject_item(
         self,
@@ -827,7 +841,12 @@ class QueueService:
             },
         )
 
-        return self._storage.get_item(item_id)
+        # v2.4: Emit WebSocket events for real-time updates
+        updated_item = self._storage.get_item(item_id)
+        if updated_item:
+            await self._emit_item_event(updated_item, changes=["status"])
+
+        return updated_item
 
     async def _unflag_email(self, item: dict[str, Any]) -> bool:
         """
@@ -877,7 +896,19 @@ class QueueService:
         Returns:
             True if deleted, False if not found
         """
-        return self._storage.remove_item(item_id)
+        result = self._storage.remove_item(item_id)
+
+        # v2.4: Emit WebSocket events for real-time updates
+        if result:
+            await self._event_emitter.emit_item_removed(item_id, reason="deleted")
+            # Also emit stats update
+            try:
+                stats = self._storage.get_stats()
+                await self._event_emitter.emit_stats_updated(stats)
+            except Exception as e:
+                logger.warning(f"Failed to emit stats update after delete: {e}")
+
+        return result
 
     async def snooze_item(
         self,
@@ -968,6 +999,11 @@ class QueueService:
             extra={"snooze_id": record.snooze_id, "snooze_option": snooze_option},
         )
 
+        # v2.4: Emit WebSocket events for real-time updates
+        updated_item = self._storage.get_item(item_id)
+        if updated_item:
+            await self._emit_item_event(updated_item, changes=["status", "snooze"])
+
         return record
 
     async def unsnooze_item(self, item_id: str) -> dict[str, Any] | None:
@@ -995,7 +1031,12 @@ class QueueService:
             },
         )
 
-        return self._storage.get_item(item_id)
+        # v2.4: Emit WebSocket events for real-time updates
+        updated_item = self._storage.get_item(item_id)
+        if updated_item:
+            await self._emit_item_event(updated_item, changes=["status", "snooze"])
+
+        return updated_item
 
     async def undo_item(self, item_id: str) -> dict[str, Any] | None:
         """
@@ -1054,7 +1095,12 @@ class QueueService:
                 extra={"action_id": action_record.action_id, "moved_to": original_folder},
             )
 
-            return self._storage.get_item(item_id)
+            # v2.4: Emit WebSocket events for real-time updates
+            updated_item = self._storage.get_item(item_id)
+            if updated_item:
+                await self._emit_item_event(updated_item, changes=["status", "undone"])
+
+            return updated_item
 
         return None
 
@@ -1613,7 +1659,35 @@ class QueueService:
                 },
             )
 
+            # v2.4: Emit WebSocket events for real-time updates
+            new_item = self._storage.get_item(item_id)
+            if new_item:
+                await self._event_emitter.emit_item_added(new_item)
+
         return item_id
+
+    async def _emit_item_event(
+        self,
+        item: dict[str, Any],
+        changes: list[str] | None = None,
+        previous_state: str | None = None,
+    ) -> None:
+        """
+        Helper to emit item update event and stats update.
+
+        Args:
+            item: The updated queue item
+            changes: List of fields that changed
+            previous_state: Previous state value
+        """
+        await self._event_emitter.emit_item_updated(item, changes, previous_state)
+
+        # Also emit stats update since item changes affect stats
+        try:
+            stats = self._storage.get_stats()
+            await self._event_emitter.emit_stats_updated(stats)
+        except Exception as e:
+            logger.warning(f"Failed to emit stats update: {e}")
 
 
 def _parse_datetime(value: str | None) -> datetime | None:

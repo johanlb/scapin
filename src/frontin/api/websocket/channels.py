@@ -33,6 +33,7 @@ class ChannelType(str, Enum):
     STATUS = "status"  # System status updates
     NOTIFICATIONS = "notifications"  # User notifications
     DISCUSSION = "discussion"  # Discussion-specific (with room_id)
+    QUEUE = "queue"  # v2.4: Queue item events (added, updated, removed)
 
 
 @dataclass

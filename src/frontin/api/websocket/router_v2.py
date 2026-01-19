@@ -359,6 +359,51 @@ async def websocket_discussion(websocket: WebSocket, discussion_id: str) -> None
         await manager.disconnect(websocket)
 
 
+@router.websocket("/queue")
+async def websocket_queue(websocket: WebSocket) -> None:
+    """
+    WebSocket endpoint for queue item updates (v2.4)
+
+    Queue events include:
+        - item_added: New item added to queue
+        - item_updated: Item state/resolution changed
+        - item_removed: Item removed from queue
+        - stats_updated: Queue stats changed
+
+    Authentication:
+        Send first message: {"type": "auth", "token": "YOUR_JWT"}
+    """
+    await websocket.accept()
+
+    config = get_config()
+    jwt_handler = JWTHandler()
+    manager = get_channel_manager()
+
+    user_id = await authenticate_websocket(websocket, jwt_handler, config.auth.enabled)
+    if not user_id:
+        return
+
+    client = await manager.connect(
+        websocket,
+        user_id,
+        auto_subscribe=[ChannelType.QUEUE],
+    )
+
+    await websocket.send_json({
+        "type": "connected",
+        "channel": "queue",
+        "message": "Connected to Scapin queue stream",
+        "subscriptions": [s.channel.value for s in client.subscriptions],
+    })
+
+    try:
+        await handle_client_messages(websocket, manager, user_id)
+    except WebSocketDisconnect:
+        logger.info(f"Queue client disconnected: {user_id}")
+    finally:
+        await manager.disconnect(websocket)
+
+
 # Legacy endpoint (kept for backwards compatibility)
 @router.websocket("/live")
 async def websocket_live(websocket: WebSocket) -> None:
@@ -383,7 +428,7 @@ async def websocket_live(websocket: WebSocket) -> None:
     client = await manager.connect(
         websocket,
         user_id,
-        auto_subscribe=[ChannelType.EVENTS, ChannelType.STATUS, ChannelType.NOTIFICATIONS],
+        auto_subscribe=[ChannelType.EVENTS, ChannelType.STATUS, ChannelType.NOTIFICATIONS, ChannelType.QUEUE],
     )
 
     await websocket.send_json({

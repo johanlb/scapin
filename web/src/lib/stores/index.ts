@@ -6,6 +6,7 @@ export { notificationStore } from './notifications.svelte';
 export { notificationCenterStore } from './notification-center.svelte';
 export { configStore } from './config.svelte';
 export { queueStore } from './queue.svelte';
+export { queueWsStore } from './queueWebsocket.svelte';
 export { valetsStore } from './valets.svelte';
 export { getQuickActions, getQuickActionsStore } from './quick-actions.svelte';
 export type { BriefingItem } from './briefing.svelte';
