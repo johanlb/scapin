@@ -161,9 +161,9 @@
 	function handleSearchSelect(result: { id: string; type: string; title: string }) {
 		// Navigate based on result type
 		const routes: Record<string, string> = {
-			note: '/notes',
-			email: '/flux',
-			event: '/flux',
+			note: '/memoires',
+			email: '/peripeties',
+			event: '/peripeties',
 			task: '/',
 			discussion: '/discussions'
 		};

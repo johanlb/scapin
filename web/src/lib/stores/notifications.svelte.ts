@@ -124,9 +124,9 @@ function getNotificationContent(event: ProcessingEventData): {
 		case 'email_completed':
 			if (event.action === 'urgent' || event.category === 'urgent') {
 				return {
-					title: 'Email urgent',
-					body: event.subject || 'Nouveau message urgent',
-					url: '/flux',
+					title: 'Péripétie urgente',
+					body: event.subject || 'Nouvelle péripétie urgente',
+					url: '/peripeties',
 					urgency: 'high'
 				};
 			}
@@ -135,17 +135,17 @@ function getNotificationContent(event: ProcessingEventData): {
 
 		case 'email_error':
 			return {
-				title: 'Erreur email',
+				title: 'Erreur de traitement',
 				body: event.error || 'Erreur lors du traitement',
-				url: '/flux',
+				url: '/peripeties',
 				urgency: 'normal'
 			};
 
 		case 'batch_completed':
 			return {
-				title: 'Traitement termine',
-				body: `${event.total || 0} emails traites`,
-				url: '/flux',
+				title: 'Traitement terminé',
+				body: `${event.total || 0} péripéties traitées`,
+				url: '/peripeties',
 				urgency: 'normal'
 			};
 

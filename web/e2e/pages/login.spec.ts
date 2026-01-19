@@ -161,7 +161,7 @@ test.describe('Login Page', () => {
     page,
   }) => {
     // Try to access protected page
-    await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+    await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
 
     // Wait for redirect
     await page.waitForTimeout(3000);

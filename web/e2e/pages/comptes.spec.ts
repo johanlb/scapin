@@ -8,13 +8,13 @@ import { test, expect } from '../fixtures/auth';
 
 test.describe('Stats Page', () => {
   test('should load stats page', async ({ authenticatedPage: page }) => {
-    await page.goto('/stats', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL('/stats', { timeout: 45000 });
+    await page.goto('/comptes', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL('/comptes', { timeout: 45000 });
   });
 
   test('should display stats content', async ({ authenticatedPage: page }) => {
-    await page.goto('/stats', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL('/stats', { timeout: 45000 });
+    await page.goto('/comptes', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL('/comptes', { timeout: 45000 });
 
     await page.waitForTimeout(2000);
 

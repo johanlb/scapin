@@ -14,11 +14,11 @@ import { test, expect } from '../fixtures/auth';
 
 test.describe('Notes Page', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/notes');
+    await page.goto('/memoires');
   });
 
   test('should load notes page', async ({ authenticatedPage: page }) => {
-    await expect(page).toHaveURL('/notes');
+    await expect(page).toHaveURL('/memoires');
   });
 
   test('should display three-column layout', async ({
@@ -44,7 +44,7 @@ test.describe('Notes Page', () => {
 
 test.describe('Folder Tree', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/notes');
+    await page.goto('/memoires');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -91,7 +91,7 @@ test.describe('Folder Tree', () => {
 
 test.describe('Notes List', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/notes');
+    await page.goto('/memoires');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -126,7 +126,7 @@ test.describe('Notes List', () => {
 
 test.describe('Search', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/notes');
+    await page.goto('/memoires');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -218,7 +218,7 @@ test.describe('Search', () => {
 
 test.describe('Note Content', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/notes');
+    await page.goto('/memoires');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -273,7 +273,7 @@ test.describe('Note Content', () => {
 
 test.describe('Review Metadata', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/notes');
+    await page.goto('/memoires');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -316,7 +316,7 @@ test.describe('Review Metadata', () => {
 
 test.describe('Note Actions', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/notes');
+    await page.goto('/memoires');
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
   });
@@ -362,7 +362,7 @@ test.describe('Error Handling', () => {
   test('should handle page load errors gracefully', async ({
     authenticatedPage: page,
   }) => {
-    await page.goto('/notes');
+    await page.goto('/memoires');
 
     // Page should not crash, should show either content or error
     const content = page.locator('text=/Toutes les notes|Erreur|Chargement/');

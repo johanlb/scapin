@@ -45,27 +45,39 @@
 		switch (action.type) {
 			case 'email':
 			case 'flux':
+			case 'peripeties':
+			case 'peripetie':
 				if (action.id) {
-					goto(`/flux/${action.id}`);
+					goto(`/peripeties/${action.id}`);
 				} else {
-					goto('/flux');
+					goto('/peripeties');
 				}
 				break;
 
 			case 'note':
 			case 'notes':
+			case 'memoires':
+			case 'memoire':
 				if (action.id) {
-					goto(`/notes/${action.id}`);
+					goto(`/memoires/${action.id}`);
 				} else {
-					goto('/notes');
+					goto('/memoires');
 				}
 				break;
 
 			case 'journal':
-				goto('/journal');
+			case 'confessions':
+			case 'confession':
+				goto('/confessions');
+				break;
+
+			case 'comptes':
+			case 'stats':
+				goto('/comptes');
 				break;
 
 			case 'briefing':
+			case 'matinee':
 			case 'home':
 			default:
 				goto('/');

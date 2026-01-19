@@ -13,7 +13,7 @@ import { SELECTORS } from '../fixtures/test-data';
 
 test.describe('SC-18: Re-analyze Button', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/flux');
+    await page.goto('/peripeties');
     // Wait for pending tab to be active or click it
     const pendingTab = page.locator(SELECTORS.fluxTabPending);
     await pendingTab.click();
@@ -77,7 +77,7 @@ test.describe('SC-18: Re-analyze Button', () => {
 
 test.describe('SC-18: Re-analyze Loading State', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/flux');
+    await page.goto('/peripeties');
     await page.locator(SELECTORS.fluxTabPending).click();
     await page.waitForTimeout(500);
   });
@@ -135,7 +135,7 @@ test.describe('SC-18: Re-analyze Loading State', () => {
 
 test.describe('SC-18: Re-analyze Results', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/flux');
+    await page.goto('/peripeties');
     await page.locator(SELECTORS.fluxTabPending).click();
     await page.waitForTimeout(500);
   });
@@ -231,7 +231,7 @@ test.describe('SC-18: Re-analyze Results', () => {
 
 test.describe('SC-18: Re-analyze Error Handling', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/flux');
+    await page.goto('/peripeties');
     await page.locator(SELECTORS.fluxTabPending).click();
     await page.waitForTimeout(500);
   });
@@ -283,7 +283,7 @@ test.describe('SC-18: Re-analyze Error Handling', () => {
 
 test.describe('SC-18: Multiple Re-analyses', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/flux');
+    await page.goto('/peripeties');
     await page.locator(SELECTORS.fluxTabPending).click();
     await page.waitForTimeout(500);
   });

@@ -12,8 +12,8 @@ test.describe('Flux Detail Page', () => {
   test.describe('Multi-Pass Analysis Section', () => {
     test('should display multi-pass section or legacy fallback', async ({ authenticatedPage: page }) => {
       // Navigate to flux list first
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
 
       // Wait for the list to load
       await page.waitForTimeout(2000);
@@ -27,7 +27,7 @@ test.describe('Flux Detail Page', () => {
         await fluxItems.first().click();
 
         // Wait for detail page to load
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
 
         // Wait for content to render
         await page.waitForTimeout(1500);
@@ -48,8 +48,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should display multi-pass summary with passes count and models', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -57,7 +57,7 @@ test.describe('Flux Detail Page', () => {
 
       if (itemCount > 0) {
         await fluxItems.first().click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
         const multiPassSection = page.locator(SELECTORS.multiPassSection);
@@ -95,8 +95,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should expand details section to show pass history', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -104,7 +104,7 @@ test.describe('Flux Detail Page', () => {
 
       if (itemCount > 0) {
         await fluxItems.first().click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
         const multiPassSection = page.locator(SELECTORS.multiPassSection);
@@ -138,8 +138,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should have proper tooltips on multi-pass elements', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -147,7 +147,7 @@ test.describe('Flux Detail Page', () => {
 
       if (itemCount > 0) {
         await fluxItems.first().click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
         const multiPassSection = page.locator(SELECTORS.multiPassSection);
@@ -176,8 +176,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should display stop reason when available', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -185,7 +185,7 @@ test.describe('Flux Detail Page', () => {
 
       if (itemCount > 0) {
         await fluxItems.first().click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
         const multiPassSection = page.locator(SELECTORS.multiPassSection);
@@ -209,8 +209,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should display escalation badge when escalated', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       // Look for any flux item that might have been escalated
@@ -220,12 +220,12 @@ test.describe('Flux Detail Page', () => {
       // Test all items to find one with escalation
       let foundEscalated = false;
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
-        await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+        await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
         const items = page.locator('[data-testid^="flux-item-"]');
         await items.nth(i).click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
 
         const escalatedBadge = page.locator(SELECTORS.multiPassEscalated);
@@ -242,8 +242,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should display legacy fallback for old items', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -251,12 +251,12 @@ test.describe('Flux Detail Page', () => {
 
       // Look for any item without multi-pass metadata
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
-        await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+        await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
         const items = page.locator('[data-testid^="flux-item-"]');
         await items.nth(i).click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
 
         const legacySection = page.locator(SELECTORS.multiPassLegacy);
@@ -278,8 +278,8 @@ test.describe('Flux Detail Page', () => {
 
   test.describe('Pass Timeline (v2.3.1)', () => {
     test('should display timeline with passes when expanded', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -287,7 +287,7 @@ test.describe('Flux Detail Page', () => {
 
       if (itemCount > 0) {
         await fluxItems.first().click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
         const multiPassSection = page.locator(SELECTORS.multiPassSection);
@@ -316,8 +316,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should display proper badges in timeline passes', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -325,7 +325,7 @@ test.describe('Flux Detail Page', () => {
 
       if (itemCount > 0) {
         await fluxItems.first().click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
         const multiPassSection = page.locator(SELECTORS.multiPassSection);
@@ -366,8 +366,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should display Thinking Bubbles when AI had questions', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -375,12 +375,12 @@ test.describe('Flux Detail Page', () => {
 
       // Check multiple items to find one with questions
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
-        await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+        await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
         const items = page.locator('[data-testid^="flux-item-"]');
         await items.nth(i).click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
 
         const multiPassSection = page.locator(SELECTORS.multiPassSection);
@@ -416,8 +416,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should display confidence sparkline in summary', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -425,7 +425,7 @@ test.describe('Flux Detail Page', () => {
 
       if (itemCount > 0) {
         await fluxItems.first().click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
         const multiPassSection = page.locator(SELECTORS.multiPassSection);
@@ -453,8 +453,8 @@ test.describe('Flux Detail Page', () => {
 
   test.describe('Why Not Section (v2.3.1)', () => {
     test('should display rejection reasons on non-recommended options', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -462,12 +462,12 @@ test.describe('Flux Detail Page', () => {
 
       // Check multiple items to find one with rejection reasons
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
-        await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+        await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
         const items = page.locator('[data-testid^="flux-item-"]');
         await items.nth(i).click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
 
         // Look for rejection reasons inline
@@ -485,8 +485,8 @@ test.describe('Flux Detail Page', () => {
     });
 
     test('should display Why Not collapsible section when available', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const fluxItems = page.locator('[data-testid^="flux-item-"]');
@@ -494,12 +494,12 @@ test.describe('Flux Detail Page', () => {
 
       // Check multiple items to find one with Why Not section
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
-        await page.goto('/flux', { waitUntil: 'domcontentloaded' });
+        await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
         const items = page.locator('[data-testid^="flux-item-"]');
         await items.nth(i).click();
-        await page.waitForURL(/\/flux\/[^/]+/, { timeout: 10000 });
+        await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
 
         // Look for Why Not section

@@ -10,13 +10,13 @@ import { SELECTORS } from '../fixtures/test-data';
 
 test.describe('Flux Page', () => {
   test('should load flux page', async ({ authenticatedPage: page }) => {
-    await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL('/flux', { timeout: 45000 });
+    await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
   });
 
   test('should display flux content', async ({ authenticatedPage: page }) => {
-    await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL('/flux', { timeout: 45000 });
+    await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
 
     // Wait for page to render
     await page.waitForTimeout(2000);
@@ -29,8 +29,8 @@ test.describe('Flux Page', () => {
 
   test.describe('Complexity Badges (v2.3)', () => {
     test('should display badges legend', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       // Badges legend should be visible
@@ -46,8 +46,8 @@ test.describe('Flux Page', () => {
     });
 
     test('should have proper tooltips on legend badges', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       const legend = page.locator(SELECTORS.badgesLegend);
@@ -66,8 +66,8 @@ test.describe('Flux Page', () => {
     });
 
     test('should display complexity badges on flux items with multi_pass data', async ({ authenticatedPage: page }) => {
-      await page.goto('/flux', { waitUntil: 'domcontentloaded' });
-      await expect(page).toHaveURL('/flux', { timeout: 45000 });
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
       // Look for flux items

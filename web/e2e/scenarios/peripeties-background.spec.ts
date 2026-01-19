@@ -13,7 +13,7 @@ import { SELECTORS, waitForApiResponse } from '../fixtures/test-data';
 
 test.describe('SC-14: Background Email Processing', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/flux');
+    await page.goto('/peripeties');
   });
 
   test('should show processing indicator during background fetch', async ({
@@ -98,7 +98,7 @@ test.describe('SC-14: Background Email Processing', () => {
 
 test.describe('SC-15: Auto-Executed Items Display', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/flux');
+    await page.goto('/peripeties');
     // Navigate to processed/approved tab
     const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.click(SELECTORS.fluxTabApproved);

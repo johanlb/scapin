@@ -14,11 +14,11 @@ import { test, expect } from '../fixtures/auth';
 
 test.describe('Journal Page', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
   });
 
   test('should load journal page', async ({ authenticatedPage: page }) => {
-    await expect(page).toHaveURL('/journal');
+    await expect(page).toHaveURL('/confessions');
   });
 
   test('should display page title', async ({ authenticatedPage: page }) => {
@@ -46,7 +46,7 @@ test.describe('Journal Page', () => {
 
 test.describe('Date Picker', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -83,7 +83,7 @@ test.describe('Date Picker', () => {
 
 test.describe('Stats Bar', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -128,7 +128,7 @@ test.describe('Stats Bar', () => {
 
 test.describe('Status and Actions', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -156,7 +156,7 @@ test.describe('Status and Actions', () => {
 
 test.describe('Tab Navigation', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -218,7 +218,7 @@ test.describe('Tab Navigation', () => {
 
 test.describe('Email Tab Content', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -237,7 +237,7 @@ test.describe('Email Tab Content', () => {
 
 test.describe('Teams Tab Content', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -258,7 +258,7 @@ test.describe('Teams Tab Content', () => {
 
 test.describe('Calendar Tab Content', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -279,7 +279,7 @@ test.describe('Calendar Tab Content', () => {
 
 test.describe('OmniFocus Tab Content', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -300,7 +300,7 @@ test.describe('OmniFocus Tab Content', () => {
 
 test.describe('Questions Tab Content', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
     await page.waitForLoadState('domcontentloaded');
   });
 
@@ -323,7 +323,7 @@ test.describe('Loading and Error States', () => {
   test('should show loading spinner initially', async ({
     authenticatedPage: page,
   }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
 
     // Loading spinner should appear briefly
     const spinner = page.locator('.animate-spin');
@@ -339,7 +339,7 @@ test.describe('Loading and Error States', () => {
   test('should handle API errors gracefully', async ({
     authenticatedPage: page,
   }) => {
-    await page.goto('/journal');
+    await page.goto('/confessions');
 
     // Page should not crash, should show either content or error
     const content = page.locator('text=/Journal|Erreur|Réessayer/');
