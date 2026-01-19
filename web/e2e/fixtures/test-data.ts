@@ -51,28 +51,28 @@ export const SELECTORS = {
   urgentItems: '[data-testid="urgent-items"]',
   notesReviewWidget: '[data-testid="notes-review-widget"]',
 
-  // Flux
-  fluxList: '[data-testid="flux-list"]',
-  fluxItem: (id: string) => `[data-testid="flux-item-${id}"]`,
+  // Péripéties
+  peripetiesList: '[data-testid="peripeties-list"]',
+  peripetiesItem: (id: string) => `[data-testid="peripeties-item-${id}"]`,
   approveButton: '[data-testid="approve-button"]',
   rejectButton: '[data-testid="reject-button"]',
   snoozeButton: '[data-testid="snooze-button"]',
   undoToast: '[data-testid^="undo-toast-"]',
 
-  // Flux Tabs
-  fluxTabPending: '[data-testid="flux-tab-pending"]',
-  fluxTabApproved: '[data-testid="flux-tab-approved"]',
-  fluxTabRejected: '[data-testid="flux-tab-rejected"]',
+  // Péripéties Tabs
+  peripetiesTabPending: '[data-testid="peripeties-tab-pending"]',
+  peripetiesTabApproved: '[data-testid="peripeties-tab-approved"]',
+  peripetiesTabRejected: '[data-testid="peripeties-tab-rejected"]',
 
-  // Flux Filters (SC-15)
-  fluxFilterAll: '[data-testid="flux-filter-all"]',
-  fluxFilterAuto: '[data-testid="flux-filter-auto"]',
-  fluxFilterUser: '[data-testid="flux-filter-user"]',
+  // Péripéties Filters (SC-15)
+  peripetiesFilterAll: '[data-testid="peripeties-filter-all"]',
+  peripetiesFilterAuto: '[data-testid="peripeties-filter-auto"]',
+  peripetiesFilterUser: '[data-testid="peripeties-filter-user"]',
 
-  // Flux Re-analyze (SC-18)
+  // Péripéties Re-analyze (SC-18)
   reanalyzeButton: '[data-testid="reanalyze-button"]',
 
-  // Flux Detail - Multi-Pass Analysis (v2.3)
+  // Péripéties Detail - Multi-Pass Analysis (v2.3)
   multiPassSection: '[data-testid="multipass-section"]',
   multiPassSummary: '[data-testid="multipass-summary"]',
   multiPassPassesCount: '[data-testid="multipass-passes-count"]',

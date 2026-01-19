@@ -117,7 +117,7 @@
 
 	function goBack() {
 		// Go back to flux or discussions
-		goto('/flux');
+		goto('/peripeties');
 	}
 
 	function getInitials(name: string): string {

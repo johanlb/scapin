@@ -44,7 +44,7 @@
 
 	onMount(async () => {
 		if (!chatId) {
-			goto('/flux');
+			goto('/peripeties');
 			return;
 		}
 		await loadMessages();
@@ -178,7 +178,7 @@
 	}
 
 	function goBack() {
-		goto('/flux');
+		goto('/peripeties');
 	}
 
 	// Get initials for avatar

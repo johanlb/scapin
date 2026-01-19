@@ -31,7 +31,7 @@
 	// Recent items shown when no query (mock for now, could be from API)
 	const recentItems: SearchResult[] = [
 		{ id: 'recent-1', type: 'note', title: 'Dernière note consultée', subtitle: 'Notes récentes', icon: '📝' },
-		{ id: 'recent-2', type: 'email', title: 'Dernier email traité', subtitle: 'Courrier récent', icon: '📧' }
+		{ id: 'recent-2', type: 'email', title: 'Dernier email traité', subtitle: 'Péripétie récente', icon: '📧' }
 	];
 
 	// Transform API response to SearchResult format

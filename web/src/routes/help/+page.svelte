@@ -24,8 +24,8 @@
 			]
 		},
 		{
-			id: 'flux',
-			title: 'Flux',
+			id: 'peripeties',
+			title: 'Péripéties',
 			icon: '📧',
 			content: [
 				{ subtitle: 'Approuver', text: 'Swipe droite ou bouton vert. L\'action proposée est exécutée.' },
@@ -64,7 +64,7 @@
 				{ subtitle: '?', text: 'Afficher l\'aide des raccourcis' },
 				{ subtitle: 'Escape', text: 'Fermer le modal/panneau actif' },
 				{ subtitle: '1-6', text: 'Noter une révision (page Notes Review)' },
-				{ subtitle: 'a / r', text: 'Approuver / Rejeter (page Flux)' }
+				{ subtitle: 'a / r', text: 'Approuver / Rejeter (page Péripéties)' }
 			]
 		},
 		{
@@ -133,7 +133,7 @@
 			</div>
 			<div class="text-center p-4 bg-[var(--color-bg-tertiary)] rounded-xl">
 				<div class="text-2xl mb-2">📧</div>
-				<div class="font-medium">Flux</div>
+				<div class="font-medium">Péripéties</div>
 				<div class="text-sm text-[var(--color-text-secondary)]">Approuver/rejeter les actions</div>
 			</div>
 			<div class="text-center p-4 bg-[var(--color-bg-tertiary)] rounded-xl">

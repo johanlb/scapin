@@ -258,7 +258,7 @@
 	}
 
 	function exitFocusMode() {
-		goto('/flux');
+		goto('/peripeties');
 	}
 
 	function getActionLabel(action: string): string {
@@ -360,7 +360,7 @@
 							class="w-full px-4 py-2 text-left text-sm hover:bg-[var(--color-bg-tertiary)] transition-colors {activeFilter === 'all' ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-primary)]'}"
 							onclick={() => setFilter('all')}
 						>
-							Tous les plis
+							Toutes les péripéties
 						</button>
 						<button
 							type="button"
@@ -409,7 +409,7 @@
 			<div class="h-full flex items-center justify-center">
 				<div class="text-center">
 					<div class="w-12 h-12 border-3 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-					<p class="text-[var(--color-text-secondary)]">Chargement des plis...</p>
+					<p class="text-[var(--color-text-secondary)]">Chargement des péripéties...</p>
 				</div>
 			</div>
 
@@ -419,13 +419,13 @@
 				<div class="text-center max-w-md">
 					<span class="text-6xl block mb-6">🎉</span>
 					<h2 class="text-2xl font-bold text-[var(--color-text-primary)] mb-2">
-						Félicitations, Monsieur !
+						Félicitations !
 					</h2>
 					<p class="text-[var(--color-text-secondary)] mb-2">
-						Tous les plis ont été traités.
+						Toutes les péripéties ont été traitées.
 					</p>
 					<p class="text-sm text-[var(--color-text-tertiary)] mb-6">
-						{processedCount} pli{processedCount !== 1 ? 's' : ''} traité{processedCount !== 1 ? 's' : ''} en {sessionDuration()}
+						{processedCount} péripétie{processedCount !== 1 ? 's' : ''} traitée{processedCount !== 1 ? 's' : ''} en {sessionDuration()}
 					</p>
 					<Button variant="primary" onclick={exitFocusMode}>
 						Retourner au tableau de bord

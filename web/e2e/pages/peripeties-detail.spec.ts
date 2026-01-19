@@ -2,29 +2,29 @@ import { test, expect } from '../fixtures/auth';
 import { SELECTORS } from '../fixtures/test-data';
 
 /**
- * Flux Detail Page E2E Tests
+ * Péripéties Detail Page E2E Tests
  *
- * Tests the flux item detail page, including the multi-pass analysis section (v2.3).
+ * Tests the péripétie detail page, including the multi-pass analysis section (v2.3).
  * These tests require actual queue items in the database.
  */
 
-test.describe('Flux Detail Page', () => {
+test.describe('Péripéties Detail Page', () => {
   test.describe('Multi-Pass Analysis Section', () => {
     test('should display multi-pass section or legacy fallback', async ({ authenticatedPage: page }) => {
-      // Navigate to flux list first
+      // Navigate to péripéties list first
       await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
 
       // Wait for the list to load
       await page.waitForTimeout(2000);
 
-      // Try to find and click on a flux item to navigate to detail
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      // Try to find and click on a péripétie to navigate to detail
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
         // Click the first item
-        await fluxItems.first().click();
+        await peripetiesItems.first().click();
 
         // Wait for detail page to load
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
@@ -43,7 +43,7 @@ test.describe('Flux Detail Page', () => {
         expect(hasMultiPass || hasLegacy).toBeTruthy();
       } else {
         // No items in queue, skip test
-        test.skip(true, 'No flux items available for testing');
+        test.skip(true, 'No péripéties available for testing');
       }
     });
 
@@ -52,11 +52,11 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
-        await fluxItems.first().click();
+        await peripetiesItems.first().click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
@@ -90,7 +90,7 @@ test.describe('Flux Detail Page', () => {
           test.skip(true, 'Item does not have multi-pass metadata');
         }
       } else {
-        test.skip(true, 'No flux items available for testing');
+        test.skip(true, 'No péripéties available for testing');
       }
     });
 
@@ -99,11 +99,11 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
-        await fluxItems.first().click();
+        await peripetiesItems.first().click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
@@ -133,7 +133,7 @@ test.describe('Flux Detail Page', () => {
           test.skip(true, 'Item does not have multi-pass metadata');
         }
       } else {
-        test.skip(true, 'No flux items available for testing');
+        test.skip(true, 'No péripéties available for testing');
       }
     });
 
@@ -142,11 +142,11 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
-        await fluxItems.first().click();
+        await peripetiesItems.first().click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
@@ -171,7 +171,7 @@ test.describe('Flux Detail Page', () => {
           test.skip(true, 'Item does not have multi-pass metadata');
         }
       } else {
-        test.skip(true, 'No flux items available for testing');
+        test.skip(true, 'No péripéties available for testing');
       }
     });
 
@@ -180,11 +180,11 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
-        await fluxItems.first().click();
+        await peripetiesItems.first().click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
@@ -204,7 +204,7 @@ test.describe('Flux Detail Page', () => {
           test.skip(true, 'Item does not have multi-pass metadata');
         }
       } else {
-        test.skip(true, 'No flux items available for testing');
+        test.skip(true, 'No péripéties available for testing');
       }
     });
 
@@ -213,9 +213,9 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      // Look for any flux item that might have been escalated
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      // Look for any péripétie that might have been escalated
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       // Test all items to find one with escalation
       let foundEscalated = false;
@@ -223,7 +223,7 @@ test.describe('Flux Detail Page', () => {
         await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
-        const items = page.locator('[data-testid^="flux-item-"]');
+        const items = page.locator('[data-testid^="peripeties-item-"]');
         await items.nth(i).click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
@@ -246,15 +246,15 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       // Look for any item without multi-pass metadata
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
         await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
-        const items = page.locator('[data-testid^="flux-item-"]');
+        const items = page.locator('[data-testid^="peripeties-item-"]');
         await items.nth(i).click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
@@ -282,11 +282,11 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
-        await fluxItems.first().click();
+        await peripetiesItems.first().click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
@@ -311,7 +311,7 @@ test.describe('Flux Detail Page', () => {
           test.skip(true, 'Item does not have multi-pass metadata');
         }
       } else {
-        test.skip(true, 'No flux items available for testing');
+        test.skip(true, 'No péripéties available for testing');
       }
     });
 
@@ -320,11 +320,11 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
-        await fluxItems.first().click();
+        await peripetiesItems.first().click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
@@ -361,7 +361,7 @@ test.describe('Flux Detail Page', () => {
           test.skip(true, 'Item does not have multi-pass metadata');
         }
       } else {
-        test.skip(true, 'No flux items available for testing');
+        test.skip(true, 'No péripéties available for testing');
       }
     });
 
@@ -370,15 +370,15 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       // Check multiple items to find one with questions
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
         await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
-        const items = page.locator('[data-testid^="flux-item-"]');
+        const items = page.locator('[data-testid^="peripeties-item-"]');
         await items.nth(i).click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
@@ -420,11 +420,11 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
-        await fluxItems.first().click();
+        await peripetiesItems.first().click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1500);
 
@@ -446,7 +446,7 @@ test.describe('Flux Detail Page', () => {
           test.skip(true, 'Item does not have multi-pass metadata');
         }
       } else {
-        test.skip(true, 'No flux items available for testing');
+        test.skip(true, 'No péripéties available for testing');
       }
     });
   });
@@ -457,15 +457,15 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       // Check multiple items to find one with rejection reasons
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
         await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
-        const items = page.locator('[data-testid^="flux-item-"]');
+        const items = page.locator('[data-testid^="peripeties-item-"]');
         await items.nth(i).click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);
@@ -489,15 +489,15 @@ test.describe('Flux Detail Page', () => {
       await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
       await page.waitForTimeout(2000);
 
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       // Check multiple items to find one with Why Not section
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
         await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1000);
 
-        const items = page.locator('[data-testid^="flux-item-"]');
+        const items = page.locator('[data-testid^="peripeties-item-"]');
         await items.nth(i).click();
         await page.waitForURL(/\/peripeties\/[^/]+/, { timeout: 10000 });
         await page.waitForTimeout(1000);

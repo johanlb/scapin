@@ -1574,7 +1574,7 @@ def migrate_queue_item(old_item: dict) -> dict:
 
 | # | Tâche | Fichiers concernés | Statut |
 |---|-------|-------------------|--------|
-| 1.1 | Remplacer "Courrier/plis/flux" → "Péripéties" dans l'UI | `+page.svelte`, `+layout.svelte`, composants | ⬜ |
+| 1.1 | Remplacer "Courrier/plis/flux" → "Péripéties" dans l'UI | `+page.svelte`, `+layout.svelte`, composants | ✅ |
 | 1.2 | Corriger les liens cassés (`/flux/` → `/peripeties/`) | Routes, navigation | ✅ |
 | 1.3 | Renommer `$lib/components/flux/` → `peripeties/` | Structure fichiers | ✅ |
 

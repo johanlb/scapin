@@ -87,7 +87,7 @@ test.describe('SC-14: Background Email Processing', () => {
     await page.waitForLoadState('networkidle');
 
     // Count items in the list (if any)
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const count = await items.count();
 
     // If processing happened, batch should be <= 20
@@ -131,7 +131,7 @@ test.describe('SC-15: Auto-Executed Items Display', () => {
       await page.waitForLoadState('networkidle');
 
       // All visible items should have auto badge
-      const items = page.locator('[data-testid^="flux-item-"]');
+      const items = page.locator('[data-testid^="peripeties-item-"]');
       const itemCount = await items.count();
 
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
@@ -155,7 +155,7 @@ test.describe('SC-15: Auto-Executed Items Display', () => {
       await page.waitForLoadState('networkidle');
 
       // Items should NOT have auto badge
-      const items = page.locator('[data-testid^="flux-item-"]');
+      const items = page.locator('[data-testid^="peripeties-item-"]');
       const itemCount = await items.count();
 
       for (let i = 0; i < Math.min(itemCount, 5); i++) {
@@ -172,7 +172,7 @@ test.describe('SC-15: Auto-Executed Items Display', () => {
   test('should display confidence score on processed items', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const firstItem = items.first();
 
     if (await firstItem.isVisible()) {
@@ -200,7 +200,7 @@ test.describe('SC-15: Auto-Executed Items Display', () => {
   test('should display action type and timestamp', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const firstItem = items.first();
 
     if (await firstItem.isVisible()) {

@@ -71,8 +71,8 @@ test.describe('Flux Page', () => {
       await page.waitForTimeout(2000);
 
       // Look for flux items
-      const fluxItems = page.locator('[data-testid^="flux-item-"]');
-      const itemCount = await fluxItems.count();
+      const peripetiesItems = page.locator('[data-testid^="peripeties-item-"]');
+      const itemCount = await peripetiesItems.count();
 
       if (itemCount > 0) {
         // Check if any items have badges

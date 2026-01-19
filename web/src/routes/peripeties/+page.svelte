@@ -189,7 +189,7 @@
 		const navigationShortcuts = createNavigationShortcuts(
 			() => navigatePrevious(),
 			() => navigateNext(),
-			'/flux'
+			'/peripeties'
 		);
 
 		const actionShortcuts = createQueueActionShortcuts(
@@ -199,7 +199,7 @@
 			() => {
 				showLevel3 = !showLevel3;
 			},
-			'/flux'
+			'/peripeties'
 		);
 
 		unregisterShortcuts = registerShortcuts([...navigationShortcuts, ...actionShortcuts]);
@@ -289,7 +289,7 @@
 				const queuedCount = result.queued || 0;
 				toastStore.success(
 					`${result.total_processed} email${result.total_processed > 1 ? 's' : ''} analysé${result.total_processed > 1 ? 's' : ''} et ${queuedCount} ajouté${queuedCount > 1 ? 's' : ''} à la file`,
-					{ title: 'Courrier récupéré' }
+					{ title: 'Péripéties récupérées' }
 				);
 			} else {
 				toastStore.info('Aucun nouvel email à traiter', { title: 'Boîte de réception à jour' });
@@ -299,7 +299,7 @@
 			toastStore.dismiss(processingToastId);
 
 			fetchError = err instanceof Error ? err.message : 'Erreur de connexion';
-			toastStore.error('Impossible de récupérer le courrier. Vérifiez la connexion au serveur.', {
+			toastStore.error('Impossible de récupérer les péripéties. Vérifiez la connexion au serveur.', {
 				title: 'Erreur'
 			});
 		} finally {
@@ -1036,19 +1036,19 @@
 		<div class="flex items-start justify-between gap-4">
 			<div>
 				<h1 class="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)]">
-					Le Courrier, Monsieur
+					Péripéties
 				</h1>
 				<p class="text-[var(--color-text-secondary)] mt-1" aria-live="polite" aria-atomic="true">
 					{#if queueStore.loading}
-						Je consulte vos plis...
+						Chargement...
 					{:else if activeFilter === 'pending' && queueStore.total > 0}
-						{queueStore.total} pli{queueStore.total > 1 ? 's' : ''} requièrent votre attention
+						{queueStore.total} péripétie{queueStore.total > 1 ? 's' : ''} à traiter
 					{:else if activeFilter === 'pending'}
-						Point de pli en attente, Monsieur
+						Aucune péripétie en attente
 					{:else if activeFilter === 'approved'}
-						Voici les plis que vous avez traités
+						Péripéties traitées
 					{:else}
-						Voici les plis que vous avez écartés
+						Péripéties écartées
 					{/if}
 				</p>
 			</div>
@@ -1103,7 +1103,7 @@
 	<!-- Stats as compact clickable filters -->
 	<section class="flex gap-2 mb-4 text-sm">
 		<button
-			data-testid="flux-tab-pending"
+			data-testid="peripeties-tab-pending"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
 			class:bg-[var(--color-accent)]={activeFilter === 'pending'}
 			class:text-white={activeFilter === 'pending'}
@@ -1123,7 +1123,7 @@
 		</button>
 
 		<button
-			data-testid="flux-tab-approved"
+			data-testid="peripeties-tab-approved"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
 			class:bg-[var(--color-accent)]={activeFilter === 'approved'}
 			class:text-white={activeFilter === 'approved'}
@@ -1142,7 +1142,7 @@
 		</button>
 
 		<button
-			data-testid="flux-tab-rejected"
+			data-testid="peripeties-tab-rejected"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
 			class:bg-[var(--color-accent)]={activeFilter === 'rejected'}
 			class:text-white={activeFilter === 'rejected'}
@@ -1197,18 +1197,18 @@
 				</p>
 				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
 					{#if activeFilter === 'pending'}
-						Tout est en ordre, Monsieur
+						Aucune péripétie à traiter
 					{:else if activeFilter === 'approved'}
-						Aucun pli traité pour l'instant
+						Aucune péripétie traitée
 					{:else}
-						Aucun pli écarté
+						Aucune péripétie écartée
 					{/if}
 				</h3>
 				<p class="text-sm text-[var(--color-text-secondary)]">
 					{#if activeFilter === 'pending'}
-						Aucun courrier ne requiert votre décision
+						Aucune péripétie ne requiert votre attention
 					{:else}
-						Lancez le traitement des emails pour alimenter la file
+						Lancez la récupération pour alimenter la file
 					{/if}
 				</p>
 			</div>
@@ -1960,7 +1960,7 @@
 
 		<!-- LIST VIEW for other filters (approved, rejected, auto) -->
 	{:else}
-		<section class="list-view-container" data-testid="flux-list">
+		<section class="list-view-container" data-testid="peripeties-list">
 			<!-- Undo error feedback -->
 			{#if undoError}
 				<div class="flex items-center gap-2 p-3 mb-4 rounded-lg bg-red-500/20 text-red-400 text-sm">
@@ -1978,7 +1978,7 @@
 				getKey={(item) => item.id}
 			>
 				{#snippet item(item, _index)}
-					<div class="pb-3" data-testid="flux-item-{item.id}">
+					<div class="pb-3" data-testid="peripeties-item-{item.id}">
 						<Card padding="md" class="hover:border-[var(--color-accent)] transition-colors">
 							<div class="flex items-start gap-3">
 								<a

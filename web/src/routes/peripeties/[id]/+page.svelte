@@ -161,7 +161,7 @@
 		try {
 			await approveQueueItem(item.id, action, destination ?? undefined);
 			// Go back to flux list
-			goto('/flux');
+			goto('/peripeties');
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Erreur lors de l\'approbation';
 		} finally {
@@ -175,7 +175,7 @@
 
 		try {
 			await rejectQueueItem(item.id, 'Rejeté par l\'utilisateur');
-			goto('/flux');
+			goto('/peripeties');
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Erreur lors du rejet';
 		} finally {
@@ -197,7 +197,7 @@
 			snoozeSuccess = `Snooze jusqu'à ${snoozeUntil.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
 
 			// Go back to list after a short delay
-			setTimeout(() => goto('/flux'), 1500);
+			setTimeout(() => goto('/peripeties'), 1500);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Erreur lors du snooze';
 		} finally {

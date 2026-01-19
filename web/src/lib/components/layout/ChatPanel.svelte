@@ -64,7 +64,7 @@
 			{ label: 'Préparez ma réunion', query: 'Préparez ma prochaine réunion', icon: '🎯' },
 			{ label: 'Affaires pressantes', query: 'Quelles affaires requièrent mon attention ?', icon: '⚡' }
 		],
-		'/flux': [
+		'/peripeties': [
 			{ label: 'Affaires pressantes', query: 'Montrez-moi uniquement les affaires pressantes', icon: '🔴' },
 			{ label: 'Classer les traités', query: 'Classez les éléments que j\'ai traités', icon: '📦' },
 			{ label: 'Résumer les nouvelles', query: 'Résumez les messages non lus', icon: '📨' }

@@ -23,7 +23,7 @@ test.describe('SC-18: Re-analyze Button', () => {
   test('should display re-analyze button on pending items', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -37,7 +37,7 @@ test.describe('SC-18: Re-analyze Button', () => {
   test('should have re-analyze button as static action', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -55,7 +55,7 @@ test.describe('SC-18: Re-analyze Button', () => {
   test('should have accessible label on re-analyze button', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -85,7 +85,7 @@ test.describe('SC-18: Re-analyze Loading State', () => {
   test('should show loading state when re-analyzing', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -113,7 +113,7 @@ test.describe('SC-18: Re-analyze Loading State', () => {
   test('should disable button during re-analysis', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -143,7 +143,7 @@ test.describe('SC-18: Re-analyze Results', () => {
   test('should update analysis after re-analyze', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -178,7 +178,7 @@ test.describe('SC-18: Re-analyze Results', () => {
   test('should keep item in pending queue after re-analyze', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -204,7 +204,7 @@ test.describe('SC-18: Re-analyze Results', () => {
   test('should not auto-execute even with high confidence', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -241,7 +241,7 @@ test.describe('SC-18: Re-analyze Error Handling', () => {
   }) => {
     // This test would require mocking the API to fail
     // For now, just verify the UI can handle errors gracefully
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -262,7 +262,7 @@ test.describe('SC-18: Re-analyze Error Handling', () => {
   test('should preserve original analysis on error', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -291,7 +291,7 @@ test.describe('SC-18: Multiple Re-analyses', () => {
   test('should allow multiple re-analyses of same item', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
@@ -320,7 +320,7 @@ test.describe('SC-18: Multiple Re-analyses', () => {
   test('should not show re-analyzed badge', async ({
     authenticatedPage: page,
   }) => {
-    const items = page.locator('[data-testid^="flux-item-"]');
+    const items = page.locator('[data-testid^="peripeties-item-"]');
     const itemCount = await items.count();
 
     if (itemCount > 0) {
