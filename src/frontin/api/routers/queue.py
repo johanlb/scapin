@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from src.core.entities import should_auto_apply
+from src.core.models.peripetie import PeripetieState, migrate_legacy_status, state_to_tab
 from src.frontin.api.deps import get_queue_service
 from src.frontin.api.models.queue import (
     ActionOptionResponse,
@@ -25,6 +26,10 @@ from src.frontin.api.models.queue import (
     ModifyRequest,
     MultiPassMetadataResponse,
     PassHistoryEntryResponse,
+    PeripetieErrorResponse,
+    PeripetieResolutionResponse,
+    PeripetieSnoozeResponse,
+    PeripetieTimestampsResponse,
     ProposedNoteResponse,
     ProposedTaskResponse,
     QueueItemAnalysis,
@@ -191,6 +196,65 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
         for pt in raw_proposed_tasks
     ]
 
+    # v2.4: Get state (handle legacy format)
+    item_state = item.get("state")
+    if not item_state:
+        legacy_status = item.get("status", "pending")
+        state_enum, _ = migrate_legacy_status(legacy_status)
+        item_state = state_enum.value
+
+    # v2.4: Get tab
+    has_snooze = item.get("snooze") is not None
+    item_tab = state_to_tab(PeripetieState(item_state), has_snooze)
+
+    # v2.4: Convert resolution
+    resolution_data = item.get("resolution")
+    resolution_response = None
+    if resolution_data:
+        resolution_response = PeripetieResolutionResponse(
+            type=resolution_data.get("type", ""),
+            action_taken=resolution_data.get("action_taken", ""),
+            resolved_at=_parse_datetime(resolution_data.get("resolved_at")) or datetime.now(timezone.utc),
+            resolved_by=resolution_data.get("resolved_by", "user"),
+            confidence_at_resolution=resolution_data.get("confidence_at_resolution"),
+            user_modified_action=resolution_data.get("user_modified_action", False),
+            original_action=resolution_data.get("original_action"),
+        )
+
+    # v2.4: Convert snooze
+    snooze_data = item.get("snooze")
+    snooze_response = None
+    if snooze_data:
+        snooze_response = PeripetieSnoozeResponse(
+            until=_parse_datetime(snooze_data.get("until")) or datetime.now(timezone.utc),
+            created_at=_parse_datetime(snooze_data.get("created_at")) or datetime.now(timezone.utc),
+            reason=snooze_data.get("reason"),
+            snooze_count=snooze_data.get("snooze_count", 1),
+        )
+
+    # v2.4: Convert error
+    error_data = item.get("error")
+    error_response = None
+    if error_data:
+        error_response = PeripetieErrorResponse(
+            type=error_data.get("type", ""),
+            message=error_data.get("message", ""),
+            occurred_at=_parse_datetime(error_data.get("occurred_at")) or datetime.now(timezone.utc),
+            retryable=error_data.get("retryable", True),
+            retry_count=error_data.get("retry_count", 0),
+        )
+
+    # v2.4: Convert timestamps
+    timestamps_data = item.get("timestamps")
+    timestamps_response = None
+    if timestamps_data:
+        timestamps_response = PeripetieTimestampsResponse(
+            queued_at=_parse_datetime(timestamps_data.get("queued_at")) or datetime.now(timezone.utc),
+            analysis_started_at=_parse_datetime(timestamps_data.get("analysis_started_at")),
+            analysis_completed_at=_parse_datetime(timestamps_data.get("analysis_completed_at")),
+            reviewed_at=_parse_datetime(timestamps_data.get("reviewed_at")),
+        )
+
     return QueueItemResponse(
         id=item.get("id", ""),
         account_id=item.get("account_id"),
@@ -240,16 +304,27 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             html_body=content.get("html_body"),
             full_text=content.get("full_text"),
         ),
+        # Legacy fields
         status=item.get("status", "pending"),
         reviewed_at=_parse_datetime(item.get("reviewed_at")),
         review_decision=item.get("review_decision"),
+        # v2.4 fields
+        state=item_state,
+        resolution=resolution_response,
+        snooze=snooze_response,
+        error=error_response,
+        timestamps=timestamps_response,
+        tab=item_tab,
     )
 
 
 @router.get("", response_model=PaginatedResponse[list[QueueItemResponse]])
 async def list_queue_items(
     account_id: str | None = Query(None, description="Filter by account"),
-    status: str = Query("pending", description="Filter by status"),
+    status: str = Query("pending", description="Filter by legacy status"),
+    state: str | None = Query(None, description="v2.4: Filter by state (queued, analyzing, awaiting_review, processed, error)"),
+    tab: str | None = Query(None, description="v2.4: Filter by UI tab (to_process, in_progress, snoozed, history, errors)"),
+    include_snoozed: bool = Query(True, description="v2.4: Include snoozed items"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     service: QueueService = Depends(get_queue_service),
@@ -258,11 +333,16 @@ async def list_queue_items(
     List queue items with pagination
 
     Returns pending items awaiting review by default.
+
+    v2.4: Supports filtering by state or tab in addition to legacy status.
     """
     try:
         items, total = await service.list_items(
             account_id=account_id,
             status=status,
+            state=state,
+            tab=tab,
+            include_snoozed=include_snoozed,
             page=page,
             page_size=page_size,
         )
@@ -288,6 +368,7 @@ async def get_queue_stats(
     Get queue statistics
 
     Returns counts by status and account.
+    v2.4: Also returns counts by state, resolution type, and UI tab.
     """
     try:
         stats = await service.get_stats()
@@ -300,6 +381,12 @@ async def get_queue_stats(
                 by_account=stats.get("by_account", {}),
                 oldest_item=_parse_datetime(stats.get("oldest_item")),
                 newest_item=_parse_datetime(stats.get("newest_item")),
+                # v2.4 fields
+                by_state=stats.get("by_state", {}),
+                by_resolution=stats.get("by_resolution", {}),
+                by_tab=stats.get("by_tab", {}),
+                snoozed_count=stats.get("snoozed_count", 0),
+                error_count=stats.get("error_count", 0),
             ),
             timestamp=datetime.now(timezone.utc),
         )

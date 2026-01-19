@@ -310,6 +310,46 @@ class QueueItemContent(BaseModel):
     full_text: str | None = Field(None, description="Full plain text body if available")
 
 
+class PeripetieResolutionResponse(BaseModel):
+    """Resolution details for a processed péripétie (v2.4)"""
+
+    type: str = Field(..., description="Resolution type: auto_applied, manual_approved, manual_modified, manual_rejected, manual_skipped")
+    action_taken: str = Field(..., description="Action that was taken")
+    resolved_at: datetime = Field(..., description="When resolved")
+    resolved_by: str = Field(..., description="Who resolved: system or user")
+    confidence_at_resolution: float | None = Field(None, description="Confidence at resolution")
+    user_modified_action: bool = Field(False, description="Whether user modified the action")
+    original_action: str | None = Field(None, description="Original action if modified")
+
+
+class PeripetieSnoozeResponse(BaseModel):
+    """Snooze info for a péripétie (v2.4)"""
+
+    until: datetime = Field(..., description="When snooze expires")
+    created_at: datetime = Field(..., description="When snoozed")
+    reason: str | None = Field(None, description="Reason for snooze")
+    snooze_count: int = Field(1, description="Times snoozed")
+
+
+class PeripetieErrorResponse(BaseModel):
+    """Error details for a péripétie (v2.4)"""
+
+    type: str = Field(..., description="Error type")
+    message: str = Field(..., description="Error message")
+    occurred_at: datetime = Field(..., description="When error occurred")
+    retryable: bool = Field(True, description="Can be retried")
+    retry_count: int = Field(0, description="Retry attempts")
+
+
+class PeripetieTimestampsResponse(BaseModel):
+    """Timestamps for péripétie lifecycle (v2.4)"""
+
+    queued_at: datetime = Field(..., description="When queued")
+    analysis_started_at: datetime | None = Field(None, description="When analysis started")
+    analysis_completed_at: datetime | None = Field(None, description="When analysis completed")
+    reviewed_at: datetime | None = Field(None, description="When reviewed")
+
+
 class QueueItemResponse(BaseModel):
     """Queue item in API response"""
 
@@ -319,18 +359,26 @@ class QueueItemResponse(BaseModel):
     metadata: QueueItemMetadata = Field(..., description="Email metadata")
     analysis: QueueItemAnalysis = Field(..., description="AI analysis")
     content: QueueItemContent = Field(..., description="Content preview")
+    # Legacy fields (for backwards compatibility)
     status: str = Field(..., description="Status: pending, approved, rejected, skipped")
     reviewed_at: datetime | None = Field(None, description="Time reviewed")
     review_decision: str | None = Field(None, description="Review decision")
+    # v2.4 fields
+    state: str | None = Field(None, description="v2.4 state: queued, analyzing, awaiting_review, processed, error")
+    resolution: PeripetieResolutionResponse | None = Field(None, description="v2.4 resolution details")
+    snooze: PeripetieSnoozeResponse | None = Field(None, description="v2.4 snooze info")
+    error: PeripetieErrorResponse | None = Field(None, description="v2.4 error details")
+    timestamps: PeripetieTimestampsResponse | None = Field(None, description="v2.4 timestamps")
+    tab: str | None = Field(None, description="v2.4 UI tab: to_process, in_progress, snoozed, history, errors")
 
 
 class QueueStatsResponse(BaseModel):
-    """Queue statistics response"""
+    """Queue statistics response (v2.4 enhanced)"""
 
     total: int = Field(..., description="Total items in queue")
     by_status: dict[str, int] = Field(
         default_factory=dict,
-        description="Count by status",
+        description="Count by legacy status",
     )
     by_account: dict[str, int] = Field(
         default_factory=dict,
@@ -338,6 +386,21 @@ class QueueStatsResponse(BaseModel):
     )
     oldest_item: datetime | None = Field(None, description="Oldest item timestamp")
     newest_item: datetime | None = Field(None, description="Newest item timestamp")
+    # v2.4 fields
+    by_state: dict[str, int] = Field(
+        default_factory=dict,
+        description="v2.4: Count by state (queued, analyzing, awaiting_review, processed, error)",
+    )
+    by_resolution: dict[str, int] = Field(
+        default_factory=dict,
+        description="v2.4: Count by resolution type",
+    )
+    by_tab: dict[str, int] = Field(
+        default_factory=dict,
+        description="v2.4: Count by UI tab (to_process, in_progress, snoozed, history, errors)",
+    )
+    snoozed_count: int = Field(0, description="v2.4: Number of snoozed items")
+    error_count: int = Field(0, description="v2.4: Number of error items")
 
 
 class EnrichmentApprovalUpdate(BaseModel):

@@ -1,16 +1,21 @@
 """
-Queue Storage System
+Queue Storage System (v2.4)
 
-JSON-based storage for emails queued for manual review.
-
-Low-confidence emails (below threshold) are saved to disk
-for later review and approval.
+JSON-based storage for péripéties (emails queued for review/processing).
 
 Architecture:
     - Each queued item is a separate JSON file
     - Filename: {item_id}.json
     - Directory: data/queue/
     - Thread-safe file operations
+
+v2.4 Changes:
+    - New data model separating state/resolution/snooze/error
+    - state: queued, analyzing, awaiting_review, processed, error
+    - resolution: auto_applied, manual_approved, manual_modified, manual_rejected, manual_skipped
+    - snooze: orthogonal to state, tracks postponed items
+    - timestamps: queued_at, analysis_started_at, analysis_completed_at, reviewed_at
+    - Backwards compatible with legacy 'status' field
 
 Usage:
     from src.integrations.storage.queue_storage import QueueStorage
@@ -20,19 +25,30 @@ Usage:
     # Queue an email
     item_id = storage.save_item(metadata, analysis, content_preview)
 
-    # Load all queued items
-    items = storage.load_queue()
+    # Load items by state
+    items = storage.load_queue_by_state(state="awaiting_review")
 
-    # Remove from queue after review
+    # Load items (legacy API, still works)
+    items = storage.load_queue(status="pending")
+
+    # Remove from queue after processing
     storage.remove_item(item_id)
 """
 
 import json
 import threading
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from src.core.models.peripetie import (
+    PeripetieState,
+    ResolutionType,
+    ResolvedBy,
+    migrate_legacy_status,
+    state_to_tab,
+)
 from src.core.schemas import EmailAnalysis, EmailMetadata
 from src.monitoring.logger import get_logger
 from src.utils import get_data_dir, now_utc
@@ -166,12 +182,26 @@ class QueueStorage:
             return None
 
         item_id = str(uuid.uuid4())
+        now = now_utc()
 
-        # Build queue item
+        # Build queue item with v2.4 structure
         item = {
             "id": item_id,
             "account_id": account_id,
-            "queued_at": now_utc().isoformat(),
+            # v2.4: New state/resolution model
+            "state": PeripetieState.AWAITING_REVIEW.value,  # Items go directly to review
+            "resolution": None,  # Set when processed
+            "snooze": None,  # Set when snoozed
+            "error": None,  # Set on error
+            # v2.4: Explicit timestamps
+            "timestamps": {
+                "queued_at": now.isoformat(),
+                "analysis_started_at": now.isoformat(),  # Analysis already done
+                "analysis_completed_at": now.isoformat(),
+                "reviewed_at": None,
+            },
+            # Legacy field for backwards compatibility
+            "queued_at": now.isoformat(),
             "metadata": {
                 "id": metadata.id,
                 "subject": metadata.subject,
@@ -212,6 +242,7 @@ class QueueStorage:
                 "html_body": html_body,  # Full HTML body for rendering
                 "full_text": full_text,  # Full plain text body
             },
+            # Legacy fields for backwards compatibility
             "status": "pending",  # pending, approved, rejected, skipped
             "reviewed_at": None,
             "review_decision": None,
@@ -451,22 +482,29 @@ class QueueStorage:
 
     def get_stats(self) -> dict[str, Any]:
         """
-        Get queue statistics
+        Get queue statistics (v2.4 enhanced)
 
         Returns:
             Dictionary with queue stats:
             {
                 "total": int,
-                "by_status": {"pending": 5, "approved": 2, ...},
+                "by_status": {"pending": 5, "approved": 2, ...},  # Legacy
+                "by_state": {"awaiting_review": 18, "processed": 21, ...},  # v2.4
+                "by_resolution": {"manual_approved": 10, "auto_applied": 5, ...},  # v2.4
+                "by_tab": {"to_process": 18, "history": 21, "snoozed": 3, ...},  # v2.4
                 "by_account": {"personal": 3, "work": 2, ...},
                 "oldest_item": ISO datetime string,
-                "newest_item": ISO datetime string
+                "newest_item": ISO datetime string,
+                "snoozed_count": int,  # v2.4
+                "error_count": int,  # v2.4
             }
         """
         all_items = []
 
         with self._lock:
             for file_path in self.queue_dir.glob("*.json"):
+                if file_path.name.startswith("."):
+                    continue
                 try:
                     with open(file_path, encoding="utf-8") as f:
                         item = json.load(f)
@@ -478,19 +516,52 @@ class QueueStorage:
             return {
                 "total": 0,
                 "by_status": {},
+                "by_state": {},
+                "by_resolution": {},
+                "by_tab": {},
                 "by_account": {},
                 "oldest_item": None,
                 "newest_item": None,
+                "snoozed_count": 0,
+                "error_count": 0,
             }
 
-        # Count by status
-        by_status = {}
+        # Count by legacy status
+        by_status: dict[str, int] = {}
         for item in all_items:
             status = item.get("status", "unknown")
             by_status[status] = by_status.get(status, 0) + 1
 
+        # v2.4: Count by state
+        by_state: dict[str, int] = {}
+        for item in all_items:
+            state = self._get_item_state(item)
+            by_state[state] = by_state.get(state, 0) + 1
+
+        # v2.4: Count by resolution type
+        by_resolution: dict[str, int] = {}
+        for item in all_items:
+            resolution = item.get("resolution")
+            if resolution:
+                res_type = resolution.get("type", "unknown")
+                by_resolution[res_type] = by_resolution.get(res_type, 0) + 1
+
+        # v2.4: Count by UI tab
+        by_tab: dict[str, int] = {}
+        snoozed_count = 0
+        error_count = 0
+        for item in all_items:
+            state = self._get_item_state(item)
+            has_snooze = item.get("snooze") is not None
+            tab = state_to_tab(PeripetieState(state), has_snooze)
+            by_tab[tab] = by_tab.get(tab, 0) + 1
+            if has_snooze:
+                snoozed_count += 1
+            if state == PeripetieState.ERROR.value:
+                error_count += 1
+
         # Count by account
-        by_account = {}
+        by_account: dict[str, int] = {}
         for item in all_items:
             account = item.get("account_id") or "unknown"
             by_account[account] = by_account.get(account, 0) + 1
@@ -503,10 +574,361 @@ class QueueStorage:
         return {
             "total": len(all_items),
             "by_status": by_status,
+            "by_state": by_state,
+            "by_resolution": by_resolution,
+            "by_tab": by_tab,
             "by_account": by_account,
             "oldest_item": oldest,
             "newest_item": newest,
+            "snoozed_count": snoozed_count,
+            "error_count": error_count,
         }
+
+    # =========================================================================
+    # v2.4 NEW METHODS
+    # =========================================================================
+
+    def _get_item_state(self, item: dict[str, Any]) -> str:
+        """
+        Get the state of an item, handling legacy format.
+
+        Args:
+            item: Queue item dictionary
+
+        Returns:
+            State value (from PeripetieState enum)
+        """
+        # Check for v2.4 state field first
+        if "state" in item:
+            return item["state"]
+
+        # Fall back to legacy status mapping
+        legacy_status = item.get("status", "pending")
+        state, _ = migrate_legacy_status(legacy_status)
+        return state.value
+
+    def load_queue_by_state(
+        self,
+        state: Optional[str] = None,
+        tab: Optional[str] = None,
+        account_id: Optional[str] = None,
+        include_snoozed: bool = True,
+    ) -> list[dict[str, Any]]:
+        """
+        Load queue items by state (v2.4 API).
+
+        Args:
+            state: Filter by state ('queued', 'analyzing', 'awaiting_review', 'processed', 'error')
+            tab: Filter by UI tab ('to_process', 'in_progress', 'snoozed', 'history', 'errors')
+            account_id: Filter by account (None = all accounts)
+            include_snoozed: Whether to include snoozed items (default True)
+
+        Returns:
+            List of queue items (sorted by queued_at, oldest first)
+
+        Example:
+            # Load items awaiting review
+            items = storage.load_queue_by_state(state="awaiting_review")
+
+            # Load items for "À traiter" tab (excludes snoozed)
+            items = storage.load_queue_by_state(tab="to_process", include_snoozed=False)
+        """
+        items = []
+
+        with self._lock:
+            for file_path in self.queue_dir.glob("*.json"):
+                if file_path.name.startswith("."):
+                    continue
+                try:
+                    with open(file_path, encoding="utf-8") as f:
+                        item = json.load(f)
+
+                    # Apply account filter
+                    if account_id and item.get("account_id") != account_id:
+                        continue
+
+                    # Get item state
+                    item_state = self._get_item_state(item)
+                    has_snooze = item.get("snooze") is not None
+
+                    # Filter out snoozed if requested
+                    if not include_snoozed and has_snooze:
+                        continue
+
+                    # Apply state filter
+                    if state and item_state != state:
+                        continue
+
+                    # Apply tab filter
+                    if tab:
+                        item_tab = state_to_tab(PeripetieState(item_state), has_snooze)
+                        if item_tab != tab:
+                            continue
+
+                    items.append(item)
+
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to load queue item {file_path.name}: {e}",
+                        extra={"file": str(file_path)},
+                    )
+
+        # Sort by queued_at (oldest first)
+        items.sort(key=lambda x: x.get("queued_at", ""))
+
+        logger.debug(
+            f"Loaded {len(items)} queue items",
+            extra={
+                "count": len(items),
+                "state": state,
+                "tab": tab,
+                "account_id": account_id,
+            },
+        )
+
+        return items
+
+    def set_state(
+        self,
+        item_id: str,
+        new_state: PeripetieState,
+        resolution: Optional[dict[str, Any]] = None,
+        error: Optional[dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Update item state (v2.4 API).
+
+        Args:
+            item_id: Item identifier
+            new_state: New state to set
+            resolution: Resolution details (required if state is PROCESSED)
+            error: Error details (required if state is ERROR)
+
+        Returns:
+            True if successful, False if item not found
+
+        Example:
+            # Mark as processed with manual approval
+            storage.set_state(item_id, PeripetieState.PROCESSED, resolution={
+                "type": "manual_approved",
+                "action_taken": "archive",
+                "resolved_at": now_utc().isoformat(),
+                "resolved_by": "user",
+            })
+        """
+        updates: dict[str, Any] = {
+            "state": new_state.value,
+        }
+
+        # Map to legacy status for backwards compatibility
+        legacy_status_map = {
+            PeripetieState.QUEUED: "pending",
+            PeripetieState.ANALYZING: "pending",
+            PeripetieState.AWAITING_REVIEW: "pending",
+            PeripetieState.PROCESSED: "approved",  # Default, overridden below
+            PeripetieState.ERROR: "pending",
+        }
+        updates["status"] = legacy_status_map.get(new_state, "pending")
+
+        if resolution:
+            updates["resolution"] = resolution
+            # Set legacy status based on resolution type
+            res_type = resolution.get("type", "")
+            if res_type == ResolutionType.MANUAL_REJECTED.value:
+                updates["status"] = "rejected"
+            elif res_type == ResolutionType.MANUAL_SKIPPED.value:
+                updates["status"] = "skipped"
+            else:
+                updates["status"] = "approved"
+
+            # Update timestamps
+            updates["reviewed_at"] = resolution.get("resolved_at")
+            updates["review_decision"] = resolution.get("type")
+
+        if error:
+            updates["error"] = error
+
+        return self.update_item(item_id, updates)
+
+    def set_snooze(
+        self,
+        item_id: str,
+        until: datetime,
+        reason: Optional[str] = None,
+    ) -> bool:
+        """
+        Snooze an item (v2.4 API).
+
+        Args:
+            item_id: Item identifier
+            until: When the snooze expires
+            reason: Optional reason for snoozing
+
+        Returns:
+            True if successful, False if item not found
+        """
+        item = self.get_item(item_id)
+        if not item:
+            return False
+
+        # Get existing snooze count
+        existing_snooze = item.get("snooze")
+        snooze_count = (existing_snooze.get("snooze_count", 0) if existing_snooze else 0) + 1
+
+        updates = {
+            "snooze": {
+                "until": until.isoformat(),
+                "created_at": now_utc().isoformat(),
+                "reason": reason,
+                "snooze_count": snooze_count,
+            }
+        }
+
+        return self.update_item(item_id, updates)
+
+    def clear_snooze(self, item_id: str) -> bool:
+        """
+        Clear snooze from an item (v2.4 API).
+
+        Args:
+            item_id: Item identifier
+
+        Returns:
+            True if successful, False if item not found
+        """
+        return self.update_item(item_id, {"snooze": None})
+
+    def get_snoozed_items(self, account_id: Optional[str] = None) -> list[dict[str, Any]]:
+        """
+        Get all snoozed items.
+
+        Args:
+            account_id: Filter by account (None = all accounts)
+
+        Returns:
+            List of snoozed items sorted by snooze expiry (soonest first)
+        """
+        items = []
+
+        with self._lock:
+            for file_path in self.queue_dir.glob("*.json"):
+                if file_path.name.startswith("."):
+                    continue
+                try:
+                    with open(file_path, encoding="utf-8") as f:
+                        item = json.load(f)
+
+                    # Filter: must have snooze
+                    if not item.get("snooze"):
+                        continue
+
+                    # Apply account filter
+                    if account_id and item.get("account_id") != account_id:
+                        continue
+
+                    items.append(item)
+
+                except Exception:
+                    continue
+
+        # Sort by snooze expiry (soonest first)
+        items.sort(key=lambda x: x.get("snooze", {}).get("until", ""))
+
+        return items
+
+    def get_expired_snoozes(self) -> list[dict[str, Any]]:
+        """
+        Get items with expired snoozes that should be "woken up".
+
+        Returns:
+            List of items with expired snoozes
+        """
+        now = now_utc().isoformat()
+        items = []
+
+        with self._lock:
+            for file_path in self.queue_dir.glob("*.json"):
+                if file_path.name.startswith("."):
+                    continue
+                try:
+                    with open(file_path, encoding="utf-8") as f:
+                        item = json.load(f)
+
+                    snooze = item.get("snooze")
+                    if snooze and snooze.get("until", "") <= now:
+                        items.append(item)
+
+                except Exception:
+                    continue
+
+        return items
+
+    def wake_expired_snoozes(self) -> int:
+        """
+        Clear snoozes that have expired.
+
+        Returns:
+            Number of items woken up
+        """
+        expired = self.get_expired_snoozes()
+        count = 0
+
+        for item in expired:
+            if self.clear_snooze(item["id"]):
+                count += 1
+                logger.info(
+                    "Snooze expired and cleared",
+                    extra={"item_id": item["id"]},
+                )
+
+        return count
+
+    def migrate_item_to_v24(self, item_id: str) -> bool:
+        """
+        Migrate a single item to v2.4 format.
+
+        Args:
+            item_id: Item identifier
+
+        Returns:
+            True if migrated, False if not found or already migrated
+        """
+        item = self.get_item(item_id)
+        if not item:
+            return False
+
+        # Already migrated if has 'state' field
+        if "state" in item:
+            return False
+
+        # Migrate legacy status to state/resolution
+        legacy_status = item.get("status", "pending")
+        state, resolution_type = migrate_legacy_status(legacy_status)
+
+        updates: dict[str, Any] = {
+            "state": state.value,
+            "snooze": None,
+            "error": None,
+            "timestamps": {
+                "queued_at": item.get("queued_at"),
+                "analysis_started_at": item.get("queued_at"),
+                "analysis_completed_at": item.get("queued_at"),
+                "reviewed_at": item.get("reviewed_at"),
+            },
+        }
+
+        # Create resolution if item was processed
+        if resolution_type:
+            updates["resolution"] = {
+                "type": resolution_type.value,
+                "action_taken": item.get("analysis", {}).get("action", "unknown"),
+                "resolved_at": item.get("reviewed_at") or item.get("queued_at"),
+                "resolved_by": ResolvedBy.USER.value,
+            }
+        else:
+            updates["resolution"] = None
+
+        return self.update_item(item_id, updates)
 
 
 # Singleton instance

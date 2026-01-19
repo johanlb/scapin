@@ -66,6 +66,9 @@ class QueueService:
         self,
         account_id: str | None = None,
         status: str = "pending",
+        state: str | None = None,
+        tab: str | None = None,
+        include_snoozed: bool = True,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict[str, Any]], int]:
@@ -74,26 +77,64 @@ class QueueService:
 
         Args:
             account_id: Filter by account
-            status: Filter by status
+            status: Filter by legacy status (pending, approved, rejected, skipped)
+            state: v2.4 - Filter by state (queued, analyzing, awaiting_review, processed, error)
+            tab: v2.4 - Filter by UI tab (to_process, in_progress, snoozed, history, errors)
+            include_snoozed: v2.4 - Include snoozed items in results (default True)
             page: Page number (1-based)
             page_size: Items per page
 
         Returns:
             Tuple of (items, total_count)
         """
-        all_items = self._storage.load_queue(account_id=account_id, status=status)
+        # v2.4: Use new filtering if state or tab is provided
+        if state or tab:
+            all_items = self._storage.load_queue_by_state(
+                state=state,
+                tab=tab,
+                account_id=account_id,
+                include_snoozed=include_snoozed,
+            )
+        else:
+            # Legacy filtering by status
+            all_items = self._storage.load_queue(account_id=account_id, status=status)
+
         total = len(all_items)
 
-        # Bug #56 fix: Sort by appropriate field based on status
-        # - pending: oldest first (by queued_at) - process oldest emails first
-        # - approved/rejected: newest first (by reviewed_at) - show most recent actions
-        if status in ("approved", "rejected"):
+        # Bug #56 fix: Sort by appropriate field based on status/state/tab
+        # - pending/awaiting_review/to_process: oldest first (by queued_at) - process oldest first
+        # - approved/rejected/processed/history: newest first (by reviewed_at) - show most recent
+        # - errors: newest first (by error timestamp)
+        if status in ("approved", "rejected") or state == "processed" or tab == "history":
             # Sort by reviewed_at, newest first (reverse chronological)
             all_items.sort(
-                key=lambda x: x.get("reviewed_at") or x.get("queued_at", ""),
+                key=lambda x: (
+                    x.get("resolution", {}).get("resolved_at")
+                    if x.get("resolution")
+                    else x.get("reviewed_at")
+                ) or x.get("queued_at", ""),
                 reverse=True,
             )
-        # else: pending items keep the default sort (oldest first by queued_at)
+        elif state == "error" or tab == "errors":
+            # Sort errors by error timestamp, newest first
+            all_items.sort(
+                key=lambda x: (
+                    x.get("error", {}).get("occurred_at")
+                    if x.get("error")
+                    else x.get("queued_at", "")
+                ),
+                reverse=True,
+            )
+        elif tab == "snoozed":
+            # Sort snoozed by wake_at, soonest first
+            all_items.sort(
+                key=lambda x: (
+                    x.get("snooze", {}).get("wake_at")
+                    if x.get("snooze")
+                    else ""
+                ),
+            )
+        # else: pending/awaiting_review items keep the default sort (oldest first by queued_at)
 
         # Apply pagination
         start = (page - 1) * page_size
