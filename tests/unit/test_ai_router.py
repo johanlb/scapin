@@ -408,9 +408,9 @@ class TestAsyncMethods:
         """Test analyze_note_async delegating to synchronous method"""
         router = AIRouter(ai_config)
 
+        from src.core.schemas import NoteAnalysis
         from src.passepartout.note_manager import Note
         from src.passepartout.note_metadata import NoteMetadata
-        from src.core.schemas import NoteAnalysis
 
         # Mock the synchronous method
         with patch.object(router, "analyze_note") as mock_sync:
@@ -424,3 +424,97 @@ class TestAsyncMethods:
             assert result is not None
             assert result.confidence == 0.95
             mock_sync.assert_called_once_with(note, metadata, AIModel.CLAUDE_SONNET, 3)
+
+
+class TestContextInjection:
+    """Test injection of briefing context into AI prompts"""
+
+    @patch("anthropic.Anthropic")
+    @patch("src.sancho.templates.get_template_manager")
+    def test_analyze_note_injects_briefing_context(
+        self, mock_template_manager, mock_anthropic, ai_config
+    ):
+        """Test that briefing context is loaded and injected into note analysis prompt"""
+        # Setup Router
+        router = AIRouter(ai_config)
+
+        # Mock ContextLoader
+        mock_loader = MagicMock()
+        mock_loader.load_context.return_value = "--- PROFILE ---\nUser is a developer."
+        router.context_loader = mock_loader
+
+        # Mock Template Manager
+        mock_tm = MagicMock()
+        mock_template_manager.return_value = mock_tm
+
+        def render_side_effect(template_name, **kwargs):
+            if template_name == "ai/note_analysis":
+                return "Raw Prompts"
+            if template_name == "ai/briefing_system":
+                return f"System Prompt with {kwargs.get('global_context')} and {kwargs.get('task_prompt')}"
+            return "Unknown Template"
+
+        mock_tm.render.side_effect = render_side_effect
+
+        # Mock Claude Client
+        mock_client = MagicMock()
+        mock_anthropic.return_value = mock_client
+        router._client = mock_client  # Ensure our mock client is used
+
+        # Mock Response
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        "category": "work",
+                        "confidence": 0.9,
+                        "summary": "Brief summary",
+                        "topics": [],
+                        "entities": [],
+                        "sentiment": "neutral",
+                        "urgency": "low",
+                        "reasoning": "This is a work related note based on the content.",
+                    }
+                )
+            )
+        ]
+        mock_client.messages.create.return_value = mock_response
+
+        # Test Data
+        from src.passepartout.note_manager import Note
+        from src.passepartout.note_metadata import NoteMetadata, NoteType
+
+        note = MagicMock(spec=Note)
+        note.title = "Test Note"
+        note.content = "Test Content"
+        note.note_id = "note_123"
+
+        metadata = MagicMock(spec=NoteMetadata)
+        metadata.note_type = NoteType.REUNION
+
+        # Execute
+        result = router.analyze_note(note, metadata)
+
+        # Verification
+        assert result is not None
+
+        # 1. Verify ContextLoader was called
+        mock_loader.load_context.assert_called_once()
+
+        # 2. Verify TemplateManager was called with briefing_system
+        calls = mock_tm.render.call_args_list
+        assert any(call.args[0] == "ai/briefing_system" for call in calls)
+
+        # 3. Verify the actual prompt sent to Claude contained the context
+        call_args = mock_client.messages.create.call_args
+        assert call_args is not None
+
+        kwargs = call_args[1]
+        messages = kwargs.get("messages", [])
+        assert len(messages) > 0
+        prompt_sent = messages[0]["content"]
+
+        # Check that the prompt contains the injected context
+        assert "--- PROFILE ---" in prompt_sent
+        assert "User is a developer" in prompt_sent

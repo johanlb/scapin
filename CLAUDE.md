@@ -1,7 +1,7 @@
 # CLAUDE.md — Contexte de Session & État du Projet
 
 **Dernière mise à jour** : 19 janvier 2026
-**Version** : v1.0.0-rc.1 (Release Candidate 1) + Analysis Transparency v2.3.1
+**Version** : v1.0.0-rc.1 (Release Candidate 1) + Analysis Transparency v2.3.2
 **Projet** : Scapin
 **Dépôt** : https://github.com/johanlb/scapin
 **Répertoire de travail** : `/Users/johan/Developer/scapin`
@@ -101,6 +101,15 @@ python scapin.py --help
 - ✅ **Thinking Bubbles (💭)** : Questions/doutes de l'IA entre passes
 - ✅ **Why Not Section** : Explication des alternatives rejetées
 
+**Phase 3 (v2.3.2) - Bug Fix & UI Integration :**
+- ✅ **Fix `multi_pass: null`** : Les fonctions de conversion dans `queue.py` ne passaient pas les champs de transparence au modèle Pydantic
+- ✅ **Transparence sur page principale Flux** : Ajout de la section "Transparence de l'Analyse" avec PassTimeline, ConfidenceSparkline, context influence et thinking bubbles directement sur `/flux/+page.svelte` (les composants étaient uniquement sur la page détail `/flux/[id]/+page.svelte`)
+
+**Fichiers modifiés (Phase 3) :**
+- `src/jeeves/api/routers/queue.py` : Ajout de `_convert_multi_pass_metadata()`, `_convert_retrieved_context()`, `_convert_context_influence()` + passage des champs à `QueueItemAnalysis`
+- `src/jeeves/api/services/queue_service.py` : Debug logging pour tracer le flux de données
+- `web/src/routes/flux/+page.svelte` : Section 8.5 "Analysis Transparency" avec tous les composants de visualisation
+
 **Nouveaux composants créés :**
 - `web/src/lib/components/flux/PassTimeline.svelte`
 - `web/src/lib/components/flux/ConfidenceSparkline.svelte`
@@ -109,7 +118,7 @@ python scapin.py --help
 - `PassHistoryEntryResponse.questions` : Doutes IA entre passes
 - `ActionOptionResponse.rejection_reason` : Pourquoi pas cette option
 
-**Commits** : `f46d033`, `8def936`, `0f6cb4b`, `22b9eb1`
+**Commits** : `f46d033`, `8def936`, `0f6cb4b`, `22b9eb1`, `1b3d552`, `d916ead`
 
 **Documentation mise à jour :**
 - `docs/design/analysis-transparency-v2.3.md` : Design doc complet avec statut

@@ -1209,6 +1209,34 @@ export interface MultiPassMetadata {
 
 ---
 
+### Phase 2.5 : Bug Fix & UI Integration ✅ COMPLETED
+
+**Commits**: `1b3d552`, `d916ead` (19 janvier 2026)
+
+| Composant | Fichier | Status |
+|-----------|---------|--------|
+| API Conversion Functions | `src/jeeves/api/routers/queue.py` | ✅ |
+| Debug Logging | `src/jeeves/api/services/queue_service.py` | ✅ |
+| Transparency Section Main Page | `web/src/routes/flux/+page.svelte` | ✅ |
+
+**Problème résolu** :
+- Le champ `multi_pass` était toujours `null` dans les réponses API malgré une analyse réussie
+- Les composants de transparence (PassTimeline, ConfidenceSparkline) n'étaient visibles que sur la page détail `/flux/[id]/+page.svelte`, pas sur la page principale `/flux/+page.svelte`
+
+**Cause racine** :
+- Les fonctions de conversion dans `queue.py` (`_convert_analysis_to_response()`) ne passaient pas les champs `multi_pass`, `retrieved_context`, et `context_influence` au modèle Pydantic
+
+**Corrections apportées** :
+1. Ajout de 3 fonctions de conversion dans `queue.py`:
+   - `_convert_multi_pass_metadata()` : Convertit le dict raw → `MultiPassMetadataResponse`
+   - `_convert_retrieved_context()` : Convertit le contexte récupéré
+   - `_convert_context_influence()` : Convertit l'influence du contexte
+2. Passage des champs de transparence à `QueueItemAnalysis` dans `_convert_analysis_to_response()`
+3. Ajout de logging de debug dans `queue_service.py` pour tracer le flux de données
+4. Ajout de la "Section 8.5: Analysis Transparency" sur la page principale flux avec tous les composants visuels
+
+---
+
 ### Phase 3 : v2.3.2 - Temps Réel (PLANNED)
 
 **Status**: Non démarré
