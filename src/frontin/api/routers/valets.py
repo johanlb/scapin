@@ -174,7 +174,7 @@ VALET_DESCRIPTIONS = {
     ValetType.PLANCHET: ("Planchet", "Planification et évaluation des risques"),
     ValetType.FIGARO: ("Figaro", "Exécution des actions"),
     ValetType.SGANARELLE: ("Sganarelle", "Apprentissage et amélioration continue"),
-    ValetType.FRONTIN: ("Jeeves", "Interface API et communication"),
+    ValetType.FRONTIN: ("Frontin", "Interface API et communication"),
 }
 
 VALET_ICONS = {
@@ -184,7 +184,7 @@ VALET_ICONS = {
     ValetType.PLANCHET: "📋",
     ValetType.FIGARO: "⚡",
     ValetType.SGANARELLE: "🎓",
-    ValetType.JEEVES: "🎭",
+    ValetType.FRONTIN: "🎭",
 }
 
 # Model pricing (January 2026) - USD per 1M tokens
