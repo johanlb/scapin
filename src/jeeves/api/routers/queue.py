@@ -15,9 +15,16 @@ from src.jeeves.api.models.queue import (
     ApproveRequest,
     AttachmentResponse,
     BulkReanalyzeResponse,
+    ContextCalendarResponse,
+    ContextInfluenceResponse,
+    ContextNoteResponse,
+    ContextTaskResponse,
+    EntityProfileResponse,
     EntityResponse,
     ExtractionConfidenceResponse,
     ModifyRequest,
+    MultiPassMetadataResponse,
+    PassHistoryEntryResponse,
     ProposedNoteResponse,
     ProposedTaskResponse,
     QueueItemAnalysis,
@@ -28,6 +35,7 @@ from src.jeeves.api.models.queue import (
     ReanalyzeRequest,
     ReanalyzeResponse,
     RejectRequest,
+    RetrievedContextResponse,
     SnoozeRequest,
     SnoozeResponse,
 )
@@ -768,4 +776,130 @@ def _convert_analysis_to_response(analysis: dict | None) -> QueueItemAnalysis | 
         proposed_tasks=proposed_tasks,
         context_used=analysis.get("context_used", []),
         draft_reply=analysis.get("draft_reply"),
+        # v2.2.2: Context transparency
+        retrieved_context=_convert_retrieved_context(analysis.get("retrieved_context")),
+        context_influence=_convert_context_influence(analysis.get("context_influence")),
+        # v2.3: Analysis transparency
+        multi_pass=_convert_multi_pass_metadata(analysis.get("multi_pass")),
+    )
+
+
+def _convert_multi_pass_metadata(
+    multi_pass: dict | None,
+) -> MultiPassMetadataResponse | None:
+    """Convert raw multi_pass dict to response model (v2.3)"""
+    if not multi_pass:
+        return None
+
+    # Convert pass_history
+    pass_history = []
+    for entry in multi_pass.get("pass_history", []):
+        pass_history.append(
+            PassHistoryEntryResponse(
+                pass_number=entry.get("pass_number", 0),
+                pass_type=entry.get("pass_type", "unknown"),
+                model=entry.get("model", "unknown"),
+                duration_ms=entry.get("duration_ms", 0.0),
+                tokens=entry.get("tokens", 0),
+                confidence_before=entry.get("confidence_before", 0.0),
+                confidence_after=entry.get("confidence_after", 0.0),
+                context_searched=entry.get("context_searched", False),
+                notes_found=entry.get("notes_found", 0),
+                escalation_triggered=entry.get("escalation_triggered", False),
+                questions=entry.get("questions", []),
+            )
+        )
+
+    return MultiPassMetadataResponse(
+        passes_count=multi_pass.get("passes_count", 0),
+        final_model=multi_pass.get("final_model", "unknown"),
+        models_used=multi_pass.get("models_used", []),
+        escalated=multi_pass.get("escalated", False),
+        stop_reason=multi_pass.get("stop_reason", ""),
+        high_stakes=multi_pass.get("high_stakes", False),
+        total_tokens=multi_pass.get("total_tokens", 0),
+        total_duration_ms=multi_pass.get("total_duration_ms", 0.0),
+        pass_history=pass_history,
+    )
+
+
+def _convert_retrieved_context(
+    retrieved_context: dict | None,
+) -> RetrievedContextResponse | None:
+    """Convert raw retrieved_context dict to response model (v2.2.2)"""
+    if not retrieved_context:
+        return None
+
+    # Convert notes
+    notes = [
+        ContextNoteResponse(
+            note_id=n.get("note_id", ""),
+            title=n.get("title", ""),
+            note_type=n.get("note_type", "general"),
+            relevance=n.get("relevance", 0.0),
+            snippet=n.get("snippet", ""),
+        )
+        for n in retrieved_context.get("notes", [])
+    ]
+
+    # Convert calendar events
+    calendar = [
+        ContextCalendarResponse(
+            event_id=e.get("event_id", ""),
+            title=e.get("title", ""),
+            start_time=e.get("start_time", ""),
+            end_time=e.get("end_time"),
+            relevance=e.get("relevance", 0.0),
+        )
+        for e in retrieved_context.get("calendar", [])
+    ]
+
+    # Convert tasks
+    tasks = [
+        ContextTaskResponse(
+            task_id=t.get("task_id", ""),
+            title=t.get("title", ""),
+            project=t.get("project"),
+            due_date=t.get("due_date"),
+            relevance=t.get("relevance", 0.0),
+        )
+        for t in retrieved_context.get("tasks", [])
+    ]
+
+    # Convert entity profiles
+    entity_profiles = {}
+    for name, profile in retrieved_context.get("entity_profiles", {}).items():
+        entity_profiles[name] = EntityProfileResponse(
+            canonical_name=profile.get("canonical_name", name),
+            entity_type=profile.get("entity_type", "unknown"),
+            role=profile.get("role"),
+            relationship=profile.get("relationship"),
+            key_facts=profile.get("key_facts", []),
+        )
+
+    return RetrievedContextResponse(
+        entities_searched=retrieved_context.get("entities_searched", []),
+        sources_searched=retrieved_context.get("sources_searched", []),
+        total_results=retrieved_context.get("total_results", 0),
+        notes=notes,
+        calendar=calendar,
+        tasks=tasks,
+        entity_profiles=entity_profiles,
+        conflicts=retrieved_context.get("conflicts", []),
+    )
+
+
+def _convert_context_influence(
+    context_influence: dict | None,
+) -> ContextInfluenceResponse | None:
+    """Convert raw context_influence dict to response model (v2.2.2)"""
+    if not context_influence:
+        return None
+
+    return ContextInfluenceResponse(
+        notes_used=context_influence.get("notes_used", []),
+        explanation=context_influence.get("explanation", ""),
+        confirmations=context_influence.get("confirmations", []),
+        contradictions=context_influence.get("contradictions", []),
+        missing_info=context_influence.get("missing_info", []),
     )

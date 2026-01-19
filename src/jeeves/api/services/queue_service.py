@@ -1260,6 +1260,13 @@ class QueueService:
 
     def _multi_pass_result_to_dict(self, result: Any) -> dict[str, Any]:
         """Convert MultiPassResult to queue analysis dict format."""
+        # Debug: Log the result type and pass_history
+        logger.info(
+            f"Converting MultiPassResult: passes_count={result.passes_count}, "
+            f"pass_history_len={len(result.pass_history) if result.pass_history else 0}, "
+            f"final_model={result.final_model}"
+        )
+
         # Build proposed_notes from extractions with note_cible
         proposed_notes = []
         proposed_tasks = []
@@ -1306,7 +1313,10 @@ class QueueService:
             last_pass = result.pass_history[-1]
             reasoning = getattr(last_pass, "reasoning", "") or ""
 
-        return {
+        # Build multi_pass metadata first for logging
+        multi_pass_data = self._build_multi_pass_metadata(result)
+
+        analysis_dict = {
             "action": result.action,
             "confidence": int(result.confidence.overall * 100),  # Convert to 0-100
             "category": None,  # Multi-pass doesn't use categories
@@ -1324,13 +1334,21 @@ class QueueService:
             "coherence_confidence": result.coherence_confidence,
             "coherence_warnings": result.coherence_warnings,
             # Additional multi-pass metadata (v2.3: Analysis Transparency)
-            "multi_pass": self._build_multi_pass_metadata(result),
+            "multi_pass": multi_pass_data,
             # v2.2.2: Context transparency
             "retrieved_context": result.retrieved_context,
             "context_influence": result.context_influence,
         }
 
-    def _build_multi_pass_metadata(self, result: Any) -> dict[str, Any]:
+        # Debug: Log the multi_pass result
+        logger.info(
+            f"Built analysis dict: multi_pass={'present' if multi_pass_data else 'None'}, "
+            f"passes_count={multi_pass_data.get('passes_count') if multi_pass_data else 'N/A'}"
+        )
+
+        return analysis_dict
+
+    def _build_multi_pass_metadata(self, result: Any) -> dict[str, Any] | None:
         """
         Build multi-pass metadata dict for API response (v2.3 Analysis Transparency).
 
@@ -1340,6 +1358,22 @@ class QueueService:
         - total_tokens, total_duration_ms
         - pass_history with per-pass details
         """
+        # Check if result has pass_history
+        if not hasattr(result, "pass_history") or not result.pass_history:
+            logger.warning(
+                "No pass_history in result, cannot build multi_pass metadata",
+                extra={"result_type": type(result).__name__},
+            )
+            return None
+
+        logger.info(
+            f"Building multi_pass metadata with {len(result.pass_history)} passes",
+            extra={
+                "passes_count": result.passes_count,
+                "final_model": result.final_model,
+            },
+        )
+
         # Build models_used list from pass_history
         models_used: list[str] = []
         pass_history: list[dict[str, Any]] = []
