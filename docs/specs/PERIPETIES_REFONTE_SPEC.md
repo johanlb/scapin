@@ -298,7 +298,8 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 │                                                                             │
 │  ┌─── 1. EN-TÊTE & MÉTADONNÉES ───────────────────────────────────────────┐│
 │  │  📧 Sujet de l'email                                                    ││
-│  │  De: expediteur@example.com                      Reçu: il y a 2 heures ││
+│  │  De: Marie Dupont 🔗                            Reçu: il y a 2h (14:32) ││
+│  │      └─ 🔗 = fiche contact connue (clic → ouvre la note)               ││
 │  │  📎 2 pièces jointes                                                    ││
 │  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                             │
@@ -763,15 +764,78 @@ L'en-tête (section 1) s'adapte dynamiquement :
 ```
 ┌─ Email ──────────────────────────────────────────────────────────────────┐
 │  📧 Sujet de l'email                                                      │
-│  De: expediteur@example.com                      Reçu: il y a 2h (14:32) │
+│  De: Jean Martin                                 Reçu: il y a 2h (14:32) │
+│      (expéditeur inconnu — pas de fiche)                                  │
 │  📎 2 pièces jointes                                                      │
 └───────────────────────────────────────────────────────────────────────────┘
 
 ┌─ Message Teams ──────────────────────────────────────────────────────────┐
 │  💬 Canal: #projet-alpha                                                  │
-│  De: Marie Dupont                                Posté: il y a 30min     │
+│  De: Marie Dupont 🔗                             Posté: il y a 30min     │
+│      └─ fiche connue (clic pour voir)                                     │
 │  📎 1 fichier partagé                                                     │
 └───────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Indicateur de Contexte sur l'Expéditeur
+
+Quand une note de contexte existe pour l'expéditeur (personne ou organisation), afficher un indicateur visuel :
+
+| Indicateur | Signification | Interaction |
+|------------|---------------|-------------|
+| 🔗 | Fiche personne/organisation connue | Clic → ouvre la note |
+| 🏢 | Organisation connue (domaine email) | Clic → ouvre la fiche organisation |
+| ⭐ | Contact fréquent / VIP | Tooltip avec stats |
+| — (rien) | Expéditeur inconnu | — |
+
+**Exemples :**
+
+```
+De: Marie Dupont 🔗              ← Fiche "Marie Dupont" existe
+De: contact@booking.com 🏢       ← Fiche "Booking.com" existe
+De: Jean Martin                  ← Aucune fiche, contact rare
+De: Pierre Durand 🔗 ⭐          ← Fiche existe + contact fréquent
+De: Sophie Bernard ➕            ← Pas de fiche mais contact fréquent → suggérer création
+```
+
+#### Suggestion de Création de Fiche
+
+Pour les contacts **fréquents sans fiche**, afficher une icône ➕ qui permet de créer rapidement une fiche :
+
+| Indicateur | Condition | Action au clic |
+|------------|-----------|----------------|
+| ➕ | ≥ 3 interactions ET pas de fiche | Ouvre modal de création rapide |
+
+**Modal de création rapide :**
+```
+┌─ Créer une fiche pour Sophie Bernard ? ─────────────────────────┐
+│                                                                  │
+│  📧 sophie.bernard@acme.com                                     │
+│  📊 7 interactions ce mois (fréquent)                           │
+│                                                                  │
+│  Type de fiche:                                                  │
+│  (•) 👤 Personne    ( ) 🏢 Organisation                         │
+│                                                                  │
+│  Titre: [ Sophie Bernard                    ]                   │
+│                                                                  │
+│  Organisation (optionnel):                                       │
+│  [ Acme Corp (suggéré depuis domaine)       ] [🔍]              │
+│                                                                  │
+│                           [Annuler]  [✓ Créer la fiche]         │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Tooltip au survol du 🔗 :**
+```
+┌─────────────────────────────────────┐
+│ 📝 Marie Dupont                     │
+│ Directrice Marketing - Acme Corp   │
+│ 12 interactions ce mois            │
+│ Dernière: il y a 3 jours           │
+│                                     │
+│ [Voir la fiche]                     │
+└─────────────────────────────────────┘
 ```
 
 #### Pièces Jointes
@@ -892,6 +956,300 @@ async function approveItem(item: PeripetieItem) {
 }
 ```
 
+### 4.5 Recherche
+
+Barre de recherche dans les péripéties :
+
+```
+┌─ Recherche ──────────────────────────────────────────────────────────────┐
+│                                                                          │
+│  🔍 [ Rechercher dans les péripéties...                    ] [Filtres ▼] │
+│                                                                          │
+│  Filtres actifs: [Source: Email ✕] [Période: 7 jours ✕]                 │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Champs recherchés :**
+- Sujet / Titre
+- Expéditeur (nom, email)
+- Contenu (corps du message)
+- Catégorie
+- Entités extraites
+
+**Filtres avancés :**
+| Filtre | Options |
+|--------|---------|
+| Source | Email, Teams, WhatsApp, Calendrier, Fichier |
+| Période | Aujourd'hui, 7 jours, 30 jours, Personnalisé |
+| Confiance | < 50%, 50-80%, > 80% |
+| Action | Archive, Tâche, Répondre, Supprimer |
+| Avec pièces jointes | Oui / Non |
+
+**Raccourci :** `Cmd+K` ou `/` pour ouvrir la recherche
+
+### 4.6 États Vides
+
+Messages quand un onglet ne contient aucun élément :
+
+| Onglet | Message | Illustration |
+|--------|---------|--------------|
+| **À traiter** | "Aucune péripétie ne requiert votre attention. Profitez-en !" | 🎉 |
+| **En cours** | "Aucune analyse en cours." | ⏳ |
+| **Reportées** | "Vous n'avez reporté aucune péripétie." | 💤 |
+| **Historique** | "Aucune péripétie traitée pour le moment." | 📭 |
+| **Erreurs** | "Aucune erreur. Tout fonctionne correctement !" | ✅ |
+
+**Exemple visuel :**
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│                              🎉                                          │
+│                                                                          │
+│              Aucune péripétie ne requiert votre attention.              │
+│                         Profitez-en !                                    │
+│                                                                          │
+│                      [📬 Récupérer de nouvelles péripéties]              │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.7 États de Chargement
+
+**Skeleton loaders** pour un chargement élégant :
+
+```
+┌─ Liste (chargement) ─────────────────────────────────────────────────────┐
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                              │ │
+│  │  ░░░░░░░░░░░░░░░░░░░                      ░░░░░░░░                 │ │
+│  │  ░░░░░░░░░░░░                                                      │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                    │ │
+│  │  ░░░░░░░░░░░░░░░░░░░░░░░                  ░░░░░░░░                 │ │
+│  │  ░░░░░░░░░░                                                        │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Règles :**
+- Skeletons animés (pulse ou shimmer)
+- Même structure que le contenu final
+- 3 items skeleton par défaut
+- Transition fluide vers le contenu réel
+
+**Indicateurs de progression :**
+| Contexte | Indicateur |
+|----------|------------|
+| Chargement liste | Skeletons |
+| Action en cours | Spinner sur le bouton + bouton désactivé |
+| Réanalyse | Barre de progression + "Analyse en cours..." |
+| Récupération | Toast "Récupération des péripéties..." |
+
+### 4.8 Gestion des Erreurs
+
+**Affichage des erreurs :**
+
+```
+┌─ Erreur ─────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│  ⚠️ L'action a échoué                                                   │
+│                                                                          │
+│  Impossible d'archiver cet email. Le serveur IMAP ne répond pas.        │
+│                                                                          │
+│  [Réessayer]  [Annuler]  [Voir les détails]                             │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Types d'erreurs et messages :**
+
+| Type | Message utilisateur | Action proposée |
+|------|---------------------|-----------------|
+| Réseau | "Connexion perdue. Vérifiez votre réseau." | Réessayer |
+| IMAP | "Le serveur email ne répond pas." | Réessayer / Vérifier config |
+| API IA | "L'analyse a échoué. Réessayez." | Réanalyser |
+| Timeout | "L'opération a pris trop de temps." | Réessayer |
+| Validation | "Données invalides : [détail]" | Corriger |
+
+**Toast notifications pour erreurs non-bloquantes :**
+```
+┌─────────────────────────────────────────┐
+│ ⚠️ Échec de l'archivage               │
+│ L'email reste dans votre boîte.        │
+│                        [Réessayer] [✕] │
+└─────────────────────────────────────────┘
+```
+
+### 4.9 Notifications
+
+**Notification quand nouvelles péripéties arrivent :**
+
+```
+┌─────────────────────────────────────────┐
+│ 📬 3 nouvelles péripéties              │
+│ Récupérées automatiquement             │
+│                          [Voir] [✕]    │
+└─────────────────────────────────────────┘
+```
+
+**Paramètres de notification (page Settings) :**
+
+| Option | Description | Défaut |
+|--------|-------------|--------|
+| Nouvelles péripéties | Notifier quand auto-fetch récupère des items | ✅ Activé |
+| Erreurs critiques | Notifier si une erreur grave survient | ✅ Activé |
+| Son | Jouer un son pour les notifications | ❌ Désactivé |
+
+**Badge sur l'onglet :**
+- Badge rouge avec compteur si nouvelles péripéties pendant qu'on est sur un autre onglet
+- Disparaît quand on consulte l'onglet
+
+### 4.10 Annuler (Undo)
+
+Possibilité d'annuler une action récente :
+
+```
+┌─────────────────────────────────────────┐
+│ ✅ Email archivé                        │
+│                          [Annuler] [✕]  │
+└─────────────────────────────────────────┘
+```
+
+**Règles :**
+- Toast avec option "Annuler" pendant 8 secondes
+- Pas de notification sonore
+- L'undo restaure l'email dans son dossier original
+- L'item revient en état `awaiting_review`
+- Disponible uniquement pour les actions récentes (< 24h)
+
+**Actions annulables :**
+| Action | Annulable | Délai max |
+|--------|-----------|-----------|
+| Archiver | ✅ | 24h |
+| Supprimer | ✅ | 24h (si pas vidé corbeille) |
+| Créer tâche | ✅ | 24h |
+| Rejeter | ✅ | Illimité |
+| Snooze | ✅ | Jusqu'à réveil |
+
+### 4.11 Flux de Réponse (Draft Reply)
+
+Quand l'action recommandée est "Répondre", afficher le brouillon de réponse :
+
+```
+┌─── 2. DÉCISION RECOMMANDÉE ──────────────────────────────────────────────┐
+│                                                                          │
+│  ✉️ RÉPONDRE                                     Confiance: ████░ 82%   │
+│                                                                          │
+│  "Cet email nécessite une réponse. Voici un brouillon."                 │
+│                                                                          │
+│  ┌─ Brouillon de réponse ──────────────────────────────────────────────┐│
+│  │                                                                      ││
+│  │  Bonjour Marie,                                                      ││
+│  │                                                                      ││
+│  │  Merci pour votre message. Je confirme ma disponibilité pour le      ││
+│  │  15 mars à 14h comme proposé.                                        ││
+│  │                                                                      ││
+│  │  Cordialement,                                                       ││
+│  │  Johan                                                               ││
+│  │                                                                      ││
+│  │  ─────────────────────────────────────────────────────────────────── ││
+│  │  [✏️ Modifier le brouillon]                                         ││
+│  │                                                                      ││
+│  └──────────────────────────────────────────────────────────────────────┘│
+│                                                                          │
+│  [✓ Envoyer]  [✏️ Modifier et envoyer]  [💾 Sauvegarder brouillon]     │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Actions disponibles :**
+
+| Action | Description |
+|--------|-------------|
+| **Envoyer** | Envoie le brouillon tel quel |
+| **Modifier et envoyer** | Ouvre un éditeur complet pour modifier avant envoi |
+| **Sauvegarder brouillon** | Sauvegarde dans les brouillons sans envoyer |
+| **Rejeter** | Ne pas répondre, passer à autre chose |
+
+**Éditeur de modification :**
+```
+┌─ Modifier la réponse ────────────────────────────────────────────────────┐
+│                                                                          │
+│  À: marie.dupont@acme.com                                               │
+│  Objet: Re: Réunion du 15 mars                                          │
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────────┐│
+│  │ [B] [I] [U] | [Liste] [Lien] | [Pièce jointe]                       ││
+│  ├──────────────────────────────────────────────────────────────────────┤│
+│  │                                                                      ││
+│  │ Bonjour Marie,                                                       ││
+│  │                                                                      ││
+│  │ Merci pour votre message. Je confirme ma disponibilité...            ││
+│  │ █                                                                    ││
+│  │                                                                      ││
+│  └──────────────────────────────────────────────────────────────────────┘│
+│                                                                          │
+│                                    [Annuler]  [💾 Brouillon]  [Envoyer] │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### 4.12 Mobile et Responsive
+
+**Breakpoints :**
+
+| Breakpoint | Largeur | Layout |
+|------------|---------|--------|
+| Mobile | < 640px | Stack vertical, navigation en bas |
+| Tablet | 640-1024px | Sidebar rétractable |
+| Desktop | > 1024px | Layout complet avec sidebar |
+
+**Mobile — Navigation en bas :**
+```
+┌─────────────────────────────────────────┐
+│  🎭 Péripéties            [🔍] [⚙️]   │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌─────────────────────────────────────┐│
+│  │ Sujet de l'email                    ││
+│  │ De: Marie Dupont 🔗                 ││
+│  │ il y a 2h                           ││
+│  │                                     ││
+│  │ 🗄️ Archiver (87%)     [✓] [✕] [💤]││
+│  └─────────────────────────────────────┘│
+│                                         │
+│  ┌─────────────────────────────────────┐│
+│  │ Autre péripétie...                  ││
+│  └─────────────────────────────────────┘│
+│                                         │
+├─────────────────────────────────────────┤
+│  📥    ⏳    💤    ✅    ⚠️           │
+│  18     3    21   147    2             │
+└─────────────────────────────────────────┘
+```
+
+**Gestes tactiles :**
+
+| Geste | Action |
+|-------|--------|
+| Swipe gauche | Rejeter |
+| Swipe droite | Approuver |
+| Swipe partiel | Révèle boutons d'action |
+| Pull-to-refresh | Récupérer nouvelles péripéties |
+| Long press | Menu contextuel |
+
+**Adaptations mobile :**
+- Navigation par onglets en bas de l'écran
+- Détail en plein écran (push navigation)
+- Mode Focus optimisé pour une main
+- Boutons plus grands (44x44px minimum)
+- Sections collapsées par défaut dans le détail
+
 ---
 
 ## 5. Vocabulaire et Terminologie
@@ -914,7 +1272,7 @@ async function approveItem(item: PeripetieItem) {
 | `peripeties/focus/+page.svelte` | Textes "plis" → "péripéties" |
 | `CommandPalette.svelte` | Labels |
 | `briefing.spec.ts` | Tests E2E |
-| `$lib/components/flux/` | Renommer dossier → `peripeties/` |
+| `$lib/components/peripeties/` | ✅ Dossier déjà renommé |
 
 ---
 
@@ -1090,8 +1448,8 @@ def migrate_queue_item(old_item: dict) -> dict:
 
 ### Phase 1 : Vocabulaire (Immédiat)
 - [ ] Remplacer tous les "Courrier/plis/flux" par "Péripéties"
-- [ ] Corriger les liens cassés (`/flux/` → `/peripeties/`)
-- [ ] Renommer `$lib/components/flux/` → `$lib/components/peripeties/`
+- [x] Corriger les liens cassés (`/flux/` → `/peripeties/`)
+- [x] Renommer `$lib/components/flux/` → `$lib/components/peripeties/`
 
 ### Phase 2 : Modèle de Données (Backend)
 - [ ] Créer nouveaux types `PeripetieState`, `PeripetieResolution`, etc.
