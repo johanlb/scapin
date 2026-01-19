@@ -27,7 +27,7 @@
 		planchet: '📋',
 		figaro: '⚡',
 		sganarelle: '🎓',
-		jeeves: '🎭'
+		frontin: '🎭'
 	};
 
 	onMount(async () => {

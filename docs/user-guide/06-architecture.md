@@ -67,7 +67,7 @@ Scapin est composé d'une équipe de "valets" spécialisés, inspirés des servi
                               │
                               ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  JEEVES — Interface                                           │
+│  FRONTIN — Interface                                          │
 │  • API REST (FastAPI)                                         │
 │  • Interface CLI                                              │
 │  • WebSockets temps réel                                      │

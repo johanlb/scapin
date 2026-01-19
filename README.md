@@ -148,7 +148,7 @@ Scapin orchestre une équipe de modules spécialisés, chacun inspiré d'un vale
 | **Planchet** | Dumas, *Les Trois Mousquetaires* | `src/planchet/` | 📅 **Planification** — Conception des plans d'action |
 | **Figaro** | Beaumarchais, *Le Barbier de Séville* | `src/figaro/` | 🎼 **Orchestration** — Exécution coordonnée des actions |
 | **Sganarelle** | Molière | `src/sganarelle/` | 📚 **Apprentissage** — Amélioration par l'expérience |
-| **Jeeves** | Wodehouse | `src/jeeves/` | 🎩 **Service** — Interface API élégante |
+| **Frontin** | Molière | `src/frontin/` | 🎭 **Service** — Interface API élégante |
 
 ### Workflow Collaboratif
 
@@ -164,7 +164,7 @@ Scapin orchestre une équipe de modules spécialisés, chacun inspiré d'un vale
         ↓
 5. SGANARELLE apprend du résultat → enrichit PASSEPARTOUT
         ↑
-6. JEEVES fournit l'API pour web/mobile
+6. FRONTIN fournit l'API pour web/mobile
 ```
 
 **Structure du Projet** :
@@ -177,7 +177,7 @@ scapin/
 │   ├── planchet/        # Moteur de planification
 │   ├── figaro/          # Orchestration des actions (DAG)
 │   ├── sganarelle/      # Apprentissage & feedback
-│   ├── jeeves/          # Couche API (FastAPI + WebSockets)
+│   ├── frontin/         # Couche API (FastAPI + WebSockets)
 │   └── core/            # Infrastructure partagée
 ├── tests/               # 967 tests, 95% couverture
 └── docs/                # Documentation complète
@@ -339,12 +339,11 @@ cd web && npx playwright test
 
 Les valets de la comédie classique qui ont inspiré l'architecture :
 
-- **Molière** — Scapin, Sganarelle
+- **Molière** — Scapin, Sganarelle, Frontin
 - **Marivaux** — Trivelin
 - **Cervantes** — Sancho Panza
 - **Dumas** — Planchet
 - **Beaumarchais** — Figaro
-- **Wodehouse** — Jeeves
 - **Verne** — Passepartout
 
 ### Fondements Théoriques

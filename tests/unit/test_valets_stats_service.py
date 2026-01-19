@@ -110,12 +110,12 @@ class TestValetsStatsService:
         # Will be 0 because there's no learning engine singleton yet
         assert "tasks_today" in stats
 
-    def test_get_jeeves_stats_running(self) -> None:
-        """Test getting Jeeves stats (always running even without rate limiter)."""
+    def test_get_frontin_stats_running(self) -> None:
+        """Test getting Frontin stats (always running even without rate limiter)."""
         service = ValetsStatsService()
 
-        # Jeeves should always be running if the API is responding
-        stats = service.get_jeeves_stats()
+        # Frontin should always be running if the API is responding
+        stats = service.get_frontin_stats()
 
         assert stats["status"] == "running"
         assert stats["current_task"] == "Serving API requests"
@@ -131,7 +131,7 @@ class TestValetsStatsService:
              patch.object(service, "get_planchet_stats", return_value={"tasks_today": 5}), \
              patch.object(service, "get_figaro_stats", return_value={"tasks_today": 15}), \
              patch.object(service, "get_sganarelle_stats", return_value={"tasks_today": 25}), \
-             patch.object(service, "get_jeeves_stats", return_value={"tasks_today": 100, "status": "running"}):
+             patch.object(service, "get_frontin_stats", return_value={"tasks_today": 100, "status": "running"}):
             all_stats = service.get_all_stats()
 
             assert len(all_stats) == 7
@@ -178,7 +178,7 @@ class TestValetsStatsService:
 
             assert metrics["total_tasks_today"] == 185  # 10+50+100+25
             assert metrics["total_errors_today"] == 5  # 2+3
-            assert metrics["active_workers"] == 1  # Only jeeves is running
+            assert metrics["active_workers"] == 1  # Only frontin is running
             assert metrics["timestamp"] is not None
 
 
@@ -222,7 +222,7 @@ class TestValetsRouterIntegration:
         mock.get_planchet_stats.return_value = base_stats.copy()
         mock.get_figaro_stats.return_value = base_stats.copy()
         mock.get_sganarelle_stats.return_value = base_stats.copy()
-        mock.get_jeeves_stats.return_value = {**base_stats, "status": "running", "current_task": "Serving API requests"}
+        mock.get_frontin_stats.return_value = {**base_stats, "status": "running", "current_task": "Serving API requests"}
 
         mock.get_aggregate_metrics.return_value = {
             "total_tasks_today": 50,

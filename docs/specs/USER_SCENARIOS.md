@@ -654,7 +654,7 @@ Frontend:
 - Mesurer temps par étape avec logging détaillé
 - Profiler avec `cProfile` ou `py-spy`
 - Implémenter `asyncio.gather()` pour parallélisation AI
-- Ajouter WebSocket events dans `src/jeeves/api/websocket/`
+- Ajouter WebSocket events dans `src/frontin/api/websocket/`
 - Frontend: écouter events dans `flux/+page.svelte`
 
 ---

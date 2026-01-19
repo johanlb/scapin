@@ -68,7 +68,7 @@ GET /api/notes/search?q={query}&limit={limit}&offset={offset}
 #### Implémentation
 
 ```python
-# src/jeeves/api/routers/notes.py
+# src/frontin/api/routers/notes.py
 
 @router.get("/search")
 async def search_notes(
@@ -91,7 +91,7 @@ async def search_notes(
 ```
 
 ```python
-# src/jeeves/api/services/notes_service.py
+# src/frontin/api/services/notes_service.py
 
 async def search(
     self,
@@ -212,7 +212,7 @@ Cache-Control: max-age=86400
 #### Implémentation
 
 ```python
-# src/jeeves/api/routers/media.py
+# src/frontin/api/routers/media.py
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse

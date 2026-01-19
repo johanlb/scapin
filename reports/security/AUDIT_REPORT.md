@@ -120,7 +120,7 @@ if pickle_path.exists():
 |----------|----------------|
 | Authentification | JWT avec expiration (7 jours) |
 | Protection routes | `get_current_user` dependency |
-| Rate limiting | `src/jeeves/api/auth/rate_limiter.py` |
+| Rate limiting | `src/frontin/api/auth/rate_limiter.py` |
 | CORS | Origines configurables |
 
 ### A02:2021 — Cryptographic Failures ✅

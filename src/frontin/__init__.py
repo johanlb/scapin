@@ -1,12 +1,12 @@
 """
-Jeeves - Interface Module
+Frontin - Interface Module
 
 The communication and presentation valet of Scapin's architecture.
 
-Named after Jeeves, P.G. Wodehouse's impeccably competent valet
+Named after Frontin, the clever valet from Molière's "Les Fourberies de Scapin"
 who handles all matters of presentation and communication.
 
-Jeeves provides:
+Frontin provides:
 - CLI interface (Typer-based commands)
 - Interactive menus (questionary)
 - Display rendering (Rich)

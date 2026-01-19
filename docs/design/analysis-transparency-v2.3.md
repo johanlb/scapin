@@ -968,7 +968,7 @@ class ActionOption:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-#### Modèles API implémentés (src/jeeves/api/models/queue.py)
+#### Modèles API implémentés (src/frontin/api/models/queue.py)
 
 ```python
 class PassHistoryEntryResponse(BaseModel):
@@ -998,7 +998,7 @@ class MultiPassMetadataResponse(BaseModel):
     pass_history: list[PassHistoryEntryResponse]
 ```
 
-#### Queue Service Implementation (src/jeeves/api/services/queue_service.py)
+#### Queue Service Implementation (src/frontin/api/services/queue_service.py)
 
 La méthode `_build_multi_pass_metadata()` construit les métadonnées à partir du `MultiPassResult`:
 
@@ -1123,7 +1123,7 @@ export interface MultiPassMetadata {
 
 - [Context Transparency v2.2.2](../archive/session-history/2026-01-07-to-2026-01-17.md)
 - [Multi-Pass Architecture](../../ARCHITECTURE.md#multi-pass-v22)
-- [WebSocket Implementation](../../src/jeeves/api/routers/websocket.py)
+- [WebSocket Implementation](../../src/frontin/api/routers/websocket.py)
 
 ### B. Mockups
 
@@ -1139,8 +1139,8 @@ export interface MultiPassMetadata {
 
 | Composant | Fichier | Status |
 |-----------|---------|--------|
-| API Models | `src/jeeves/api/models/queue.py` | ✅ |
-| Queue Service | `src/jeeves/api/services/queue_service.py` | ✅ |
+| API Models | `src/frontin/api/models/queue.py` | ✅ |
+| Queue Service | `src/frontin/api/services/queue_service.py` | ✅ |
 | TypeScript Types | `web/src/lib/api/client.ts` | ✅ |
 | Section Analyse UI | `web/src/routes/flux/[id]/+page.svelte` | ✅ |
 | Badges Complexité | `web/src/routes/flux/+page.svelte` | ✅ |
@@ -1171,9 +1171,9 @@ export interface MultiPassMetadata {
 
 | Composant | Fichier | Status |
 |-----------|---------|--------|
-| API: questions field | `src/jeeves/api/models/queue.py` | ✅ |
-| API: rejection_reason | `src/jeeves/api/models/queue.py` | ✅ |
-| Propagation questions | `src/jeeves/api/services/queue_service.py` | ✅ |
+| API: questions field | `src/frontin/api/models/queue.py` | ✅ |
+| API: rejection_reason | `src/frontin/api/models/queue.py` | ✅ |
+| Propagation questions | `src/frontin/api/services/queue_service.py` | ✅ |
 | PassTimeline Component | `web/src/lib/components/flux/PassTimeline.svelte` | ✅ |
 | ConfidenceSparkline | `web/src/lib/components/flux/ConfidenceSparkline.svelte` | ✅ |
 | Why Not Section | `web/src/routes/flux/[id]/+page.svelte` | ✅ |
@@ -1215,8 +1215,8 @@ export interface MultiPassMetadata {
 
 | Composant | Fichier | Status |
 |-----------|---------|--------|
-| API Conversion Functions | `src/jeeves/api/routers/queue.py` | ✅ |
-| Debug Logging | `src/jeeves/api/services/queue_service.py` | ✅ |
+| API Conversion Functions | `src/frontin/api/routers/queue.py` | ✅ |
+| Debug Logging | `src/frontin/api/services/queue_service.py` | ✅ |
 | Transparency Section Main Page | `web/src/routes/flux/+page.svelte` | ✅ |
 
 **Problème résolu** :

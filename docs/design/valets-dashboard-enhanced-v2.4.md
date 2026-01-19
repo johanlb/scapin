@@ -26,8 +26,8 @@ Enrichir la page Valets existante (`/valets`) avec 4 nouvelles fonctionnalités 
 |---------|------|
 | `web/src/routes/valets/+page.svelte` | Page dashboard principale |
 | `web/src/lib/stores/valets.svelte.ts` | Store Svelte 5 réactif |
-| `src/jeeves/api/routers/valets.py` | Endpoints REST API |
-| `src/jeeves/api/services/valets_stats_service.py` | Agrégation des stats |
+| `src/frontin/api/routers/valets.py` | Endpoints REST API |
+| `src/frontin/api/services/valets_stats_service.py` | Agrégation des stats |
 
 ### 2.2 API existante
 
@@ -48,7 +48,7 @@ GET  /api/valets/{valet_name}/activities → list[ValetActivity]
 | Planchet | 📋 | `src/planchet/` | Planification & risques |
 | Figaro | ⚡ | `src/figaro/` | Exécution des actions |
 | Sganarelle | 🎓 | `src/sganarelle/` | Apprentissage continu |
-| Jeeves | 🎭 | `src/jeeves/` | Interface API |
+| Frontin | 🎭 | `src/frontin/` | Interface API |
 
 ---
 
@@ -266,7 +266,7 @@ Système de monitoring avec alertes configurables pour détecter les problèmes 
 ### 6.2 Service backend
 
 ```python
-# src/jeeves/api/services/alerts_service.py
+# src/frontin/api/services/alerts_service.py
 
 class AlertSeverity(str, Enum):
     INFO = "info"
@@ -361,8 +361,8 @@ web/src/lib/components/valets/AlertsBanner.svelte
 
 ```
 # Backend
-src/jeeves/api/services/alerts_service.py          # Service alertes
-src/jeeves/api/models/valets.py                    # Modèles étendus
+src/frontin/api/services/alerts_service.py          # Service alertes
+src/frontin/api/models/valets.py                    # Modèles étendus
 
 # Frontend - Routes
 web/src/routes/valets/[name]/+page.svelte          # Page détail
@@ -381,8 +381,8 @@ web/src/lib/components/valets/AlertsBanner.svelte
 ### 7.2 Fichiers à modifier
 
 ```
-src/jeeves/api/routers/valets.py                   # Nouveaux endpoints
-src/jeeves/api/services/valets_stats_service.py    # Stats étendues
+src/frontin/api/routers/valets.py                   # Nouveaux endpoints
+src/frontin/api/services/valets_stats_service.py    # Stats étendues
 web/src/lib/stores/valets.svelte.ts                # Nouveaux états
 web/src/lib/api/client.ts                          # Types TypeScript
 web/src/routes/valets/+page.svelte                 # Intégration workflow + alertes

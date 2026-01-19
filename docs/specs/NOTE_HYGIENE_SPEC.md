@@ -193,7 +193,7 @@ Notification utilisateur + UI mise à jour
 | `HygieneIssue` | `src/core/models/v2_models.py` | Modèle pour les problèmes détectés |
 | `HygieneAnalysisResult` | `src/core/models/v2_models.py` | Résultat complet de l'analyse |
 | Actions Figaro | `src/figaro/actions/notes.py` | `fix_link`, `merge_notes`, `update_field` |
-| API Endpoint | `src/jeeves/api/routers/notes.py` | `POST /api/notes/{id}/hygiene` |
+| API Endpoint | `src/frontin/api/routers/notes.py` | `POST /api/notes/{id}/hygiene` |
 | UI Button | `web/src/routes/notes/+page.svelte` | Bouton 🧹 + affichage résultats |
 
 ### Composants Réutilisés (sans modification)
@@ -205,7 +205,7 @@ Notification utilisateur + UI mise à jour
 | `CrossSourceEngine` | `src/passepartout/cross_source/` | Recherche multi-sources |
 | `ReasoningEngine` | `src/sancho/reasoning_engine.py` | Analyse multi-pass |
 | `CognitivePipeline` | `src/trivelin/cognitive_pipeline.py` | Orchestration |
-| Queue Service | `src/jeeves/api/services/queue_service.py` | Suggestions à valider |
+| Queue Service | `src/frontin/api/services/queue_service.py` | Suggestions à valider |
 
 ---
 

@@ -716,7 +716,7 @@ Scapin dirige une équipe de valets spécialisés :
 | **Planchet** | Dumas | Planification |
 | **Figaro** | Beaumarchais | Orchestration |
 | **Sganarelle** | Molière | Apprentissage |
-| **Jeeves** | Wodehouse | Interface API |
+| **Frontin** | Molière | Interface API |
 
 ---
 

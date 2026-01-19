@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Dict, Optional
 
 # These tests are placeholders for when AutoFetchManager is implemented
-# The implementation should be in src/jeeves/api/services/autofetch_manager.py
+# The implementation should be in src/frontin/api/services/autofetch_manager.py
 
 
 class Source(Enum):

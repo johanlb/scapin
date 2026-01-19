@@ -222,7 +222,7 @@ class ValetsStatsService:
 
     def get_frontin_stats(self) -> dict[str, Any]:
         """
-        Get Jeeves (API) statistics.
+        Get Frontin (API) statistics.
 
         Returns:
             Dict with API stats
@@ -244,8 +244,8 @@ class ValetsStatsService:
                 }
             }
         except Exception as e:
-            logger.warning(f"Failed to get Jeeves stats: {e}")
-            # Jeeves is always running if we can respond
+            logger.warning(f"Failed to get Frontin stats: {e}")
+            # Frontin is always running if we can respond
             return {
                 "status": "running",
                 "current_task": "Serving API requests",
