@@ -79,10 +79,12 @@ test.describe('SC-14: Background Email Processing', () => {
     authenticatedPage: page,
   }) => {
     // Navigate to approved/processed tab
+    const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.click(SELECTORS.fluxTabApproved);
+    await apiPromise.catch(() => {}); // API may not be called if cached
 
-    // Wait for items to load
-    await page.waitForTimeout(1000);
+    // Wait for list to be stable
+    await page.waitForLoadState('networkidle');
 
     // Count items in the list (if any)
     const items = page.locator('[data-testid^="flux-item-"]');
@@ -98,8 +100,10 @@ test.describe('SC-15: Auto-Executed Items Display', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/flux');
     // Navigate to processed/approved tab
+    const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.click(SELECTORS.fluxTabApproved);
-    await page.waitForTimeout(500);
+    await apiPromise.catch(() => {}); // API may not be called if cached
+    await page.waitForLoadState('networkidle');
   });
 
   test('should display filter options for execution type', async ({
@@ -124,7 +128,7 @@ test.describe('SC-15: Auto-Executed Items Display', () => {
 
     if (await filterAuto.isVisible()) {
       await filterAuto.click();
-      await page.waitForTimeout(300);
+      await page.waitForLoadState('networkidle');
 
       // All visible items should have auto badge
       const items = page.locator('[data-testid^="flux-item-"]');
@@ -148,7 +152,7 @@ test.describe('SC-15: Auto-Executed Items Display', () => {
 
     if (await filterUser.isVisible()) {
       await filterUser.click();
-      await page.waitForTimeout(300);
+      await page.waitForLoadState('networkidle');
 
       // Items should NOT have auto badge
       const items = page.locator('[data-testid^="flux-item-"]');
@@ -259,17 +263,19 @@ test.describe('SC-17: Auto-Execute Threshold Configuration', () => {
     const thresholdSlider = page.locator('[data-testid="threshold-slider"]');
 
     if (await thresholdSlider.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // Change the slider value
+      // Change the slider value and wait for API save
+      const apiPromise = waitForApiResponse(page, '/api/settings');
       await thresholdSlider.fill('90');
+      await apiPromise.catch(() => {}); // API may debounce
 
-      // Wait for auto-save
-      await page.waitForTimeout(500);
+      // Wait for network to settle
+      await page.waitForLoadState('networkidle');
 
       // Should show save confirmation
       const savedIndicator = page.locator('[data-testid="settings-saved"]')
         .or(page.locator('text=/enregistré|saved/i'));
 
-      await expect(savedIndicator.first()).toBeVisible({ timeout: 2000 });
+      await expect(savedIndicator.first()).toBeVisible({ timeout: 3000 });
     }
   });
 

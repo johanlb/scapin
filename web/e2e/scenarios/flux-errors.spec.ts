@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/auth';
-import { SELECTORS } from '../fixtures/test-data';
+import { SELECTORS, waitForApiResponse } from '../fixtures/test-data';
 
 /**
  * SC-16: Error Handling E2E Tests
@@ -43,7 +43,7 @@ test.describe('SC-16: Error Tab and Badge', () => {
 
     // Click on error tab to check if empty
     await errorTab.click();
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
 
     // Either badge is hidden or shows 0
     const badgeText = await errorBadge.textContent().catch(() => '0');
@@ -192,10 +192,11 @@ test.describe('SC-16: Retry Action', () => {
         // Get item id before retry
         const itemId = await firstItem.getAttribute('data-testid');
 
+        // Click retry and wait for API response
+        const apiPromise = waitForApiResponse(page, '/api/queue/');
         await retryButton.click();
-
-        // Wait for response
-        await page.waitForTimeout(2000);
+        await apiPromise.catch(() => {}); // May fail if retry fails
+        await page.waitForLoadState('networkidle');
 
         // Either success toast or item removed from list
         const successToast = page.locator('text=/succès|réussi|success/i');
@@ -241,14 +242,14 @@ test.describe('SC-16: Dismiss Action', () => {
       const dismissButton = firstItem.locator(SELECTORS.dismissButton);
 
       if (await dismissButton.isVisible()) {
+        const apiPromise = waitForApiResponse(page, '/api/queue/');
         await dismissButton.click();
-
-        // Wait for removal
-        await page.waitForTimeout(500);
+        await apiPromise.catch(() => {});
+        await page.waitForLoadState('networkidle');
 
         // Item should be removed
         const itemAfterDismiss = page.locator(`[data-testid="${itemId}"]`);
-        await expect(itemAfterDismiss).not.toBeVisible({ timeout: 2000 });
+        await expect(itemAfterDismiss).not.toBeVisible({ timeout: 3000 });
       }
     }
   });
@@ -267,8 +268,10 @@ test.describe('SC-16: Dismiss Action', () => {
       const dismissButton = items.first().locator(SELECTORS.dismissButton);
 
       if (await dismissButton.isVisible()) {
+        const apiPromise = waitForApiResponse(page, '/api/queue/');
         await dismissButton.click();
-        await page.waitForTimeout(500);
+        await apiPromise.catch(() => {});
+        await page.waitForLoadState('networkidle');
 
         // Badge should decrease
         const newCount = parseInt(await errorBadge.textContent() || '0');
@@ -309,16 +312,20 @@ test.describe('SC-16: Move to Review Action', () => {
       const moveButton = firstItem.locator(SELECTORS.moveToReviewButton);
 
       if (await moveButton.isVisible()) {
+        const apiPromise = waitForApiResponse(page, '/api/queue/');
         await moveButton.click();
-        await page.waitForTimeout(500);
+        await apiPromise.catch(() => {});
+        await page.waitForLoadState('networkidle');
 
         // Item should disappear from error list
         const itemInError = page.locator(`[data-testid="${itemId}"]`);
-        await expect(itemInError).not.toBeVisible({ timeout: 2000 });
+        await expect(itemInError).not.toBeVisible({ timeout: 3000 });
 
         // Navigate to pending and check item is there
+        const pendingApiPromise = waitForApiResponse(page, '/api/queue/');
         await page.click(SELECTORS.fluxTabPending);
-        await page.waitForTimeout(500);
+        await pendingApiPromise.catch(() => {});
+        await page.waitForLoadState('networkidle');
 
         // Item should now be in pending (hard to verify exact item, just check pending has items)
         const pendingItems = page.locator('[data-testid^="flux-item-"]');
@@ -339,18 +346,22 @@ test.describe('SC-16: Move to Review Action', () => {
       const moveButton = firstItem.locator(SELECTORS.moveToReviewButton);
 
       if (await moveButton.isVisible()) {
+        const apiPromise = waitForApiResponse(page, '/api/queue/');
         await moveButton.click();
-        await page.waitForTimeout(500);
+        await apiPromise.catch(() => {});
+        await page.waitForLoadState('networkidle');
 
         // Go to pending queue
+        const pendingApiPromise = waitForApiResponse(page, '/api/queue/');
         await page.click(SELECTORS.fluxTabPending);
-        await page.waitForTimeout(500);
+        await pendingApiPromise.catch(() => {});
+        await page.waitForLoadState('networkidle');
 
         // Look for moved-from-error indicator on any item
         const movedIndicator = page.locator('[data-testid="moved-from-error"]');
         // Indicator might exist on moved items
         // This is a best-effort check
-        const indicatorVisible = await movedIndicator.first().isVisible({ timeout: 1000 }).catch(() => false);
+        const indicatorVisible = await movedIndicator.first().isVisible({ timeout: 2000 }).catch(() => false);
         // Just verify no crash - indicator is optional
         expect(true).toBe(true);
       }

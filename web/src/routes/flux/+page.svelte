@@ -1100,6 +1100,7 @@
 	<!-- Stats as compact clickable filters -->
 	<section class="flex gap-2 mb-4 text-sm">
 		<button
+			data-testid="flux-tab-pending"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
 			class:bg-[var(--color-accent)]={activeFilter === 'pending'}
 			class:text-white={activeFilter === 'pending'}
@@ -1111,6 +1112,7 @@
 			<span
 				class="font-bold text-[var(--color-warning)]"
 				class:text-white={activeFilter === 'pending'}
+				data-testid="pending-count"
 			>
 				{stats?.by_status?.pending ?? 0}
 			</span>
@@ -1118,6 +1120,7 @@
 		</button>
 
 		<button
+			data-testid="flux-tab-approved"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
 			class:bg-[var(--color-accent)]={activeFilter === 'approved'}
 			class:text-white={activeFilter === 'approved'}
@@ -1136,6 +1139,7 @@
 		</button>
 
 		<button
+			data-testid="flux-tab-rejected"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
 			class:bg-[var(--color-accent)]={activeFilter === 'rejected'}
 			class:text-white={activeFilter === 'rejected'}

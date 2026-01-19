@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/auth';
-import { SELECTORS } from '../fixtures/test-data';
+import { SELECTORS, waitForApiResponse } from '../fixtures/test-data';
 
 /**
  * SC-19: Folder Picker E2E Tests
@@ -14,8 +14,10 @@ import { SELECTORS } from '../fixtures/test-data';
 test.describe('SC-19: Folder Path Display', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/flux');
+    const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.locator(SELECTORS.fluxTabPending).click();
-    await page.waitForTimeout(500);
+    await apiPromise.catch(() => {});
+    await page.waitForLoadState('networkidle');
   });
 
   test('should display full folder path on items with archive action', async ({
@@ -67,8 +69,10 @@ test.describe('SC-19: Folder Path Display', () => {
 test.describe('SC-19: Folder Picker Autocomplete', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/flux');
+    const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.locator(SELECTORS.fluxTabPending).click();
-    await page.waitForTimeout(500);
+    await apiPromise.catch(() => {});
+    await page.waitForLoadState('networkidle');
   });
 
   test('should open autocomplete on folder path click', async ({
@@ -110,8 +114,8 @@ test.describe('SC-19: Folder Picker Autocomplete', () => {
       const searchInput = page.locator(SELECTORS.folderSearchInput);
       await searchInput.fill('arch');
 
-      // Wait for results to filter
-      await page.waitForTimeout(300);
+      // Wait for debounced results to filter
+      await page.waitForLoadState('networkidle');
 
       // Results should contain 'arch' in path
       const suggestions = page.locator(SELECTORS.folderSuggestion);
@@ -157,7 +161,7 @@ test.describe('SC-19: Folder Picker Autocomplete', () => {
       const searchInput = page.locator(SELECTORS.folderSearchInput);
       await searchInput.fill('');
 
-      await page.waitForTimeout(300);
+      await page.waitForLoadState('networkidle');
 
       const suggestions = page.locator(SELECTORS.folderSuggestion);
       const count = await suggestions.count();
@@ -170,8 +174,10 @@ test.describe('SC-19: Folder Picker Autocomplete', () => {
 test.describe('SC-19: Folder Selection', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/flux');
+    const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.locator(SELECTORS.fluxTabPending).click();
-    await page.waitForTimeout(500);
+    await apiPromise.catch(() => {});
+    await page.waitForLoadState('networkidle');
   });
 
   test('should update folder path on selection', async ({
@@ -191,8 +197,8 @@ test.describe('SC-19: Folder Selection', () => {
         // Click second suggestion (different from current)
         await suggestions.nth(1).click();
 
-        // Path should be updated
-        await page.waitForTimeout(300);
+        // Wait for path update
+        await page.waitForLoadState('networkidle');
         const newPath = await folderPath.textContent();
 
         // May or may not be different depending on suggestions
@@ -226,8 +232,10 @@ test.describe('SC-19: Folder Selection', () => {
 test.describe('SC-19: Folder Creation', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/flux');
+    const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.locator(SELECTORS.fluxTabPending).click();
-    await page.waitForTimeout(500);
+    await apiPromise.catch(() => {});
+    await page.waitForLoadState('networkidle');
   });
 
   test('should show create option when no matches', async ({
@@ -242,11 +250,11 @@ test.describe('SC-19: Folder Creation', () => {
       // Type a unique folder name that won't exist
       await searchInput.fill('NewUniqueFolder2099');
 
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('networkidle');
 
       // Create option should appear
       const createOption = page.locator(SELECTORS.folderCreateOption);
-      if (await createOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await createOption.isVisible({ timeout: 2000 }).catch(() => false)) {
         await expect(createOption).toContainText(/créer|create/i);
       }
     }
@@ -264,14 +272,14 @@ test.describe('SC-19: Folder Creation', () => {
       const newFolderName = `Test/NewFolder/${Date.now()}`;
       await searchInput.fill(newFolderName);
 
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('networkidle');
 
       const createOption = page.locator(SELECTORS.folderCreateOption);
-      if (await createOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+      if (await createOption.isVisible({ timeout: 2000 }).catch(() => false)) {
         await createOption.click();
 
         // Folder path should be updated with new folder
-        await page.waitForTimeout(500);
+        await page.waitForLoadState('networkidle');
         // This is a structural test - actual creation depends on backend
         expect(true).toBe(true);
       }
@@ -282,8 +290,10 @@ test.describe('SC-19: Folder Creation', () => {
 test.describe('SC-19: Keyboard Navigation', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/flux');
+    const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.locator(SELECTORS.fluxTabPending).click();
-    await page.waitForTimeout(500);
+    await apiPromise.catch(() => {});
+    await page.waitForLoadState('networkidle');
   });
 
   test('should close autocomplete on Escape', async ({
@@ -377,8 +387,10 @@ test.describe('SC-19: Keyboard Navigation', () => {
 test.describe('SC-19: Close on Outside Click', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/flux');
+    const apiPromise = waitForApiResponse(page, '/api/queue/');
     await page.locator(SELECTORS.fluxTabPending).click();
-    await page.waitForTimeout(500);
+    await apiPromise.catch(() => {});
+    await page.waitForLoadState('networkidle');
   });
 
   test('should close autocomplete on outside click', async ({
