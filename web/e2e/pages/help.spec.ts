@@ -30,7 +30,7 @@ test.describe('Help Page', () => {
 test.describe('Help Sections', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/help');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('should display Getting Started section', async ({
@@ -78,15 +78,16 @@ test.describe('Help Sections', () => {
   test('should display Architecture/Valets section', async ({
     authenticatedPage: page,
   }) => {
-    const section = page.locator('text=Les Valets');
-    await expect(section).toBeVisible();
+    // The section has title "Les Valets" and data-testid="help-section-architecture"
+    const section = page.locator('[data-testid="help-section-architecture"], h2:has-text("Les Valets")');
+    await expect(section.first()).toBeVisible({ timeout: 10000 });
   });
 });
 
 test.describe('Help Content', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/help');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('should display keyboard shortcuts info', async ({
@@ -122,7 +123,7 @@ test.describe('Help Content', () => {
 test.describe('FAQ Section', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/help');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
   });
 
   test('should display FAQ questions', async ({
@@ -154,7 +155,7 @@ test.describe('Help Navigation', () => {
   }) => {
     // Direct navigation to help page
     await page.goto('/help');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Should show help content
     await expect(page.locator('h1:has-text("Aide")')).toBeVisible();
@@ -166,7 +167,7 @@ test.describe('Help Accessibility', () => {
     authenticatedPage: page,
   }) => {
     await page.goto('/help');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check for main help sections (title-based, more stable than emoji)
     await expect(page.locator('text=Démarrage Rapide')).toBeVisible();

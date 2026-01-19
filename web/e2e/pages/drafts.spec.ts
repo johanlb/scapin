@@ -38,7 +38,10 @@ test.describe('Drafts Page', () => {
 test.describe('Drafts Filtering', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/drafts');
-    await page.waitForLoadState('networkidle');
+    // Wait for page header to be visible (filter buttons load with it)
+    await page.locator('h1:has-text("Brouillons")').waitFor({ state: 'visible', timeout: 15000 });
+    // Small delay for filter buttons to render
+    await page.waitForTimeout(500);
   });
 
   test('should display filter tabs', async ({
@@ -64,7 +67,6 @@ test.describe('Drafts Filtering', () => {
   }) => {
     const sentButton = page.locator('button:has-text("Envoyés")');
     await sentButton.click();
-    await page.waitForLoadState('networkidle');
 
     // Sent button should now be active (has text-white when active)
     await expect(sentButton).toHaveClass(/text-white/, { timeout: 10000 });
@@ -75,7 +77,6 @@ test.describe('Drafts Filtering', () => {
   }) => {
     const discardedButton = page.locator('button:has-text("Abandonnés")');
     await discardedButton.click();
-    await page.waitForLoadState('networkidle');
 
     await expect(discardedButton).toHaveClass(/text-white/, { timeout: 10000 });
   });
@@ -85,7 +86,6 @@ test.describe('Drafts Filtering', () => {
   }) => {
     const allButton = page.locator('button:has-text("Tous")');
     await allButton.click();
-    await page.waitForLoadState('networkidle');
 
     await expect(allButton).toHaveClass(/text-white/, { timeout: 10000 });
   });
@@ -94,7 +94,7 @@ test.describe('Drafts Filtering', () => {
 test.describe('Drafts List', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/drafts');
-    await page.waitForLoadState('networkidle');
+    await page.locator('h1:has-text("Brouillons")').waitFor({ state: 'visible', timeout: 15000 });
   });
 
   test('should display drafts or empty state', async ({
@@ -125,9 +125,9 @@ test.describe('Draft Item Display', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     // Go to "all" to see more drafts
     await page.goto('/drafts');
-    await page.waitForLoadState('networkidle');
+    await page.locator('button:has-text("Tous")').waitFor({ state: 'visible', timeout: 15000 });
     await page.locator('button:has-text("Tous")').click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000); // Wait for filter to apply
   });
 
   test('should display draft subject', async ({
@@ -175,10 +175,10 @@ test.describe('Draft Item Display', () => {
 test.describe('Draft Navigation', () => {
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/drafts');
-    await page.waitForLoadState('networkidle');
+    await page.locator('button:has-text("Tous")').waitFor({ state: 'visible', timeout: 15000 });
     // Switch to all to have better chance of finding drafts
     await page.locator('button:has-text("Tous")').click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000); // Wait for filter to apply
   });
 
   test('should navigate to draft detail on click', async ({
