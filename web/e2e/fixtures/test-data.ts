@@ -13,6 +13,9 @@ export interface TestEmail {
   preview: string;
   date: string;
   status: 'pending' | 'approved' | 'rejected';
+  // v2.4: New state/resolution model
+  state?: 'queued' | 'analyzing' | 'awaiting_review' | 'processed' | 'error';
+  resolution?: 'auto_applied' | 'manual_approved' | 'manual_modified' | 'manual_rejected' | 'manual_skipped' | null;
 }
 
 export interface TestNote {
@@ -59,10 +62,16 @@ export const SELECTORS = {
   snoozeButton: '[data-testid="snooze-button"]',
   undoToast: '[data-testid^="undo-toast-"]',
 
-  // Péripéties Tabs
-  peripetiesTabPending: '[data-testid="peripeties-tab-pending"]',
-  peripetiesTabApproved: '[data-testid="peripeties-tab-approved"]',
-  peripetiesTabRejected: '[data-testid="peripeties-tab-rejected"]',
+  // Péripéties Tabs (v2.4)
+  peripetiesTabToProcess: '[data-testid="peripeties-tab-to-process"]',
+  peripetiesTabInProgress: '[data-testid="peripeties-tab-in-progress"]',
+  peripetiesTabSnoozed: '[data-testid="peripeties-tab-snoozed"]',
+  peripetiesTabHistory: '[data-testid="peripeties-tab-history"]',
+  peripetiesTabErrors: '[data-testid="peripeties-tab-errors"]',
+  // Legacy aliases (deprecated)
+  peripetiesTabPending: '[data-testid="peripeties-tab-to-process"]',
+  peripetiesTabApproved: '[data-testid="peripeties-tab-history"]',
+  peripetiesTabRejected: '[data-testid="peripeties-tab-history"]',
 
   // Péripéties Filters (SC-15)
   peripetiesFilterAll: '[data-testid="peripeties-filter-all"]',

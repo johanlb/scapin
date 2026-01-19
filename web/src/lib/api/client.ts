@@ -138,6 +138,16 @@ interface QueueStats {
 	by_account: Record<string, number>;
 	oldest_item: string | null;
 	newest_item: string | null;
+	// v2.4: Tab-based stats
+	by_tab?: {
+		to_process: number;
+		in_progress: number;
+		snoozed: number;
+		history: number;
+		errors: number;
+	};
+	by_state?: Record<string, number>;
+	by_resolution?: Record<string, number>;
 }
 
 interface NotesReviewStats {
@@ -898,13 +908,19 @@ export async function listQueueItems(
 	page = 1,
 	pageSize = 20,
 	status = 'pending',
-	accountId?: string
+	accountId?: string,
+	tab?: string
 ): Promise<PaginatedResponse<QueueItem[]>> {
 	const params = new URLSearchParams({
 		page: String(page),
-		page_size: String(pageSize),
-		status
+		page_size: String(pageSize)
 	});
+	// v2.4: Use tab parameter if provided, otherwise fall back to status
+	if (tab) {
+		params.set('tab', tab);
+	} else {
+		params.set('status', status);
+	}
 	if (accountId) params.set('account_id', accountId);
 
 	return fetchPaginatedApi<QueueItem[]>('/queue', params);

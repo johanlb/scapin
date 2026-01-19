@@ -11,6 +11,9 @@ import {
 } from '$lib/api';
 import type { QueueItem, QueueStats } from '$lib/api';
 
+// v2.4: Tab-based filtering
+type TabFilter = 'to_process' | 'in_progress' | 'snoozed' | 'history' | 'errors';
+
 interface QueueState {
 	items: QueueItem[];
 	stats: QueueStats | null;
@@ -21,6 +24,7 @@ interface QueueState {
 	hasMore: boolean;
 	total: number;
 	statusFilter: string;
+	tabFilter: TabFilter;
 }
 
 // Create reactive state
@@ -33,7 +37,8 @@ let state = $state<QueueState>({
 	currentPage: 1,
 	hasMore: false,
 	total: 0,
-	statusFilter: 'pending'
+	statusFilter: 'pending',
+	tabFilter: 'to_process'
 });
 
 // Computed values
@@ -79,6 +84,45 @@ async function fetchQueue(status = 'pending', page = 1): Promise<void> {
 			state.error = 'Une erreur inattendue est survenue.';
 		}
 		console.error('Failed to fetch queue:', err);
+	} finally {
+		state.loading = false;
+	}
+}
+
+// v2.4: Fetch queue by tab (new method)
+async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
+	state.loading = true;
+	state.error = null;
+	state.tabFilter = tab;
+
+	try {
+		const [response, stats] = await Promise.all([
+			listQueueItems(page, 20, 'pending', undefined, tab),
+			getQueueStats()
+		]);
+
+		if (page === 1) {
+			state.items = response.data;
+		} else {
+			state.items = [...state.items, ...response.data];
+		}
+
+		state.stats = stats;
+		state.currentPage = response.page;
+		state.hasMore = response.has_more;
+		state.total = response.total;
+		state.lastFetch = new Date();
+	} catch (err) {
+		if (err instanceof ApiError) {
+			if (err.status === 0) {
+				state.error = 'Impossible de contacter le serveur.';
+			} else {
+				state.error = `Erreur ${err.status}: ${err.message}`;
+			}
+		} else {
+			state.error = 'Une erreur inattendue est survenue.';
+		}
+		console.error('Failed to fetch queue by tab:', err);
 	} finally {
 		state.loading = false;
 	}
@@ -246,6 +290,7 @@ export const queueStore = {
 		return pendingCount;
 	},
 	fetchQueue,
+	fetchQueueByTab,
 	fetchStats,
 	loadMore,
 	approve,

@@ -7,8 +7,7 @@ Monitors valet health and generates alerts based on configurable rules.
 from __future__ import annotations
 
 import logging
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from src.frontin.api.models.valets import Alert, AlertSeverity, AlertsResponse

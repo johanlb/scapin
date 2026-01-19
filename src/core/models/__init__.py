@@ -11,8 +11,8 @@ from src.core.models.peripetie import (
     PeripetieSnooze,
     PeripetieState,
     PeripetieTimestamps,
-    ResolvedBy,
     ResolutionType,
+    ResolvedBy,
     migrate_legacy_status,
     state_to_tab,
 )

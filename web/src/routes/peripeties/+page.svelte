@@ -39,6 +39,7 @@
 	} from '$lib/api';
 	import {
 		registerShortcuts,
+		registerShortcut,
 		createNavigationShortcuts,
 		createQueueActionShortcuts
 	} from '$lib/utils/keyboard-shortcuts';
@@ -178,7 +179,7 @@
 
 	// Load queue on mount
 	onMount(async () => {
-		await queueStore.fetchQueue('pending');
+		await queueStore.fetchQueueByTab('to_process');
 		await queueStore.fetchStats();
 		document.addEventListener('keydown', handleKeyboard);
 
@@ -202,7 +203,20 @@
 			'/peripeties'
 		);
 
-		unregisterShortcuts = registerShortcuts([...navigationShortcuts, ...actionShortcuts]);
+		// v2.4: Add Focus Mode shortcut
+		const focusModeShortcut = {
+			id: 'focus-mode',
+			key: 'f',
+			description: 'Mode Focus',
+			handler: () => {
+				if (activeTab === 'to_process' && queueStore.items.length > 0) {
+					enterFocusMode();
+				}
+			},
+			context: '/peripeties'
+		};
+
+		unregisterShortcuts = registerShortcuts([...navigationShortcuts, ...actionShortcuts, focusModeShortcut]);
 	});
 
 	onDestroy(() => {
@@ -214,8 +228,9 @@
 		if (snoozeErrorTimeout) clearTimeout(snoozeErrorTimeout);
 	});
 
-	type StatusFilter = 'pending' | 'approved' | 'rejected';
-	let activeFilter: StatusFilter = $state('pending');
+	// v2.4: Tab-based filtering (replaces status-based)
+	type TabFilter = 'to_process' | 'in_progress' | 'snoozed' | 'history' | 'errors';
+	let activeTab: TabFilter = $state('to_process');
 	let currentIndex: number = $state(0);
 	let customInstruction: string = $state('');
 	let isProcessing: boolean = $state(false);
@@ -224,19 +239,21 @@
 
 	// Current item in single-item view
 	const currentItem = $derived(
-		activeFilter === 'pending' && queueStore.items.length > 0
+		activeTab === 'to_process' && queueStore.items.length > 0
 			? queueStore.items[currentIndex] || null
 			: null
 	);
 
-	async function changeFilter(filter: StatusFilter) {
-		activeFilter = filter;
+	// v2.4: Tab-based navigation
+	async function changeTab(tab: TabFilter) {
+		activeTab = tab;
 		currentIndex = 0;
 		customInstruction = '';
-		await queueStore.fetchQueue(filter);
+		// Map tabs to API parameters
+		await queueStore.fetchQueueByTab(tab);
 
-		// Check which approved items can be undone
-		if (filter === 'approved') {
+		// Check which items can be undone in history tab
+		if (tab === 'history') {
 			await checkUndoableItems();
 		}
 	}
@@ -281,7 +298,7 @@
 
 			// Bug #50 fix: Refresh queue FIRST before showing success toast
 			// This ensures UI updates immediately
-			await queueStore.fetchQueue('pending');
+			await queueStore.fetchQueueByTab('to_process');
 			await queueStore.fetchStats();
 
 			// Show success toast with results
@@ -311,7 +328,7 @@
 	async function handleReanalyzeAll() {
 		if (isReanalyzing) return;
 
-		const pendingCount = queueStore.stats?.by_status?.pending ?? queueStore.items.length;
+		const pendingCount = queueStore.stats?.by_tab?.to_process ?? queueStore.items.length;
 		if (pendingCount === 0) {
 			toastStore.info('Aucun élément à réanalyser', { title: 'File vide' });
 			return;
@@ -330,7 +347,7 @@
 			toastStore.dismiss(processingToastId);
 
 			// Refresh queue
-			await queueStore.fetchQueue('pending');
+			await queueStore.fetchQueueByTab('to_process');
 			await queueStore.fetchStats();
 
 			if (result.started > 0) {
@@ -353,8 +370,8 @@
 
 	// Bug #49: Auto-fetch when queue is low
 	async function checkAutoFetch() {
-		// Only auto-fetch in pending view when enabled and not already fetching
-		if (!autoFetchEnabled || isFetchingEmails || activeFilter !== 'pending') return;
+		// Only auto-fetch in to_process view when enabled and not already fetching
+		if (!autoFetchEnabled || isFetchingEmails || activeTab !== 'to_process') return;
 
 		// Check cooldown to prevent spamming
 		const now = Date.now();
@@ -363,7 +380,7 @@
 		}
 
 		// Check if queue is below threshold
-		const pendingCount = queueStore.stats?.by_status?.pending ?? queueStore.items.length;
+		const pendingCount = queueStore.stats?.by_tab?.to_process ?? queueStore.items.length;
 		if (pendingCount < AUTO_FETCH_THRESHOLD) {
 			// Update cooldown timestamp
 			lastAutoFetchTime = now;
@@ -395,7 +412,7 @@
 			newUndoable.delete(item.id);
 			undoableItems = newUndoable;
 			// Refresh the list
-			await queueStore.fetchQueue('approved');
+			await queueStore.fetchQueueByTab('history');
 			await queueStore.fetchStats();
 		} catch (e) {
 			console.error('Undo failed:', e);
@@ -413,8 +430,8 @@
 	}
 
 	function handleKeyboard(e: KeyboardEvent) {
-		// Only handle in pending single-item view
-		if (activeFilter !== 'pending' || !currentItem || isProcessing) return;
+		// Only handle in to_process single-item view
+		if (activeTab !== 'to_process' || !currentItem || isProcessing) return;
 
 		// Don't handle if user is typing in input
 		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -547,7 +564,7 @@
 			`${actionLabel} : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
 			async () => {
 				await undoQueueItem(itemId);
-				await queueStore.fetchQueue('pending');
+				await queueStore.fetchQueueByTab('to_process');
 				await queueStore.fetchStats();
 			},
 			{ itemId, title: 'Action effectuée' }
@@ -664,7 +681,7 @@
 				});
 			} else if (result.status === 'complete' && result.new_analysis) {
 				// Refresh queue to get updated item
-				await queueStore.fetchQueue('pending');
+				await queueStore.fetchQueueByTab('to_process');
 				await queueStore.fetchStats();
 
 				toastStore.success(
@@ -706,7 +723,7 @@
 			`Supprimé : ${itemSubject.slice(0, 40)}${itemSubject.length > 40 ? '...' : ''}`,
 			async () => {
 				await undoQueueItem(itemId);
-				await queueStore.fetchQueue('pending');
+				await queueStore.fetchQueueByTab('to_process');
 				await queueStore.fetchStats();
 			},
 			{ itemId, title: 'Email déplacé vers la corbeille' }
@@ -740,7 +757,7 @@
 
 	// Navigation helpers for keyboard shortcuts
 	function navigatePrevious() {
-		if (activeFilter === 'pending' && queueStore.items.length > 0) {
+		if (activeTab === 'to_process' && queueStore.items.length > 0) {
 			if (currentIndex > 0) {
 				currentIndex--;
 			} else {
@@ -750,7 +767,7 @@
 	}
 
 	function navigateNext() {
-		if (activeFilter === 'pending' && queueStore.items.length > 0) {
+		if (activeTab === 'to_process' && queueStore.items.length > 0) {
 			if (currentIndex < queueStore.items.length - 1) {
 				currentIndex++;
 			} else {
@@ -798,7 +815,7 @@
 			snoozeSuccess = `Snoozé jusqu'à ${snoozeUntil.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
 
 			// Refresh queue and stats
-			await queueStore.fetchQueue('pending');
+			await queueStore.fetchQueueByTab('to_process');
 			await queueStore.fetchStats();
 
 			// Bug #49: Check if we need to auto-fetch
@@ -844,7 +861,7 @@
 			}
 
 			// Refresh queue and stats
-			await queueStore.fetchQueue('pending');
+			await queueStore.fetchQueueByTab('to_process');
 			await queueStore.fetchStats();
 
 			// Bug #49: Check if we need to auto-fetch
@@ -1041,14 +1058,20 @@
 				<p class="text-[var(--color-text-secondary)] mt-1" aria-live="polite" aria-atomic="true">
 					{#if queueStore.loading}
 						Chargement...
-					{:else if activeFilter === 'pending' && queueStore.total > 0}
+					{:else if activeTab === 'to_process' && queueStore.total > 0}
 						{queueStore.total} péripétie{queueStore.total > 1 ? 's' : ''} à traiter
-					{:else if activeFilter === 'pending'}
+					{:else if activeTab === 'to_process'}
 						Aucune péripétie en attente
-					{:else if activeFilter === 'approved'}
-						Péripéties traitées
+					{:else if activeTab === 'in_progress'}
+						Péripéties en cours d'analyse
+					{:else if activeTab === 'snoozed'}
+						Péripéties reportées
+					{:else if activeTab === 'history'}
+						Historique des péripéties
+					{:else if activeTab === 'errors'}
+						Péripéties en erreur
 					{:else}
-						Péripéties écartées
+						Péripéties
 					{/if}
 				</p>
 			</div>
@@ -1072,7 +1095,7 @@
 				</Button>
 
 				<!-- Re-analyze all button -->
-				{#if activeFilter === 'pending' && queueStore.items.length > 0}
+				{#if activeTab === 'to_process' && queueStore.items.length > 0}
 					<Button
 						variant="secondary"
 						size="sm"
@@ -1089,75 +1112,133 @@
 					</Button>
 				{/if}
 
-				<!-- Focus mode button -->
-				{#if activeFilter === 'pending' && queueStore.items.length > 0}
-					<Button variant="primary" size="sm" onclick={enterFocusMode}>
+				<!-- Focus mode button (F shortcut) -->
+				{#if activeTab === 'to_process' && queueStore.items.length > 0}
+					<Button variant="primary" size="sm" onclick={enterFocusMode} title="Activer le mode focus (F)">
 						<span class="mr-1.5">🎯</span>
 						Mode Focus
+						<kbd class="ml-1.5 px-1 py-0.5 text-xs bg-white/20 rounded">F</kbd>
 					</Button>
 				{/if}
 			</div>
 		</div>
 	</header>
 
-	<!-- Stats as compact clickable filters -->
-	<section class="flex gap-2 mb-4 text-sm">
+	<!-- v2.4: Tab-based navigation with 5 tabs -->
+	<div class="flex flex-wrap gap-2 mb-4 text-sm" role="tablist" aria-label="Navigation péripéties">
+		<!-- À traiter -->
 		<button
-			data-testid="peripeties-tab-pending"
+			role="tab"
+			aria-selected={activeTab === 'to_process'}
+			data-testid="peripeties-tab-to-process"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
-			class:bg-[var(--color-accent)]={activeFilter === 'pending'}
-			class:text-white={activeFilter === 'pending'}
-			class:bg-[var(--color-bg-secondary)]={activeFilter !== 'pending'}
-			class:text-[var(--color-text-secondary)]={activeFilter !== 'pending'}
-			class:hover:bg-[var(--color-bg-tertiary)]={activeFilter !== 'pending'}
-			onclick={() => changeFilter('pending')}
+			class:bg-[var(--color-accent)]={activeTab === 'to_process'}
+			class:text-white={activeTab === 'to_process'}
+			class:bg-[var(--color-bg-secondary)]={activeTab !== 'to_process'}
+			class:text-[var(--color-text-secondary)]={activeTab !== 'to_process'}
+			class:hover:bg-[var(--color-bg-tertiary)]={activeTab !== 'to_process'}
+			onclick={() => changeTab('to_process')}
 		>
 			<span
 				class="font-bold text-[var(--color-warning)]"
-				class:text-white={activeFilter === 'pending'}
-				data-testid="pending-count"
+				class:text-white={activeTab === 'to_process'}
+				data-testid="to-process-count"
 			>
-				{stats?.by_status?.pending ?? 0}
+				{stats?.by_tab?.to_process ?? 0}
 			</span>
-			<span>en attente</span>
+			<span>À traiter</span>
 		</button>
 
+		<!-- En cours -->
 		<button
-			data-testid="peripeties-tab-approved"
+			role="tab"
+			aria-selected={activeTab === 'in_progress'}
+			data-testid="peripeties-tab-in-progress"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
-			class:bg-[var(--color-accent)]={activeFilter === 'approved'}
-			class:text-white={activeFilter === 'approved'}
-			class:bg-[var(--color-bg-secondary)]={activeFilter !== 'approved'}
-			class:text-[var(--color-text-secondary)]={activeFilter !== 'approved'}
-			class:hover:bg-[var(--color-bg-tertiary)]={activeFilter !== 'approved'}
-			onclick={() => changeFilter('approved')}
+			class:bg-[var(--color-accent)]={activeTab === 'in_progress'}
+			class:text-white={activeTab === 'in_progress'}
+			class:bg-[var(--color-bg-secondary)]={activeTab !== 'in_progress'}
+			class:text-[var(--color-text-secondary)]={activeTab !== 'in_progress'}
+			class:hover:bg-[var(--color-bg-tertiary)]={activeTab !== 'in_progress'}
+			onclick={() => changeTab('in_progress')}
+		>
+			<span
+				class="font-bold text-[var(--color-accent)]"
+				class:text-white={activeTab === 'in_progress'}
+				data-testid="in-progress-count"
+			>
+				{stats?.by_tab?.in_progress ?? 0}
+			</span>
+			<span>En cours</span>
+		</button>
+
+		<!-- Reportées -->
+		<button
+			role="tab"
+			aria-selected={activeTab === 'snoozed'}
+			data-testid="peripeties-tab-snoozed"
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class:bg-[var(--color-accent)]={activeTab === 'snoozed'}
+			class:text-white={activeTab === 'snoozed'}
+			class:bg-[var(--color-bg-secondary)]={activeTab !== 'snoozed'}
+			class:text-[var(--color-text-secondary)]={activeTab !== 'snoozed'}
+			class:hover:bg-[var(--color-bg-tertiary)]={activeTab !== 'snoozed'}
+			onclick={() => changeTab('snoozed')}
+		>
+			<span
+				class="font-bold text-[var(--color-text-tertiary)]"
+				class:text-white={activeTab === 'snoozed'}
+				data-testid="snoozed-count"
+			>
+				{stats?.by_tab?.snoozed ?? 0}
+			</span>
+			<span>💤 Reportées</span>
+		</button>
+
+		<!-- Historique -->
+		<button
+			role="tab"
+			aria-selected={activeTab === 'history'}
+			data-testid="peripeties-tab-history"
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class:bg-[var(--color-accent)]={activeTab === 'history'}
+			class:text-white={activeTab === 'history'}
+			class:bg-[var(--color-bg-secondary)]={activeTab !== 'history'}
+			class:text-[var(--color-text-secondary)]={activeTab !== 'history'}
+			class:hover:bg-[var(--color-bg-tertiary)]={activeTab !== 'history'}
+			onclick={() => changeTab('history')}
 		>
 			<span
 				class="font-bold text-[var(--color-success)]"
-				class:text-white={activeFilter === 'approved'}
+				class:text-white={activeTab === 'history'}
+				data-testid="history-count"
 			>
-				{stats?.by_status?.approved ?? 0}
+				{stats?.by_tab?.history ?? 0}
 			</span>
-			<span>traités</span>
+			<span>Historique</span>
 		</button>
 
+		<!-- Erreurs -->
 		<button
-			data-testid="peripeties-tab-rejected"
+			role="tab"
+			aria-selected={activeTab === 'errors'}
+			data-testid="peripeties-tab-errors"
 			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
-			class:bg-[var(--color-accent)]={activeFilter === 'rejected'}
-			class:text-white={activeFilter === 'rejected'}
-			class:bg-[var(--color-bg-secondary)]={activeFilter !== 'rejected'}
-			class:text-[var(--color-text-secondary)]={activeFilter !== 'rejected'}
-			class:hover:bg-[var(--color-bg-tertiary)]={activeFilter !== 'rejected'}
-			onclick={() => changeFilter('rejected')}
+			class:bg-[var(--color-accent)]={activeTab === 'errors'}
+			class:text-white={activeTab === 'errors'}
+			class:bg-[var(--color-bg-secondary)]={activeTab !== 'errors'}
+			class:text-[var(--color-text-secondary)]={activeTab !== 'errors'}
+			class:hover:bg-[var(--color-bg-tertiary)]={activeTab !== 'errors'}
+			onclick={() => changeTab('errors')}
 		>
 			<span
 				class="font-bold text-[var(--color-urgency-urgent)]"
-				class:text-white={activeFilter === 'rejected'}
+				class:text-white={activeTab === 'errors'}
+				data-testid="errors-count"
 			>
-				{stats?.by_status?.rejected ?? 0}
+				{stats?.by_tab?.errors ?? 0}
 			</span>
-			<span>écartés</span>
+			<span>⚠️ Erreurs</span>
 		</button>
 
 		<!-- Badges legend (v2.3) -->
@@ -1168,7 +1249,7 @@
 			<span title="Analyse complexe : 3+ passes">🧠</span>
 			<span title="Opus utilisé">🏆</span>
 		</div>
-	</section>
+	</div>
 
 	<!-- Loading state -->
 	{#if queueStore.loading && queueStore.items.length === 0}
@@ -1190,23 +1271,38 @@
 		<Card padding="lg">
 			<div class="text-center py-8">
 				<p class="text-4xl mb-3">
-					{#if activeFilter === 'pending'}🎉
-					{:else if activeFilter === 'approved'}✅
-					{:else}🚫
+					{#if activeTab === 'to_process'}🎉
+					{:else if activeTab === 'in_progress'}⏳
+					{:else if activeTab === 'snoozed'}💤
+					{:else if activeTab === 'history'}✅
+					{:else if activeTab === 'errors'}⚠️
+					{:else}📭
 					{/if}
 				</p>
 				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
-					{#if activeFilter === 'pending'}
+					{#if activeTab === 'to_process'}
 						Aucune péripétie à traiter
-					{:else if activeFilter === 'approved'}
-						Aucune péripétie traitée
+					{:else if activeTab === 'in_progress'}
+						Aucune analyse en cours
+					{:else if activeTab === 'snoozed'}
+						Aucune péripétie reportée
+					{:else if activeTab === 'history'}
+						Aucun historique disponible
+					{:else if activeTab === 'errors'}
+						Aucune erreur
 					{:else}
-						Aucune péripétie écartée
+						Aucune péripétie
 					{/if}
 				</h3>
 				<p class="text-sm text-[var(--color-text-secondary)]">
-					{#if activeFilter === 'pending'}
+					{#if activeTab === 'to_process'}
 						Aucune péripétie ne requiert votre attention
+					{:else if activeTab === 'in_progress'}
+						Sancho n'analyse aucun élément actuellement
+					{:else if activeTab === 'snoozed'}
+						Vous n'avez reporté aucune péripétie
+					{:else if activeTab === 'errors'}
+						Bonne nouvelle, tout fonctionne correctement !
 					{:else}
 						Lancez la récupération pour alimenter la file
 					{/if}
@@ -1214,8 +1310,8 @@
 			</div>
 		</Card>
 
-		<!-- SINGLE ITEM VIEW for pending items - REDESIGNED UI -->
-	{:else if activeFilter === 'pending' && currentItem}
+		<!-- SINGLE ITEM VIEW for to_process items - REDESIGNED UI -->
+	{:else if activeTab === 'to_process' && currentItem}
 		{@const options = currentItem.analysis.options || []}
 		{@const hasOptions = options.length > 0}
 		{@const recommendedOption = options.find((o) => o.is_recommended) || options[0]}
@@ -2119,19 +2215,28 @@
 					<Card padding="lg">
 						<div class="text-center py-8">
 							<p class="text-4xl mb-3">
-								{#if activeFilter === 'approved'}✅
-								{:else}🚫
+								{#if activeTab === 'history'}✅
+								{:else if activeTab === 'errors'}⚠️
+								{:else if activeTab === 'snoozed'}💤
+								{:else if activeTab === 'in_progress'}⏳
+								{:else}📭
 								{/if}
 							</p>
 							<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
-								{#if activeFilter === 'approved'}
-									Aucun pli traité pour l'instant
+								{#if activeTab === 'history'}
+									Aucune péripétie dans l'historique
+								{:else if activeTab === 'errors'}
+									Aucune erreur enregistrée
+								{:else if activeTab === 'snoozed'}
+									Aucune péripétie reportée
+								{:else if activeTab === 'in_progress'}
+									Aucune analyse en cours
 								{:else}
-									Aucun pli écarté
+									Aucune péripétie
 								{/if}
 							</h3>
 							<p class="text-sm text-[var(--color-text-secondary)]">
-								Lancez le traitement des emails pour alimenter la file
+								Lancez la récupération des emails pour alimenter la file
 							</p>
 						</div>
 					</Card>

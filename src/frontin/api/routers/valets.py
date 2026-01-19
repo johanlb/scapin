@@ -16,7 +16,6 @@ from src.frontin.api.auth import TokenData
 from src.frontin.api.deps import get_current_user
 from src.frontin.api.models.responses import APIResponse
 from src.frontin.api.models.valets import (
-    Alert,
     AlertsResponse,
     CostMetricsResponse,
     DailyMetrics,
