@@ -452,6 +452,20 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 │  │  │                                                                    │ ││
 │  │  └────────────────────────────────────────────────────────────────────┘ ││
 │  │                                                                         ││
+│  │  ┌─ 6.4 Événements Calendrier ───────────────────────────────────────┐ ││
+│  │  │                                                                    │ ││
+│  │  │  [ ] 📅 Check-in Hotel Shibuya                   Confiance: 88%   │ ││
+│  │  │      🗓️ 12 mars 2026, 15:00                                        │ ││
+│  │  │      ⏱️ Durée: 1h                                                  │ ││
+│  │  │      📍 Lieu: 1-2-3 Shibuya, Tokyo                                 │ ││
+│  │  │      🔗 Lié à: Voyage Japon Mars 2026                              │ ││
+│  │  │                                                                    │ ││
+│  │  │  [ ] 📅 Check-out Hotel Shibuya                  Confiance: 88%   │ ││
+│  │  │      🗓️ 19 mars 2026, 11:00                                        │ ││
+│  │  │      ⏱️ Durée: 30min                                               │ ││
+│  │  │                                                                    │ ││
+│  │  └────────────────────────────────────────────────────────────────────┘ ││
+│  │                                                                         ││
 │  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                             │
 │  ┌─── 7. ENTITÉS EXTRAITES ───────────────────────────────────────────────┐│
@@ -478,6 +492,37 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 │  │                                                                         ││
 │  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                             │
+│  ┌─── 9. FEEDBACK & AMÉLIORATION IA ──────────────────────────────────────┐│
+│  │                                                                         ││
+│  │  💡 Aidez Scapin à s'améliorer                                         ││
+│  │                                                                         ││
+│  │  ┌─ Si vous modifiez ou rejetez cette décision ───────────────────────┐││
+│  │  │                                                                     │││
+│  │  │  Pourquoi ? (optionnel)                                            │││
+│  │  │  ┌───────────────────────────────────────────────────────────────┐ │││
+│  │  │  │ [Textarea: expliquez ce qui n'allait pas]                     │ │││
+│  │  │  └───────────────────────────────────────────────────────────────┘ │││
+│  │  │                                                                     │││
+│  │  │  Suggestions rapides:                                              │││
+│  │  │  [Mauvaise catégorie] [Contexte ignoré] [Action trop agressive]   │││
+│  │  │  [Confiance trop haute] [Information manquée] [Autre]             │││
+│  │  │                                                                     │││
+│  │  └────────────────────────────────────────────────────────────────────┘││
+│  │                                                                         ││
+│  │  ┌─ Suggestions de Sganarelle (apprentissage) ────────────────────────┐││
+│  │  │                                                                     │││
+│  │  │  📊 Basé sur vos 147 décisions précédentes:                        │││
+│  │  │                                                                     │││
+│  │  │  ⚠️ Confiance souvent trop haute sur les emails de Booking.com    │││
+│  │  │     → Suggestion: Réduire le seuil auto-apply pour ce domaine     │││
+│  │  │                                                                     │││
+│  │  │  ✅ 94% de vos corrections sur "archive" → "task"                  │││
+│  │  │     → Pattern détecté: emails avec deadline = créer tâche         │││
+│  │  │                                                                     │││
+│  │  └────────────────────────────────────────────────────────────────────┘││
+│  │                                                                         ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -490,9 +535,10 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 | **3. Transparence Analyse** | Badges, timeline multi-pass, sparkline confiance | `analysis.multi_pass` |
 | **4. Contexte Utilisé** | Notes, calendrier, tâches consultés + influence | `analysis.retrieved_context`, `analysis.context_influence` |
 | **5. Raisonnement** | Explication, alternatives rejetées, points d'attention | `analysis.reasoning`, `analysis.options[].why_not`, `analysis.multi_pass.high_stakes` |
-| **6. Enrichissements** | 6.1 Notes à enrichir, 6.2 Notes à créer, 6.3 Tâches OmniFocus | `analysis.proposed_notes`, `analysis.proposed_tasks` |
+| **6. Enrichissements** | 6.1 Notes enrichir, 6.2 Notes créer, 6.3 Tâches, 6.4 Événements | `analysis.proposed_notes`, `analysis.proposed_tasks`, `analysis.proposed_events` |
 | **7. Entités** | Personnes, organisations, lieux, dates, montants | `analysis.entities` |
 | **8. Contenu** | Email original (texte/HTML) | `content` |
+| **9. Feedback** | Raison modification, suggestions rapides, patterns Sganarelle | `sganarelle.suggestions`, `sganarelle.patterns` |
 
 #### Détail Section 6 — Enrichissements
 
@@ -520,10 +566,40 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 | Checkbox | `[✓]` / `[ ]` | Toggle activation |
 | Nom de tâche | Texte éditable | Modification inline |
 | 📁 Projet cible | Nom du projet OmniFocus | Sélecteur dropdown |
-| 📅 Échéance | Date | Date picker |
+| 📅 Échéance | Date (relative + précise) | Date picker |
 | 🏷️ Tags | Liste de tags | Multi-select |
 | 📝 Note | Texte optionnel | Textarea |
 | Confiance | Pourcentage | — |
+
+**6.4 Événements Calendrier**
+| Élément | Affichage | Interaction |
+|---------|-----------|-------------|
+| Checkbox | `[✓]` / `[ ]` | Toggle activation |
+| Titre événement | Texte éditable | Modification inline |
+| 🗓️ Date/Heure | Date + heure (relative + précise) | DateTime picker |
+| ⏱️ Durée | Durée en minutes/heures | Sélecteur durée |
+| 📍 Lieu | Adresse ou lieu | Texte libre |
+| 🔗 Lié à | Note ou projet associé | Sélecteur |
+| Confiance | Pourcentage | — |
+
+#### Format des Dates
+
+**Toutes les dates doivent s'afficher en double format :**
+
+| Contexte | Format |
+|----------|--------|
+| **Relatif** | "il y a 2 heures", "dans 3 jours", "demain à 15h" |
+| **Précis** | "19 jan 2026 à 14:32" (au survol ou entre parenthèses) |
+
+**Exemples d'affichage :**
+- `il y a 2 heures (19 jan 14:32)`
+- `dans 52 jours` → tooltip: "12 mars 2026 à 15:00"
+- `demain à 11:00 (20 jan 2026)`
+
+**Règles :**
+- < 24h : afficher heure relative + heure précise
+- < 7 jours : afficher jour relatif + date précise au survol
+- > 7 jours : afficher date complète + relatif au survol
 
 #### Données de Transparence (API)
 
@@ -614,28 +690,138 @@ interface ProposedTask {
   confidence: number;
   manually_approved: boolean;        // État de la checkbox
 }
+
+interface ProposedCalendarEvent {
+  title: string;                     // Titre de l'événement
+  start_datetime: string;            // Début (ISO datetime)
+  end_datetime?: string;             // Fin (ISO datetime) ou durée
+  duration_minutes?: number;         // Durée si pas de end_datetime
+  location?: string;                 // Lieu
+  linked_note_id?: string;           // Note associée
+  calendar_id?: string;              // Calendrier cible (si plusieurs)
+  reason: string;                    // Raison de la création (tooltip)
+  confidence: number;
+  manually_approved: boolean;
+}
+
+// Feedback & Apprentissage (section 9)
+interface UserFeedback {
+  feedback_type: 'approve' | 'modify' | 'reject';
+  reason?: string;                   // Explication libre de l'utilisateur
+  quick_tags: FeedbackTag[];         // Tags rapides sélectionnés
+  original_action: string;
+  final_action?: string;             // Si modifié
+}
+
+type FeedbackTag =
+  | 'wrong_category'        // Mauvaise catégorie
+  | 'context_ignored'       // Contexte ignoré
+  | 'too_aggressive'        // Action trop agressive
+  | 'overconfident'         // Confiance trop haute
+  | 'missed_info'           // Information manquée
+  | 'other';                // Autre
+
+interface SganarelleSuggestion {
+  type: 'threshold_adjustment' | 'pattern_detected' | 'calibration_issue';
+  message: string;                   // Message lisible
+  source_domain?: string;            // Domaine concerné (ex: booking.com)
+  action_pattern?: string;           // Pattern détecté (ex: "archive → task")
+  confidence: number;                // Confiance dans la suggestion
+  occurrences: number;               // Nombre d'occurrences observées
+  suggested_action?: string;         // Action suggérée
+}
 ```
+
+#### Coût de l'Analyse
+
+Afficher une estimation du coût de l'analyse dans la section Transparence :
+
+```
+Total: 3 passes | 4.1s | 1,847 tokens | ~$0.003 | Arrêt: confiance atteinte
+```
+
+| Modèle | Coût estimé / 1K tokens |
+|--------|-------------------------|
+| Haiku | $0.00025 |
+| Sonnet | $0.003 |
+| Opus | $0.015 |
+
+#### Types de Péripéties (pas uniquement email)
+
+L'interface doit s'adapter au **type de source** :
+
+| Source | Icône | Métadonnées spécifiques |
+|--------|-------|-------------------------|
+| **Email** | 📧 | De, À, Cc, Objet, Pièces jointes |
+| **Teams** | 💬 | Canal, Auteur, Thread, Réactions |
+| **Calendrier** | 📅 | Organisateur, Participants, Lieu |
+| **Fichier** | 📄 | Chemin, Type, Taille, Modifié |
+| **WhatsApp** | 📱 | Contact, Groupe, Média |
+
+L'en-tête (section 1) s'adapte dynamiquement :
+
+```
+┌─ Email ──────────────────────────────────────────────────────────────────┐
+│  📧 Sujet de l'email                                                      │
+│  De: expediteur@example.com                      Reçu: il y a 2h (14:32) │
+│  📎 2 pièces jointes                                                      │
+└───────────────────────────────────────────────────────────────────────────┘
+
+┌─ Message Teams ──────────────────────────────────────────────────────────┐
+│  💬 Canal: #projet-alpha                                                  │
+│  De: Marie Dupont                                Posté: il y a 30min     │
+│  📎 1 fichier partagé                                                     │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Pièces Jointes
+
+Les pièces jointes doivent être consultables directement :
+
+```
+┌─ Pièces jointes (2) ─────────────────────────────────────────────────────┐
+│                                                                           │
+│  📄 confirmation_hotel.pdf                    45 Ko    [👁️ Voir] [⬇️]   │
+│  🖼️ plan_acces.png                           120 Ko   [👁️ Voir] [⬇️]   │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+| Action | Comportement |
+|--------|--------------|
+| 👁️ Voir | Ouvre un aperçu inline (PDF viewer, image viewer) |
+| ⬇️ Télécharger | Télécharge le fichier original |
+| Clic sur nom | Ouvre dans l'application par défaut |
+
+**Types supportés pour aperçu inline :**
+- Images : PNG, JPG, GIF, WebP
+- Documents : PDF
+- Texte : TXT, MD, JSON, CSV
 
 #### Comportement des Sections
 
 | Section | État Replié | État Déplié |
 |---------|-------------|-------------|
-| **Transparence Analyse** | Badges uniquement | Timeline complète + sparkline |
+| **Transparence Analyse** | Badges + coût | Timeline complète + sparkline |
 | **Contexte Utilisé** | Nombre de notes/events | Liste détaillée + influence |
 | **Raisonnement** | Résumé 1 ligne | Texte complet + alternatives |
-| **Enrichissements** | Compteur (N notes, M tâches) | Checkboxes éditables |
+| **Enrichissements** | Compteur (N notes, M tâches, P events) | Checkboxes éditables |
 | **Entités** | Tags inline | Liste détaillée par type |
-| **Contenu** | Preview 3 lignes | Email complet (scroll) |
+| **Contenu** | Preview 3 lignes | Contenu complet (scroll) |
+| **Pièces jointes** | Compteur (N fichiers) | Liste avec aperçu |
+| **Feedback** | Masqué par défaut | Formulaire si modification/rejet |
 
 #### Raccourcis Clavier (Page Détail)
 
 | Raccourci | Action |
 |-----------|--------|
-| `1-8` | Aller à la section N |
+| `1-9` | Aller à la section N |
 | `E` | Toggle toutes les sections (expand/collapse) |
 | `T` | Toggle transparence (section 3) |
 | `C` | Toggle contexte (section 4) |
-| `Space` | Scroll contenu email |
+| `P` | Toggle pièces jointes |
+| `Space` | Scroll contenu |
+| `F` | Ouvrir feedback (si modification)
 
 ---
 
