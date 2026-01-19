@@ -1564,37 +1564,166 @@ def migrate_queue_item(old_item: dict) -> dict:
 
 ## 9. Plan d'Implémentation
 
-### Phase 1 : Vocabulaire (Immédiat)
-- [ ] Remplacer tous les "Courrier/plis/flux" par "Péripéties"
-- [x] Corriger les liens cassés (`/flux/` → `/peripeties/`)
-- [x] Renommer `$lib/components/flux/` → `$lib/components/peripeties/`
+> **48 tâches** réparties en **10 phases**
+> Chaque phase se termine par : Documentation, Commit, Push
+
+---
+
+### Phase 1 : Vocabulaire
+**Objectif** : Unifier la terminologie dans toute l'application.
+
+| # | Tâche | Fichiers concernés | Statut |
+|---|-------|-------------------|--------|
+| 1.1 | Remplacer "Courrier/plis/flux" → "Péripéties" dans l'UI | `+page.svelte`, `+layout.svelte`, composants | ⬜ |
+| 1.2 | Corriger les liens cassés (`/flux/` → `/peripeties/`) | Routes, navigation | ✅ |
+| 1.3 | Renommer `$lib/components/flux/` → `peripeties/` | Structure fichiers | ✅ |
+
+📝 **Documenter, commit et push Phase 1**
+
+---
 
 ### Phase 2 : Modèle de Données (Backend)
-- [ ] Créer nouveaux types `PeripetieState`, `PeripetieResolution`, etc.
-- [ ] Modifier `queue_storage.py` pour supporter nouvelle structure
-- [ ] Script de migration des données existantes
-- [ ] Adapter les endpoints API
+**Objectif** : Séparer état/résolution/snooze dans le modèle.
+
+| # | Tâche | Fichiers concernés |
+|---|-------|-------------------|
+| 2.1 | Créer types `PeripetieState`, `PeripetieResolution`, `PeripetieSnooze`, `PeripetieError` | `src/models/peripetie.py` (nouveau) |
+| 2.2 | Modifier `queue_storage.py` pour nouvelle structure | `src/passepartout/queue_storage.py` |
+| 2.3 | Script de migration des données existantes | `scripts/migrate_queue_v2.py` (nouveau) |
+| 2.4 | Adapter les endpoints API (`/peripeties`, `/peripeties/stats`) | `src/frontin/routes/queue.py` |
+
+📝 **Documenter, commit et push Phase 2**
+
+---
 
 ### Phase 3 : Stats Correctes
-- [ ] Modifier calcul stats pour séparer par `state`
-- [ ] Ajouter stats par `resolution_type`
-- [ ] Corriger le bug 39 vs 18
+**Objectif** : Corriger le bug de comptage et afficher des stats cohérentes.
+
+| # | Tâche | Description |
+|---|-------|-------------|
+| 3.1 | Calcul stats séparé par `state` | Compter par queued/analyzing/awaiting_review/processed/error |
+| 3.2 | Ajouter stats par `resolution_type` | auto_applied vs manual_approved vs manual_rejected |
+| 3.3 | Corriger le bug comptage 39 vs 18 | Stats = items affichés dans chaque onglet |
+
+📝 **Documenter, commit et push Phase 3**
+
+---
 
 ### Phase 4 : Interface Navigation
-- [ ] Implémenter les 5 onglets
-- [ ] Séparer barre d'actions queue
-- [ ] Repositionner Mode Focus comme bouton
+**Objectif** : Refondre la navigation avec 5 onglets et actions séparées.
+
+| # | Tâche | Description |
+|---|-------|-------------|
+| 4.1 | Implémenter les 5 onglets | À traiter, En cours, Reportées, Historique, Erreurs |
+| 4.2 | Séparer barre d'actions queue | Récupérer, Tout approuver, Analyser tout |
+| 4.3 | Repositionner Mode Focus comme bouton | Bouton + raccourci `F`, pas un filtre |
+| 4.4 | Ajouter recherche avec filtres | `Cmd+K` / `/`, filtres source/période/confiance |
+
+📝 **Documenter, commit et push Phase 4**
+
+---
 
 ### Phase 5 : Temps Réel
-- [ ] Ajouter canal WebSocket `QUEUE`
-- [ ] Émettre événements côté backend
-- [ ] Implémenter écoute côté frontend
-- [ ] Supprimer polling manuel
+**Objectif** : Synchronisation instantanée via WebSocket.
 
-### Phase 6 : Tests et Documentation
-- [ ] Mettre à jour tests E2E
-- [ ] Documenter nouvelle API
-- [ ] Mettre à jour CLAUDE.md et Skills
+| # | Tâche | Description |
+|---|-------|-------------|
+| 5.1 | Ajouter canal WebSocket `QUEUE` | `ChannelType.QUEUE` dans `websocket_manager.py` |
+| 5.2 | Émettre événements côté backend | `item_added`, `item_state_changed`, `item_resolved` |
+| 5.3 | Implémenter écoute frontend + supprimer polling | Store Svelte réactif, suppression `setInterval` |
+
+📝 **Documenter, commit et push Phase 5**
+
+---
+
+### Phase 6 : Vue Détail (9 sections)
+**Objectif** : Afficher toute l'information de manière transparente.
+
+| # | Section | Contenu |
+|---|---------|---------|
+| 6.1 | En-tête | Sujet, expéditeur (🔗🏢⭐➕), dates réception + analyse, pièces jointes |
+| 6.2 | Décision recommandée | Action, confiance, résumé, catégorie, boutons action |
+| 6.3 | Transparence analyse | Badges multi-pass, timeline passes, sparkline confiance, coût |
+| 6.4 | Contexte utilisé | Notes consultées (cliquables), influence, calendrier, tâches |
+| 6.5 | Raisonnement & Critiques | Explication, alternatives rejetées (why not), high stakes |
+| 6.6 | Enrichissements | Notes à enrichir/créer, tâches OmniFocus, événements calendrier |
+| 6.7 | Entités extraites | Personnes, organisations, lieux, dates, montants |
+| 6.8 | Contenu original | Email HTML/texte, pièces jointes téléchargeables |
+| 6.9 | Feedback Sganarelle | Modification raison, quick tags, patterns appris |
+
+📝 **Documenter, commit et push Phase 6**
+
+---
+
+### Phase 7 : UX & Interactions
+**Objectif** : Expérience utilisateur fluide et informative.
+
+| # | Tâche | Description |
+|---|-------|-------------|
+| 7.1 | États vides personnalisés | Message + illustration par onglet |
+| 7.2 | Skeleton loaders | Chargement élégant avec animation pulse/shimmer |
+| 7.3 | Gestion des erreurs | Affichage erreur + bouton retry |
+| 7.4 | Notifications et Undo | Toast confirmation + "Annuler" pendant 5s |
+| 7.5 | Flux de réponse | Édition brouillon, enregistrement, envoi |
+| 7.6 | Indicateurs contexte expéditeur | 🔗 fiche, 🏢 organisation, ⭐ VIP, ➕ suggérer création |
+
+📝 **Documenter, commit et push Phase 7**
+
+---
+
+### Phase 8 : Responsive & Grands Écrans
+**Objectif** : Optimiser pour toutes les tailles d'écran (mobile → 5K).
+
+| # | Tâche | Breakpoint | Layout |
+|---|-------|------------|--------|
+| 8.1 | Large Desktop | 1440-2560px | Split view (40% liste / 60% détail) |
+| 8.2 | Ultra-wide / 5K | > 2560px | 3 colonnes (20% nav / 45% détail / 35% contexte) |
+| 8.3 | Mobile | < 640px | Navigation bas, gestes swipe, pull-to-refresh |
+
+📝 **Documenter, commit et push Phase 8**
+
+---
+
+### Phase 9 : Tests
+**Objectif** : Couverture complète des nouvelles fonctionnalités.
+
+| # | Tâche | Scope |
+|---|-------|-------|
+| 9.1 | Tests E2E péripéties | Navigation, actions, Mode Focus |
+| 9.2 | Tests unitaires composants | Nouvelles sections détail, indicateurs |
+| 9.3 | Tests API backend | Endpoints, migrations, WebSocket |
+
+📝 **Documenter, commit et push Phase 9**
+
+---
+
+### Phase 10 : Documentation Utilisateur
+**Objectif** : Mettre à jour l'aide pour les utilisateurs.
+
+| # | Tâche | Fichiers |
+|---|-------|----------|
+| 10.1 | Mettre à jour `docs/user-guide/` | Guide péripéties, captures écran |
+| 10.2 | Mettre à jour CLAUDE.md si nécessaire | Référence Skills |
+
+📝 **Commit final et push**
+
+---
+
+### Résumé
+
+| Phase | Tâches | Focus |
+|-------|--------|-------|
+| 1. Vocabulaire | 3 | Terminologie |
+| 2. Backend | 4 | Modèle de données |
+| 3. Stats | 3 | Bug comptage |
+| 4. Navigation | 4 | 5 onglets, recherche |
+| 5. Temps réel | 3 | WebSocket |
+| 6. Vue Détail | 9 | 9 sections |
+| 7. UX | 6 | États, erreurs, undo |
+| 8. Responsive | 3 | Mobile → 5K |
+| 9. Tests | 3 | E2E, unit, API |
+| 10. Documentation | 2 | User guide |
+| **Total** | **40 + 8 commits** | |
 
 ---
 
