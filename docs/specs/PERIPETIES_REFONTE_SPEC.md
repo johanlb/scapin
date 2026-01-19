@@ -413,19 +413,44 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 │                                                                             │
 │  ┌─── 6. ENRICHISSEMENTS PROPOSÉS ────────────────────────────────────────┐│
 │  │                                                                         ││
-│  │  ┌─ 6.1 Notes à Créer/Enrichir ───────────────────────────────────────┐││
-│  │  │  [✓] 📝 Enrichir "Voyage Japon Mars 2026"                          │││
-│  │  │      + Ajouter: confirmation hôtel reçue, ref: ABC123              │││
-│  │  │      Confiance: 94%                                                 │││
-│  │  │                                                                     │││
-│  │  │  [ ] 📝 Créer fiche "Hotel Shibuya Tokyo"                          │││
-│  │  │      Type: lieu | Confiance: 72%                                    │││
-│  │  └────────────────────────────────────────────────────────────────────┘││
+│  │  ┌─ 6.1 Notes à Enrichir ────────────────────────────────────────────┐ ││
+│  │  │                                                                    │ ││
+│  │  │  [✓] 📝 Voyage Japon Mars 2026              ⓘ  Confiance: 94%     │ ││
+│  │  │      ┌─ Contenu à ajouter ───────────────────────────────────────┐│ ││
+│  │  │      │ • Confirmation hôtel reçue le 19/01/2026                  ││ ││
+│  │  │      │ • Référence réservation: ABC123                           ││ ││
+│  │  │      │ • Hôtel: Shibuya Tokyo, 12-19 mars                        ││ ││
+│  │  │      └───────────────────────────────────────────────────────────┘│ ││
+│  │  │      ⓘ = tooltip: "Email de confirmation correspondant au        │ ││
+│  │  │           voyage planifié, enrichit la note existante"            │ ││
+│  │  │                                                                    │ ││
+│  │  └────────────────────────────────────────────────────────────────────┘ ││
 │  │                                                                         ││
-│  │  ┌─ 6.2 Tâches à Créer ───────────────────────────────────────────────┐││
-│  │  │  [ ] ☑️ "Imprimer confirmation hôtel"                              │││
-│  │  │      Due: 10 mars 2026 | Confiance: 65%                            │││
-│  │  └────────────────────────────────────────────────────────────────────┘││
+│  │  ┌─ 6.2 Notes à Créer ───────────────────────────────────────────────┐ ││
+│  │  │                                                                    │ ││
+│  │  │  [ ] 📝 Nouvelle fiche: "Hotel Shibuya Tokyo"    Confiance: 72%   │ ││
+│  │  │      Type: 🏨 Lieu                                                 │ ││
+│  │  │      ┌─ Contenu proposé ─────────────────────────────────────────┐│ ││
+│  │  │      │ Adresse: 1-2-3 Shibuya, Tokyo                             ││ ││
+│  │  │      │ Contact: +81-3-1234-5678                                  ││ ││
+│  │  │      │ Lié à: [[Voyage Japon Mars 2026]]                         ││ ││
+│  │  │      └───────────────────────────────────────────────────────────┘│ ││
+│  │  │                                                                    │ ││
+│  │  └────────────────────────────────────────────────────────────────────┘ ││
+│  │                                                                         ││
+│  │  ┌─ 6.3 Tâches OmniFocus ────────────────────────────────────────────┐ ││
+│  │  │                                                                    │ ││
+│  │  │  [ ] ☑️ Imprimer confirmation hôtel           Confiance: 65%      │ ││
+│  │  │      📁 Projet: Voyage Japon 2026                                  │ ││
+│  │  │      📅 Échéance: 10 mars 2026                                     │ ││
+│  │  │      🏷️ Tags: @errands, @print                                    │ ││
+│  │  │                                                                    │ ││
+│  │  │  [ ] ☑️ Vérifier confirmation vol             Confiance: 58%      │ ││
+│  │  │      📁 Projet: Voyage Japon 2026                                  │ ││
+│  │  │      📅 Échéance: 1 mars 2026                                      │ ││
+│  │  │      📝 Note: "Vol pas encore confirmé, à surveiller"             │ ││
+│  │  │                                                                    │ ││
+│  │  └────────────────────────────────────────────────────────────────────┘ ││
 │  │                                                                         ││
 │  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                             │
@@ -465,9 +490,40 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 | **3. Transparence Analyse** | Badges, timeline multi-pass, sparkline confiance | `analysis.multi_pass` |
 | **4. Contexte Utilisé** | Notes, calendrier, tâches consultés + influence | `analysis.retrieved_context`, `analysis.context_influence` |
 | **5. Raisonnement** | Explication, alternatives rejetées, points d'attention | `analysis.reasoning`, `analysis.options[].why_not`, `analysis.multi_pass.high_stakes` |
-| **6. Enrichissements** | Notes et tâches proposées (avec checkboxes) | `analysis.proposed_notes`, `analysis.proposed_tasks` |
+| **6. Enrichissements** | 6.1 Notes à enrichir, 6.2 Notes à créer, 6.3 Tâches OmniFocus | `analysis.proposed_notes`, `analysis.proposed_tasks` |
 | **7. Entités** | Personnes, organisations, lieux, dates, montants | `analysis.entities` |
 | **8. Contenu** | Email original (texte/HTML) | `content` |
+
+#### Détail Section 6 — Enrichissements
+
+**6.1 Notes à Enrichir**
+| Élément | Affichage | Interaction |
+|---------|-----------|-------------|
+| Checkbox | `[✓]` / `[ ]` | Toggle activation |
+| Note cible | Titre cliquable (lien vers note) | Ouvre la note |
+| Contenu à ajouter | Bloc expandable avec bullet points | Prévisualisation |
+| Confiance | Pourcentage | — |
+| Raison | ⓘ Tooltip au survol | Explique pourquoi cet enrichissement |
+
+**6.2 Notes à Créer**
+| Élément | Affichage | Interaction |
+|---------|-----------|-------------|
+| Checkbox | `[✓]` / `[ ]` | Toggle activation |
+| Titre proposé | Texte éditable | Modification inline |
+| Type de fiche | Badge (Personne, Lieu, Projet, etc.) | — |
+| Contenu proposé | Bloc expandable | Prévisualisation |
+| Liens | `[[Note liée]]` | Navigation |
+
+**6.3 Tâches OmniFocus**
+| Élément | Affichage | Interaction |
+|---------|-----------|-------------|
+| Checkbox | `[✓]` / `[ ]` | Toggle activation |
+| Nom de tâche | Texte éditable | Modification inline |
+| 📁 Projet cible | Nom du projet OmniFocus | Sélecteur dropdown |
+| 📅 Échéance | Date | Date picker |
+| 🏷️ Tags | Liste de tags | Multi-select |
+| 📝 Note | Texte optionnel | Textarea |
+| Confiance | Pourcentage | — |
 
 #### Données de Transparence (API)
 
@@ -522,6 +578,41 @@ interface PassHistoryEntry {
   notes_found: number;
   escalation_triggered: boolean;
   questions: string[];  // Thinking bubbles — questions pour la passe suivante
+}
+
+// Enrichissements (section 6)
+interface ProposedNoteEnrichment {
+  type: 'enrich';                    // Enrichir note existante
+  target_note_id: string;            // ID de la note cible
+  target_note_title: string;         // Titre de la note cible
+  content_to_add: string[];          // Lignes à ajouter (bullet points)
+  reason: string;                    // Raison de l'enrichissement (tooltip)
+  confidence: number;
+  manually_approved: boolean;        // État de la checkbox
+}
+
+interface ProposedNoteCreation {
+  type: 'create';                    // Créer nouvelle note
+  proposed_title: string;            // Titre proposé
+  note_type: 'person' | 'place' | 'project' | 'organization' | 'concept' | 'other';
+  proposed_content: string;          // Contenu Markdown proposé
+  linked_notes: string[];            // IDs des notes liées
+  reason: string;
+  confidence: number;
+  manually_approved: boolean;
+}
+
+type ProposedNote = ProposedNoteEnrichment | ProposedNoteCreation;
+
+interface ProposedTask {
+  name: string;                      // Nom de la tâche
+  omnifocus_project: string;         // Projet OmniFocus cible
+  due_date?: string;                 // Échéance (ISO date)
+  tags?: string[];                   // Tags OmniFocus
+  note?: string;                     // Note/description
+  reason: string;                    // Raison de la création (tooltip)
+  confidence: number;
+  manually_approved: boolean;        // État de la checkbox
 }
 ```
 
