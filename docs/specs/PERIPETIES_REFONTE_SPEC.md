@@ -300,7 +300,7 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 │  │  📧 Sujet de l'email                                                    ││
 │  │  De: Marie Dupont 🔗                            Reçu: il y a 2h (14:32) ││
 │  │      └─ 🔗 = fiche contact connue (clic → ouvre la note)               ││
-│  │  📎 2 pièces jointes                                                    ││
+│  │  📎 2 pièces jointes                           Analysé: il y a 45min   ││
 │  └─────────────────────────────────────────────────────────────────────────┘│
 │                                                                             │
 │  ┌─── 2. DÉCISION RECOMMANDÉE ────────────────────────────────────────────┐│
@@ -531,7 +531,7 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 
 | Section | Contenu | Source Données |
 |---------|---------|----------------|
-| **1. En-tête** | Sujet, expéditeur, date, pièces jointes | `metadata` |
+| **1. En-tête** | Sujet, expéditeur, dates (réception + analyse), pièces jointes | `metadata`, `analysis_completed_at` |
 | **2. Décision** | Action recommandée, confiance, résumé, catégorie | `analysis.action`, `analysis.confidence`, `analysis.summary` |
 | **3. Transparence Analyse** | Badges, timeline multi-pass, sparkline confiance | `analysis.multi_pass` |
 | **4. Contexte Utilisé** | Notes, calendrier, tâches consultés + influence | `analysis.retrieved_context`, `analysis.context_influence` |
@@ -540,6 +540,43 @@ La page de détail d'une péripétie (`/peripeties/{id}`) doit exposer **toute l
 | **7. Entités** | Personnes, organisations, lieux, dates, montants | `analysis.entities` |
 | **8. Contenu** | Email original (texte/HTML) | `content` |
 | **9. Feedback** | Raison modification, suggestions rapides, patterns Sganarelle | `sganarelle.suggestions`, `sganarelle.patterns` |
+
+#### Affichage des Dates
+
+Deux timestamps à afficher systématiquement :
+
+| Date | Label | Source | Format |
+|------|-------|--------|--------|
+| **Date de réception** | "Reçu" | `metadata.date` | Relative + précise |
+| **Date d'analyse** | "Analysé" | `analysis_completed_at` | Relative uniquement |
+
+**Format relatif :**
+| Délai | Format |
+|-------|--------|
+| < 1 min | "à l'instant" |
+| < 60 min | "il y a Xmin" |
+| < 24h | "il y a Xh" |
+| < 7 jours | "il y a Xj" |
+| > 7 jours | "le 15 jan." |
+
+**Format précis** (entre parenthèses pour la date de réception) :
+- Même jour : "(14:32)"
+- Cette semaine : "(lun 14:32)"
+- Plus ancien : "(15 jan. 14:32)"
+
+**Exemples :**
+```
+Reçu: il y a 2h (14:32)       Analysé: il y a 45min
+Reçu: il y a 3j (lun 09:15)   Analysé: il y a 2h
+Reçu: le 10 jan. (10:00)      Analysé: il y a 5j
+```
+
+**Liste vs Détail :**
+| Vue | Date réception | Date analyse |
+|-----|----------------|--------------|
+| Liste (compact) | Relative seule | Non affiché |
+| Liste (desktop) | Relative seule | Relative seule |
+| Détail | Relative + précise | Relative |
 
 #### Détail Section 6 — Enrichissements
 
@@ -765,14 +802,14 @@ L'en-tête (section 1) s'adapte dynamiquement :
 ┌─ Email ──────────────────────────────────────────────────────────────────┐
 │  📧 Sujet de l'email                                                      │
 │  De: Jean Martin                                 Reçu: il y a 2h (14:32) │
-│      (expéditeur inconnu — pas de fiche)                                  │
+│      (expéditeur inconnu — pas de fiche)        Analysé: il y a 1h       │
 │  📎 2 pièces jointes                                                      │
 └───────────────────────────────────────────────────────────────────────────┘
 
 ┌─ Message Teams ──────────────────────────────────────────────────────────┐
 │  💬 Canal: #projet-alpha                                                  │
 │  De: Marie Dupont 🔗                             Posté: il y a 30min     │
-│      └─ fiche connue (clic pour voir)                                     │
+│      └─ fiche connue (clic pour voir)           Analysé: il y a 25min    │
 │  📎 1 fichier partagé                                                     │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1220,7 +1257,7 @@ Quand l'action recommandée est "Répondre", afficher le brouillon de réponse :
 │  ┌─────────────────────────────────────┐│
 │  │ Sujet de l'email                    ││
 │  │ De: Marie Dupont 🔗                 ││
-│  │ il y a 2h                           ││
+│  │ Reçu il y a 2h • Analysé il y a 45m││
 │  │                                     ││
 │  │ 🗄️ Archiver (87%)     [✓] [✕] [💤]││
 │  └─────────────────────────────────────┘│
