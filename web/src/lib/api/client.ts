@@ -2514,6 +2514,110 @@ interface ValetsMetricsResponse {
 	timestamp: string;
 }
 
+// Enhanced Valets Types (v2.4)
+
+type AlertSeverity = 'info' | 'warning' | 'critical';
+
+interface DailyMetrics {
+	date: string;
+	tasks_completed: number;
+	tasks_failed: number;
+	avg_duration_ms: number;
+	tokens_used: number;
+	cost_usd: number;
+}
+
+interface ModelUsageStats {
+	haiku_requests: number;
+	haiku_tokens: number;
+	haiku_cost_usd: number;
+	sonnet_requests: number;
+	sonnet_tokens: number;
+	sonnet_cost_usd: number;
+	opus_requests: number;
+	opus_tokens: number;
+	opus_cost_usd: number;
+	total_requests: number;
+	total_tokens: number;
+	total_cost_usd: number;
+}
+
+interface ValetDetailsResponse {
+	name: string;
+	display_name: string;
+	description: string;
+	status: ValetStatus;
+	current_task: string | null;
+	last_activity: string | null;
+	tasks_completed_today: number;
+	error_count_today: number;
+	avg_duration_ms_today: number;
+	tokens_used_today: number;
+	activities: ValetActivity[];
+	performance_7d: DailyMetrics[];
+	model_usage: ModelUsageStats | null;
+	details: Record<string, unknown>;
+}
+
+interface PipelineStage {
+	valet: ValetType;
+	display_name: string;
+	icon: string;
+	status: ValetStatus;
+	items_processing: number;
+	items_queued: number;
+	avg_processing_time_ms: number;
+	is_bottleneck: boolean;
+}
+
+interface PipelineStatusResponse {
+	stages: PipelineStage[];
+	total_in_pipeline: number;
+	estimated_completion_minutes: number;
+	bottleneck_valet: ValetType | null;
+	timestamp: string;
+}
+
+interface ModelCosts {
+	haiku_tokens: number;
+	haiku_cost_usd: number;
+	sonnet_tokens: number;
+	sonnet_cost_usd: number;
+	opus_tokens: number;
+	opus_cost_usd: number;
+	total_tokens: number;
+	total_cost_usd: number;
+}
+
+interface CostMetricsResponse {
+	period: string;
+	costs_by_valet: Record<ValetType, ModelCosts>;
+	total_cost_usd: number;
+	projected_monthly_usd: number;
+	cost_per_email_avg_usd: number;
+	confidence_per_dollar: number;
+	daily_costs: DailyMetrics[];
+	timestamp: string;
+}
+
+interface Alert {
+	id: string;
+	severity: AlertSeverity;
+	valet: ValetType | null;
+	message: string;
+	details: string | null;
+	triggered_at: string;
+	acknowledged: boolean;
+}
+
+interface AlertsResponse {
+	alerts: Alert[];
+	total_critical: number;
+	total_warning: number;
+	total_info: number;
+	timestamp: string;
+}
+
 // ============================================================================
 // VALETS API FUNCTIONS
 // ============================================================================
@@ -2546,6 +2650,35 @@ export async function getValetStatus(valetName: ValetType): Promise<ValetInfo> {
 export async function getValetActivities(valetName: ValetType, limit = 50): Promise<ValetActivity[]> {
 	const params = new URLSearchParams({ limit: String(limit) });
 	return fetchApi<ValetActivity[]>(`/valets/${valetName}/activities?${params.toString()}`);
+}
+
+/**
+ * Get detailed information about a specific valet
+ */
+export async function getValetDetails(valetName: ValetType): Promise<ValetDetailsResponse> {
+	return fetchApi<ValetDetailsResponse>(`/valets/${valetName}/details`);
+}
+
+/**
+ * Get pipeline status for workflow visualization
+ */
+export async function getPipelineStatus(): Promise<PipelineStatusResponse> {
+	return fetchApi<PipelineStatusResponse>('/valets/pipeline');
+}
+
+/**
+ * Get cost metrics by model and valet
+ */
+export async function getCostMetrics(period = 'today'): Promise<CostMetricsResponse> {
+	const params = new URLSearchParams({ period });
+	return fetchApi<CostMetricsResponse>(`/valets/costs?${params.toString()}`);
+}
+
+/**
+ * Get health alerts for all valets
+ */
+export async function getValetAlerts(): Promise<AlertsResponse> {
+	return fetchApi<AlertsResponse>('/valets/alerts');
 }
 
 // Export types for use in components
@@ -2683,7 +2816,18 @@ export type {
 	ValetInfo,
 	ValetsDashboardResponse,
 	ValetMetrics,
-	ValetsMetricsResponse
+	ValetsMetricsResponse,
+	// Enhanced Valets types (v2.4)
+	AlertSeverity,
+	DailyMetrics,
+	ModelUsageStats,
+	ValetDetailsResponse,
+	PipelineStage,
+	PipelineStatusResponse,
+	ModelCosts,
+	CostMetricsResponse,
+	Alert,
+	AlertsResponse
 };
 
 export { ApiError };
