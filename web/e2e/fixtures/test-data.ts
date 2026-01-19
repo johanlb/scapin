@@ -63,20 +63,11 @@ export const SELECTORS = {
   fluxTabPending: '[data-testid="flux-tab-pending"]',
   fluxTabApproved: '[data-testid="flux-tab-approved"]',
   fluxTabRejected: '[data-testid="flux-tab-rejected"]',
-  fluxTabError: '[data-testid="flux-tab-error"]',
 
   // Flux Filters (SC-15)
   fluxFilterAll: '[data-testid="flux-filter-all"]',
   fluxFilterAuto: '[data-testid="flux-filter-auto"]',
   fluxFilterUser: '[data-testid="flux-filter-user"]',
-
-  // Flux Error Actions (SC-16)
-  retryButton: '[data-testid="retry-button"]',
-  dismissButton: '[data-testid="dismiss-button"]',
-  moveToReviewButton: '[data-testid="move-to-review-button"]',
-  errorBadge: '[data-testid="error-badge"]',
-  errorMessage: '[data-testid="error-message"]',
-  attemptCount: '[data-testid="attempt-count"]',
 
   // Flux Re-analyze (SC-18)
   reanalyzeButton: '[data-testid="reanalyze-button"]',
@@ -117,13 +108,6 @@ export const SELECTORS = {
   badgeComplex: '[data-testid="badge-complex"]',
   badgeOpus: '[data-testid="badge-opus"]',
 
-  // Folder Picker (SC-19)
-  folderPath: '[data-testid="folder-path"]',
-  folderAutocomplete: '[data-testid="folder-autocomplete"]',
-  folderSearchInput: '[data-testid="folder-search-input"]',
-  folderSuggestion: '[data-testid="folder-suggestion"]',
-  folderCreateOption: '[data-testid="folder-create-option"]',
-
   // Auto-execution indicators (SC-14, SC-15)
   autoExecutedBadge: '[data-testid="auto-executed-badge"]',
   confidenceScore: '[data-testid="confidence-score"]',
@@ -148,6 +132,36 @@ export const SELECTORS = {
   // Settings
   settingsTabs: '[data-testid="settings-tabs"]',
   settingsContent: '[data-testid="settings-content"]',
+
+  // Drafts
+  draftsList: '[data-testid="drafts-list"]',
+  draftItem: (id: string) => `[data-testid="draft-item-${id}"]`,
+  draftFilterPending: '[data-testid="draft-filter-pending"]',
+  draftFilterSent: '[data-testid="draft-filter-sent"]',
+  draftFilterDiscarded: '[data-testid="draft-filter-discarded"]',
+  draftFilterAll: '[data-testid="draft-filter-all"]',
+
+  // Valets (System Status)
+  valetsContent: '[data-testid="valets-content"]',
+  valetStatus: '[data-testid="valet-status"]',
+  activeWorkers: '[data-testid="active-workers"]',
+  avgConfidence: '[data-testid="avg-confidence"]',
+
+  // Help
+  helpContent: '[data-testid="help-content"]',
+  helpSection: (section: string) => `[data-testid="help-section-${section}"]`,
+
+  // Notes Review (SM-2)
+  notesReviewContent: '[data-testid="notes-review-content"]',
+  reviewCard: '[data-testid="review-card"]',
+  reviewAnswer: '[data-testid="review-answer"]',
+  reviewRating: (rating: number) => `[data-testid="review-rating-${rating}"]`,
+
+  // Journal
+  journalContent: '[data-testid="journal-content"]',
+  journalDatePicker: '[data-testid="journal-date-picker"]',
+  journalTabs: '[data-testid="journal-tabs"]',
+  journalTab: (tab: string) => `[data-testid="journal-tab-${tab}"]`,
 };
 
 /**
