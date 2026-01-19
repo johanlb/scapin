@@ -9,7 +9,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.models.notes import (
+from src.frontin.api.models.notes import (
     NoteMetadataResponse,
     NotesDueResponse,
     PostponeReviewResponse,
@@ -19,8 +19,8 @@ from src.jeeves.api.models.notes import (
     ReviewWorkloadResponse,
     TriggerReviewResponse,
 )
-from src.jeeves.api.routers.notes import router
-from src.jeeves.api.services.notes_review_service import NotesReviewService
+from src.frontin.api.routers.notes import router
+from src.frontin.api.services.notes_review_service import NotesReviewService
 from src.passepartout.note_metadata import NoteMetadata, NoteMetadataStore
 from src.passepartout.note_scheduler import NoteScheduler
 from src.passepartout.note_types import NoteType
@@ -303,8 +303,8 @@ class TestNotesReviewEndpoints:
     @pytest.fixture
     def mock_client(self, app, mock_service):
         """Create client with mocked dependency"""
-        from src.jeeves.api.auth import TokenData
-        from src.jeeves.api.deps import get_current_user, get_notes_review_service
+        from src.frontin.api.auth import TokenData
+        from src.frontin.api.deps import get_current_user, get_notes_review_service
 
         app.dependency_overrides[get_notes_review_service] = lambda: mock_service
         # Mock authentication - return a valid user with all required fields

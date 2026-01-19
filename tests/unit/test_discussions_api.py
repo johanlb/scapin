@@ -13,9 +13,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.integrations.storage.discussion_storage import DiscussionStorage
-from src.jeeves.api.app import create_app
-from src.jeeves.api.deps import get_cached_config, get_discussion_service
-from src.jeeves.api.models.discussions import (
+from src.frontin.api.app import create_app
+from src.frontin.api.deps import get_cached_config, get_discussion_service
+from src.frontin.api.models.discussions import (
     DiscussionCreateRequest,
     DiscussionDetailResponse,
     DiscussionListResponse,
@@ -29,7 +29,7 @@ from src.jeeves.api.models.discussions import (
     SuggestionResponse,
     SuggestionType,
 )
-from src.jeeves.api.services.discussion_service import DiscussionService
+from src.frontin.api.services.discussion_service import DiscussionService
 
 
 @pytest.fixture
@@ -422,9 +422,9 @@ class TestDiscussionEndpoints:
         mock_config.ai.model = "claude-3-5-haiku-20241022"
 
         with (
-            patch("src.jeeves.api.deps.get_cached_config", return_value=mock_config),
+            patch("src.frontin.api.deps.get_cached_config", return_value=mock_config),
             patch("src.core.config_manager.get_config", return_value=mock_config),
-            patch("src.jeeves.api.auth.jwt_handler.get_config", return_value=mock_config),
+            patch("src.frontin.api.auth.jwt_handler.get_config", return_value=mock_config),
         ):
             app = create_app()
             yield TestClient(app)

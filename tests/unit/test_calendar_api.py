@@ -10,14 +10,14 @@ from unittest.mock import AsyncMock, patch  # noqa: F401 - patch used in service
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
-from src.jeeves.api.models.calendar import (
+from src.frontin.api.app import create_app
+from src.frontin.api.models.calendar import (
     CreateEventRequest,
     EventCreatedResponse,
     EventDeletedResponse,
     UpdateEventRequest,
 )
-from src.jeeves.api.routers.calendar import _get_calendar_service
+from src.frontin.api.routers.calendar import _get_calendar_service
 
 
 @pytest.fixture
@@ -111,9 +111,9 @@ class TestCalendarServiceMethods:
     @pytest.mark.asyncio
     async def test_create_event_disabled(self):
         """create_event returns None when calendar disabled"""
-        from src.jeeves.api.services.calendar_service import CalendarService
+        from src.frontin.api.services.calendar_service import CalendarService
 
-        with patch("src.jeeves.api.services.calendar_service.get_config") as mock_config:
+        with patch("src.frontin.api.services.calendar_service.get_config") as mock_config:
             mock_config.return_value.calendar.enabled = False
             service = CalendarService()
 
@@ -129,9 +129,9 @@ class TestCalendarServiceMethods:
     @pytest.mark.asyncio
     async def test_update_event_disabled(self):
         """update_event returns None when calendar disabled"""
-        from src.jeeves.api.services.calendar_service import CalendarService
+        from src.frontin.api.services.calendar_service import CalendarService
 
-        with patch("src.jeeves.api.services.calendar_service.get_config") as mock_config:
+        with patch("src.frontin.api.services.calendar_service.get_config") as mock_config:
             mock_config.return_value.calendar.enabled = False
             service = CalendarService()
 
@@ -145,9 +145,9 @@ class TestCalendarServiceMethods:
     @pytest.mark.asyncio
     async def test_delete_event_disabled(self):
         """delete_event returns False when calendar disabled"""
-        from src.jeeves.api.services.calendar_service import CalendarService
+        from src.frontin.api.services.calendar_service import CalendarService
 
-        with patch("src.jeeves.api.services.calendar_service.get_config") as mock_config:
+        with patch("src.frontin.api.services.calendar_service.get_config") as mock_config:
             mock_config.return_value.calendar.enabled = False
             service = CalendarService()
 

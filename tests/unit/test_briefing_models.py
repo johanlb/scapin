@@ -9,7 +9,7 @@ from datetime import date, datetime, timezone
 import pytest
 
 from src.core.events import EventSource, EventType, PerceivedEvent, UrgencyLevel
-from src.jeeves.briefing.models import (
+from src.frontin.briefing.models import (
     AttendeeContext,
     BriefingItem,
     MorningBriefing,

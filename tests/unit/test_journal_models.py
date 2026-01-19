@@ -9,7 +9,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from src.jeeves.journal.models import (
+from src.frontin.journal.models import (
     CalendarSummary,
     Correction,
     DecisionSummary,

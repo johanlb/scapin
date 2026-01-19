@@ -22,16 +22,16 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 			handler: () => openCommandPalette()
 		},
 		{
-			id: 'process-emails',
-			label: 'Traiter les emails',
-			icon: '📬',
-			handler: () => goto('/flux')
+			id: 'process-peripeties',
+			label: 'Traiter les péripéties',
+			icon: '🎪',
+			handler: () => goto('/peripeties')
 		},
 		{
 			id: 'new-note',
-			label: 'Nouvelle note',
+			label: 'Nouvelle mémoire',
 			icon: '📝',
-			handler: () => goto('/notes?action=new')
+			handler: () => goto('/memoires?action=new')
 		},
 		{
 			id: 'start-discussion',
@@ -41,7 +41,7 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 		}
 	],
 
-	'/flux': () => [
+	'/peripeties': () => [
 		{
 			id: 'search',
 			label: 'Rechercher',
@@ -54,7 +54,7 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 			label: 'Mode Focus',
 			icon: '🎯',
 			variant: 'primary',
-			handler: () => goto('/flux/focus')
+			handler: () => goto('/peripeties/focus')
 		},
 		{
 			id: 'refresh',
@@ -64,7 +64,7 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 		}
 	],
 
-	'/notes': () => [
+	'/memoires': () => [
 		{
 			id: 'search',
 			label: 'Rechercher',
@@ -74,16 +74,16 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 		},
 		{
 			id: 'new-note',
-			label: 'Nouvelle note',
+			label: 'Nouvelle mémoire',
 			icon: '📝',
 			variant: 'primary',
-			handler: () => goto('/notes?action=new')
+			handler: () => goto('/memoires?action=new')
 		},
 		{
 			id: 'review-notes',
-			label: 'Réviser les notes',
+			label: 'Réviser les mémoires',
 			icon: '🧠',
-			handler: () => goto('/notes/review')
+			handler: () => goto('/memoires/review')
 		},
 		{
 			id: 'sync-apple-notes',
@@ -113,7 +113,7 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 		}
 	],
 
-	'/journal': () => [
+	'/confessions': () => [
 		{
 			id: 'search',
 			label: 'Rechercher',
@@ -122,13 +122,13 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 			handler: () => openCommandPalette()
 		},
 		{
-			id: 'today-journal',
-			label: "Journal d'aujourd'hui",
+			id: 'today-confession',
+			label: "Confession d'aujourd'hui",
 			icon: '📖',
 			variant: 'primary',
 			handler: () => {
 				const today = new Date().toISOString().split('T')[0];
-				goto(`/journal?date=${today}`);
+				goto(`/confessions?date=${today}`);
 			}
 		}
 	],
@@ -159,7 +159,7 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 		}
 	],
 
-	'/stats': () => [
+	'/comptes': () => [
 		{
 			id: 'search',
 			label: 'Rechercher',
@@ -168,7 +168,7 @@ const pageActionsRegistry: Record<string, ActionGenerator> = {
 			handler: () => openCommandPalette()
 		},
 		{
-			id: 'refresh-stats',
+			id: 'refresh-comptes',
 			label: 'Actualiser',
 			icon: '🔄',
 			handler: () => window.location.reload()

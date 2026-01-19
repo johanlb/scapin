@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
+from src.frontin.api.app import create_app
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def test_client(mock_queue_service):
     app = create_app()
 
     # Override the queue service dependency
-    from src.jeeves.api.deps import get_queue_service
+    from src.frontin.api.deps import get_queue_service
 
     app.dependency_overrides[get_queue_service] = lambda: mock_queue_service
     return TestClient(app)

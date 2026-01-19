@@ -22,7 +22,7 @@ FRONTEND_PORT=5173
 killed_something=false
 
 # Arrêter les processus uvicorn Scapin
-uvicorn_pids=$(pgrep -f "uvicorn.*src.jeeves" 2>/dev/null || true)
+uvicorn_pids=$(pgrep -f "uvicorn.*src.frontin" 2>/dev/null || true)
 if [ -n "$uvicorn_pids" ]; then
     echo -e "${YELLOW}→ Arrêt des processus backend (uvicorn)${NC}"
     for pid in $uvicorn_pids; do
@@ -34,7 +34,7 @@ if [ -n "$uvicorn_pids" ]; then
     sleep 1
 
     # Force kill si nécessaire
-    uvicorn_pids=$(pgrep -f "uvicorn.*src.jeeves" 2>/dev/null || true)
+    uvicorn_pids=$(pgrep -f "uvicorn.*src.frontin" 2>/dev/null || true)
     if [ -n "$uvicorn_pids" ]; then
         echo -e "${YELLOW}  Force kill...${NC}"
         echo "$uvicorn_pids" | xargs kill -9 2>/dev/null || true

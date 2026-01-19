@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from src.core.processing_events import EventBus, ProcessingEvent, ProcessingEventType
-from src.jeeves.api.websocket.manager import (
+from src.frontin.api.websocket.manager import (
     ConnectionManager,
     get_connection_manager,
     reset_connection_manager,

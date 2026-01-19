@@ -39,7 +39,7 @@ test.describe('Briefing Page', () => {
 
     if (await processAction.isVisible()) {
       await processAction.click();
-      await expect(page).toHaveURL('/flux');
+      await expect(page).toHaveURL('/peripeties');
     }
   });
 

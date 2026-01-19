@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
+from src.frontin.api.app import create_app
 
 
 class TestLoginEndpoint:
@@ -135,10 +135,10 @@ class TestAuthDisabled:
         mock_config.auth.jwt_expire_minutes = 60
         mock_config.auth.pin_hash = ""
 
-        with patch("src.jeeves.api.routers.auth.get_config", return_value=mock_config), patch(
-            "src.jeeves.api.deps.get_cached_config", return_value=mock_config
+        with patch("src.frontin.api.routers.auth.get_config", return_value=mock_config), patch(
+            "src.frontin.api.deps.get_cached_config", return_value=mock_config
         ), patch("src.core.config_manager.get_config", return_value=mock_config), patch(
-            "src.jeeves.api.auth.jwt_handler.get_config", return_value=mock_config
+            "src.frontin.api.auth.jwt_handler.get_config", return_value=mock_config
         ):
             app = create_app()
             yield TestClient(app)

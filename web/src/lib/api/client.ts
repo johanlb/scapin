@@ -2462,7 +2462,7 @@ type ValetType =
 	| 'planchet'
 	| 'figaro'
 	| 'sganarelle'
-	| 'jeeves';
+	| 'frontin';
 
 interface ValetActivity {
 	timestamp: string;

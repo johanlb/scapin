@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.jeeves.review_mode import InteractiveReviewMode
+from src.frontin.review_mode import InteractiveReviewMode
 
 
 @pytest.fixture
@@ -60,8 +60,8 @@ def sample_queue_item():
 @pytest.fixture
 def review_mode(mock_queue_storage):
     """Create InteractiveReviewMode instance with mocks"""
-    with patch("src.jeeves.review_mode.get_queue_storage", return_value=mock_queue_storage), patch(
-        "src.jeeves.review_mode.get_config"
+    with patch("src.frontin.review_mode.get_queue_storage", return_value=mock_queue_storage), patch(
+        "src.frontin.review_mode.get_config"
     ):
         mode = InteractiveReviewMode()
         return mode
@@ -73,8 +73,8 @@ class TestInteractiveReviewModeInit:
     def test_init_loads_queue_storage(self, mock_queue_storage):
         """Test that initialization loads queue storage"""
         with patch(
-            "src.jeeves.review_mode.get_queue_storage", return_value=mock_queue_storage
-        ) as mock_get_queue, patch("src.jeeves.review_mode.get_config"):
+            "src.frontin.review_mode.get_queue_storage", return_value=mock_queue_storage
+        ) as mock_get_queue, patch("src.frontin.review_mode.get_config"):
             mode = InteractiveReviewMode()
 
             mock_get_queue.assert_called_once()
@@ -84,8 +84,8 @@ class TestInteractiveReviewModeInit:
         """Test that initialization loads config"""
         mock_config = Mock()
 
-        with patch("src.jeeves.review_mode.get_queue_storage"), patch(
-            "src.jeeves.review_mode.get_config", return_value=mock_config
+        with patch("src.frontin.review_mode.get_queue_storage"), patch(
+            "src.frontin.review_mode.get_config", return_value=mock_config
         ) as mock_get_config:
             mode = InteractiveReviewMode()
 
@@ -95,8 +95,8 @@ class TestInteractiveReviewModeInit:
     def test_init_zeros_stats(self, mock_queue_storage):
         """Test that stats are initialized to zero"""
         with patch(
-            "src.jeeves.review_mode.get_queue_storage", return_value=mock_queue_storage
-        ), patch("src.jeeves.review_mode.get_config"):
+            "src.frontin.review_mode.get_queue_storage", return_value=mock_queue_storage
+        ), patch("src.frontin.review_mode.get_config"):
             mode = InteractiveReviewMode()
 
             assert mode.reviewed == 0
@@ -109,7 +109,7 @@ class TestInteractiveReviewModeInit:
 class TestInteractiveReviewModeRun:
     """Test InteractiveReviewMode.run()"""
 
-    @patch("src.jeeves.review_mode.console")
+    @patch("src.frontin.review_mode.console")
     def test_run_empty_queue(self, mock_console, review_mode, mock_queue_storage):
         """Test run with empty queue"""
         mock_queue_storage.load_queue.return_value = []
@@ -149,7 +149,7 @@ class TestInteractiveReviewModeRun:
 
         with patch.object(review_mode, "_review_item", return_value=False), patch.object(
             review_mode, "_show_summary"
-        ), patch("src.jeeves.review_mode.Panel") as MockPanel:
+        ), patch("src.frontin.review_mode.Panel") as MockPanel:
             review_mode.run()
 
             # Verify Panel was created with count
@@ -157,7 +157,7 @@ class TestInteractiveReviewModeRun:
             panel_content = MockPanel.fit.call_args[0][0]
             assert "2 items to review" in panel_content
 
-    @patch("src.jeeves.review_mode.console")
+    @patch("src.frontin.review_mode.console")
     def test_run_handles_keyboard_interrupt(
         self, mock_console, review_mode, mock_queue_storage, sample_queue_item
     ):
@@ -188,7 +188,7 @@ class TestInteractiveReviewModeRun:
 class TestInteractiveReviewModeReviewItem:
     """Test InteractiveReviewMode._review_item()"""
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_review_item_renders_card(
         self, mock_questionary, review_mode, sample_queue_item, mock_console
     ):
@@ -202,7 +202,7 @@ class TestInteractiveReviewModeReviewItem:
 
             mock_render.assert_called_once()
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_review_item_approve_decision(
         self, mock_questionary, review_mode, sample_queue_item
     ):
@@ -217,7 +217,7 @@ class TestInteractiveReviewModeReviewItem:
             assert result is True
             mock_approve.assert_called_once_with(sample_queue_item, "archive")
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_review_item_modify_decision(
         self, mock_questionary, review_mode, sample_queue_item
     ):
@@ -232,7 +232,7 @@ class TestInteractiveReviewModeReviewItem:
             assert result is True
             mock_modify.assert_called_once_with(sample_queue_item, "archive")
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_review_item_reject_decision(
         self, mock_questionary, review_mode, sample_queue_item
     ):
@@ -247,7 +247,7 @@ class TestInteractiveReviewModeReviewItem:
             assert result is True
             mock_reject.assert_called_once_with(sample_queue_item)
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_review_item_skip_decision(
         self, mock_questionary, review_mode, sample_queue_item
     ):
@@ -262,7 +262,7 @@ class TestInteractiveReviewModeReviewItem:
             assert result is True
             mock_skip.assert_called_once_with(sample_queue_item)
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_review_item_cancel_decision(
         self, mock_questionary, review_mode, sample_queue_item
     ):
@@ -275,7 +275,7 @@ class TestInteractiveReviewModeReviewItem:
 
         assert result is False
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_review_item_no_decision(
         self, mock_questionary, review_mode, sample_queue_item
     ):
@@ -333,7 +333,7 @@ class TestInteractiveReviewModeApproveItem:
             assert review_mode.reviewed == 1
             assert review_mode.approved == 1
 
-    @patch("src.jeeves.review_mode.console")
+    @patch("src.frontin.review_mode.console")
     def test_approve_item_prints_message(
         self, mock_console, review_mode, mock_queue_storage, sample_queue_item
     ):
@@ -349,7 +349,7 @@ class TestInteractiveReviewModeApproveItem:
 class TestInteractiveReviewModeModifyItem:
     """Test InteractiveReviewMode._modify_item()"""
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_modify_item_prompts_for_new_action(
         self, mock_questionary, review_mode, sample_queue_item, mock_console
     ):
@@ -365,7 +365,7 @@ class TestInteractiveReviewModeModifyItem:
         call_args = mock_questionary.select.call_args
         assert "Select new action:" in call_args[0][0]
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_modify_item_updates_with_new_action(
         self, mock_questionary, review_mode, mock_queue_storage, sample_queue_item
     ):
@@ -386,7 +386,7 @@ class TestInteractiveReviewModeModifyItem:
             assert updates["ai_recommended"] == "archive"
             assert updates["user_corrected"] == "delete"
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_modify_item_tracks_correction(
         self, mock_questionary, review_mode, mock_queue_storage, sample_queue_item
     ):
@@ -406,7 +406,7 @@ class TestInteractiveReviewModeModifyItem:
             assert "user_corrected" in updates
             assert updates["ai_recommended"] != updates["user_corrected"]
 
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.questionary")
     def test_modify_item_increments_stats(
         self, mock_questionary, review_mode, mock_queue_storage, sample_queue_item
     ):
@@ -424,8 +424,8 @@ class TestInteractiveReviewModeModifyItem:
             assert review_mode.reviewed == 1
             assert review_mode.modified == 1
 
-    @patch("src.jeeves.review_mode.console")
-    @patch("src.jeeves.review_mode.questionary")
+    @patch("src.frontin.review_mode.console")
+    @patch("src.frontin.review_mode.questionary")
     def test_modify_item_cancelled(
         self, mock_questionary, mock_console, review_mode, mock_queue_storage, sample_queue_item
     ):
@@ -511,7 +511,7 @@ class TestInteractiveReviewModeRenderEmailCard:
 
     def test_render_email_card_returns_panel(self, review_mode):
         """Test that render returns a Panel"""
-        with patch("src.jeeves.review_mode.Panel") as MockPanel:
+        with patch("src.frontin.review_mode.Panel") as MockPanel:
             review_mode._render_email_card(
                 subject="Test Subject",
                 from_address="sender@example.com",
@@ -531,8 +531,8 @@ class TestInteractiveReviewModeRenderEmailCard:
 
     def test_render_email_card_includes_subject(self, review_mode):
         """Test that card includes subject"""
-        with patch("src.jeeves.review_mode.Panel") as MockPanel, patch(
-            "src.jeeves.review_mode.Text"
+        with patch("src.frontin.review_mode.Panel") as MockPanel, patch(
+            "src.frontin.review_mode.Text"
         ) as MockText:
             mock_text = Mock()
             MockText.return_value = mock_text
@@ -562,7 +562,7 @@ class TestInteractiveReviewModeRenderConfidenceBar:
 
     def test_render_confidence_bar_high(self, review_mode):
         """Test confidence bar for high confidence (>= 90)"""
-        with patch("src.jeeves.review_mode.Text") as MockText:
+        with patch("src.frontin.review_mode.Text") as MockText:
             mock_text = Mock()
             MockText.return_value = mock_text
 
@@ -575,7 +575,7 @@ class TestInteractiveReviewModeRenderConfidenceBar:
 
     def test_render_confidence_bar_medium(self, review_mode):
         """Test confidence bar for medium confidence (80-89)"""
-        with patch("src.jeeves.review_mode.Text") as MockText:
+        with patch("src.frontin.review_mode.Text") as MockText:
             mock_text = Mock()
             MockText.return_value = mock_text
 
@@ -586,7 +586,7 @@ class TestInteractiveReviewModeRenderConfidenceBar:
 
     def test_render_confidence_bar_low(self, review_mode):
         """Test confidence bar for low confidence (< 65)"""
-        with patch("src.jeeves.review_mode.Text") as MockText:
+        with patch("src.frontin.review_mode.Text") as MockText:
             mock_text = Mock()
             MockText.return_value = mock_text
 
@@ -649,7 +649,7 @@ class TestInteractiveReviewModeShowSummary:
         review_mode.rejected = 1
         review_mode.skipped = 2
 
-        with patch("src.jeeves.review_mode.Panel") as MockPanel:
+        with patch("src.frontin.review_mode.Panel") as MockPanel:
             review_mode._show_summary()
 
             # Verify Panel.fit was called with stats

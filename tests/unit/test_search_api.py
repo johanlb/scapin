@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.core.config_manager import ScapinConfig
-from src.jeeves.api.models.search import (
+from src.frontin.api.models.search import (
     CalendarSearchResultItem,
     EmailSearchResultItem,
     GlobalSearchResponse,
@@ -27,7 +27,7 @@ from src.jeeves.api.models.search import (
     SearchResultType,
     TeamsSearchResultItem,
 )
-from src.jeeves.api.services.search_service import (
+from src.frontin.api.services.search_service import (
     SearchService,
     _highlight_matches,
     _text_match_score,
@@ -445,7 +445,7 @@ class TestSearchRouter:
     @pytest.fixture
     def app(self, mock_service):
         """Create test FastAPI app with mocked service"""
-        from src.jeeves.api.routers import search as search_module
+        from src.frontin.api.routers import search as search_module
 
         app = FastAPI()
 
@@ -583,7 +583,7 @@ class TestCrossSourceModels:
 
     def test_cross_source_type_enum(self):
         """Test CrossSourceType enum values"""
-        from src.jeeves.api.models.search import CrossSourceType
+        from src.frontin.api.models.search import CrossSourceType
 
         assert CrossSourceType.EMAIL.value == "email"
         assert CrossSourceType.CALENDAR.value == "calendar"
@@ -595,7 +595,7 @@ class TestCrossSourceModels:
 
     def test_cross_source_search_request(self):
         """Test CrossSourceSearchRequest model"""
-        from src.jeeves.api.models.search import (
+        from src.frontin.api.models.search import (
             CrossSourceSearchRequest,
             CrossSourceType,
         )
@@ -616,7 +616,7 @@ class TestCrossSourceModels:
 
     def test_cross_source_search_request_defaults(self):
         """Test CrossSourceSearchRequest default values"""
-        from src.jeeves.api.models.search import CrossSourceSearchRequest
+        from src.frontin.api.models.search import CrossSourceSearchRequest
 
         request = CrossSourceSearchRequest(query="test")
 
@@ -627,7 +627,7 @@ class TestCrossSourceModels:
 
     def test_cross_source_result_item(self):
         """Test CrossSourceResultItem model"""
-        from src.jeeves.api.models.search import CrossSourceResultItem
+        from src.frontin.api.models.search import CrossSourceResultItem
 
         item = CrossSourceResultItem(
             source="calendar",
@@ -650,7 +650,7 @@ class TestCrossSourceModels:
 
     def test_cross_source_search_response(self):
         """Test CrossSourceSearchResponse model"""
-        from src.jeeves.api.models.search import (
+        from src.frontin.api.models.search import (
             CrossSourceResultItem,
             CrossSourceSearchResponse,
         )
@@ -698,7 +698,7 @@ class TestCrossSourceService:
     @pytest.mark.asyncio
     async def test_cross_source_search_basic(self, service):
         """Test cross-source search with mocked engine"""
-        from src.jeeves.api.models.search import CrossSourceSearchRequest
+        from src.frontin.api.models.search import CrossSourceSearchRequest
 
         # Create a mock SourceItem
         mock_source_item = MagicMock()
@@ -740,7 +740,7 @@ class TestCrossSourceService:
     @pytest.mark.asyncio
     async def test_cross_source_search_with_source_filter(self, service):
         """Test cross-source search with source filtering"""
-        from src.jeeves.api.models.search import (
+        from src.frontin.api.models.search import (
             CrossSourceSearchRequest,
             CrossSourceType,
         )
@@ -772,7 +772,7 @@ class TestCrossSourceService:
     @pytest.mark.asyncio
     async def test_cross_source_search_min_relevance_filter(self, service):
         """Test that results below min_relevance are filtered out"""
-        from src.jeeves.api.models.search import CrossSourceSearchRequest
+        from src.frontin.api.models.search import CrossSourceSearchRequest
 
         # Create items with different relevance scores
         high_score_item = MagicMock()
@@ -823,7 +823,7 @@ class TestCrossSourceService:
     @pytest.mark.asyncio
     async def test_cross_source_search_error_handling(self, service):
         """Test cross-source search handles errors gracefully"""
-        from src.jeeves.api.models.search import CrossSourceSearchRequest
+        from src.frontin.api.models.search import CrossSourceSearchRequest
 
         with patch(
             "src.passepartout.cross_source.create_cross_source_engine"
@@ -851,7 +851,7 @@ class TestCrossSourceRouter:
     @pytest.fixture
     def app(self, mock_service):
         """Create test FastAPI app with mocked service"""
-        from src.jeeves.api.routers import search as search_module
+        from src.frontin.api.routers import search as search_module
 
         app = FastAPI()
 
@@ -871,7 +871,7 @@ class TestCrossSourceRouter:
     @pytest.mark.asyncio
     async def test_cross_source_search_endpoint(self, client, mock_service):
         """Test POST /api/search/cross-source endpoint"""
-        from src.jeeves.api.models.search import (
+        from src.frontin.api.models.search import (
             CrossSourceResultItem,
             CrossSourceSearchResponse,
         )
@@ -910,7 +910,7 @@ class TestCrossSourceRouter:
     @pytest.mark.asyncio
     async def test_cross_source_search_with_options(self, client, mock_service):
         """Test POST /api/search/cross-source with all options"""
-        from src.jeeves.api.models.search import CrossSourceSearchResponse
+        from src.frontin.api.models.search import CrossSourceSearchResponse
 
         mock_service.cross_source_search.return_value = CrossSourceSearchResponse(
             query="project update",

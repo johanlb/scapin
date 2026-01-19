@@ -11,7 +11,7 @@ import pytest
 
 from src.core.config_manager import BriefingConfig
 from src.core.events import EventSource, EventType, PerceivedEvent, UrgencyLevel
-from src.jeeves.briefing.generator import BriefingGenerator
+from src.frontin.briefing.generator import BriefingGenerator
 
 # Mock Data Provider
 

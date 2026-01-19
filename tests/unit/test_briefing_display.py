@@ -11,8 +11,8 @@ import pytest
 from rich.console import Console
 
 from src.core.events import EventSource, EventType, PerceivedEvent, UrgencyLevel
-from src.jeeves.briefing.display import BriefingDisplay, _format_duration, _truncate
-from src.jeeves.briefing.models import (
+from src.frontin.briefing.display import BriefingDisplay, _format_duration, _truncate
+from src.frontin.briefing.models import (
     AttendeeContext,
     BriefingItem,
     MorningBriefing,
@@ -467,26 +467,26 @@ class TestExtractDisplayName:
 
     def test_extract_from_name_email_format(self) -> None:
         """Test extracting name from 'Name <email>' format"""
-        from src.jeeves.briefing.display import _extract_display_name
+        from src.frontin.briefing.display import _extract_display_name
         assert _extract_display_name("John Doe <john@example.com>") == "John Doe"
 
     def test_extract_from_plain_email(self) -> None:
         """Test extracting from plain email"""
-        from src.jeeves.briefing.display import _extract_display_name
+        from src.frontin.briefing.display import _extract_display_name
         assert _extract_display_name("john@example.com") == "john@example.com"
 
     def test_extract_from_empty_string(self) -> None:
         """Test extracting from empty string"""
-        from src.jeeves.briefing.display import _extract_display_name
+        from src.frontin.briefing.display import _extract_display_name
         assert _extract_display_name("") == "Unknown"
 
     def test_extract_from_none_string(self) -> None:
         """Test extracting from None-like input"""
-        from src.jeeves.briefing.display import _extract_display_name
+        from src.frontin.briefing.display import _extract_display_name
         # Empty string case
         assert _extract_display_name("") == "Unknown"
 
     def test_extract_from_email_only_in_brackets(self) -> None:
         """Test extracting when only email in brackets"""
-        from src.jeeves.briefing.display import _extract_display_name
+        from src.frontin.briefing.display import _extract_display_name
         assert _extract_display_name("<john@example.com>") == "Unknown"

@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.jeeves.api.auth.jwt_handler import JWTHandler, TokenData
+from src.frontin.api.auth.jwt_handler import JWTHandler, TokenData
 
 
 class TestJWTHandlerInit:
@@ -141,7 +141,7 @@ class TestVerifyToken:
 
         # Token should already be expired (or about to expire)
         # We need to mock the time to ensure it's expired
-        with patch("src.jeeves.api.auth.jwt_handler.datetime") as mock_dt:
+        with patch("src.frontin.api.auth.jwt_handler.datetime") as mock_dt:
             mock_dt.now.return_value = datetime.now(timezone.utc) + timedelta(minutes=1)
             # The token might still be valid due to implementation details
             # Let's just verify the token was created

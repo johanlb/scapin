@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.jeeves.journal.feedback import (
+from src.frontin.journal.feedback import (
     CalibrationAnalysis,
     FeedbackProcessingResult,
     JournalFeedbackProcessor,
@@ -19,7 +19,7 @@ from src.jeeves.journal.feedback import (
     WeeklyReviewResult,
     process_corrections,
 )
-from src.jeeves.journal.models import (
+from src.frontin.journal.models import (
     Correction,
     EmailSummary,
     JournalEntry,

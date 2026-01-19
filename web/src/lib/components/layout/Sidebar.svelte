@@ -9,14 +9,14 @@
 	}
 
 	const navItems: NavItem[] = [
-		{ href: '/', label: 'Rapport', icon: '☀️' },
-		{ href: '/flux', label: 'Courrier', icon: '📜' },
+		{ href: '/', label: 'Matinée', icon: '☀️' },
+		{ href: '/peripeties', label: 'Péripéties', icon: '🎪' },
 		{ href: '/drafts', label: 'Brouillons', icon: '✏️' },
-		{ href: '/notes', label: 'Carnets', icon: '📝' },
+		{ href: '/memoires', label: 'Mémoires', icon: '📝' },
 		{ href: '/discussions', label: 'Conversations', icon: '💬' },
-		{ href: '/journal', label: 'Journal', icon: '📖' },
+		{ href: '/confessions', label: 'Confessions', icon: '📖' },
 		{ href: '/valets', label: 'Valets', icon: '🎭' },
-		{ href: '/stats', label: 'Registres', icon: '📊' },
+		{ href: '/comptes', label: 'Comptes', icon: '📊' },
 		{ href: '/settings', label: 'Réglages', icon: '⚙️' }
 	];
 

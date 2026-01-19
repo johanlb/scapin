@@ -10,10 +10,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from src.jeeves.api.app import create_app
-from src.jeeves.api.deps import get_cached_config, get_current_user
-from src.jeeves.api.models.stats import StatsBySourceResponse, StatsOverviewResponse
-from src.jeeves.api.services.stats_service import StatsService
+from src.frontin.api.app import create_app
+from src.frontin.api.deps import get_cached_config, get_current_user
+from src.frontin.api.models.stats import StatsBySourceResponse, StatsOverviewResponse
+from src.frontin.api.services.stats_service import StatsService
 
 
 @pytest.fixture
@@ -178,24 +178,24 @@ class TestStatsService:
     async def test_get_overview_aggregates_stats(self, mock_services: dict) -> None:
         """Test get_overview aggregates stats from all sources"""
         with (
-            patch("src.jeeves.api.services.stats_service.get_config") as mock_config,
+            patch("src.frontin.api.services.stats_service.get_config") as mock_config,
             patch(
-                "src.jeeves.api.services.stats_service.get_state_manager"
+                "src.frontin.api.services.stats_service.get_state_manager"
             ) as mock_state,
             patch(
-                "src.jeeves.api.services.stats_service.EmailService",
+                "src.frontin.api.services.stats_service.EmailService",
                 return_value=mock_services["email"],
             ),
             patch(
-                "src.jeeves.api.services.stats_service.QueueService",
+                "src.frontin.api.services.stats_service.QueueService",
                 return_value=mock_services["queue"],
             ),
             patch(
-                "src.jeeves.api.services.stats_service.TeamsService",
+                "src.frontin.api.services.stats_service.TeamsService",
                 return_value=mock_services["teams"],
             ),
             patch(
-                "src.jeeves.api.services.stats_service.NotesReviewService",
+                "src.frontin.api.services.stats_service.NotesReviewService",
                 return_value=mock_services["notes"],
             ),
         ):
@@ -235,21 +235,21 @@ class TestStatsService:
     async def test_get_overview_handles_service_errors(self) -> None:
         """Test get_overview handles service errors gracefully"""
         with (
-            patch("src.jeeves.api.services.stats_service.get_config") as mock_config,
+            patch("src.frontin.api.services.stats_service.get_config") as mock_config,
             patch(
-                "src.jeeves.api.services.stats_service.get_state_manager"
+                "src.frontin.api.services.stats_service.get_state_manager"
             ) as mock_state,
             patch(
-                "src.jeeves.api.services.stats_service.EmailService"
+                "src.frontin.api.services.stats_service.EmailService"
             ) as mock_email_cls,
             patch(
-                "src.jeeves.api.services.stats_service.QueueService"
+                "src.frontin.api.services.stats_service.QueueService"
             ) as mock_queue_cls,
             patch(
-                "src.jeeves.api.services.stats_service.TeamsService"
+                "src.frontin.api.services.stats_service.TeamsService"
             ),
             patch(
-                "src.jeeves.api.services.stats_service.NotesReviewService"
+                "src.frontin.api.services.stats_service.NotesReviewService"
             ) as mock_notes_cls,
         ):
             config = MagicMock()
@@ -295,24 +295,24 @@ class TestStatsService:
     ) -> None:
         """Test get_by_source returns stats for all sources"""
         with (
-            patch("src.jeeves.api.services.stats_service.get_config") as mock_config,
+            patch("src.frontin.api.services.stats_service.get_config") as mock_config,
             patch(
-                "src.jeeves.api.services.stats_service.get_state_manager"
+                "src.frontin.api.services.stats_service.get_state_manager"
             ) as mock_state,
             patch(
-                "src.jeeves.api.services.stats_service.EmailService",
+                "src.frontin.api.services.stats_service.EmailService",
                 return_value=mock_services["email"],
             ),
             patch(
-                "src.jeeves.api.services.stats_service.QueueService",
+                "src.frontin.api.services.stats_service.QueueService",
                 return_value=mock_services["queue"],
             ),
             patch(
-                "src.jeeves.api.services.stats_service.TeamsService",
+                "src.frontin.api.services.stats_service.TeamsService",
                 return_value=mock_services["teams"],
             ),
             patch(
-                "src.jeeves.api.services.stats_service.NotesReviewService",
+                "src.frontin.api.services.stats_service.NotesReviewService",
                 return_value=mock_services["notes"],
             ),
         ):

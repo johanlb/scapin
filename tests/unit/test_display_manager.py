@@ -10,7 +10,7 @@ from unittest.mock import Mock
 from rich.console import Console
 
 from src.core.events import EventBus, ProcessingEvent, ProcessingEventType
-from src.jeeves.display_manager import DisplayManager
+from src.frontin.display_manager import DisplayManager
 
 
 class TestDisplayManager:
@@ -285,7 +285,7 @@ class TestDisplayManagerCreation:
 
     def test_create_display_manager(self):
         """Test create_display_manager helper function"""
-        from src.jeeves.display_manager import create_display_manager
+        from src.frontin.display_manager import create_display_manager
 
         display = create_display_manager()
         assert isinstance(display, DisplayManager)
