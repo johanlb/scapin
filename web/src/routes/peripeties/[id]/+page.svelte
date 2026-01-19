@@ -328,8 +328,8 @@
 					<span>{infoMessage}</span>
 				</div>
 			{/if}
-			<!-- Meta info -->
-			<div class="flex flex-wrap items-center gap-2">
+			<!-- v2.4: Meta info with dates -->
+			<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 				<Badge variant="source" source="email" />
 				{#if item.metadata.has_attachments}
 					<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
@@ -341,9 +341,29 @@
 						&#128193; {item.metadata.folder}
 					</span>
 				{/if}
+			</div>
+
+			<!-- v2.4: Enhanced dates section -->
+			<div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-[var(--color-text-tertiary)]">
 				{#if item.metadata.date}
-					<span class="text-sm text-[var(--color-text-tertiary)]">
+					<span class="flex items-center gap-1.5" title="Date de réception de l'email">
+						<span class="text-base">&#x1f4e8;</span>
+						<span class="font-medium text-[var(--color-text-secondary)]">Reçu</span>
 						{formatRelativeTime(item.metadata.date)}
+					</span>
+				{/if}
+				{#if item.queued_at}
+					<span class="flex items-center gap-1.5" title="Date d'analyse par Scapin">
+						<span class="text-base">&#x1f9e0;</span>
+						<span class="font-medium text-[var(--color-text-secondary)]">Analysé</span>
+						{formatRelativeTime(item.queued_at)}
+					</span>
+				{/if}
+				{#if item.reviewed_at}
+					<span class="flex items-center gap-1.5" title="Date de décision">
+						<span class="text-base">&#x2705;</span>
+						<span class="font-medium text-[var(--color-text-secondary)]">Traité</span>
+						{formatRelativeTime(item.reviewed_at)}
 					</span>
 				{/if}
 			</div>
@@ -589,6 +609,33 @@
 										{#if note.auto_applied}
 											<span class="ml-1 text-green-400">Auto</span>
 										{/if}
+									</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					<!-- v2.4: Proposed Tasks -->
+					{#if item.analysis.proposed_tasks && item.analysis.proposed_tasks.length > 0}
+						<div class="mt-4 pt-4 border-t border-[var(--glass-border-subtle)]">
+							<h4 class="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2">
+								Tâches proposées
+							</h4>
+							{#each item.analysis.proposed_tasks as task}
+								<div class="flex items-center justify-between text-sm py-1">
+									<span class="flex items-center gap-2">
+										<span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+											⚡ {task.project || 'Tâche'}
+										</span>
+										{task.title}
+										{#if task.due_date}
+											<span class="text-xs text-[var(--color-text-tertiary)]">
+												📅 {new Date(task.due_date).toLocaleDateString('fr-FR')}
+											</span>
+										{/if}
+									</span>
+									<span class="text-xs text-[var(--color-text-tertiary)]">
+										{Math.round(task.confidence * 100)}%
 									</span>
 								</div>
 							{/each}
