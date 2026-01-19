@@ -207,7 +207,7 @@
 				}
 				break;
 			case 'email':
-				goto(`/flux/${result.id}`);
+				goto(`/peripeties/${result.id}`);
 				break;
 			case 'event':
 				goto(`/calendar?event=${result.id}`);

@@ -6,8 +6,8 @@
 	import { Card, Badge, Button, Skeleton } from '$lib/components/ui';
 	import { ConfidenceBar } from '$lib/components/ui';
 	import { FileAttachment } from '$lib/components/files';
-	import PassTimeline from '$lib/components/flux/PassTimeline.svelte';
-	import ConfidenceSparkline from '$lib/components/flux/ConfidenceSparkline.svelte';
+	import PassTimeline from '$lib/components/peripeties/PassTimeline.svelte';
+	import ConfidenceSparkline from '$lib/components/peripeties/ConfidenceSparkline.svelte';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { getQueueItem, approveQueueItem, rejectQueueItem, snoozeQueueItem, undoQueueItem, canUndoQueueItem } from '$lib/api';
 	import type { QueueItem, SnoozeOption } from '$lib/api';

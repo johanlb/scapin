@@ -2,7 +2,7 @@
   Performance Test Page for VirtualList
 
   This page generates mock data to test virtualization performance.
-  Access via: http://localhost:5173/flux/test-performance
+  Access via: http://localhost:5173/peripeties/test-performance
 -->
 <script lang="ts">
 	import { VirtualList, Card, Button } from '$lib/components/ui';

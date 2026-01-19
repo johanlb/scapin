@@ -14,8 +14,8 @@
 	import type { MenuItem } from '$lib/components/ui/LongPressMenu.svelte';
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	// v2.3: Analysis Transparency components
-	import PassTimeline from '$lib/components/flux/PassTimeline.svelte';
-	import ConfidenceSparkline from '$lib/components/flux/ConfidenceSparkline.svelte';
+	import PassTimeline from '$lib/components/peripeties/PassTimeline.svelte';
+	import ConfidenceSparkline from '$lib/components/peripeties/ConfidenceSparkline.svelte';
 	import { queueStore } from '$lib/stores';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import {
@@ -170,7 +170,7 @@
 	];
 
 	function enterFocusMode() {
-		goto('/flux/focus');
+		goto('/peripeties/focus');
 	}
 
 	// Cleanup function for keyboard shortcuts
@@ -998,7 +998,7 @@
 			id: 'details',
 			label: "Voir l'email complet",
 			icon: '📧',
-			handler: () => goto(`/flux/${item.id}`)
+			handler: () => goto(`/peripeties/${item.id}`)
 		});
 
 		return menuItems;
@@ -1982,7 +1982,7 @@
 						<Card padding="md" class="hover:border-[var(--color-accent)] transition-colors">
 							<div class="flex items-start gap-3">
 								<a
-									href="/flux/{item.id}"
+									href="/peripeties/{item.id}"
 									class="flex items-start gap-3 flex-1 min-w-0 no-underline text-inherit"
 								>
 									<!-- Action icon -->
