@@ -742,6 +742,10 @@
 			currentIndex = Math.max(0, queueStore.items.length - 1);
 		}
 
+		// Refresh stats after a short delay to show "analysis in progress" indicator
+		// (backend marks item as in_progress before starting analysis)
+		setTimeout(() => queueStore.fetchStats(), 500);
+
 		try {
 			const result = await reanalyzeQueueItem(item.id, instruction, mode, forceModel);
 
@@ -1221,6 +1225,21 @@
 			</div>
 		</div>
 	</header>
+
+	<!-- Analysis in progress indicator -->
+	{#if (stats?.by_tab?.in_progress ?? 0) > 0}
+		<div class="mb-4 px-4 py-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 flex items-center gap-3">
+			<div class="flex items-center gap-2">
+				<span class="animate-spin text-blue-600 dark:text-blue-400">⏳</span>
+				<span class="text-blue-800 dark:text-blue-200 font-medium">
+					{stats?.by_tab?.in_progress} analyse{(stats?.by_tab?.in_progress ?? 0) > 1 ? 's' : ''} en cours
+				</span>
+			</div>
+			<div class="flex-1 h-1.5 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+				<div class="h-full bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse" style="width: 60%"></div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- v2.4: Tab-based navigation with 5 tabs (scrollable on mobile) -->
 	<div class="flex gap-2 mb-4 text-sm overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible md:flex-wrap" role="tablist" aria-label="Navigation péripéties">
