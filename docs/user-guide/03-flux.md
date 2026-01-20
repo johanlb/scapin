@@ -337,6 +337,76 @@ Dans chaque onglet, vous pouvez filtrer par :
 
 ---
 
+## Vue Élément Unique Enrichie (v2.5)
+
+La v2.5 améliore considérablement l'affichage d'un élément sélectionné dans la liste. Les informations essentielles sont maintenant visibles directement, sans avoir à ouvrir la vue détail.
+
+### En-tête Enrichi
+
+#### Avatar Expéditeur
+
+L'expéditeur s'affiche maintenant avec :
+- **Avatar circulaire** avec initiales (ex: "JC" pour Julien Coette)
+- **Nom complet** en gras
+- **Adresse email** visible en dessous
+
+#### Timestamps Détaillés
+
+Deux dates sont affichées avec des badges clairs :
+
+| Badge | Information |
+|-------|-------------|
+| 📨 **Reçu** | Date et heure de réception de l'email |
+| 🧠 **Analysé** | Date et heure d'analyse par Scapin |
+
+Les badges de complexité (⚡🔍🧠🏆) s'affichent à côté des timestamps.
+
+### Badges de Complexité (Visibles par défaut)
+
+Les badges d'analyse, auparavant visibles uniquement dans la liste, s'affichent maintenant directement dans la vue élément :
+
+| Badge | Nom | Signification |
+|-------|-----|---------------|
+| ⚡ | Quick | Analyse rapide (1 passe Haiku) |
+| 🔍 | Context | Contexte personnel utilisé (notes PKM consultées) |
+| 🧠 | Complex | Analyse complexe (3+ passes ou escalade) |
+| 🏆 | Opus | Modèle expert Opus utilisé |
+
+### Section "Influence du Contexte" (Visible par défaut)
+
+Cette section, auparavant cachée dans les détails, est maintenant affichée directement :
+
+| Élément | Description |
+|---------|-------------|
+| **Explication** | Comment le contexte a influencé la décision |
+| **Notes utilisées** | Badges cliquables des notes PKM consultées |
+| **Confirmations** ✓ | Informations confirmées par vos notes |
+| **Contradictions** ⚠ | Incohérences détectées avec vos données |
+| **Manquant** ❓ | Informations recherchées mais non trouvées |
+
+> **Exemple** : Si Scapin analyse un email de "Marie Dupont", l'explication pourrait indiquer : *"Contexte de Marie Dupont (collaboratrice Projet Alpha) confirme l'importance de cette demande."*
+
+### Section "Contexte Récupéré" (Collapsible)
+
+Une nouvelle section dépliable affiche le contexte brut récupéré pendant l'analyse :
+
+- **Entités recherchées** : Liste des personnes, projets, concepts identifiés
+- **Notes trouvées** : Avec score de pertinence (%) et lien direct vers la note
+- **Événements calendrier** : Réunions et rendez-vous liés à l'email
+- **Tâches OmniFocus** : Actions en cours associées
+- **Sources consultées** : PKM, Calendrier, OmniFocus, etc.
+
+Cliquez sur le titre de la section pour la déplier/replier.
+
+### Pièces Jointes
+
+Si l'email contient des pièces jointes, elles s'affichent avec :
+- **Nom du fichier**
+- **Taille** (en Ko/Mo)
+- **Type** (icône selon le format : PDF, image, document...)
+
+---
+
 ## Traitement en Lot
 
 ### Sélection Multiple

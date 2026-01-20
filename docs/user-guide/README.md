@@ -1,7 +1,17 @@
 # Guide Utilisateur Scapin
 
-**Version** : 1.0.0
+**Version** : 2.5
 **Dernière mise à jour** : Janvier 2026
+
+---
+
+## Nouveautés v2.5
+
+- **Vue Élément Unique Enrichie** : Timestamps détaillés, avatar expéditeur, badges de complexité et sections contexte visibles par défaut
+- **Transparence améliorée** : L'influence du contexte sur l'analyse est maintenant affichée directement
+- **Pièces jointes** : Affichage intégré dans la vue élément
+
+Voir [3. Péripéties](03-flux.md#vue-élément-unique-enrichie-v25) pour les détails.
 
 ---
 
@@ -21,7 +31,7 @@ Inspiré du valet rusé de Molière, Scapin anticipe vos besoins, organise vos i
 |---------|-------------|
 | [1. Démarrage Rapide](01-demarrage.md) | Installation, connexion, premiers pas |
 | [2. Briefing](02-briefing.md) | Briefing matinal, pré-réunion |
-| [3. Flux](03-flux.md) | Traitement des emails et messages |
+| [3. Péripéties](03-flux.md) | Traitement des emails et messages |
 | [4. Notes](04-notes.md) | Base de connaissances, révision espacée |
 | [5. Journal](05-journal.md) | Journaling quotidien, boucle de feedback |
 | [6. Architecture](06-architecture.md) | Les valets, pipeline cognitif |
