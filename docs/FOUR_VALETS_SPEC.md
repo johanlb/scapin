@@ -377,7 +377,60 @@ Haiku → Sonnet → Opus
 
 ---
 
-## 6. Format des extractions
+## 7. Écriture dans les mémoires
+
+### 7.1 Responsabilités
+
+| Composant | Rôle |
+|-----------|------|
+| **Bazin** | Prépare l'écriture : `note_cible`, `section_cible`, `format_suggere` |
+| **Planchet** | Valide : note existe ? section correcte ? pas doublon ? |
+| **Mousqueton** | Finalise : `ready_for_passepartout: true` |
+| **Passepartout** | Exécute l'écriture réelle dans les notes PKM |
+
+### 7.2 Structure `memory_hint`
+
+Chaque extraction contient un `memory_hint` pour guider Passepartout :
+
+```json
+{
+  "memory_hint": {
+    "section_cible": "## Budget",
+    "format_suggere": "bullet_date",
+    "contexte_existant": "Budget Q1: 30k€",
+    "validation": "ok",
+    "ready_for_passepartout": true
+  }
+}
+```
+
+| Champ | Description | Valeurs |
+|-------|-------------|---------|
+| `section_cible` | Section de la note où écrire | `## Historique`, `## Contacts`, etc. |
+| `format_suggere` | Format de l'entrée | `bullet`, `bullet_date`, `paragraphe`, `tableau` |
+| `contexte_existant` | Ce qui existe déjà (pour éviter doublons) | Texte libre |
+| `validation` | Statut de validation par Planchet | `ok`, `corrige`, `doublon_ignore` |
+| `ready_for_passepartout` | Prêt pour écriture (Mousqueton only) | `true`, `false` |
+
+### 7.3 Flux d'écriture
+
+```
+Valet final (Planchet ou Mousqueton)
+    │
+    ├── extractions avec memory_hint
+    │
+    ▼
+Passepartout
+    │
+    ├── Vérifie que note_cible existe
+    ├── Localise section_cible
+    ├── Applique format_suggere
+    └── Écrit dans la note PKM
+```
+
+---
+
+## 8. Format des extractions
 
 Structure commune à tous les valets :
 
@@ -388,6 +441,12 @@ Structure commune à tous les valets :
   "importance": "haute|moyenne|basse",
   "note_cible": "Nom canonique du projet/actif",
   "note_action": "enrichir|creer",
+  "memory_hint": {
+    "section_cible": "## Section de la note",
+    "format_suggere": "bullet|bullet_date|paragraphe|tableau",
+    "validation": "ok|corrige|doublon_ignore",
+    "ready_for_passepartout": true
+  },
   "omnifocus": false,
   "calendar": false,
   "date": "YYYY-MM-DD ou null",

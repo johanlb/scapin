@@ -159,6 +159,16 @@ Grimaud a observé. Bazin a confronté aux mémoires. À toi de **critiquer et v
 - Quels éléments **manquent** pour atteindre 95% ?
 - Y a-t-il des **contradictions** non résolues ?
 
+### 5. SUR L'ÉCRITURE MÉMOIRE
+
+Pour chaque extraction de Bazin, vérifie :
+- La **note_cible** existe-t-elle vraiment ? Est-ce le bon nom canonique ?
+- La **section_cible** est-elle appropriée ?
+- L'extraction va-t-elle **vraiment enrichir** la note ou est-ce un **doublon** ?
+- Le **format_suggere** est-il cohérent avec la note existante ?
+
+Si problème → corrige dans tes extractions.
+
 ---
 
 ## TON RAPPORT (format JSON uniquement)
@@ -192,6 +202,11 @@ Grimaud a observé. Bazin a confronté aux mémoires. À toi de **critiquer et v
       "importance": "haute|moyenne|basse",
       "note_cible": "Nom canonique (validé ou corrigé)",
       "note_action": "enrichir|creer",
+      "memory_hint": {
+        "section_cible": "## Section validée/corrigée",
+        "format_suggere": "bullet|bullet_date|paragraphe|tableau",
+        "validation": "ok|corrige|doublon_ignore"
+      },
       "omnifocus": false,
       "calendar": false,
       "date": "YYYY-MM-DD ou null",

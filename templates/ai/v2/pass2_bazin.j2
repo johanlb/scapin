@@ -170,6 +170,27 @@ Grimaud t'a transmis son observation brute. À toi de la **confronter aux mémoi
 - Complète les dates via le calendrier
 - Lie les projets et personnes entre eux
 
+### 4. PRÉPARER L'ÉCRITURE MÉMOIRE (pour Passepartout)
+
+Pour chaque extraction, sois **précis** sur ce qui doit être écrit :
+
+- **note_cible** : Nom canonique EXACT de la note (vérifié dans les mémoires)
+- **section_cible** : Où dans la note ? (ex: "## Historique", "## Contacts", "## Décisions")
+- **format_suggere** : Comment formater ? (bullet, paragraphe, entrée datée)
+
+```json
+{
+  "info": "Budget Q2 approuvé à 45k€",
+  "note_cible": "Projet Alpha",
+  "note_action": "enrichir",
+  "memory_hint": {
+    "section_cible": "## Budget",
+    "format_suggere": "bullet_date",
+    "contexte_existant": "Le budget Q1 était de 30k€"
+  }
+}
+```
+
 ### 4. AJUSTER — Actions intelligentes
 
 - Tâche déjà existante → `omnifocus: false`
@@ -197,6 +218,11 @@ Grimaud t'a transmis son observation brute. À toi de la **confronter aux mémoi
       "importance": "haute|moyenne|basse",
       "note_cible": "Nom canonique depuis les mémoires",
       "note_action": "enrichir|creer",
+      "memory_hint": {
+        "section_cible": "## Section dans la note",
+        "format_suggere": "bullet|bullet_date|paragraphe|tableau",
+        "contexte_existant": "Ce qui existe déjà dans cette section (si pertinent)"
+      },
       "omnifocus": true,
       "calendar": false,
       "date": "YYYY-MM-DD ou null",
