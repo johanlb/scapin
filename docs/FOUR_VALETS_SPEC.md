@@ -502,7 +502,61 @@ Conserver les anciens templates pendant 30 jours après migration complète.
 
 ---
 
-## 10. Annexes
+## 10. Calibration de confiance
+
+Chaque valet a des règles de calibration pour éviter la sur-confiance :
+
+### 10.1 Grimaud (Pass 1)
+| Situation | Confiance |
+|-----------|-----------|
+| Contenu éphémère évident (OTP, spam) | 95-99% |
+| Extraction normale sans contexte | 60-80% |
+| Doute sur entité/projet | 50-70% |
+
+### 10.2 Bazin (Pass 2)
+| Situation | Confiance |
+|-----------|-----------|
+| Contexte confirmant tout | 85-95% |
+| Contexte partiel | 75-85% |
+| Contradictions détectées | 60-75% |
+
+### 10.3 Planchet (Pass 3)
+| Situation | Confiance |
+|-----------|-----------|
+| Tout validé, pas de problème | 91-95% → `needs_mousqueton: false` |
+| Petits ajustements faits | 85-91% |
+| Problèmes non résolus | 70-85% → `needs_mousqueton: true` |
+
+### 10.4 Mousqueton (Pass 4)
+| Situation | Confiance |
+|-----------|-----------|
+| Tous conflits résolus | 92-98% |
+| Résolu mais incertitudes mineures | 90-92% |
+| Problèmes non résolus | < 90% → `action: "queue"` |
+
+---
+
+## 11. Améliorations qualité (P0/P1)
+
+### 11.1 P0 — Calibration confiance
+- Instructions explicites de calibration dans chaque prompt
+- Règle : "Sois HONNÊTE, pas optimiste"
+- Préférer sous-estimer que sur-estimer
+
+### 11.2 P1 — Few-shot examples
+- Exemple OTP dans Grimaud pour `early_stop`
+- Montre le comportement attendu
+
+### 11.3 P1 — Validation JSON
+- Instruction "AVANT DE RÉPONDRE : Vérifie que ton JSON est valide"
+- Présent dans tous les prompts
+
+### 11.4 P1 — Paramètres API
+Voir section 5 pour les températures et top_p par valet.
+
+---
+
+## 12. Annexes
 
 ### 10.1 Références littéraires
 
@@ -514,13 +568,43 @@ Conserver les anciens templates pendant 30 jours après migration complète.
 >
 > **Mousqueton** : "Mousqueton était un Normand dont le nom pacifique de Boniface avait été changé par son maître Porthos."
 
-### 10.2 Fichiers
+### 12.2 Fichiers de prompts
 
 ```
 templates/ai/v2/
-├── pass1_grimaud.j2      (220 lignes)
-├── pass2_bazin.j2        (240 lignes)
-├── pass3_planchet.j2     (224 lignes)
-├── pass4_mousqueton.j2   (220 lignes)
-└── [anciens fichiers conservés pour rollback]
+├── pass1_grimaud.j2      (~230 lignes) - Extraction silencieuse
+├── pass2_bazin.j2        (~250 lignes) - Enrichissement contextuel
+├── pass3_planchet.j2     (~240 lignes) - Critique et validation
+├── pass4_mousqueton.j2   (~230 lignes) - Arbitrage final
+│
+├── [Anciens - conservés pour rollback]
+├── pass1_blind_extraction.j2
+├── pass2_contextual_refinement.j2
+└── pass4_deep_reasoning.j2
 ```
+
+### 12.3 Checklist des fonctionnalités
+
+| Fonctionnalité | Grimaud | Bazin | Planchet | Mousqueton |
+|----------------|---------|-------|----------|------------|
+| Briefing | ✅ | ✅ | ✅ | ✅ |
+| Sensibilité âge | ✅ | ✅ | ✅ | ✅ |
+| Calibration confiance | ✅ | ✅ | ✅ | ✅ |
+| Validation JSON | ✅ | ✅ | ✅ | ✅ |
+| Few-shot example | ✅ (OTP) | — | — | — |
+| Early stop | ✅ | — | — | — |
+| memory_hint | — | ✅ | ✅ | ✅ |
+| Extractions | ✅ | ✅ | ✅ | ✅ |
+| Questions next pass | ✅ | ✅ | ✅ | — |
+
+### 12.4 Terminologie Scapin
+
+| Terme générique | Terme Scapin |
+|-----------------|--------------|
+| Email | Événement perçu / Péripétie |
+| Notes PKM | Mémoires |
+| Archives | Mémoires |
+| Base de connaissances | Mémoires |
+| Pass | Valet |
+| Extraction | Extraction |
+| Action | Action |
