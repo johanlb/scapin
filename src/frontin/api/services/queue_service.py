@@ -1599,6 +1599,7 @@ class QueueService:
         account_id: str = "default",
         html_body: str | None = None,
         full_text: str | None = None,
+        multi_pass_data: dict[str, Any] | None = None,
     ) -> str | None:
         """
         Enqueue an analyzed email for review.
@@ -1613,6 +1614,7 @@ class QueueService:
             account_id: Account ID
             html_body: HTML body (optional)
             full_text: Full text (optional)
+            multi_pass_data: Multi-pass analysis transparency data (v2.3)
 
         Returns:
             Item ID if queued, None if duplicate or failed
@@ -1626,6 +1628,7 @@ class QueueService:
             account_id=account_id,
             html_body=html_body,
             full_text=full_text,
+            multi_pass_data=multi_pass_data,
         )
 
         if item_id:

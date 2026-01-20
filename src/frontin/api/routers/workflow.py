@@ -5,7 +5,7 @@ API endpoints for knowledge extraction workflow.
 """
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -29,6 +29,78 @@ from src.frontin.api.services.queue_service import get_queue_service
 from src.monitoring.logger import get_logger
 
 logger = get_logger("workflow_router")
+
+
+def _build_multi_pass_data(multi_pass_result: Any) -> dict[str, Any] | None:
+    """
+    Convert MultiPassResult to dict format for storage (v2.3 Analysis Transparency).
+
+    Args:
+        multi_pass_result: MultiPassResult from V2EmailProcessor
+
+    Returns:
+        Dict with multi_pass metadata or None if not available
+    """
+    if not multi_pass_result or not hasattr(multi_pass_result, "pass_history"):
+        return None
+
+    if not multi_pass_result.pass_history:
+        return None
+
+    # Build pass_history list
+    pass_history = []
+    models_used = []
+    prev_confidence = 0.0
+
+    for i, pass_result in enumerate(multi_pass_result.pass_history):
+        model = getattr(pass_result, "model_used", "unknown")
+        models_used.append(model)
+
+        # Get pass type
+        pass_type = getattr(pass_result, "pass_type", None)
+        pass_type_value = pass_type.value if hasattr(pass_type, "value") else str(pass_type)
+
+        # Get confidence
+        confidence_after = getattr(pass_result, "confidence", None)
+        if confidence_after and hasattr(confidence_after, "overall"):
+            confidence_after = confidence_after.overall
+        elif not isinstance(confidence_after, (int, float)):
+            confidence_after = 0.0
+
+        # Check for escalation
+        escalation_triggered = False
+        if i > 0:
+            prev_model = models_used[i - 1]
+            escalation_triggered = (
+                (prev_model == "haiku" and model in ["sonnet", "opus"])
+                or (prev_model == "sonnet" and model == "opus")
+            )
+
+        pass_history.append({
+            "pass_number": i + 1,
+            "model_used": model,
+            "pass_type": pass_type_value,
+            "duration_ms": getattr(pass_result, "duration_ms", 0),
+            "tokens_used": getattr(pass_result, "tokens_used", 0),
+            "confidence_before": prev_confidence,
+            "confidence_after": confidence_after,
+            "escalation_triggered": escalation_triggered,
+            "reasoning": getattr(pass_result, "reasoning", ""),
+            "thinking_bubbles": getattr(pass_result, "thinking_bubbles", []),
+        })
+        prev_confidence = confidence_after
+
+    return {
+        "passes_count": multi_pass_result.passes_count,
+        "final_model": multi_pass_result.final_model,
+        "models_used": models_used,
+        "escalated": multi_pass_result.escalated,
+        "stop_reason": multi_pass_result.stop_reason,
+        "high_stakes": multi_pass_result.high_stakes,
+        "total_tokens": multi_pass_result.total_tokens,
+        "total_duration_ms": multi_pass_result.total_duration_ms,
+        "pass_history": pass_history,
+    }
 
 router = APIRouter()
 
@@ -58,7 +130,8 @@ def _get_v2_processor():
 
     from src.trivelin.v2_processor import V2EmailProcessor
 
-    return V2EmailProcessor(config=config.workflow_v2)
+    use_multi_pass = getattr(config.workflow_v2, "use_multi_pass", True)
+    return V2EmailProcessor(config=config.workflow_v2, use_multi_pass=use_multi_pass)
 
 
 @router.get("/config", response_model=APIResponse[WorkflowConfigResponse])
@@ -376,14 +449,21 @@ async def process_inbox_v2(
                                 options=[],
                             )
 
+                            # v2.3: Build multi_pass transparency data
+                            multi_pass_data = _build_multi_pass_data(result.multi_pass_result)
+
                             await queue_service.enqueue_email(
                                 metadata=metadata,
                                 analysis=email_analysis,
                                 content_preview=content.preview or "",
                                 html_body=content.html,
                                 full_text=content.plain_text,
+                                multi_pass_data=multi_pass_data,
                             )
-                            logger.debug(f"Enqueued email {event.event_id}")
+                            logger.debug(
+                                f"Enqueued email {event.event_id}",
+                                extra={"has_multi_pass": multi_pass_data is not None},
+                            )
 
                     except Exception as e:
                         logger.error(

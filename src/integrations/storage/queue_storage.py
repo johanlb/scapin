@@ -155,6 +155,7 @@ class QueueStorage:
         account_id: Optional[str] = None,
         html_body: Optional[str] = None,
         full_text: Optional[str] = None,
+        multi_pass_data: Optional[dict[str, Any]] = None,
     ) -> str | None:
         """
         Save email to review queue
@@ -166,6 +167,7 @@ class QueueStorage:
             account_id: Account identifier (for multi-account support)
             html_body: Full HTML body of the email (optional)
             full_text: Full plain text body of the email (optional)
+            multi_pass_data: Multi-pass analysis transparency data (v2.3)
 
         Returns:
             item_id: Unique identifier for queued item, or None if duplicate
@@ -236,6 +238,8 @@ class QueueStorage:
                     }
                     for opt in analysis.options
                 ] if analysis.options else [],
+                # v2.3: Multi-pass analysis transparency
+                "multi_pass": multi_pass_data,
             },
             "content": {
                 "preview": content_preview[:200],  # Limit to 200 chars

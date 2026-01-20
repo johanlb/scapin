@@ -664,6 +664,12 @@ class WorkflowV2Config(BaseModel):
     )
     extract_facts: bool = Field(True, description="Extract important facts from events")
 
+    # v2.2 Multi-pass analysis (v2.3 transparency)
+    use_multi_pass: bool = Field(
+        True,
+        description="Enable multi-pass analysis with transparency metadata (v2.2/v2.3)",
+    )
+
 
 class APIConfig(BaseModel):
     """

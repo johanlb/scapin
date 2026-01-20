@@ -101,8 +101,12 @@ class EmailService:
         v2_enabled = getattr(self._config.workflow_v2, "enabled", False)
 
         if v2_enabled:
-            logger.info("Using Workflow v2.2 (V2EmailProcessor) for inbox processing")
-            processor = V2EmailProcessor()
+            use_multi_pass = getattr(self._config.workflow_v2, "use_multi_pass", True)
+            logger.info(
+                f"Using Workflow v2.2 (V2EmailProcessor) for inbox processing "
+                f"(multi_pass={'enabled' if use_multi_pass else 'disabled'})"
+            )
+            processor = V2EmailProcessor(use_multi_pass=use_multi_pass)
             # V2 processor handles both sync/async better, but we still run in thread
             # to keep the API responsive for other requests
             results = await asyncio.to_thread(self._process_v2_sync, processor, limit, auto_execute)

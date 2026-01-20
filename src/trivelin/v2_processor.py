@@ -86,6 +86,8 @@ class V2ProcessingResult:
     pattern_matches: list[PatternMatch] = field(default_factory=list)
     clarification_questions: list[ClarificationQuestion] = field(default_factory=list)
     needs_clarification: bool = False
+    # v2.3: Multi-pass analysis transparency
+    multi_pass_result: Optional["MultiPassResult"] = None
 
     @property
     def extraction_count(self) -> int:
@@ -446,6 +448,8 @@ class V2EmailProcessor:
                 pattern_matches=pattern_matches,
                 clarification_questions=clarification_questions,
                 needs_clarification=needs_clarification,
+                # v2.3: Multi-pass analysis transparency
+                multi_pass_result=multi_pass_result,
             )
 
         except Exception as e:
