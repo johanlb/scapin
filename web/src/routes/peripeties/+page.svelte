@@ -1189,14 +1189,14 @@
 		</div>
 	</header>
 
-	<!-- v2.4: Tab-based navigation with 5 tabs -->
-	<div class="flex flex-wrap gap-2 mb-4 text-sm" role="tablist" aria-label="Navigation péripéties">
+	<!-- v2.4: Tab-based navigation with 5 tabs (scrollable on mobile) -->
+	<div class="flex gap-2 mb-4 text-sm overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible md:flex-wrap" role="tablist" aria-label="Navigation péripéties">
 		<!-- À traiter -->
 		<button
 			role="tab"
 			aria-selected={activeTab === 'to_process'}
 			data-testid="peripeties-tab-to-process"
-			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shrink-0"
 			class:bg-[var(--color-accent)]={activeTab === 'to_process'}
 			class:text-white={activeTab === 'to_process'}
 			class:bg-[var(--color-bg-secondary)]={activeTab !== 'to_process'}
@@ -1219,7 +1219,7 @@
 			role="tab"
 			aria-selected={activeTab === 'in_progress'}
 			data-testid="peripeties-tab-in-progress"
-			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shrink-0"
 			class:bg-[var(--color-accent)]={activeTab === 'in_progress'}
 			class:text-white={activeTab === 'in_progress'}
 			class:bg-[var(--color-bg-secondary)]={activeTab !== 'in_progress'}
@@ -1242,7 +1242,7 @@
 			role="tab"
 			aria-selected={activeTab === 'snoozed'}
 			data-testid="peripeties-tab-snoozed"
-			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shrink-0"
 			class:bg-[var(--color-accent)]={activeTab === 'snoozed'}
 			class:text-white={activeTab === 'snoozed'}
 			class:bg-[var(--color-bg-secondary)]={activeTab !== 'snoozed'}
@@ -1265,7 +1265,7 @@
 			role="tab"
 			aria-selected={activeTab === 'history'}
 			data-testid="peripeties-tab-history"
-			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shrink-0"
 			class:bg-[var(--color-accent)]={activeTab === 'history'}
 			class:text-white={activeTab === 'history'}
 			class:bg-[var(--color-bg-secondary)]={activeTab !== 'history'}
@@ -1288,7 +1288,7 @@
 			role="tab"
 			aria-selected={activeTab === 'errors'}
 			data-testid="peripeties-tab-errors"
-			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5"
+			class="px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shrink-0"
 			class:bg-[var(--color-accent)]={activeTab === 'errors'}
 			class:text-white={activeTab === 'errors'}
 			class:bg-[var(--color-bg-secondary)]={activeTab !== 'errors'}
