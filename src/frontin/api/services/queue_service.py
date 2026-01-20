@@ -1196,6 +1196,10 @@ class QueueService:
 
         # For immediate mode, run the reanalysis now
         if mode == "immediate":
+            # Mark as in_progress during reanalysis
+            original_status = item.get("status", "pending")
+            self._storage.update_item(item_id, {"status": "in_progress"})
+
             new_analysis = await self._reanalyze_sync(
                 metadata=metadata,
                 content=content,
@@ -1222,6 +1226,9 @@ class QueueService:
                 item["timestamps"]["analysis_completed_at"] = now.isoformat()
                 item["timestamps"]["analysis_started_at"] = now.isoformat()
 
+                # Restore to pending status after reanalysis
+                item["status"] = "pending"
+
                 self._storage.update_item(item_id, item)
 
                 logger.info(
@@ -1238,6 +1245,8 @@ class QueueService:
                     "new_analysis": new_analysis,
                 }
 
+            # Reanalysis failed - restore original status
+            self._storage.update_item(item_id, {"status": original_status})
             return {
                 "status": "failed",
                 "new_analysis": None,
@@ -1566,6 +1575,9 @@ class QueueService:
                 metadata = item.get("metadata", {})
                 content = item.get("content", {})
 
+                # Mark as in_progress during reanalysis
+                self._storage.update_item(item_id, {"status": "in_progress"})
+
                 # Run reanalysis without user instruction
                 new_analysis = await self._reanalyze_sync(
                     metadata=metadata,
@@ -1582,14 +1594,30 @@ class QueueService:
                     item["analysis"] = new_analysis
                     item["reanalysis_count"] = item.get("reanalysis_count", 0) + 1
 
+                    # Update timestamps for re-analysis
+                    from datetime import datetime, timezone
+
+                    now = datetime.now(timezone.utc)
+                    if "timestamps" not in item:
+                        item["timestamps"] = {}
+                    item["timestamps"]["analysis_completed_at"] = now.isoformat()
+                    item["timestamps"]["analysis_started_at"] = now.isoformat()
+
+                    # Restore to pending status after reanalysis
+                    item["status"] = "pending"
+
                     self._storage.update_item(item_id, item)
                     started += 1
                     logger.debug(f"Reanalyzed item {item_id}")
                 else:
+                    # Restore to pending status on failure
+                    self._storage.update_item(item_id, {"status": "pending"})
                     failed += 1
                     logger.warning(f"Failed to reanalyze item {item_id}")
 
             except Exception as e:
+                # Restore to pending status on error
+                self._storage.update_item(item_id, {"status": "pending"})
                 failed += 1
                 logger.error(f"Error reanalyzing item {item_id}: {e}")
 
