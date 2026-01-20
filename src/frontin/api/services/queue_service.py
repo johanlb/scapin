@@ -1239,42 +1239,27 @@ class QueueService:
             )
 
             if new_analysis:
-                # Save original analysis if first reanalysis
-                if "original_analysis" not in item:
-                    item["original_analysis"] = item.get("analysis", {})
-
-                # Update item with new analysis
-                item["analysis"] = new_analysis
-                item["user_instruction"] = user_instruction
-                item["reanalysis_count"] = item.get("reanalysis_count", 0) + 1
-
-                # Update timestamps for re-analysis
-                from datetime import datetime, timezone
-
-                now = datetime.now(timezone.utc)
-                if "timestamps" not in item:
-                    item["timestamps"] = {}
-                item["timestamps"]["analysis_completed_at"] = now.isoformat()
-                item["timestamps"]["analysis_started_at"] = now.isoformat()
-
-                # Restore to pending status after reanalysis
-                item["status"] = "pending"
-
-                self._storage.update_item(item_id, item)
-
-                logger.info(
-                    f"Reanalyzed queue item {item_id} with instruction",
-                    extra={
-                        "user_instruction": user_instruction[:50],
-                        "new_action": new_analysis.get("action"),
-                        "new_confidence": new_analysis.get("confidence"),
-                    },
+                # Use unified method to update item
+                success = self._update_item_with_analysis(
+                    item_id=item_id,
+                    item=item,
+                    new_analysis=new_analysis,
+                    user_instruction=user_instruction,
                 )
 
-                return {
-                    "status": "complete",
-                    "new_analysis": new_analysis,
-                }
+                if success:
+                    logger.info(
+                        f"Reanalyzed queue item {item_id} with instruction",
+                        extra={
+                            "user_instruction": user_instruction[:50] if user_instruction else "",
+                            "new_action": new_analysis.get("action"),
+                            "new_confidence": new_analysis.get("confidence"),
+                        },
+                    )
+                    return {
+                        "status": "complete",
+                        "new_analysis": new_analysis,
+                    }
 
             # Reanalysis failed - restore original status
             self._storage.update_item(item_id, {"status": original_status})
@@ -1395,6 +1380,65 @@ class QueueService:
         except Exception as e:
             logger.error(f"Failed to reanalyze email with multi-pass: {e}", exc_info=True)
             return None
+
+    def _update_item_with_analysis(
+        self,
+        item_id: str,
+        item: dict[str, Any],
+        new_analysis: dict[str, Any],
+        user_instruction: str = "",
+    ) -> bool:
+        """
+        Update a queue item with new analysis results.
+
+        Unified method for updating items after reanalysis, ensuring consistent
+        behavior between individual and bulk reanalysis.
+
+        Args:
+            item_id: Queue item ID
+            item: Current item data
+            new_analysis: New analysis dict from _reanalyze_sync
+            user_instruction: User's instruction (if any)
+
+        Returns:
+            True if update succeeded, False otherwise
+        """
+        from datetime import datetime, timezone
+
+        try:
+            # Save original analysis if first reanalysis
+            if "original_analysis" not in item:
+                item["original_analysis"] = item.get("analysis", {})
+
+            # Update item with new analysis
+            item["analysis"] = new_analysis
+            if user_instruction:
+                item["user_instruction"] = user_instruction
+            item["reanalysis_count"] = item.get("reanalysis_count", 0) + 1
+
+            # Update timestamps for re-analysis
+            now = datetime.now(timezone.utc)
+            if "timestamps" not in item:
+                item["timestamps"] = {}
+            item["timestamps"]["analysis_completed_at"] = now.isoformat()
+            item["timestamps"]["analysis_started_at"] = now.isoformat()
+
+            # Restore to pending status after reanalysis
+            item["status"] = "pending"
+
+            # Persist changes
+            success = self._storage.update_item(item_id, item)
+
+            if success:
+                logger.debug(f"Updated item {item_id} with new analysis")
+            else:
+                logger.warning(f"Failed to persist update for item {item_id}")
+
+            return success
+
+        except Exception as e:
+            logger.error(f"Error updating item {item_id} with analysis: {e}")
+            return False
 
     def _multi_pass_result_to_dict(self, result: Any) -> dict[str, Any]:
         """Convert MultiPassResult to queue analysis dict format."""
@@ -1648,29 +1692,18 @@ class QueueService:
                 )
 
                 if new_analysis:
-                    # Save original analysis if first reanalysis
-                    if "original_analysis" not in item:
-                        item["original_analysis"] = item.get("analysis", {})
-
-                    # Update item with new analysis
-                    item["analysis"] = new_analysis
-                    item["reanalysis_count"] = item.get("reanalysis_count", 0) + 1
-
-                    # Update timestamps for re-analysis
-                    from datetime import datetime, timezone
-
-                    now = datetime.now(timezone.utc)
-                    if "timestamps" not in item:
-                        item["timestamps"] = {}
-                    item["timestamps"]["analysis_completed_at"] = now.isoformat()
-                    item["timestamps"]["analysis_started_at"] = now.isoformat()
-
-                    # Restore to pending status after reanalysis
-                    item["status"] = "pending"
-
-                    self._storage.update_item(item_id, item)
-                    started += 1
-                    logger.debug(f"Reanalyzed item {item_id}")
+                    # Use unified method to update item
+                    success = self._update_item_with_analysis(
+                        item_id=item_id,
+                        item=item,
+                        new_analysis=new_analysis,
+                    )
+                    if success:
+                        started += 1
+                        logger.debug(f"Reanalyzed item {item_id}")
+                    else:
+                        failed += 1
+                        logger.warning(f"Failed to update item {item_id} after reanalysis")
                 else:
                     # Restore to pending status on failure
                     self._storage.update_item(item_id, {"status": "pending"})
