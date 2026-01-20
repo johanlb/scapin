@@ -457,7 +457,7 @@ class ContextSearcher:
                         title=note.title,
                         note_type=getattr(note, "type", None) or "note",
                         summary=(note.content[:200] if note.content else ""),
-                        relevance=result.match_score,
+                        relevance=min(1.0, result.match_score),
                         last_modified=getattr(note, "modified_at", None),
                         tags=note.tags or [],
                     )
@@ -510,7 +510,7 @@ class ContextSearcher:
                             title=note.title,
                             note_type=getattr(note, "type", None) or "note",
                             summary=(note.content[:200] if note.content else ""),
-                            relevance=score,
+                            relevance=min(1.0, score),
                             last_modified=getattr(note, "modified_at", None),
                             tags=note.tags or [],
                         )
@@ -622,7 +622,7 @@ class ContextSearcher:
                         time=item.metadata.get("time") if item.metadata else None,
                         participants=participants,
                         location=item.metadata.get("location") if item.metadata else None,
-                        relevance=item.final_score,
+                        relevance=min(1.0, item.final_score),
                     )
                     events.append(event)
 
@@ -657,7 +657,7 @@ class ContextSearcher:
                         project=item.metadata.get("project") if item.metadata else None,
                         due_date=item.metadata.get("due_date") if item.metadata else None,
                         status=item.metadata.get("status", "active") if item.metadata else "active",
-                        relevance=item.final_score,
+                        relevance=min(1.0, item.final_score),
                     )
                     tasks.append(task)
 
@@ -694,7 +694,7 @@ class ContextSearcher:
                         else sender_email,
                         date=item.metadata.get("date", "") if item.metadata else "",
                         snippet=item.snippet or "",
-                        relevance=item.final_score,
+                        relevance=min(1.0, item.final_score),
                     )
                     emails.append(email)
 
