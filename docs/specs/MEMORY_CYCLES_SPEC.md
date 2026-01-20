@@ -1,4 +1,4 @@
-# Cycles Mémoire — Specification v1.0
+# Cycles Mémoire — Specification v1.1
 
 **Date** : 20 janvier 2026
 **Statut** : Draft
@@ -60,12 +60,161 @@ Ces cycles alimentent le **Filage** du matin, qui prépare Johan pour sa journé
 
 ### Objectif
 
-L'IA revisite **toutes** les notes périodiquement pour :
-- Enrichir le contenu (liens, contexte)
-- Corriger les erreurs (liens cassés, typos)
-- Détecter les incohérences avec d'autres notes
-- Suggérer des fusions de doublons
-- Compléter les champs frontmatter manquants
+L'IA revisite **toutes** les notes périodiquement pour maintenir et améliorer la base de connaissances. La Retouche agit comme un **bibliothécaire cognitif** qui prend soin de la mémoire de Johan.
+
+### Les 6 Actions de la Retouche
+
+#### 1. Enrichissement de contenu
+
+L'IA ajoute du contenu, reformule pour plus de clarté :
+- Compléter les informations manquantes (depuis le contexte)
+- Reformuler les passages confus
+- Ajouter des détails pertinents trouvés dans d'autres notes
+
+#### 2. Structuration
+
+L'IA réorganise le contenu pour une meilleure lisibilité :
+- Créer/réorganiser les sections et sous-sections
+- Établir une hiérarchie logique
+- Ajouter des listes à puces pour les énumérations
+- Mettre en forme les métadonnées
+
+#### 3. Résumé / Synthèse
+
+L'IA génère un résumé en tête de note :
+- Synthèse en 2-3 phrases
+- Points clés à retenir
+- Contexte rapide pour Johan
+
+#### 4. Scoring Qualité
+
+L'IA évalue la qualité de la note (0-100%) :
+
+| Score | Signification |
+|-------|---------------|
+| 90-100% | Note complète, bien structurée |
+| 70-89% | Bonne note, améliorations mineures possibles |
+| 50-69% | Note correcte, enrichissement souhaitable |
+| 30-49% | Note incomplète, travail nécessaire |
+| 0-29% | Note problématique, attention requise |
+
+Critères d'évaluation :
+- Complétude des informations
+- Clarté de la structure
+- Qualité des liens (wikilinks)
+- Fraîcheur des informations
+- Absence de contradictions
+
+#### 5. Injection de Questions
+
+L'IA injecte des questions dans la note pour Johan. Ces questions apparaissent lors de la **Lecture** et permettent de compléter la mémoire via un dialogue.
+
+| Type de question | Exemple | Déclencheur |
+|------------------|---------|-------------|
+| **Clarification** | "Quel est le lien exact entre Marc et Azuri ?" | Relation floue détectée |
+| **Information manquante** | "Quelle est la date de cet événement ?" | Champ vide ou imprécis |
+| **Validation** | "Cette adresse est-elle toujours valide ?" | Info ancienne (>1 an) |
+| **Approfondissement** | "Peux-tu détailler le contexte de cette décision ?" | Note superficielle |
+| **Connexion** | "Y a-t-il un lien avec [[Projet X]] ?" | Similarité détectée |
+
+Format dans la note :
+```markdown
+## Questions en attente
+- [ ] Quel est son rôle exact chez Azuri ? (poste, responsabilités)
+- [ ] Comment s'est passée la première rencontre ?
+- [ ] Y a-t-il un lien avec [[Jennifer Hirst]] ?
+```
+
+#### 6. Restructuration du Graphe
+
+La Retouche ne concerne pas seulement la note individuelle, mais maintient la santé de **l'ensemble du graphe de connaissances**.
+
+**Opérations sur le graphe :**
+
+| Opération | Déclencheur | Exemple |
+|-----------|-------------|---------|
+| **Scinder** | Note > 2000 mots, multi-sujets | "Projet Azuri" → "Azuri - Historique" + "Azuri - Contacts" + "Azuri - Finances" |
+| **Fusionner** | Notes très similaires, redondance | "Marc D." + "M. Dupont" + "Marc Dupont (Azuri)" → "Marc Dupont" |
+| **Extraire** | Section autonome détectée | Section "Réunion du 15/01" extraite vers note dédiée |
+| **Absorber** | Note orpheline, contenu faible | Micro-note absorbée dans note parente |
+| **Relier** | Connexion manquante détectée | Ajouter lien [[Jennifer Hirst]] dans "Équipe Azuri" |
+
+**Flux de restructuration :**
+```
+Retouche de Note X
+       │
+       ├──▶ Analyse contexte (notes liées + similaires)
+       │
+       ├──▶ Décisions de restructuration
+       │       • Note X : enrichir, restructurer
+       │       • Note Y : fusionner dans X
+       │       • Note Z : créer (scission de X)
+       │
+       ├──▶ Exécution (avec seuils de confiance)
+       │       • Auto-apply si confiance ≥ 0.9
+       │       • Suggestion sinon (validation Johan)
+       │
+       └──▶ Mise à jour des compteurs SM-2
+               • X : retouché
+               • Y : archivé (fusionné)
+               • Z : nouveau (next_retouche = soon)
+```
+
+### Garde-fous
+
+| Risque | Protection |
+|--------|------------|
+| Perte de données | Snapshot avant restructuration majeure |
+| Fusion incorrecte | Confiance ≥ 0.95 pour fusion auto, sinon suggestion |
+| Scission excessive | Minimum 500 mots par note créée |
+| Chaos des liens | Mise à jour automatique de tous les wikilinks |
+| Sur-modification | Max 3 restructurations majeures par jour |
+
+### Exemple de Retouche complète
+
+**Avant Retouche :**
+```markdown
+# Marc Dupont
+
+Contact chez Azuri. Rencontré en 2021.
+Sympa, bon contact.
+```
+
+**Après Retouche :**
+```markdown
+---
+title: Marc Dupont
+type: personne
+organization: "[[Azuri]]"
+relation: contact_professionnel
+quality_score: 45
+last_retouche: 2026-01-20
+---
+
+# Marc Dupont
+
+## Résumé
+Contact professionnel chez [[Azuri]] depuis 2021. Relation de confiance établie.
+
+## Contexte
+Rencontré en 2021 dans le cadre du projet Azuri. Décrit comme sympathique et fiable.
+
+## Contact
+- Email : _à compléter_
+- Téléphone : _à compléter_
+- Poste : _à compléter_
+
+## Questions en attente
+- [ ] Quel est son rôle exact chez Azuri ? (poste, responsabilités)
+- [ ] Comment s'est passée la première rencontre ?
+- [ ] Y a-t-il un lien avec [[Jennifer Hirst]] qui travaille aussi chez Azuri ?
+
+## Historique des interactions
+_Aucune interaction documentée_
+
+---
+_Qualité : 45% — Enrichissement nécessaire_
+```
 
 ### Déclencheurs
 
@@ -119,6 +268,41 @@ def update_retouche_sm2(note, quality):
 
 ---
 
+## Boucle de Co-construction Retouche ↔ Lecture
+
+La Retouche et la Lecture forment une **boucle de co-construction** où l'IA et Johan collaborent pour enrichir la mémoire :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   RETOUCHE (IA)                      LECTURE (Johan)            │
+│   ─────────────                      ──────────────             │
+│                                                                 │
+│   • Enrichit le contenu              • Lit la note              │
+│   • Restructure                      • Découvre les questions   │
+│   • Génère un résumé                 • Répond aux questions     │
+│   • Évalue la qualité                • Valide/corrige           │
+│   • Injecte des QUESTIONS ──────────────────────┐               │
+│         ▲                                       │               │
+│         │                                       ▼               │
+│         └─────────── Intègre les réponses ──────┘               │
+│                                                                 │
+│              La mémoire se construit à deux.                    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Flux de co-construction :**
+
+1. **Retouche** analyse la note, détecte des lacunes
+2. **Retouche** injecte des questions ciblées
+3. **Lecture** : Johan lit la note et voit les questions
+4. **Lecture** : Johan répond aux questions (texte libre)
+5. **Prochaine Retouche** : L'IA intègre les réponses dans le contenu de la note
+6. La note s'enrichit progressivement via ce dialogue
+
+---
+
 ## Cycle 2 : Lecture (Humain)
 
 ### Objectif
@@ -128,6 +312,36 @@ Johan revisite **toutes** les notes périodiquement pour :
 - Redécouvrir des informations oubliées
 - Valider/corriger les informations
 - Renforcer les connexions mentales
+- **Répondre aux questions de l'IA** pour enrichir la note
+
+### Déroulement d'une Lecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      LECTURE D'UNE NOTE                         │
+│                                                                 │
+│  1. Affichage de la note                                        │
+│     • Résumé en haut                                            │
+│     • Score qualité visible                                     │
+│     • Contenu complet                                           │
+│                                                                 │
+│  2. Section "Questions en attente" mise en évidence             │
+│     ┌─────────────────────────────────────────────────────────┐ │
+│     │ ❓ Questions de Scapin                                  │ │
+│     │                                                         │ │
+│     │ • Quel est son rôle exact chez Azuri ?                  │ │
+│     │   [Répondre] [Je ne sais pas] [Question non pertinente] │ │
+│     │                                                         │ │
+│     │ • Y a-t-il un lien avec [[Jennifer Hirst]] ?            │ │
+│     │   [Répondre] [Je ne sais pas] [Question non pertinente] │ │
+│     └─────────────────────────────────────────────────────────┘ │
+│                                                                 │
+│  3. Validation finale                                           │
+│     • "Comment était ce souvenir ?" (échelle 0-5)               │
+│     • Mise à jour SM-2                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### Déclencheurs
 
@@ -438,4 +652,5 @@ Retourne l'état des deux cycles SM-2 pour une note.
 
 | Version | Date | Changements |
 |---------|------|-------------|
+| 1.1 | 2026-01-20 | Ajout détails Retouche (6 actions, restructuration graphe, questions), boucle co-construction |
 | 1.0 | 2026-01-20 | Draft initial — Cycles Retouche/Lecture/Filage |
