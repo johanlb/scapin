@@ -168,7 +168,8 @@ L'architecture "Quatre Valets" remplace le système multi-pass v2.2 par une appr
   "entities_discovered": ["..."],
   "changes_made": ["..."],
   "context_influence": {
-    "notes_used": ["..."],
+    "notes_used": ["Marc Dupont", "Projet Alpha"],
+    "notes_ignored": ["Factures 2024 — hors sujet"],
     "explanation": "...",
     "confirmations": ["..."],
     "contradictions": ["..."],
@@ -180,12 +181,18 @@ L'architecture "Quatre Valets" remplace le système multi-pass v2.2 par une appr
 ```
 
 **Tâches** :
-0. TRIER — Filtrer les notes non pertinentes (`notes_ignored`)
-1. IDENTIFIER — Résoudre les ambiguïtés de noms
+0. TRIER — Filtrer les notes non pertinentes (→ `notes_ignored`)
+1. IDENTIFIER — Résoudre les ambiguïtés de noms (→ `notes_used`)
 2. VÉRIFIER — Détecter les doublons
 3. ENRICHIR — Ajouter le contexte manquant
-4. AJUSTER — Adapter les actions (omnifocus, calendar)
-5. ÉVALUER — Mettre à jour la confiance
+4. PRÉPARER — `memory_hint` pour Passepartout
+5. AJUSTER — Adapter les actions (omnifocus, calendar)
+6. ÉVALUER — Mettre à jour la confiance
+
+**Filtrage du contexte** :
+- Les notes fournies par Passepartout sont des **candidates** (pas toutes pertinentes)
+- Bazin doit explicitement trier : `notes_used` vs `notes_ignored`
+- Cela évite que des notes non pertinentes influencent l'analyse
 
 **Pas d'arrêt** : Toujours passer à Planchet.
 
@@ -384,7 +391,8 @@ Haiku → Sonnet → Opus
 
 | Composant | Rôle |
 |-----------|------|
-| **Bazin** | Prépare l'écriture : `note_cible`, `section_cible`, `format_suggere` |
+| **Passepartout** | Fournit les notes candidates (retrieval) |
+| **Bazin** | Filtre (`notes_ignored`) + Prépare : `note_cible`, `section_cible`, `format_suggere` |
 | **Planchet** | Valide : note existe ? section correcte ? pas doublon ? |
 | **Mousqueton** | Finalise : `ready_for_passepartout: true` |
 | **Passepartout** | Exécute l'écriture réelle dans les notes PKM |
@@ -413,7 +421,32 @@ Chaque extraction contient un `memory_hint` pour guider Passepartout :
 | `validation` | Statut de validation par Planchet | `ok`, `corrige`, `doublon_ignore` |
 | `ready_for_passepartout` | Prêt pour écriture (Mousqueton only) | `true`, `false` |
 
-### 7.3 Flux d'écriture
+### 7.3 Filtrage du contexte (Bazin)
+
+Passepartout fournit des notes **candidates** basées sur la similarité sémantique.
+Bazin doit les trier car certaines peuvent être des faux positifs :
+
+```
+Passepartout (retrieval)
+    │
+    ├── Notes candidates (relevance > seuil)
+    │
+    ▼
+Bazin (filtrage sémantique)
+    │
+    ├── notes_used: ["Projet Alpha", "Marc Dupont"]
+    ├── notes_ignored: ["Factures 2024 — hors sujet"]
+    │
+    ▼
+Analyse enrichie (sans bruit)
+```
+
+**Pourquoi ce filtrage ?**
+- Les embeddings peuvent matcher sur des mots similaires mais contextes différents
+- Une note "Marc Dupont" comptable ≠ "Marc Dupont" développeur
+- Bazin voit le contenu et peut juger la vraie pertinence
+
+### 7.4 Flux d'écriture
 
 ```
 Valet final (Planchet ou Mousqueton)
@@ -594,6 +627,7 @@ templates/ai/v2/
 | Validation JSON | ✅ | ✅ | ✅ | ✅ |
 | Few-shot example | ✅ (OTP) | — | — | — |
 | Early stop | ✅ | — | — | — |
+| Filtrage contexte | — | ✅ (`notes_ignored`) | — | — |
 | memory_hint | — | ✅ | ✅ | ✅ |
 | Extractions | ✅ | ✅ | ✅ | ✅ |
 | Questions next pass | ✅ | ✅ | ✅ | — |
