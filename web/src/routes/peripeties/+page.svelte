@@ -2249,7 +2249,7 @@
 									<div class="flex flex-wrap gap-1">
 										{#each currentItem.analysis.context_used as noteId}
 											<a
-												href="/notes/{noteId}"
+												href="/memoires/{noteId}"
 												class="text-xs px-2 py-0.5 rounded-full bg-[var(--color-event-notes)]/20 text-[var(--color-event-notes)] hover:bg-[var(--color-event-notes)]/30"
 											>
 												📝 {noteId.slice(0, 15)}...

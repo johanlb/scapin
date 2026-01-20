@@ -769,7 +769,7 @@ interface ContextNote {
 	summary: string;
 	relevance: number;
 	tags: string[];
-	path?: string;  // Folder path for navigation
+	path?: string; // Folder path for navigation
 }
 
 interface ContextCalendar {
