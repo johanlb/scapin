@@ -292,14 +292,35 @@ class NoteManager:
 
         Returns:
             True if index loaded successfully, False otherwise
+
+        Triggers rebuild if:
+        - Index file doesn't exist
+        - Index is empty (0 documents)
+        - Index is older than 24 hours
         """
+        # Check if index exists
         if not self._index_path.exists():
             logger.info("No index cache found, will rebuild")
+            return False
+
+        # Check index age (rebuild if older than 24 hours)
+        index_age_hours = self._get_index_age_hours()
+        if index_age_hours is not None and index_age_hours > 24:
+            logger.info(
+                "Index is stale, will rebuild",
+                extra={"age_hours": round(index_age_hours, 1), "threshold_hours": 24},
+            )
             return False
 
         try:
             self.vector_store.load(self._index_path)
             doc_count = len(self.vector_store.id_to_doc)
+
+            # Check if index is empty
+            if doc_count == 0:
+                logger.info("Index is empty, will rebuild")
+                return False
+
             logger.info(
                 "Loaded index from disk",
                 extra={"path": str(self._index_path), "documents": doc_count},
@@ -320,6 +341,24 @@ class NoteManager:
                 extra={"path": str(self._index_path), "error": str(e)},
             )
             return False
+
+    def _get_index_age_hours(self) -> float | None:
+        """
+        Get the age of the index file in hours
+
+        Returns:
+            Age in hours, or None if file doesn't exist
+        """
+        try:
+            # Check the FAISS index file specifically
+            faiss_index = self._index_path / "index.faiss"
+            if faiss_index.exists():
+                mtime = faiss_index.stat().st_mtime
+                age_seconds = datetime.now().timestamp() - mtime
+                return age_seconds / 3600
+            return None
+        except Exception:
+            return None
 
     def _save_index(self) -> None:
         """Save vector index to disk for faster startup"""
