@@ -8,7 +8,31 @@
 
 ## 1. Vue d'ensemble
 
-L'architecture "Quatre Valets" remplace le système multi-pass v2.2 par une approche inspirée des valets des Trois Mousquetaires de Dumas. Chaque valet a une personnalité et un rôle distincts, créant un dialogue coopératif et contradictoire entre les passes d'analyse.
+L'architecture "Quatre Valets" est une évolution du système multi-pass v2.2, orchestrée par **Sancho**. Inspirée des valets des Trois Mousquetaires de Dumas, elle crée un dialogue coopératif et contradictoire entre quatre personas distincts.
+
+### 1.0 Sancho — L'orchestrateur
+
+**Sancho** (`src/sancho/`) est le module de raisonnement IA de Scapin. Il orchestre l'analyse multi-pass en invoquant les quatre valets dans l'ordre.
+
+```
+┌────────────────────────────────────────────────────────┐
+│                      SANCHO                             │
+│            (Module de raisonnement IA)                  │
+│                                                         │
+│  Responsabilités :                                      │
+│  • Orchestrer le pipeline Four Valets                   │
+│  • Gérer les arrêts précoces (early_stop, confidence)  │
+│  • Sélectionner les modèles par valet                   │
+│  • Agréger les résultats finaux                         │
+│                                                         │
+│  Fichier : src/sancho/multi_pass_analyzer.py           │
+└────────────────────────────────────────────────────────┘
+```
+
+Sancho utilise :
+- **TemplateRenderer** : Génère les prompts pour chaque valet
+- **AnthropicProvider** : Appelle l'API Claude (Haiku/Sonnet/Opus)
+- **ContextSearcher** : Récupère le contexte via Passepartout
 
 ### 1.1 Les Quatre Valets
 
@@ -491,7 +515,7 @@ Structure commune à tous les valets :
 
 ---
 
-## 7. Mapping avec l'ancien système
+## 9. Mapping avec l'ancien système
 
 | Ancien (v2.2) | Nouveau (v3.0) |
 |---------------|----------------|
@@ -502,9 +526,23 @@ Structure commune à tous les valets :
 
 ---
 
-## 8. Métriques et observabilité
+## 10. Infrastructure existante
 
-### 8.1 Métriques à collecter
+L'implémentation des Quatre Valets s'appuie sur l'infrastructure Sancho existante :
+
+| Composant | Fichier | Description |
+|-----------|---------|-------------|
+| **TemplateRenderer** | `src/sancho/template_renderer.py` | Rendu Jinja2 avec filtres (`truncate_smart`, `format_date`) |
+| **MultiPassAnalyzer** | `src/sancho/multi_pass_analyzer.py` | Orchestrateur avec `DecomposedConfidence` |
+| **AnthropicProvider** | `src/sancho/providers/anthropic_provider.py` | API Claude (Haiku/Sonnet/Opus) |
+| **ContextSearcher** | `src/sancho/context_searcher.py` | Coordination avec Passepartout |
+| **Configuration** | `config/defaults.yaml` | YAML + Pydantic |
+
+---
+
+## 11. Métriques et observabilité
+
+### 11.1 Métriques à collecter
 
 - `pass_count` : Nombre de passes par événement
 - `early_stop_rate` : % d'arrêts à Grimaud
@@ -513,7 +551,7 @@ Structure commune à tous les valets :
 - `model_escalation_rate` : % d'escalades de modèle
 - `cost_per_event` : Coût moyen par événement
 
-### 8.2 Alertes
+### 11.2 Alertes
 
 - Si `early_stop_rate` > 50% : Vérifier qualité des suppressions
 - Si `planchet_stop_rate` < 30% : Bazin/Planchet sous-performent
@@ -521,47 +559,47 @@ Structure commune à tous les valets :
 
 ---
 
-## 9. Migration
+## 12. Migration
 
-### 9.1 Stratégie
+### 12.1 Stratégie
 
 1. **Phase 1** : Déployer en shadow mode (comparer avec v2.2)
 2. **Phase 2** : A/B testing sur 10% du trafic
 3. **Phase 3** : Rollout progressif
 4. **Phase 4** : Décommissionner v2.2
 
-### 9.2 Rollback
+### 12.2 Rollback
 
 Conserver les anciens templates pendant 30 jours après migration complète.
 
 ---
 
-## 10. Calibration de confiance
+## 13. Calibration de confiance
 
 Chaque valet a des règles de calibration pour éviter la sur-confiance :
 
-### 10.1 Grimaud (Pass 1)
+### 13.1 Grimaud (Pass 1)
 | Situation | Confiance |
 |-----------|-----------|
 | Contenu éphémère évident (OTP, spam) | 95-99% |
 | Extraction normale sans contexte | 60-80% |
 | Doute sur entité/projet | 50-70% |
 
-### 10.2 Bazin (Pass 2)
+### 13.2 Bazin (Pass 2)
 | Situation | Confiance |
 |-----------|-----------|
 | Contexte confirmant tout | 85-95% |
 | Contexte partiel | 75-85% |
 | Contradictions détectées | 60-75% |
 
-### 10.3 Planchet (Pass 3)
+### 13.3 Planchet (Pass 3)
 | Situation | Confiance |
 |-----------|-----------|
 | Tout validé, pas de problème | 91-95% → `needs_mousqueton: false` |
 | Petits ajustements faits | 85-91% |
 | Problèmes non résolus | 70-85% → `needs_mousqueton: true` |
 
-### 10.4 Mousqueton (Pass 4)
+### 13.4 Mousqueton (Pass 4)
 | Situation | Confiance |
 |-----------|-----------|
 | Tous conflits résolus | 92-98% |
@@ -570,29 +608,29 @@ Chaque valet a des règles de calibration pour éviter la sur-confiance :
 
 ---
 
-## 11. Améliorations qualité (P0/P1)
+## 14. Améliorations qualité (P0/P1)
 
-### 11.1 P0 — Calibration confiance
+### 14.1 P0 — Calibration confiance
 - Instructions explicites de calibration dans chaque prompt
 - Règle : "Sois HONNÊTE, pas optimiste"
 - Préférer sous-estimer que sur-estimer
 
-### 11.2 P1 — Few-shot examples
+### 14.2 P1 — Few-shot examples
 - Exemple OTP dans Grimaud pour `early_stop`
 - Montre le comportement attendu
 
-### 11.3 P1 — Validation JSON
+### 14.3 P1 — Validation JSON
 - Instruction "AVANT DE RÉPONDRE : Vérifie que ton JSON est valide"
 - Présent dans tous les prompts
 
-### 11.4 P1 — Paramètres API
+### 14.4 P1 — Paramètres API
 Voir section 5 pour les températures et top_p par valet.
 
 ---
 
-## 12. Annexes
+## 15. Annexes
 
-### 10.1 Références littéraires
+### 15.1 Références littéraires
 
 > **Grimaud** : "Grimaud était d'un silence exemplaire. Athos l'avait habitué à ne répondre que par signes."
 >
@@ -602,12 +640,12 @@ Voir section 5 pour les températures et top_p par valet.
 >
 > **Mousqueton** : "Mousqueton était un Normand dont le nom pacifique de Boniface avait été changé par son maître Porthos."
 
-### 12.2 Fichiers de prompts
+### 15.2 Fichiers de prompts
 
 ```
 templates/ai/v2/
 ├── pass1_grimaud.j2      (~230 lignes) - Extraction silencieuse
-├── pass2_bazin.j2        (~250 lignes) - Enrichissement contextuel
+├── pass2_bazin.j2        (~280 lignes) - Enrichissement contextuel
 ├── pass3_planchet.j2     (~240 lignes) - Critique et validation
 ├── pass4_mousqueton.j2   (~230 lignes) - Arbitrage final
 │
@@ -617,7 +655,7 @@ templates/ai/v2/
 └── pass4_deep_reasoning.j2
 ```
 
-### 12.3 Checklist des fonctionnalités
+### 15.3 Checklist des fonctionnalités
 
 | Fonctionnalité | Grimaud | Bazin | Planchet | Mousqueton |
 |----------------|---------|-------|----------|------------|
@@ -632,7 +670,7 @@ templates/ai/v2/
 | Extractions | ✅ | ✅ | ✅ | ✅ |
 | Questions next pass | ✅ | ✅ | ✅ | — |
 
-### 12.4 Terminologie Scapin
+### 15.4 Terminologie Scapin
 
 | Terme générique | Terme Scapin |
 |-----------------|--------------|
@@ -640,6 +678,7 @@ templates/ai/v2/
 | Notes PKM | Mémoires |
 | Archives | Mémoires |
 | Base de connaissances | Mémoires |
+| Orchestrateur IA | Sancho |
 | Pass | Valet |
 | Extraction | Extraction |
 | Action | Action |

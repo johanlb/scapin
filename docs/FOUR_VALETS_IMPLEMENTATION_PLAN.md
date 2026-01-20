@@ -1,427 +1,378 @@
-# Plan d'implémentation — Architecture des Quatre Valets
+# Plan d'implémentation — Architecture des Quatre Valets v3.0
 
 **Date** : 2026-01-20
 **Référence** : [FOUR_VALETS_SPEC.md](FOUR_VALETS_SPEC.md)
+**Status** : Simplifié après analyse du codebase
 
 ---
 
-## Phase 1 : Préparation (Foundation)
+## État de l'existant
 
-### 1.1 Mise à jour du TemplateRenderer
+L'analyse du codebase révèle que **la majorité de l'infrastructure existe déjà**.
+
+### ✅ Composants existants
+
+| Composant | Fichier | Status |
+|-----------|---------|--------|
+| **Filtres Jinja2** | `src/sancho/template_renderer.py` | ✅ `truncate_smart`, `format_date`, `format_confidence` |
+| **Configuration** | `config/defaults.yaml` | ✅ YAML + Pydantic + env vars |
+| **Tests** | `tests/unit/conftest.py` | ✅ Fixtures avec mocks AI |
+| **Provider Anthropic** | `src/sancho/providers/anthropic_provider.py` | ✅ Haiku/Sonnet/Opus |
+| **Retrieval** | `src/passepartout/` | ✅ 5 niveaux (FAISS + embeddings + entity) |
+| **Templates v2** | `templates/ai/v2/` | ✅ Grimaud, Bazin, Planchet, Mousqueton |
+| **Multi-pass** | `src/sancho/multi_pass_analyzer.py` | ✅ Convergence + DecomposedConfidence |
+
+### 🔧 Ce qui reste à faire
+
+1. **Méthodes render spécifiques** dans `TemplateRenderer`
+2. **Logique Four Valets** dans `MultiPassAnalyzer` (extension, pas remplacement)
+3. **Configuration des seuils** dans `config/defaults.yaml`
+4. **Tests spécifiques** pour le flux Four Valets
+
+---
+
+## Architecture : Sancho comme orchestrateur
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         SANCHO                               │
+│              (Orchestrateur Multi-Pass)                      │
+│                                                              │
+│  src/sancho/multi_pass_analyzer.py                          │
+│  ─────────────────────────────────                          │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              MODE: Four Valets v3.0                  │   │
+│  │                                                      │   │
+│  │  Grimaud → Bazin → Planchet → (Mousqueton?)         │   │
+│  │     │                  │              │              │   │
+│  │  early_stop?      toujours      confidence>90%?     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                              │
+│  Utilise:                                                   │
+│  - TemplateRenderer (prompts)                               │
+│  - AnthropicProvider (API Claude)                           │
+│  - ContextSearcher (Passepartout)                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Phase 1 : Extension du TemplateRenderer
 
 **Fichier** : `src/sancho/template_renderer.py`
 
 **Tâches** :
-- [ ] Ajouter méthodes `render_grimaud()`, `render_bazin()`, `render_planchet()`, `render_mousqueton()`
-- [ ] Conserver les anciennes méthodes `render_pass1()`, `render_pass2()`, `render_pass4()` pour rollback
-- [ ] Ajouter paramètre `version="v3"` pour switch entre architectures
+- [ ] Ajouter `render_grimaud(event, max_content_chars, briefing)`
+- [ ] Ajouter `render_bazin(event, previous_result, context, briefing)`
+- [ ] Ajouter `render_planchet(event, previous_passes, context, briefing)`
+- [ ] Ajouter `render_mousqueton(event, previous_passes, full_context, briefing)`
 
-**Code suggéré** :
+**Code** :
 ```python
-def render_grimaud(self, event: Any, max_content_chars: int = 8000) -> str:
-    """Render Pass 1 (Grimaud) template."""
-    return self.render("pass1_grimaud", event=event, max_content_chars=max_content_chars)
+# Dans TemplateRenderer
+
+def render_grimaud(
+    self,
+    event: PerceivedEvent,
+    max_content_chars: int = 8000,
+) -> str:
+    """Render Grimaud (Pass 1) - Extraction silencieuse."""
+    return self.render(
+        "pass1_grimaud",
+        event=event,
+        now=datetime.now(),
+        max_content_chars=max_content_chars,
+        briefing=self._get_briefing(),
+    )
 
 def render_bazin(
     self,
-    event: Any,
+    event: PerceivedEvent,
     previous_result: dict,
-    context: Any,
-    max_content_chars: int = 8000,
+    context: StructuredContext,
+    max_content_chars: int = 4000,
     max_context_notes: int = 5,
 ) -> str:
-    """Render Pass 2 (Bazin) template."""
+    """Render Bazin (Pass 2) - Enrichissement contextuel."""
     return self.render(
         "pass2_bazin",
         event=event,
         previous_result=previous_result,
         context=context,
+        now=datetime.now(),
         max_content_chars=max_content_chars,
         max_context_notes=max_context_notes,
+        briefing=self._get_briefing(),
     )
 
 def render_planchet(
     self,
-    event: Any,
+    event: PerceivedEvent,
     previous_passes: list[dict],
-    context: Any,
-    max_content_chars: int = 8000,
+    context: StructuredContext,
+    max_content_chars: int = 4000,
 ) -> str:
-    """Render Pass 3 (Planchet) template."""
+    """Render Planchet (Pass 3) - Critique et validation."""
     return self.render(
         "pass3_planchet",
         event=event,
         previous_passes=previous_passes,
         context=context,
+        now=datetime.now(),
         max_content_chars=max_content_chars,
+        briefing=self._get_briefing(),
     )
 
 def render_mousqueton(
     self,
-    event: Any,
+    event: PerceivedEvent,
     previous_passes: list[dict],
-    full_context: Any,
+    full_context: StructuredContext,
 ) -> str:
-    """Render Pass 4 (Mousqueton) template."""
+    """Render Mousqueton (Pass 4) - Arbitrage final."""
     return self.render(
         "pass4_mousqueton",
         event=event,
         previous_passes=previous_passes,
         full_context=full_context,
+        now=datetime.now(),
+        briefing=self._get_briefing(),
     )
 ```
 
-### 1.2 Création du FourValetsAnalyzer
-
-**Fichier** : `src/sancho/four_valets_analyzer.py` (nouveau)
-
-**Tâches** :
-- [ ] Créer classe `FourValetsAnalyzer`
-- [ ] Implémenter logique d'arrêt précoce
-- [ ] Implémenter sélection de modèle adaptative
-- [ ] Ajouter métriques de suivi
-
-**Structure suggérée** :
-```python
-class FourValetsAnalyzer:
-    """
-    Multi-pass analyzer using the Four Valets architecture.
-
-    Flow:
-        Grimaud → (early_stop?) → Bazin → Planchet → (confidence>90%?) → Mousqueton
-    """
-
-    def __init__(
-        self,
-        template_renderer: TemplateRenderer,
-        provider: AIProvider,
-        model_selector: ModelSelector,
-    ):
-        self._renderer = template_renderer
-        self._provider = provider
-        self._model_selector = model_selector
-
-    async def analyze(self, event: PerceivedEvent, context: StructuredContext) -> AnalysisResult:
-        """Run the Four Valets analysis pipeline."""
-        passes = []
-
-        # Pass 1: Grimaud
-        grimaud_result = await self._run_grimaud(event)
-        passes.append(grimaud_result)
-
-        if self._should_early_stop(grimaud_result):
-            return self._finalize(grimaud_result, passes, stopped_at="grimaud")
-
-        # Pass 2: Bazin
-        bazin_result = await self._run_bazin(event, grimaud_result, context)
-        passes.append(bazin_result)
-
-        # Pass 3: Planchet (always runs after Bazin)
-        planchet_result = await self._run_planchet(event, passes, context)
-        passes.append(planchet_result)
-
-        if self._planchet_can_conclude(planchet_result):
-            return self._finalize(planchet_result, passes, stopped_at="planchet")
-
-        # Pass 4: Mousqueton
-        mousqueton_result = await self._run_mousqueton(event, passes, context)
-        passes.append(mousqueton_result)
-
-        return self._finalize(mousqueton_result, passes, stopped_at="mousqueton")
-
-    def _should_early_stop(self, result: dict) -> bool:
-        """Check if Grimaud triggered early stop."""
-        return (
-            result.get("early_stop", False) and
-            result.get("action") == "delete" and
-            result.get("confidence", {}).get("overall", 0) > 0.95
-        )
-
-    def _planchet_can_conclude(self, result: dict) -> bool:
-        """Check if Planchet's confidence allows stopping."""
-        return (
-            not result.get("needs_mousqueton", True) and
-            result.get("confidence", {}).get("overall", 0) > 0.90
-        )
-```
-
-### 1.3 Mise à jour des types
-
-**Fichier** : `src/sancho/types.py` (ou créer si inexistant)
-
-**Tâches** :
-- [ ] Ajouter `ValetResult` TypedDict pour chaque valet
-- [ ] Ajouter `FourValetsConfig` pour configuration
-- [ ] Ajouter enums pour `EarlyStopReason`, `StoppedAt`
-
 ---
 
-## Phase 2 : Intégration
-
-### 2.1 Intégration avec MultiPassAnalyzer existant
+## Phase 2 : Extension du MultiPassAnalyzer
 
 **Fichier** : `src/sancho/multi_pass_analyzer.py`
 
+**Approche** : Ajouter un mode `four_valets` à l'analyseur existant.
+
 **Tâches** :
-- [ ] Ajouter flag `use_four_valets: bool = False`
-- [ ] Router vers `FourValetsAnalyzer` si flag actif
-- [ ] Conserver comportement v2.2 par défaut
+- [ ] Ajouter `_run_four_valets_pipeline()` comme alternative à `_run_passes()`
+- [ ] Implémenter logique `early_stop` pour Grimaud
+- [ ] Implémenter logique `needs_mousqueton` pour Planchet
+- [ ] Ajouter `stopped_at` dans `MultiPassResult`
 
-**Code suggéré** :
+**Code** :
 ```python
-class MultiPassAnalyzer:
-    def __init__(self, ..., use_four_valets: bool = False):
-        self._use_four_valets = use_four_valets
-        if use_four_valets:
-            self._four_valets = FourValetsAnalyzer(...)
+# Dans MultiPassAnalyzer
 
-    async def analyze(self, event, context):
-        if self._use_four_valets:
-            return await self._four_valets.analyze(event, context)
-        return await self._legacy_analyze(event, context)
+async def analyze(
+    self,
+    event: PerceivedEvent,
+    context: StructuredContext,
+    use_four_valets: bool = True,  # v3.0 par défaut
+) -> MultiPassResult:
+    """Analyze event using Sancho's multi-pass pipeline."""
+    if use_four_valets:
+        return await self._run_four_valets_pipeline(event, context)
+    return await self._run_legacy_pipeline(event, context)
+
+async def _run_four_valets_pipeline(
+    self,
+    event: PerceivedEvent,
+    context: StructuredContext,
+) -> MultiPassResult:
+    """Four Valets v3.0 pipeline."""
+    passes: list[PassResult] = []
+
+    # === GRIMAUD (Pass 1) ===
+    grimaud = await self._run_grimaud(event)
+    passes.append(grimaud)
+
+    if self._should_early_stop(grimaud):
+        return self._finalize(grimaud, passes, stopped_at="grimaud")
+
+    # === BAZIN (Pass 2) ===
+    bazin = await self._run_bazin(event, grimaud, context)
+    passes.append(bazin)
+
+    # === PLANCHET (Pass 3) ===
+    planchet = await self._run_planchet(event, passes, context)
+    passes.append(planchet)
+
+    if self._planchet_can_conclude(planchet):
+        return self._finalize(planchet, passes, stopped_at="planchet")
+
+    # === MOUSQUETON (Pass 4) ===
+    mousqueton = await self._run_mousqueton(event, passes, context)
+    passes.append(mousqueton)
+
+    return self._finalize(mousqueton, passes, stopped_at="mousqueton")
+
+def _should_early_stop(self, result: PassResult) -> bool:
+    """Grimaud early stop for ephemeral content."""
+    return (
+        result.raw.get("early_stop", False) and
+        result.raw.get("action") == "delete" and
+        result.confidence.overall > 0.95
+    )
+
+def _planchet_can_conclude(self, result: PassResult) -> bool:
+    """Planchet stops if confidence > 90%."""
+    return (
+        not result.raw.get("needs_mousqueton", True) and
+        result.confidence.overall > 0.90
+    )
 ```
 
-### 2.2 Configuration
+---
 
-**Fichier** : `config/sancho.yaml` (ou équivalent)
+## Phase 3 : Configuration
+
+**Fichier** : `config/defaults.yaml`
 
 **Tâches** :
-- [ ] Ajouter section `four_valets`
-- [ ] Configurer seuils d'arrêt
-- [ ] Configurer sélection de modèle
+- [ ] Ajouter section `sancho.four_valets`
 
-**Structure suggérée** :
 ```yaml
 sancho:
+  # Architecture v3.0 - Four Valets
   four_valets:
-    enabled: false  # Activer en Phase 3
+    enabled: true
 
+    # Seuils d'arrêt
     stopping_rules:
       grimaud_early_stop_confidence: 0.95
       planchet_stop_confidence: 0.90
       mousqueton_queue_confidence: 0.90
 
-    model_selection:
-      default:
-        grimaud: haiku
-        bazin: haiku
-        planchet: haiku
-        mousqueton: sonnet
+    # Modèles par valet
+    models:
+      grimaud: haiku
+      bazin: haiku
+      planchet: haiku
+      mousqueton: sonnet
 
-      adaptive:
-        enabled: true
-        escalation_threshold: 0.80
-        escalation_map:
-          haiku: sonnet
-          sonnet: opus
-```
-
-### 2.3 Métriques
-
-**Fichier** : `src/monitoring/metrics.py`
-
-**Tâches** :
-- [ ] Ajouter compteurs pour chaque valet
-- [ ] Ajouter histogramme de confiance par pass
-- [ ] Ajouter taux d'arrêt précoce
-- [ ] Ajouter coût par événement
-
-**Métriques suggérées** :
-```python
-# Compteurs
-four_valets_pass_total = Counter(
-    "four_valets_pass_total",
-    "Total passes executed",
-    ["valet"]  # grimaud, bazin, planchet, mousqueton
-)
-
-four_valets_early_stop_total = Counter(
-    "four_valets_early_stop_total",
-    "Early stops by reason",
-    ["valet", "reason"]
-)
-
-# Histogrammes
-four_valets_confidence = Histogram(
-    "four_valets_confidence",
-    "Confidence by valet",
-    ["valet"],
-    buckets=[0.5, 0.6, 0.7, 0.8, 0.85, 0.9, 0.95, 0.99]
-)
-
-# Gauges
-four_valets_cost_per_event = Gauge(
-    "four_valets_cost_per_event",
-    "Average cost per event in USD"
-)
+    # Paramètres API par valet
+    api_params:
+      grimaud:
+        temperature: 0.1
+        max_tokens: 1500
+      bazin:
+        temperature: 0.2
+        max_tokens: 2000
+      planchet:
+        temperature: 0.3
+        max_tokens: 2000
+      mousqueton:
+        temperature: 0.2
+        max_tokens: 2500
 ```
 
 ---
 
-## Phase 3 : Tests
+## Phase 4 : Tests
 
-### 3.1 Tests unitaires
+**Fichier** : `tests/unit/test_four_valets.py`
 
-**Fichier** : `tests/sancho/test_four_valets_analyzer.py`
+**Utilise** : Fixtures existantes de `conftest.py`
 
 **Tâches** :
-- [ ] Test Grimaud early stop (spam, OTP)
-- [ ] Test Bazin enrichissement
-- [ ] Test Planchet stop à 90%+
-- [ ] Test Mousqueton arbitrage
-- [ ] Test flux complet (4 passes)
-- [ ] Test sélection de modèle adaptative
+- [ ] Test `test_grimaud_early_stop_otp`
+- [ ] Test `test_grimaud_early_stop_spam`
+- [ ] Test `test_bazin_notes_filtering`
+- [ ] Test `test_planchet_stops_high_confidence`
+- [ ] Test `test_mousqueton_called_low_confidence`
+- [ ] Test `test_full_pipeline_4_passes`
 
-**Cas de test prioritaires** :
 ```python
-class TestFourValetsAnalyzer:
-    async def test_grimaud_early_stop_on_spam(self):
-        """Grimaud should stop early on obvious spam."""
-        event = create_spam_event()
-        result = await analyzer.analyze(event, empty_context)
+import pytest
+from unittest.mock import AsyncMock, patch
+
+class TestFourValetsPipeline:
+    """Tests for Four Valets v3.0 architecture."""
+
+    @pytest.fixture
+    def analyzer(self, mock_config):
+        """MultiPassAnalyzer with mocked provider."""
+        return MultiPassAnalyzer(
+            provider=AsyncMock(),
+            template_renderer=get_template_renderer(),
+            context_searcher=AsyncMock(),
+        )
+
+    async def test_grimaud_early_stop_otp(self, analyzer):
+        """Grimaud stops early on OTP codes."""
+        event = create_event(
+            subject="Code BoursoBank",
+            content="Votre code: 123456. Valable 5 min.",
+        )
+
+        with patch_ai_response(grimaud_otp_response()):
+            result = await analyzer.analyze(event, empty_context)
 
         assert result.stopped_at == "grimaud"
         assert result.action == "delete"
-        assert result.early_stop_reason == "spam"
+        assert result.passes_count == 1
 
-    async def test_planchet_stops_at_high_confidence(self):
-        """Planchet should stop if confidence > 90%."""
-        event = create_simple_event()
-        result = await analyzer.analyze(event, rich_context)
+    async def test_planchet_stops_high_confidence(self, analyzer):
+        """Planchet concludes when confidence > 90%."""
+        event = create_simple_business_event()
+
+        with patch_ai_responses([
+            grimaud_normal_response(),
+            bazin_enriched_response(),
+            planchet_confident_response(confidence=0.92),
+        ]):
+            result = await analyzer.analyze(event, rich_context)
 
         assert result.stopped_at == "planchet"
+        assert result.passes_count == 3
         assert result.confidence.overall > 0.90
-
-    async def test_mousqueton_called_on_low_confidence(self):
-        """Mousqueton should be called if Planchet confidence <= 90%."""
-        event = create_ambiguous_event()
-        result = await analyzer.analyze(event, conflicting_context)
-
-        assert result.stopped_at == "mousqueton"
-        assert len(result.passes) == 4
 ```
 
-### 3.2 Tests d'intégration
+---
 
-**Fichier** : `tests/integration/test_four_valets_integration.py`
-
-**Tâches** :
-- [ ] Test avec vrais appels API (mocked)
-- [ ] Test de performance (latence)
-- [ ] Test de coût (estimation)
-- [ ] Test de rollback vers v2.2
-
-### 3.3 Tests de comparaison
-
-**Fichier** : `tests/comparison/test_v22_vs_v30.py`
+## Phase 5 : Validation
 
 **Tâches** :
-- [ ] Comparer résultats v2.2 vs v3.0 sur dataset de référence
-- [ ] Mesurer différence de confiance
-- [ ] Mesurer différence de coût
-- [ ] Identifier cas de régression
+- [ ] Exécuter pipeline sur 100 emails de test
+- [ ] Vérifier distribution des arrêts (Grimaud/Planchet/Mousqueton)
+- [ ] Comparer coûts avec v2.2
+- [ ] Valider qualité des extractions
+
+**Métriques à surveiller** :
+- `early_stop_rate` : % d'arrêts à Grimaud (cible: 15-25%)
+- `planchet_stop_rate` : % d'arrêts à Planchet (cible: 60-70%)
+- `mousqueton_rate` : % d'appels à Mousqueton (cible: 10-20%)
+- `avg_cost_per_email` : Coût moyen (cible: < $0.015)
 
 ---
 
-## Phase 4 : Déploiement
+## Résumé des fichiers à modifier
 
-### 4.1 Shadow Mode
-
-**Durée** : 1 semaine
-
-**Tâches** :
-- [ ] Activer v3.0 en parallèle de v2.2
-- [ ] Logger résultats des deux versions
-- [ ] Comparer sans impacter production
-- [ ] Générer rapport de comparaison
-
-### 4.2 A/B Testing
-
-**Durée** : 2 semaines
-
-**Tâches** :
-- [ ] Router 10% du trafic vers v3.0
-- [ ] Monitorer métriques clés
-- [ ] Collecter feedback utilisateur
-- [ ] Ajuster seuils si nécessaire
-
-### 4.3 Rollout progressif
-
-**Durée** : 2 semaines
-
-**Tâches** :
-- [ ] 10% → 25% → 50% → 100%
-- [ ] Monitoring continu
-- [ ] Rollback automatique si erreurs > seuil
-
-### 4.4 Décommissionnement v2.2
-
-**Durée** : 30 jours après 100%
-
-**Tâches** :
-- [ ] Conserver anciens templates en backup
-- [ ] Supprimer code legacy après période de grâce
-- [ ] Archiver métriques de comparaison
+| Fichier | Action | Priorité |
+|---------|--------|----------|
+| `src/sancho/template_renderer.py` | Ajouter 4 méthodes render | P0 |
+| `src/sancho/multi_pass_analyzer.py` | Ajouter pipeline Four Valets | P0 |
+| `config/defaults.yaml` | Ajouter section four_valets | P0 |
+| `tests/unit/test_four_valets.py` | Créer tests | P1 |
+| `docs/ARCHITECTURE.md` | Documenter v3.0 | P2 |
 
 ---
 
-## Phase 5 : Documentation
+## Estimation
 
-### 5.1 Documentation technique
-
-**Tâches** :
-- [ ] Mettre à jour ARCHITECTURE.md
-- [ ] Mettre à jour MULTI_PASS_SPEC.md (référencer v3.0)
-- [ ] Documenter API de FourValetsAnalyzer
-
-### 5.2 Documentation utilisateur
-
-**Tâches** :
-- [ ] Expliquer les 4 valets dans le user guide
-- [ ] Documenter les métriques disponibles
-- [ ] Ajouter FAQ sur les arrêts précoces
-
----
-
-## Calendrier suggéré
-
-| Phase | Tâches | Durée estimée |
-|-------|--------|---------------|
-| **Phase 1** | Préparation | 2-3 jours |
-| **Phase 2** | Intégration | 2-3 jours |
-| **Phase 3** | Tests | 3-4 jours |
-| **Phase 4** | Déploiement | 5 semaines |
-| **Phase 5** | Documentation | 1-2 jours |
-
-**Total** : ~6-7 semaines pour déploiement complet
-
----
-
-## Risques et mitigations
-
-| Risque | Impact | Mitigation |
-|--------|--------|------------|
-| Régression qualité | Haut | Shadow mode + A/B testing |
-| Augmentation coût | Moyen | Seuils d'arrêt bien calibrés |
-| Latence accrue | Moyen | Monitoring + alertes |
-| Complexité debug | Faible | Logging détaillé par valet |
+| Phase | Effort |
+|-------|--------|
+| Phase 1 : TemplateRenderer | ~2h |
+| Phase 2 : MultiPassAnalyzer | ~4h |
+| Phase 3 : Configuration | ~30min |
+| Phase 4 : Tests | ~3h |
+| Phase 5 : Validation | ~2h |
+| **Total** | **~12h** |
 
 ---
 
 ## Checklist de lancement
 
-- [ ] Tous les tests passent
-- [ ] Shadow mode validé (1 semaine)
-- [ ] A/B testing validé (2 semaines)
-- [ ] Métriques en place
-- [ ] Alertes configurées
-- [ ] Rollback testé
-- [ ] Documentation à jour
-- [ ] Équipe formée
-
----
-
-## Contacts
-
-- **Technique** : Johan
-- **Review** : Claude (Architecture)
+- [ ] Templates v2 validés (Grimaud, Bazin, Planchet, Mousqueton)
+- [ ] Méthodes render ajoutées
+- [ ] Pipeline Four Valets implémenté
+- [ ] Configuration en place
+- [ ] Tests passent
+- [ ] Validation sur dataset réel
+- [ ] Documentation mise à jour
