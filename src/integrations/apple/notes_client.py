@@ -127,7 +127,7 @@ class AppleNotesClient:
         -- Capture date objects
         set cDate to creation date of n
         set mDate to modification date of n
-        
+
         -- Helper to format number with leading zero
         script DateFormatter
             on pad(num)
@@ -137,7 +137,7 @@ class AppleNotesClient:
                     return num as string
                 end if
             end pad
-            
+
             on formatDate(d)
                 try
                     if d is missing value then
@@ -149,14 +149,14 @@ class AppleNotesClient:
                     set t_hour to hours of d
                     set t_min to minutes of d
                     set t_sec to seconds of d
-                    
+
                     return (y as string) & "-" & my pad(m) & "-" & my pad(d_day) & " " & my pad(t_hour) & ":" & my pad(t_min) & ":" & my pad(t_sec)
                 on error
                     return "1970-01-01 00:00:00"
                 end try
             end formatDate
         end script
-        
+
         set cDateStr to DateFormatter's formatDate(cDate)
         set mDateStr to DateFormatter's formatDate(mDate)
         """
@@ -167,7 +167,7 @@ class AppleNotesClient:
             tell {folder_access}
                 repeat with n in notes
                     {date_extraction}
-                    
+
                     set noteData to {{id of n, name of n, {body_field}, cDateStr, mDateStr}}
                     set end of notesList to noteData
                 end repeat
@@ -210,7 +210,7 @@ class AppleNotesClient:
         date_extraction = """
         set cDate to creation date of n
         set mDate to modification date of n
-        
+
         script DateFormatter
             on pad(num)
                 if num < 10 then return "0" & num else return num as string
@@ -219,7 +219,7 @@ class AppleNotesClient:
                 return (year of d as string) & "-" & my pad(month of d as integer) & "-" & my pad(day of d) & " " & my pad(hours of d) & ":" & my pad(minutes of d) & ":" & my pad(seconds of d)
             end formatDate
         end script
-        
+
         set cDateStr to DateFormatter's formatDate(cDate)
         set mDateStr to DateFormatter's formatDate(mDate)
         """
@@ -257,7 +257,7 @@ class AppleNotesClient:
         date_extraction = """
         set cDate to creation date of n
         set mDate to modification date of n
-        
+
         script DateFormatter
             on pad(num)
                 if num < 10 then return "0" & num else return num as string
@@ -266,7 +266,7 @@ class AppleNotesClient:
                 return (year of d as string) & "-" & my pad(month of d as integer) & "-" & my pad(day of d) & " " & my pad(hours of d) & ":" & my pad(minutes of d) & ":" & my pad(seconds of d)
             end formatDate
         end script
-        
+
         set cDateStr to DateFormatter's formatDate(cDate)
         set mDateStr to DateFormatter's formatDate(mDate)
         """
@@ -276,9 +276,9 @@ class AppleNotesClient:
             try
                 set n to note id "{escaped_id}"
                 set folderName to name of container of n
-                
+
                 {date_extraction}
-                
+
                 return {{id of n, name of n, body of n, folderName, cDateStr, mDateStr}}
             on error
                 return ""
@@ -448,8 +448,10 @@ class AppleNotesClient:
         try:
             result = self._run_applescript(script)
             if result.startswith("error:"):
-                # Folder might already exist
-                if "already exists" in result.lower():
+                # Folder might already exist (check English and French messages)
+                result_lower = result.lower()
+                if "already exists" in result_lower or "en double" in result_lower:
+                    logger.debug(f"Folder '{folder_name}' already exists")
                     return True
                 logger.error(f"Failed to create folder: {result}")
                 return False
