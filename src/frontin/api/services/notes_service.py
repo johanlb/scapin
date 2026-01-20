@@ -1025,6 +1025,27 @@ class NotesService:
             logger.error(f"Failed to get deleted notes: {e}", exc_info=True)
             return []
 
+    async def rebuild_index(self) -> dict[str, Any]:
+        """
+        Rebuild the vector search index from scratch
+
+        Clears existing index and re-indexes all notes.
+        Useful when the index is corrupted or out of sync.
+
+        Returns:
+            Dictionary with rebuild statistics
+        """
+        logger.info("Starting index rebuild...")
+        manager = self._get_manager()
+
+        # Run in thread pool since it's blocking I/O
+        result = await asyncio.to_thread(manager.rebuild_index)
+
+        logger.info(
+            f"Index rebuild completed: {result['notes_indexed']} notes in {result['elapsed_seconds']}s"
+        )
+        return result
+
     # =========================================================================
     # Folder Management Methods
     # =========================================================================

@@ -16,6 +16,7 @@ from src.frontin.api.models.notes import (
     FolderCreateRequest,
     FolderCreateResponse,
     FolderListResponse,
+    IndexRebuildResponse,
     NoteCreateRequest,
     NoteDiffResponse,
     NoteLinksResponse,
@@ -182,6 +183,29 @@ async def sync_apple_notes(
     except Exception as e:
         logger.error(f"Failed to sync Apple Notes: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to sync Apple Notes") from e
+
+
+@router.post("/index/rebuild", response_model=APIResponse[IndexRebuildResponse])
+async def rebuild_index(
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[IndexRebuildResponse]:
+    """
+    Rebuild the vector search index
+
+    Clears existing index and re-indexes all notes.
+    Useful when the index is corrupted or out of sync with notes.
+    """
+    try:
+        result = await service.rebuild_index()
+        return APIResponse(
+            success=True,
+            data=IndexRebuildResponse(**result),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(f"Failed to rebuild index: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to rebuild index") from e
 
 
 @router.get("/deleted", response_model=APIResponse[list[NoteResponse]])

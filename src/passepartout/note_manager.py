@@ -1339,6 +1339,55 @@ class NoteManager:
                         extra={"note_id": note.note_id, "error": str(add_error)},
                     )
 
+    def rebuild_index(self) -> dict[str, Any]:
+        """
+        Rebuild the entire vector index from scratch
+
+        Clears the existing index and re-indexes all notes.
+        Useful when the index is corrupted or out of sync.
+
+        Returns:
+            Dictionary with rebuild statistics
+        """
+        import time
+
+        start_time = time.time()
+
+        logger.info("Starting index rebuild")
+
+        # Clear vector store
+        self.vector_store.clear()
+
+        # Clear caches
+        with self._cache_lock:
+            self._cache.clear()
+            self._cache_order.clear()
+
+        # Clear metadata index
+        self._notes_metadata.clear()
+
+        # Re-index all notes
+        count = self._index_all_notes()
+
+        # Save the new index
+        self._save_index()
+
+        elapsed = time.time() - start_time
+
+        result = {
+            "success": True,
+            "notes_indexed": count,
+            "elapsed_seconds": round(elapsed, 2),
+            "index_stats": self.vector_store.get_stats(),
+        }
+
+        logger.info(
+            "Index rebuild completed",
+            extra={"notes_indexed": count, "elapsed_seconds": elapsed},
+        )
+
+        return result
+
     def _sanitize_title(self, title: str) -> str:
         """
         Sanitize title for safe file system use
@@ -1857,15 +1906,21 @@ _note_manager: Optional[NoteManager] = None
 _note_manager_lock = threading.Lock()
 
 
-def get_note_manager(notes_dir: Optional[Path] = None, git_enabled: bool = True) -> NoteManager:
+def get_note_manager(
+    notes_dir: Optional[Path] = None,
+    git_enabled: bool = True,
+    auto_index: bool = False,
+) -> NoteManager:
     """
     Get or create singleton NoteManager instance (thread-safe)
 
     Uses double-check locking pattern for thread-safe lazy initialization.
+    If notes_dir is not provided, uses the path from config.
 
     Args:
-        notes_dir: Directory for notes (default: ~/Documents/Scapin/Notes)
+        notes_dir: Directory for notes (default: from config or ~/Documents/Scapin/Notes)
         git_enabled: Enable Git operations
+        auto_index: Enable auto-indexing on init (default False for performance)
 
     Returns:
         NoteManager singleton instance
@@ -1881,8 +1936,17 @@ def get_note_manager(notes_dir: Optional[Path] = None, git_enabled: bool = True)
         # Check again inside lock (another thread may have initialized)
         if _note_manager is None:
             if notes_dir is None:
-                notes_dir = Path.home() / "Documents" / "Notes"
+                # Try to get from config, fallback to default path
+                try:
+                    from src.core.config_manager import get_config
 
-            _note_manager = NoteManager(notes_dir, git_enabled=git_enabled)
+                    config = get_config()
+                    notes_dir = config.storage.notes_path
+                except Exception:
+                    notes_dir = Path.home() / "Documents" / "Scapin" / "Notes"
+
+            _note_manager = NoteManager(
+                notes_dir, git_enabled=git_enabled, auto_index=auto_index
+            )
 
     return _note_manager

@@ -614,13 +614,11 @@ class QueueService:
         source_id: str,
     ) -> bool:
         """Synchronous enrichment execution (runs in thread pool)"""
-        from src.core.config_manager import get_config
-        from src.passepartout.note_manager import NoteManager
+        from src.passepartout.note_manager import get_note_manager
 
         try:
-            # Get config and create note manager with correct notes_dir
-            config = get_config()
-            note_manager = NoteManager(notes_dir=config.storage.notes_path)
+            # Use singleton note manager (uses config path automatically)
+            note_manager = get_note_manager()
 
             # CONSOLIDATION: Always search for existing note first (regardless of action)
             # This ensures we don't create duplicates like "Free Mobile Tarifs Maroc"
@@ -1296,7 +1294,7 @@ class QueueService:
             force_model: Force a specific model ('opus', 'sonnet', 'haiku') or None
         """
         from src.core.config_manager import get_config
-        from src.passepartout.note_manager import NoteManager
+        from src.passepartout.note_manager import get_note_manager
         from src.sancho.convergence import MultiPassConfig
         from src.sancho.model_selector import ModelTier
         from src.sancho.multi_pass_analyzer import MultiPassAnalyzer
@@ -1320,11 +1318,8 @@ class QueueService:
                 mp_config.force_model = model_map.get(force_model.lower())
                 logger.info(f"Reanalysis with forced model: {force_model}")
 
-            # Initialize NoteManager for coherence pass
-            note_manager = NoteManager(
-                notes_dir=str(config.storage.notes_path),
-                auto_index=False,  # Don't re-index on every analysis
-            )
+            # Use singleton NoteManager (auto_index=False by default)
+            note_manager = get_note_manager()
 
             # Create MultiPassAnalyzer with coherence pass enabled
             analyzer = MultiPassAnalyzer(

@@ -613,6 +613,44 @@ class AppleNotesSync:
             except Exception as e:
                 logger.error(f"Failed to delete Scapin note: {e}")
 
+    def _extract_title_from_content(self, content: str, fallback_stem: str) -> str:
+        """
+        Extract title from note content's YAML frontmatter.
+
+        Args:
+            content: Full note content with potential frontmatter
+            fallback_stem: Filename stem to use if no title in frontmatter
+
+        Returns:
+            Title from frontmatter, or cleaned fallback_stem
+        """
+        # Try to extract title from YAML frontmatter
+        if content.startswith("---"):
+            try:
+                # Find the closing ---
+                end_idx = content.find("\n---", 3)
+                if end_idx != -1:
+                    frontmatter_str = content[4:end_idx]
+                    frontmatter = yaml.safe_load(frontmatter_str)
+                    if frontmatter and isinstance(frontmatter, dict):
+                        title = frontmatter.get("title")
+                        if title and isinstance(title, str):
+                            return title
+            except yaml.YAMLError:
+                pass
+
+        # Fallback: clean the filename stem
+        # Remove hash suffix (e.g., "ultimate-guitar-2d66ff7d" -> "ultimate-guitar")
+        # Hash suffix is 8 hex chars at the end after a dash
+        if re.match(r".*-[a-f0-9]{8}$", fallback_stem):
+            cleaned = fallback_stem.rsplit("-", 1)[0]
+        else:
+            cleaned = fallback_stem
+
+        # Convert dashes/underscores to spaces and title case
+        cleaned = cleaned.replace("-", " ").replace("_", " ")
+        return cleaned.title()
+
     def _create_scapin_note(self, apple_note: AppleNote) -> Optional[str]:
         """Create a Scapin note from an Apple note"""
         # Determine target folder
@@ -654,7 +692,8 @@ class AppleNotesSync:
 
         # Convert Markdown to HTML
         html_body = self._markdown_to_html(content)
-        title = scapin_path.stem
+        # Extract title from frontmatter, fallback to filename stem (without hash suffix)
+        title = self._extract_title_from_content(content, scapin_path.stem)
 
         return self.client.create_note(folder_name, title, html_body)
 
@@ -674,7 +713,8 @@ class AppleNotesSync:
         """Update an Apple note from a Scapin note"""
         content = scapin_path.read_text(encoding="utf-8")
         html_body = self._markdown_to_html(content)
-        title = scapin_path.stem
+        # Extract title from frontmatter, fallback to filename stem (without hash suffix)
+        title = self._extract_title_from_content(content, scapin_path.stem)
         return self.client.update_note(apple_id, title=title, body_html=html_body)
 
     def _yaml_safe_string(self, value: str) -> str:

@@ -133,6 +133,17 @@ class NoteSyncStatus(BaseModel):
     errors: list[str] = Field(default_factory=list, description="Sync errors")
 
 
+class IndexRebuildResponse(BaseModel):
+    """Vector index rebuild response"""
+
+    success: bool = Field(..., description="Whether rebuild succeeded")
+    notes_indexed: int = Field(..., description="Number of notes indexed")
+    elapsed_seconds: float = Field(..., description="Time taken in seconds")
+    index_stats: dict[str, Any] = Field(
+        default_factory=dict, description="Index statistics"
+    )
+
+
 # =============================================================================
 # Git Versioning Models
 # =============================================================================

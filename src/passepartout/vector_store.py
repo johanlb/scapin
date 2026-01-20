@@ -617,6 +617,26 @@ class VectorStore:
         self.save(path)
         logger.info("Migrated pickle metadata to JSON format")
 
+    def clear(self) -> None:
+        """
+        Clear all documents from the vector store (thread-safe)
+
+        Resets the store to empty state while preserving configuration.
+        """
+        with self._store_lock:
+            # Reinitialize FAISS index
+            if self.metric == "L2":
+                self.index = faiss.IndexFlatL2(self.dimension)
+            else:  # cosine
+                self.index = faiss.IndexFlatIP(self.dimension)
+
+            # Clear metadata
+            self.id_to_doc.clear()
+            self.doc_id_to_index_id.clear()
+            self._next_index_id = 0
+
+            logger.info("Cleared vector store")
+
     def get_stats(self) -> dict[str, Any]:
         """
         Get vector store statistics

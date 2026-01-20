@@ -40,7 +40,7 @@ from src.passepartout.context_engine import ContextEngine
 from src.passepartout.cross_source.config import CrossSourceConfig
 from src.passepartout.cross_source.engine import CrossSourceEngine
 from src.passepartout.enricher import PKMEnricher
-from src.passepartout.note_manager import NoteManager
+from src.passepartout.note_manager import NoteManager, get_note_manager
 from src.sancho.analyzer import EventAnalyzer
 from src.sancho.context_searcher import ContextSearcher
 from src.sancho.multi_pass_analyzer import MultiPassAnalyzer, MultiPassResult
@@ -180,9 +180,9 @@ class V2EmailProcessor:
             ai_router = get_ai_router(app_config.ai)
         self.ai_router = ai_router
 
-        # Initialize note manager
+        # Initialize note manager (use singleton for performance)
         if note_manager is None:
-            note_manager = NoteManager(notes_dir=app_config.storage.notes_path)
+            note_manager = get_note_manager()
         self.note_manager = note_manager
 
         # Initialize context engine

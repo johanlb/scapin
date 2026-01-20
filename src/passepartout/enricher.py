@@ -739,10 +739,9 @@ def create_enricher(
         Configured PKMEnricher instance
     """
     if note_manager is None:
-        from src.core.config_manager import get_config
+        from src.passepartout.note_manager import get_note_manager
 
-        config = get_config()
-        note_manager = NoteManager(notes_dir=config.storage.notes_path)
+        note_manager = get_note_manager()
 
     if omnifocus_client is None and omnifocus_enabled:
         from src.integrations.apple.omnifocus import create_omnifocus_client
