@@ -175,6 +175,8 @@ Bazin cherchera dans les mémoires. Exemples :
 
 ## TON RAPPORT (format JSON uniquement)
 
+**AVANT DE RÉPONDRE** : Vérifie que ton JSON est valide et complet.
+
 ```json
 {
   "extractions": [
@@ -214,9 +216,24 @@ Bazin cherchera dans les mémoires. Exemples :
 - `early_stop_reason: "ephemeral_content"` (ou `spam`, `otp`, `notification`)
 - Le processus s'arrête, Bazin/Planchet/Mousqueton ne seront pas appelés.
 
+**EXEMPLE — Contenu éphémère (OTP)** :
+```
+Sujet: "Votre code de vérification BoursoBank"
+Contenu: "Votre code est 847291. Valable 5 minutes."
+```
+→ Réponse attendue :
+```json
+{"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "otp", "confidence": {"overall": 0.98}, "reasoning": "Code OTP temporaire, aucune valeur de référence."}
+```
+
 ---
 
 **Rappel, Grimaud** : Tu es le premier. Tu observes à l'aveugle.
 Confiance basse si incertain. Bazin et les autres affineront.
+
+**CALIBRATION CONFIANCE** :
+- Ne mets PAS 90%+ sauf pour les contenus éphémères évidents
+- Cas normal sans contexte : 60-80%
+- En cas de doute, préfère sous-estimer
 
 *Maintenant, observe cet événement et rapporte.*

@@ -286,9 +286,70 @@ Chaque valet interprète l'âge différemment :
 
 ---
 
-## 5. Sélection des modèles
+## 5. Paramètres API par valet
 
-### 5.1 Mode économique (défaut)
+### 5.1 Configuration recommandée
+
+| Valet | Modèle (défaut) | Température | top_p | max_tokens |
+|-------|-----------------|-------------|-------|------------|
+| **Grimaud** | Haiku | 0.1 | 0.9 | 1500 |
+| **Bazin** | Haiku | 0.2 | 0.9 | 2000 |
+| **Planchet** | Haiku | 0.3 | 0.9 | 2000 |
+| **Mousqueton** | Sonnet | 0.2 | 0.9 | 2500 |
+
+**Justification** :
+- **Grimaud (0.1)** : Extraction factuelle, peu de marge d'interprétation
+- **Bazin (0.2)** : Enrichissement, légère flexibilité pour connexions
+- **Planchet (0.3)** : Critique, besoin d'un peu de réflexion créative
+- **Mousqueton (0.2)** : Arbitrage, mais décision ferme et cohérente
+
+### 5.2 Configuration YAML
+
+```yaml
+sancho:
+  four_valets:
+    enabled: true
+
+    api_params:
+      grimaud:
+        model: haiku
+        temperature: 0.1
+        top_p: 0.9
+        max_tokens: 1500
+      bazin:
+        model: haiku
+        temperature: 0.2
+        top_p: 0.9
+        max_tokens: 2000
+      planchet:
+        model: haiku
+        temperature: 0.3
+        top_p: 0.9
+        max_tokens: 2000
+      mousqueton:
+        model: sonnet
+        temperature: 0.2
+        top_p: 0.9
+        max_tokens: 2500
+
+    stopping_rules:
+      grimaud_early_stop_confidence: 0.95
+      planchet_stop_confidence: 0.90
+      mousqueton_queue_confidence: 0.90
+
+    adaptive_escalation:
+      enabled: true
+      threshold: 0.80
+      escalation_map:
+        haiku: sonnet
+        sonnet: opus
+```
+
+---
+
+## 6. Sélection des modèles
+
+### 6.1 Mode économique (défaut)
 
 | Pass | Modèle | Coût/1000 emails |
 |------|--------|------------------|

@@ -163,6 +163,8 @@ Grimaud a observé. Bazin a confronté aux mémoires. À toi de **critiquer et v
 
 ## TON RAPPORT (format JSON uniquement)
 
+**AVANT DE RÉPONDRE** : Vérifie que ton JSON est valide et complet.
+
 ```json
 {
   "critique": {
@@ -224,5 +226,11 @@ Grimaud a observé. Bazin a confronté aux mémoires. À toi de **critiquer et v
 **Règle de décision** :
 - `confidence > 90%` → `needs_mousqueton: false` → **FIN** (tes extractions sont le résultat final)
 - `confidence ≤ 90%` → `needs_mousqueton: true` → Mousqueton arbitre avec tes questions
+
+**CALIBRATION CONFIANCE** :
+- Tout validé, pas de problème : 91-95%
+- Petits ajustements faits : 85-91%
+- Problèmes non résolus : 70-85% (Mousqueton nécessaire)
+- Sois HONNÊTE : si tu as des doutes, `needs_mousqueton: true`
 
 *Maintenant, examine le travail de tes collègues, ajuste si nécessaire, et rends ton verdict.*
