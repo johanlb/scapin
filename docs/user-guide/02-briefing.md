@@ -168,8 +168,101 @@ Activer/désactiver les sources :
 
 ---
 
+## Filage (v2.6)
+
+Le **Filage** est votre briefing matinal de révision, préparé automatiquement à 6h. Il vous présente jusqu'à **20 Lectures** prioritaires pour maintenir vos connaissances fraîches.
+
+### Accès
+
+- **Web** : `/briefing/filage` ou onglet "Filage" dans le briefing
+- **CLI** : `scapin filage`
+- **API** : `GET /api/briefing/filage`
+
+### Priorités de Sélection
+
+Le Filage sélectionne les notes par ordre de priorité :
+
+| Priorité | Type | Description | Max |
+|----------|------|-------------|-----|
+| **1** | 🔴 Questions | Notes avec questions en attente | 5 |
+| **2** | 📅 Événements | Notes liées aux réunions du jour | 5 |
+| **3** | 📚 SM-2 Due | Notes dues selon l'algorithme Lecture | 8 |
+| **4** | ✨ Retouchées | Notes récemment améliorées par l'IA | 2 |
+
+### Interface Filage
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  FILAGE                                      Lundi 20 janvier 2026    [⚙]   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📊 RÉSUMÉ                                                                   │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │  20 Lectures  │  3 Questions  │  2 Événements  │  15 Notes dues       │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  🔴 QUESTIONS EN ATTENTE (3)                                                │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ 👤 Marie Dupont                 2 questions   │ Qualité: 65%   [📖]  │ │
+│  │ 📁 Projet Alpha                 1 question    │ Qualité: 72%   [📖]  │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  📅 LIÉES AUX ÉVÉNEMENTS (2)                                                │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ 👤 Jean Martin                  Réunion 10h   │ Qualité: 80%   [📖]  │ │
+│  │ 📁 Budget Q1                    Réunion 14h   │ Qualité: 55%   [📖]  │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  📚 À RÉVISER (15)                                                          │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ 👤 Pierre Durand               Due: 2h ago    │ Qualité: 78%   [📖]  │ │
+│  │ ...                                                                    │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  [📖] = Démarrer Lecture                                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Session de Lecture
+
+Cliquer sur [📖] démarre une **session de Lecture** :
+
+1. **Affichage** : La note complète est présentée
+2. **Questions** : Si présentes, les questions apparaissent en bas
+3. **Réponses** : Vous pouvez répondre aux questions (optionnel)
+4. **Notation** : Vous notez la qualité de votre rappel (0-5)
+
+| Note | Signification | Intervalle |
+|------|---------------|------------|
+| **5** | Rappel parfait | × 2.5 EF |
+| **4** | Bonne mémoire | × 2.0 EF |
+| **3** | Avec effort | × 1.5 EF |
+| **2** | Difficile | Reset 24h |
+| **1** | Vague souvenir | Reset 24h |
+| **0** | Oubli total | Reset 24h |
+
+### Questions pour Johan
+
+Scapin peut injecter des **questions personnalisées** dans vos notes lors de la Retouche IA. Ces questions apparaissent dans la section `## Questions pour Johan` et visent à :
+
+- Combler les lacunes d'information
+- Approfondir votre compréhension
+- Vous inciter à enrichir la note
+
+**Exemple** :
+```markdown
+## Questions pour Johan
+- Quel est le budget exact du projet ?
+- Quelle est la deadline finale ?
+```
+
+Lors d'une Lecture, vous pouvez répondre directement à ces questions. Vos réponses sont intégrées à la note.
+
+---
+
 ## Conseils
 
 1. **Consultez le briefing chaque matin** — 2 minutes pour planifier votre journée
 2. **Préparez vos réunions** — Cliquez sur le briefing pré-réunion 15 min avant
 3. **Traitez les urgents d'abord** — La section rouge nécessite une action immédiate
+4. **Faites votre Filage** — 10 minutes de Lectures le matin maintiennent vos connaissances fraîches

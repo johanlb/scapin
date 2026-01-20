@@ -1,7 +1,18 @@
 # Guide Utilisateur Scapin
 
-**Version** : 2.5
+**Version** : 2.6
 **Dernière mise à jour** : Janvier 2026
+
+---
+
+## Nouveautés v2.6 — Memory Cycles
+
+- **Filage** : Briefing matinal intelligent avec max 20 Lectures prioritaires
+- **Lecture** : Sessions de révision espacée avec questions personnalisées
+- **Retouche** : Amélioration automatique IA des notes (Haiku → Sonnet → Opus)
+- **Score Qualité** : Évaluation 0-100% de la complétude des notes
+
+Voir [2. Briefing](02-briefing.md#filage-v26) et [4. Notes](04-notes.md#memory-cycles-v26) pour les détails.
 
 ---
 
@@ -83,6 +94,7 @@ Chaque interaction enrichit le système et améliore les futures analyses.
 | `?` | Aide raccourcis |
 | `Escape` | Fermer modal/panneau |
 | `1-6` | Noter révision (page Notes Review) |
+| `L` | Terminer Lecture (page Filage) |
 
 ### Gestes Mobile
 

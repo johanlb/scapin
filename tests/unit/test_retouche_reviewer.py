@@ -149,9 +149,9 @@ class TestRetoucheReviewer:
             note=mock_note,
             metadata=NoteMetadata(note_id="test-001"),
             linked_notes=[],
-            word_count=500,
+            word_count=600,  # > 500 words to trigger structure suggestion
             has_summary=False,
-            section_count=1,
+            section_count=1,  # < 2 sections
             question_count=0,
         )
 

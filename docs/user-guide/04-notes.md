@@ -210,28 +210,152 @@ Les wikilinks sont cliquables dans l'aperçu.
 
 ---
 
-## Révision Espacée (SM-2)
+## Memory Cycles (v2.6)
+
+Scapin utilise un système de **double cycle mémoire** basé sur l'algorithme SM-2 :
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        MEMORY CYCLES                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   ┌──────────────────┐         ┌──────────────────┐                         │
+│   │    RETOUCHE      │         │     LECTURE      │                         │
+│   │    (IA auto)     │         │    (Humain)      │                         │
+│   └────────┬─────────┘         └────────┬─────────┘                         │
+│            │                            │                                    │
+│            ▼                            ▼                                    │
+│   ┌──────────────────┐         ┌──────────────────┐                         │
+│   │ • Enrichit       │         │ • Révise         │                         │
+│   │ • Structure      │         │ • Répond aux Q   │                         │
+│   │ • Résume         │         │ • Note qualité   │                         │
+│   │ • Injecte Q      │         │ • Mémorise       │                         │
+│   │ • Score qualité  │         │                  │                         │
+│   └────────┬─────────┘         └────────┬─────────┘                         │
+│            │                            │                                    │
+│            └────────────┬───────────────┘                                    │
+│                         ▼                                                    │
+│                   ┌───────────┐                                              │
+│                   │  FILAGE   │                                              │
+│                   │ (Matin)   │                                              │
+│                   └───────────┘                                              │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Cycle Retouche (IA)
+
+La **Retouche** est le cycle d'amélioration automatique par l'IA. Elle tourne en arrière-plan (hors heures calmes 23h-7h) et améliore vos notes progressivement.
+
+#### Actions Retouche
+
+| Action | Description |
+|--------|-------------|
+| **Enrichir** | Ajoute des informations contextuelles |
+| **Structurer** | Réorganise les sections pour plus de clarté |
+| **Résumer** | Génère un résumé en tête de note |
+| **Questions** | Injecte des questions pour vous |
+| **Score** | Calcule un score de qualité (0-100%) |
+
+#### Escalade de Modèles
+
+L'IA utilise une escalade progressive selon la complexité :
+
+| Modèle | Usage | Confiance |
+|--------|-------|-----------|
+| **Haiku** | Par défaut | ≥ 70% |
+| **Sonnet** | Cas complexes | ≥ 50% |
+| **Opus** | Cas critiques | < 50% |
+
+#### Délai Initial
+
+Les nouvelles notes ne sont pas retouchées immédiatement. Un délai de **1 heure** permet de terminer la création avant l'analyse IA.
+
+### Cycle Lecture (Humain)
+
+La **Lecture** est votre cycle de révision personnelle. Voir [Filage](02-briefing.md#filage-v26) pour le briefing matinal.
+
+#### Démarrer une Lecture
+
+1. Via le Filage matinal (`/briefing/filage`)
+2. Via l'API : `POST /api/briefing/lecture/{note_id}/start`
+
+#### Compléter une Lecture
+
+1. Lisez la note attentivement
+2. Répondez aux questions (si présentes)
+3. Notez votre rappel (0-5)
+
+| Note | Signification | Effet |
+|------|---------------|-------|
+| **5** | Parfait | Intervalle × 2.5 |
+| **4** | Bon | Intervalle × 2.0 |
+| **3** | Correct | Intervalle × 1.5 |
+| **2** | Difficile | Reset 24h |
+| **1** | Très difficile | Reset 24h |
+| **0** | Oubli total | Reset 24h |
+
+### Score de Qualité
+
+Chaque note possède un **score de qualité** (0-100%) calculé automatiquement :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  SCORE QUALITÉ                                                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Base                                 50 points                  │
+│  + Nombre de mots (100-500)          +10 points                  │
+│  + Résumé présent                    +15 points                  │
+│  + Sections (×3 pts, max 15)         +15 points max              │
+│  + Liens (×2 pts, max 10)            +10 points max              │
+│  - Actions suggérées                 -5 pts chacune              │
+│                                                                  │
+│  TOTAL MAX                           100 points                  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Badges de Qualité
+
+| Score | Badge | Signification |
+|-------|-------|---------------|
+| 90-100% | 🌟 | Excellente |
+| 70-89% | ✅ | Bonne |
+| 50-69% | 🔶 | À améliorer |
+| 0-49% | 🔴 | Lacunaire |
+
+### Questions pour Johan
+
+L'IA peut injecter des **questions personnalisées** pour combler les lacunes :
+
+```markdown
+## Questions pour Johan
+- Quel est le budget exact du projet ?
+- Quelle est la relation avec [[Marie Dupont]] ?
+```
+
+Ces questions :
+- Apparaissent pendant les sessions de Lecture
+- Peuvent être répondues directement dans l'interface
+- Sont intégrées à la note une fois répondues
+- Déclenchent une priorité haute dans le Filage
+
+---
+
+## Révision Espacée (SM-2) — Legacy
+
+> **Note** : Cette section décrit l'ancien système de révision. Le nouveau système [Memory Cycles](#memory-cycles-v26) le remplace avec deux cycles distincts.
 
 Scapin utilise l'algorithme **SuperMemo 2** pour vous aider à maintenir vos notes à jour.
 
 ### Principe
 
-1. Nouvelle note → Révision dans 2h
+1. Nouvelle note → Révision dans 2h (Retouche) ou 24h (Lecture)
 2. Bonne révision → Intervalle augmente
 3. Mauvaise révision → Retour au début
 
-### Intervalles
-
-| Qualité | Intervalle suivant |
-|---------|-------------------|
-| 5 (Parfait) | × 2.5 |
-| 4 (Hésitation) | × 2.0 |
-| 3 (Difficulté) | × 1.5 |
-| 2 (Oubli partiel) | 1 jour |
-| 1 (Oubli total) | 10 min |
-| 0 (Blackout) | 1 min |
-
-### Page Révision
+### Page Révision (Legacy)
 
 Accès : `/notes/review` ou widget Dashboard
 
@@ -402,6 +526,8 @@ Si confiance > 90% :
 ## Conseils
 
 1. **Utilisez les wikilinks** — Créez un réseau de connaissances
-2. **Révisez 5 min/jour** — Gardez vos notes fraîches
-3. **Typez vos notes** — Aide Scapin à mieux les utiliser
-4. **Épinglez l'essentiel** — Accès rapide aux notes clés
+2. **Faites votre Filage** — 10 min de Lectures chaque matin
+3. **Répondez aux questions** — Enrichissez vos notes progressivement
+4. **Laissez l'IA travailler** — Les Retouches améliorent vos notes automatiquement
+5. **Visez 80% de qualité** — Le score vous guide vers des notes complètes
+6. **Épinglez l'essentiel** — Accès rapide aux notes clés

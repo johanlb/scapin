@@ -1,8 +1,8 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 2.3.1 (Workflow v2.2 + Analysis Transparency UI)
-**Date**: 2026-01-19
-**Status**: ✅ v1.0.0-rc.1 RELEASED — All features implemented
+**Version**: 2.4.0 (Memory Cycles v2: Retouche/Lecture/Filage)
+**Date**: 2026-01-21
+**Status**: ✅ v1.0.0-rc.1 RELEASED — Memory Cycles implemented
 
 > Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
 
@@ -18,6 +18,7 @@
 - [Reasoning Flow Examples](#reasoning-flow-examples)
 - [Technical Decisions](#technical-decisions)
 - [Implementation Roadmap](#implementation-roadmap)
+- [Memory Cycles v2](#memory-cycles-v2-retouchelecturefilage) ⭐ NEW
 - [Future Extensions](#future-extensions)
 
 ---
@@ -1921,6 +1922,86 @@ To preserve Scapin's knowledge graph integrity, the sync engine distinguishes be
 **Conflict Resolution**:
 - **Newer Wins**: Changes in Apple Notes or Scapin are compared by modification date.
 - **Frontmatter Preservation**: Scapin-specific YAML fields are merged carefully to prevent data loss of AI-enriched metadata.
+
+---
+
+## 🔄 Memory Cycles v2 (Retouche/Lecture/Filage)
+
+**NEW in v2.4**: Dual-cycle spaced repetition system for note maintenance.
+
+### Cycle Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         MEMORY CYCLES v2                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────────┐        ┌───────────────┐        ┌─────────────┐  │
+│  │   RETOUCHE   │───────→│    FILAGE     │───────→│   LECTURE   │  │
+│  │  (IA, 24/7)  │        │  (6h matin)   │        │  (Humain)   │  │
+│  └──────────────┘        └───────────────┘        └─────────────┘  │
+│        │                       │                        │           │
+│        ▼                       ▼                        ▼           │
+│  - Enrichir contenu       - Max 20 lectures       - Réviser note   │
+│  - Structurer             - Événements du jour    - Répondre Q     │
+│  - Générer résumé         - Questions en attente  - Noter qualité  │
+│  - Injecter questions     - Notes SM-2 dues       - Schedule SM-2  │
+│  - Évaluer qualité        - Fraîchement retouchées               │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Components
+
+| Composant | Fichier | Rôle |
+|-----------|---------|------|
+| **RetoucheReviewer** | `src/passepartout/retouche_reviewer.py` | Amélioration IA automatique des notes |
+| **FilageService** | `src/passepartout/filage_service.py` | Génère le briefing matinal (Filage) |
+| **LectureService** | `src/passepartout/lecture_service.py` | Gère les sessions de révision humaine |
+
+### Database Schema (v2)
+
+New fields in `NoteMetadata`:
+
+```python
+# Retouche (IA cycle)
+retouche_ef: float = 2.5        # SM-2 easiness factor
+retouche_rep: int = 0           # Repetition count
+retouche_interval: float = 2.0  # Hours until next retouche
+retouche_next: datetime         # Next retouche due
+retouche_last: datetime         # Last retouche performed
+retouche_count: int = 0         # Total retouches
+
+# Lecture (Human cycle)
+lecture_ef: float = 2.5         # SM-2 easiness factor
+lecture_rep: int = 0            # Repetition count
+lecture_interval: float = 24.0  # Hours until next lecture
+lecture_next: datetime          # Next lecture due
+lecture_last: datetime          # Last lecture performed
+lecture_count: int = 0          # Total lectures
+
+# Quality & Questions
+quality_score: int              # 0-100 overall quality
+questions_pending: bool         # Has unanswered questions
+questions_count: int            # Number of questions
+```
+
+### API Endpoints
+
+| Endpoint | Méthode | Description |
+|----------|---------|-------------|
+| `/api/briefing/filage` | GET | Récupère le Filage du jour |
+| `/api/briefing/lecture/{note_id}/start` | POST | Démarre une Lecture |
+| `/api/briefing/lecture/{note_id}/complete` | POST | Termine une Lecture |
+| `/api/briefing/lecture/{note_id}/stats` | GET | Stats Lecture d'une note |
+
+### WebSocket Events
+
+| Event | Payload | Déclencheur |
+|-------|---------|-------------|
+| `retouche_done` | `{note_id, quality_before, quality_after, actions}` | Retouche terminée |
+| `filage_ready` | `{date, total_lectures, events_today}` | Filage préparé |
+| `lecture_completed` | `{note_id, quality, next_lecture}` | Lecture terminée |
 
 ---
 
