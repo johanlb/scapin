@@ -1570,10 +1570,17 @@ class QueueService:
         logger.info(f"Starting bulk reanalysis of {total} pending items")
 
         # Mark ALL items as in_progress upfront so UI shows correct count
+        marked_count = 0
         for item in pending_items:
             item_id = item.get("id")
             if item_id:
-                self._storage.update_item(item_id, {"status": "in_progress"})
+                success = self._storage.update_item(item_id, {"status": "in_progress"})
+                if success:
+                    marked_count += 1
+                else:
+                    logger.warning(f"Failed to mark item {item_id} as in_progress")
+
+        logger.info(f"Marked {marked_count}/{total} items as in_progress")
 
         # Launch background task for actual analysis
         asyncio.create_task(self._reanalyze_items_background(pending_items))
