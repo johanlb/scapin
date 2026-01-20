@@ -6,7 +6,6 @@ Integrates storage, AI responses, and contextual suggestions.
 """
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Optional
 
 from src.core.config_manager import ScapinConfig
@@ -588,9 +587,9 @@ class DiscussionService:
         """
         try:
             if context_type == "note":
-                from src.passepartout.note_manager import NoteManager
+                from src.passepartout.note_manager import get_note_manager
 
-                manager = NoteManager(Path("data/notes"))
+                manager = get_note_manager()
                 note = manager.get_note(context_id)
                 if note:
                     return {

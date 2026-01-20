@@ -8,7 +8,6 @@ import re
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 
 from src.core.config_manager import ScapinConfig
 from src.frontin.api.models.search import (
@@ -129,14 +128,12 @@ class SearchService:
     _max_recent_searches: int = field(default=50, init=False)
 
     def _get_note_manager(self) -> NoteManager:
-        """Get or create NoteManager instance"""
+        """Get or create NoteManager instance (uses singleton)"""
         if self._note_manager is None:
-            notes_dir = getattr(self.config, "notes_dir", None)
-            if notes_dir is None:
-                notes_dir = Path.home() / "Documents" / "Notes"
-            else:
-                notes_dir = Path(notes_dir)
-            self._note_manager = NoteManager(notes_dir, auto_index=True)
+            from src.passepartout.note_manager import get_note_manager
+
+            # Use singleton for consistent index across all services
+            self._note_manager = get_note_manager()
         return self._note_manager
 
     def _get_queue_storage(self) -> QueueStorage:

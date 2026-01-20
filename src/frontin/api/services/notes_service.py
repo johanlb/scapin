@@ -261,11 +261,12 @@ class NotesService:
     _git_manager: GitVersionManager | None = field(default=None, init=False)
 
     def _get_manager(self) -> NoteManager:
-        """Get or create NoteManager instance"""
+        """Get or create NoteManager instance (uses singleton)"""
         if self._note_manager is None:
-            # Use configured notes directory from config
-            notes_dir = self.config.storage.notes_path
-            self._note_manager = NoteManager(notes_dir, auto_index=True)
+            from src.passepartout.note_manager import get_note_manager
+
+            # Use singleton for consistent index across all services
+            self._note_manager = get_note_manager()
         return self._note_manager
 
     def _get_git_manager(self) -> GitVersionManager:
