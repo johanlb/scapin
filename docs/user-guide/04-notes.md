@@ -4,6 +4,59 @@ Les **Notes** sont le cœur de votre base de connaissances. Scapin utilise vos n
 
 ---
 
+## Philosophie PKM
+
+Scapin implémente une approche **PKM (Personal Knowledge Management)** inspirée de Zettelkasten, adaptée au contexte professionnel.
+
+### Principes Fondamentaux
+
+| Principe | Description |
+|----------|-------------|
+| **Centralisation** | Une note par entité (personne, projet) plutôt que des fragments épars |
+| **Liens bidirectionnels** | Les wikilinks créent un réseau navigable |
+| **Enrichissement continu** | Chaque email traité peut enrichir vos notes |
+| **Révision active** | L'algorithme SM-2 maintient vos connaissances fraîches |
+
+### Boucle Vertueuse Notes ↔ Emails
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    BOUCLE D'ENRICHISSEMENT                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   📧 Email arrive                                                │
+│        │                                                         │
+│        ▼                                                         │
+│   🔍 Scapin détecte "Marie Dupont"                              │
+│        │                                                         │
+│        ▼                                                         │
+│   📚 Passepartout cherche [[Marie Dupont]]                      │
+│        │                                                         │
+│        ├──► Note trouvée → Contexte injecté dans l'analyse      │
+│        │         │                                               │
+│        │         ▼                                               │
+│        │    🧠 Sancho analyse AVEC le contexte                  │
+│        │         │                                               │
+│        │         ▼                                               │
+│        │    📝 Nouvel enrichissement proposé                    │
+│        │         │                                               │
+│        │         ▼                                               │
+│        │    ✅ Vous validez → Note mise à jour                  │
+│        │                                                         │
+│        └──► Note absente → Scapin propose de la créer           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Exemple concret** :
+1. Email de Marie Dupont concernant le Projet Alpha
+2. Scapin trouve votre note `[[Marie Dupont]]` : *"Directrice technique chez Acme Corp"*
+3. L'analyse utilise ce contexte : *"Email de la directrice technique, probablement important"*
+4. Scapin extrait : *"Marie confirme le budget de 50k€"*
+5. Enrichissement proposé pour `[[Projet Alpha]]` : *"Budget confirmé : 50 000€"*
+
+---
+
 ## Structure
 
 ### Organisation : Stratégie "Project-First"
@@ -40,6 +93,35 @@ notes/
 ## Interface
 
 L'interface Notes est organisée en **3 colonnes** style Apple Notes :
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🔍 Recherche globale (Cmd+K)                                         [×]   │
+├───────────────┬─────────────────────┬────────────────────────────────────────┤
+│ DOSSIERS      │ NOTES               │ CONTENU                                │
+│ (224px)       │ (288px)             │ (flexible)                             │
+├───────────────┼─────────────────────┼────────────────────────────────────────┤
+│               │ 🔍 Rechercher...    │                                        │
+│ 📁 Toutes     │                     │  # Marie Dupont                    ✏️  │
+│               │ ┌─────────────────┐ │                                        │
+│ 📌 Épinglées  │ │ 📌 Projet Alpha │ │  **Rôle** : Directrice technique       │
+│   └ (3)       │ │    Modifié: 2h  │ │  **Entreprise** : [[Acme Corp]]        │
+│               │ ├─────────────────┤ │                                        │
+│ 📁 projets/   │ │ 👤 Marie Dupont │ │  ## Historique                         │
+│   └ (12)      │ │    Modifié: 1j  │◄│                                        │
+│               │ ├─────────────────┤ │  - 2026-01: Réunion kick-off           │
+│ 📁 relations/ │ │ 👤 Jean Martin  │ │  - 2025-12: Premier contact            │
+│   └ (45)      │ │    Modifié: 3j  │ │                                        │
+│               │ ├─────────────────┤ │  ## Notes                              │
+│ 📁 domaines/  │ │ 📁 Fiscalité    │ │                                        │
+│   └ (8)       │ │    Modifié: 1s  │ │  Préfère les appels aux emails.        │
+│               │ └─────────────────┘ │  Disponible le mardi après-midi.       │
+│ 🗑️ Corbeille  │                     │                                        │
+│   └ (2)       │                     │  [[Projet Alpha]] [[Acme Corp]]        │
+├───────────────┴─────────────────────┼────────────────────────────────────────┤
+│                                     │ [Écrire] [Aperçu] [Split]    🕐 🧹 💾  │
+└─────────────────────────────────────┴────────────────────────────────────────┘
+```
 
 | Colonne | Contenu | Largeur |
 |---------|---------|---------|
