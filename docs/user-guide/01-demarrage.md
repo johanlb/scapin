@@ -105,7 +105,7 @@ Après connexion, vous arrivez sur le **Briefing** — votre tableau de bord quo
 │  [Sidebar]     │     [Contenu Principal]    │  [Chat]   │
 │                │                            │           │
 │  - Briefing    │     Votre page active      │  Scapin   │
-│  - Flux        │                            │  Assistant│
+│  - Péripéties  │                            │  Assistant│
 │  - Notes       │                            │           │
 │  - Journal     │                            │           │
 │  - Stats       │                            │           │
@@ -141,5 +141,5 @@ Après connexion, vous arrivez sur le **Briefing** — votre tableau de bord quo
 ## Prochaines Étapes
 
 - [Briefing](02-briefing.md) — Comprendre votre tableau de bord
-- [Flux](03-flux.md) — Traiter vos emails
+- [Péripéties](03-peripeties.md) — Traiter vos emails
 - [Notes](04-notes.md) — Organiser vos connaissances

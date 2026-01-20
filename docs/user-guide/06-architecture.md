@@ -132,7 +132,7 @@ Le processus s'arrête quand :
 IMAP Inbox
     │
     ▼
-[Processor] ──► [Queue] ──► [UI Flux]
+[Processor] ──► [Queue] ──► [UI Péripéties]
     │                            │
     ▼                            ▼
 [Analysis] ◄─────────────► [Approval]

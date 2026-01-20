@@ -144,7 +144,7 @@ Certains enrichissements sont marqués **Requis** (badge rouge/orange) :
 Les enrichissements "Requis" contiennent des informations qui seraient **perdues** si l'email était archivé sans les extraire. Scapin garantit que :
 
 1. Les enrichissements requis sont exécutés **avant** l'archivage
-2. Si un enrichissement requis échoue, l'email reste dans le Flux (pas d'archivage)
+2. Si un enrichissement requis échoue, l'email reste dans les Péripéties (pas d'archivage)
 3. Les enrichissements optionnels sont exécutés en arrière-plan (best-effort)
 
 > **Conseil** : Si vous voyez beaucoup de badges "Requis", prenez le temps de vérifier ces enrichissements avant d'approuver.
@@ -161,7 +161,7 @@ Pour les emails demandant une action :
 
 Pour traiter les emails en immersion :
 
-1. Cliquer "Mode Focus" ou `/flux/focus`
+1. Cliquer "Mode Focus" ou `/peripeties/focus`
 2. Un email à la fois, plein écran
 3. Corps complet visible
 4. Actions accessibles au clavier
