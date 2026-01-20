@@ -10,7 +10,6 @@ import re
 import threading
 import time
 from collections import deque
-from enum import Enum
 from typing import Any, Optional
 
 from src.core.config_manager import AIConfig
@@ -19,6 +18,9 @@ from src.monitoring.logger import get_logger
 from src.passepartout.context_loader import ContextLoader
 from src.passepartout.note_manager import Note
 from src.passepartout.note_metadata import NoteMetadata
+from src.sancho.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
+from src.sancho.cost_calculator import AIModel, calculate_cost
+from src.sancho.rate_limiter import RateLimiter
 
 logger = get_logger("ai_router")
 
@@ -106,198 +108,6 @@ def _repair_json_with_library(json_str: str) -> tuple[str, bool]:
     except Exception as e:
         logger.warning(f"json-repair failed: {e}")
         return json_str, False
-
-
-class AIModel(str, Enum):
-    """Available AI models"""
-
-    CLAUDE_HAIKU = "claude-3-5-haiku-20241022"
-    CLAUDE_SONNET = "claude-sonnet-4-20250514"
-    CLAUDE_OPUS = "claude-opus-4-20250514"
-
-
-class CircuitBreakerOpenError(Exception):
-    """
-    Raised when circuit breaker is open (service unavailable)
-
-    This exception indicates that the circuit breaker has detected
-    repeated failures and is blocking requests to prevent cascading failures.
-    """
-
-    pass
-
-
-class CircuitBreaker:
-    """
-    Circuit breaker pattern for API calls
-
-    Prevents repeated calls to failing services by "opening" the circuit
-    after a threshold of failures. After a timeout period, allows a test
-    request through ("half-open" state).
-
-    States:
-    - CLOSED: Normal operation, requests go through
-    - OPEN: Failure threshold exceeded, requests fail fast
-    - HALF_OPEN: Testing if service recovered
-    """
-
-    def __init__(self, failure_threshold: int = 5, timeout: int = 60):
-        """
-        Initialize circuit breaker
-
-        Args:
-            failure_threshold: Number of failures before opening circuit
-            timeout: Seconds to wait before attempting recovery (half-open)
-        """
-        self.failure_threshold = failure_threshold
-        self.timeout = timeout
-        self.failure_count = 0
-        self.last_failure_time: Optional[float] = None
-        self.state = "closed"  # closed, open, half-open
-        self._lock = threading.Lock()
-
-    def call(self, func, *args, **kwargs):
-        """
-        Execute function with circuit breaker protection
-
-        Args:
-            func: Function to call
-            *args: Positional arguments
-            **kwargs: Keyword arguments
-
-        Returns:
-            Function result
-
-        Raises:
-            Exception: If circuit is open or function raises
-        """
-        with self._lock:
-            # Check if circuit should transition to half-open
-            if self.state == "open":
-                if self.last_failure_time and time.time() - self.last_failure_time > self.timeout:
-                    self.state = "half-open"
-                    logger.info("Circuit breaker entering half-open state (testing recovery)")
-                else:
-                    remaining = int(self.timeout - (time.time() - (self.last_failure_time or 0)))
-                    raise CircuitBreakerOpenError(
-                        f"Circuit breaker is OPEN - service unavailable "
-                        f"(timeout: {self.timeout}s, remaining: {remaining}s)"
-                    )
-
-        # Attempt the call
-        try:
-            result = func(*args, **kwargs)
-
-            # Success - reset or close circuit
-            with self._lock:
-                if self.state == "half-open":
-                    self.state = "closed"
-                    self.failure_count = 0
-                    logger.info("Circuit breaker CLOSED - service recovered")
-
-            return result
-
-        except Exception:
-            # Failure - increment counter and potentially open circuit
-            with self._lock:
-                self.failure_count += 1
-                self.last_failure_time = time.time()
-
-                if self.failure_count >= self.failure_threshold:
-                    self.state = "open"
-                    logger.error(
-                        f"Circuit breaker OPENED after {self.failure_count} failures",
-                        extra={"failure_threshold": self.failure_threshold},
-                    )
-
-            raise
-
-
-class RateLimiter:
-    """
-    Thread-safe rate limiter
-
-    Implements sliding window rate limiting to prevent API rate limit errors.
-    """
-
-    def __init__(self, max_requests: int, window_seconds: int = 60):
-        """
-        Initialize rate limiter
-
-        Args:
-            max_requests: Maximum requests per window
-            window_seconds: Time window in seconds (default: 60)
-        """
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self._requests: deque = deque()
-        self._lock = threading.Lock()
-
-        logger.debug(
-            "Rate limiter initialized",
-            extra={"max_requests": max_requests, "window_seconds": window_seconds},
-        )
-
-    def __repr__(self) -> str:
-        """String representation for debugging"""
-        with self._lock:
-            return (
-                f"RateLimiter(max_requests={self.max_requests}, "
-                f"window={self.window_seconds}s, "
-                f"current={len(self._requests)})"
-            )
-
-    def acquire(self, timeout: Optional[float] = None) -> bool:
-        """
-        Acquire permission to make a request
-
-        Args:
-            timeout: Maximum time to wait in seconds (None = wait forever)
-
-        Returns:
-            True if permission granted, False if timeout
-        """
-        start_time = time.time()
-
-        while True:
-            with self._lock:
-                # Remove old requests outside the window
-                now = time.time()
-                while self._requests and self._requests[0] < now - self.window_seconds:
-                    self._requests.popleft()
-
-                # Check if we can make a request
-                if len(self._requests) < self.max_requests:
-                    self._requests.append(now)
-                    return True
-
-            # Check timeout
-            if timeout is not None and (time.time() - start_time) >= timeout:
-                logger.warning("Rate limit timeout reached")
-                return False
-
-            # Wait before retrying
-            time.sleep(0.1)
-
-    def get_current_usage(self) -> dict[str, Any]:
-        """
-        Get current rate limiter usage
-
-        Returns:
-            Dict with usage statistics
-        """
-        with self._lock:
-            now = time.time()
-            # Clean old requests
-            while self._requests and self._requests[0] < now - self.window_seconds:
-                self._requests.popleft()
-
-            return {
-                "current_requests": len(self._requests),
-                "max_requests": self.max_requests,
-                "window_seconds": self.window_seconds,
-                "usage_percent": (len(self._requests) / self.max_requests) * 100,
-            }
 
 
 class AIRouter:
@@ -1097,24 +907,7 @@ class AIRouter:
         Returns:
             Estimated cost in USD
         """
-        # Pricing as of January 2025
-        pricing = {
-            AIModel.CLAUDE_OPUS: {
-                "input": 15.00 / 1_000_000,  # $15 per MTok
-                "output": 75.00 / 1_000_000,  # $75 per MTok
-            },
-            AIModel.CLAUDE_SONNET: {
-                "input": 3.00 / 1_000_000,  # $3 per MTok
-                "output": 15.00 / 1_000_000,  # $15 per MTok
-            },
-            AIModel.CLAUDE_HAIKU: {
-                "input": 0.25 / 1_000_000,  # $0.25 per MTok
-                "output": 1.25 / 1_000_000,  # $1.25 per MTok
-            },
-        }
-
-        rates = pricing.get(model, pricing[AIModel.CLAUDE_HAIKU])
-        return (input_tokens * rates["input"]) + (output_tokens * rates["output"])
+        return calculate_cost(model, input_tokens, output_tokens)
 
     def _record_analysis_metrics(
         self, duration_ms: float, tokens: int, input_tokens: int, output_tokens: int, model: AIModel
