@@ -4,51 +4,17 @@ Task Actions for Figaro
 Concrete implementations of task-related actions using OmniFocus.
 """
 
-import re
 import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from src.figaro.actions.base import Action, ActionResult, ValidationResult
+from src.figaro.actions.base import Action, ActionResult, ValidationBuilder, ValidationResult
+from src.figaro.actions.utils import sanitize_id_component
 from src.monitoring.logger import get_logger
 
 logger = get_logger("figaro.actions.tasks")
-
-
-def _sanitize_id_component(text: str, max_length: int = 30) -> str:
-    """
-    Sanitize text for use in action IDs
-
-    Removes special characters and limits length to prevent
-    injection attacks or malformed IDs.
-
-    Args:
-        text: Text to sanitize
-        max_length: Maximum length of sanitized text
-
-    Returns:
-        Sanitized text safe for use in action IDs
-    """
-    if not text:
-        return "unknown"
-
-    # Remove all characters except alphanumeric, spaces, underscores, and hyphens
-    sanitized = re.sub(r'[^a-zA-Z0-9_ -]', '', text)
-
-    # Collapse multiple spaces/underscores
-    sanitized = re.sub(r'[\s_-]+', '_', sanitized)
-
-    # Strip leading/trailing underscores and whitespace
-    sanitized = sanitized.strip('_ ')
-
-    # Truncate to max length
-    if len(sanitized) > max_length:
-        sanitized = sanitized[:max_length]
-
-    # Ensure non-empty
-    return sanitized if sanitized else "unknown"
 
 
 @dataclass
@@ -79,7 +45,7 @@ class CreateTaskAction(Action):
     @property
     def action_id(self) -> str:
         """Unique identifier for this action"""
-        safe_name = _sanitize_id_component(self.name, max_length=30)
+        safe_name = sanitize_id_component(self.name, max_length=30)
         return f"create_task_{safe_name}_{self._action_id[:8]}"
 
     @property
@@ -100,43 +66,27 @@ class CreateTaskAction(Action):
         2. Date formats are valid (if provided)
         3. Estimated minutes is positive (if provided)
         """
-        errors = []
-        warnings = []
-
-        if not self.name or not self.name.strip():
-            errors.append("Task name is required")
-
-        if self.estimated_minutes is not None and self.estimated_minutes <= 0:
-            errors.append(f"Estimated minutes must be positive: {self.estimated_minutes}")
-
-        # Validate date formats
-        if self.due_date:
-            try:
-                datetime.fromisoformat(self.due_date.replace('Z', '+00:00'))
-            except ValueError:
-                errors.append(f"Invalid due date format: {self.due_date} (use ISO format)")
-
-        if self.defer_date:
-            try:
-                datetime.fromisoformat(self.defer_date.replace('Z', '+00:00'))
-            except ValueError:
-                errors.append(f"Invalid defer date format: {self.defer_date} (use ISO format)")
+        builder = (
+            ValidationBuilder()
+            .error_if(not self.name or not self.name.strip(), "Task name is required")
+            .error_if(
+                self.estimated_minutes is not None and self.estimated_minutes <= 0,
+                f"Estimated minutes must be positive: {self.estimated_minutes}",
+            )
+            .validate_date(self.due_date, "due date")
+            .validate_date(self.defer_date, "defer date")
+        )
 
         # Warn if defer date is after due date
-        if self.due_date and self.defer_date:
+        if self.due_date and self.defer_date and builder.is_valid:
             try:
-                due = datetime.fromisoformat(self.due_date.replace('Z', '+00:00'))
-                defer = datetime.fromisoformat(self.defer_date.replace('Z', '+00:00'))
-                if defer > due:
-                    warnings.append("Defer date is after due date")
+                due = datetime.fromisoformat(self.due_date.replace("Z", "+00:00"))
+                defer = datetime.fromisoformat(self.defer_date.replace("Z", "+00:00"))
+                builder.warning_if(defer > due, "Defer date is after due date")
             except ValueError:
-                pass  # Already caught above
+                pass  # Already caught by validate_date
 
-        return ValidationResult(
-            valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings
-        )
+        return builder.build()
 
     def execute(self) -> ActionResult:
         """
@@ -271,7 +221,7 @@ class CompleteTaskAction(Action):
     def action_id(self) -> str:
         """Unique identifier for this action"""
         identifier = self.task_id or self.task_name or "unknown"
-        safe_identifier = _sanitize_id_component(identifier, max_length=40)
+        safe_identifier = sanitize_id_component(identifier, max_length=40)
         return f"complete_task_{safe_identifier}"
 
     @property
@@ -289,19 +239,17 @@ class CompleteTaskAction(Action):
 
         Requires either task_id or task_name.
         """
-        errors = []
-        warnings = []
-
-        if not self.task_id and not self.task_name:
-            errors.append("Either task_id or task_name is required")
-
-        if self.task_name:
-            warnings.append("Using task_name may be ambiguous if multiple tasks have the same name")
-
-        return ValidationResult(
-            valid=len(errors) == 0,
-            errors=errors,
-            warnings=warnings
+        return (
+            ValidationBuilder()
+            .error_if(
+                not self.task_id and not self.task_name,
+                "Either task_id or task_name is required",
+            )
+            .warning_if(
+                bool(self.task_name),
+                "Using task_name may be ambiguous if multiple tasks have the same name",
+            )
+            .build()
         )
 
     def execute(self) -> ActionResult:

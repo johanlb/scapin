@@ -19,6 +19,7 @@ from src.frontin.api.models.search import (
     SearchResultType,
 )
 from src.frontin.api.services.search_service import SearchService
+from src.frontin.api.utils import parse_datetime
 
 router = APIRouter()
 
@@ -27,16 +28,6 @@ def _get_search_service() -> SearchService:
     """Dependency to get search service"""
     config = get_config()
     return SearchService(config=config)
-
-
-def _parse_datetime(value: str | None) -> datetime | None:
-    """Parse ISO datetime string"""
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
 
 
 def _parse_types(types_str: str | None) -> list[SearchResultType] | None:
@@ -83,8 +74,8 @@ async def global_search(
     """
     try:
         parsed_types = _parse_types(types)
-        parsed_from = _parse_datetime(date_from)
-        parsed_to = _parse_datetime(date_to)
+        parsed_from = parse_datetime(date_from)
+        parsed_to = parse_datetime(date_to)
 
         results = await service.search(
             query=q,

@@ -19,6 +19,7 @@ from src.frontin.api.models.teams import (
     TeamsStatsResponse,
 )
 from src.frontin.api.services.teams_service import TeamsService
+from src.frontin.api.utils import parse_datetime
 
 router = APIRouter()
 
@@ -28,24 +29,14 @@ def _get_teams_service() -> TeamsService:
     return TeamsService()
 
 
-def _parse_datetime(value: str | None) -> datetime | None:
-    """Parse ISO datetime string"""
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
-
-
 def _convert_chat_to_response(chat: dict) -> TeamsChatResponse:
     """Convert chat dict to response model"""
     return TeamsChatResponse(
         id=chat.get("id", ""),
         topic=chat.get("topic"),
         chat_type=chat.get("chat_type", "oneOnOne"),
-        created_at=_parse_datetime(chat.get("created_at")),
-        last_message_at=_parse_datetime(chat.get("last_message_at")),
+        created_at=parse_datetime(chat.get("created_at")),
+        last_message_at=parse_datetime(chat.get("last_message_at")),
         member_count=chat.get("member_count", 0),
         unread_count=chat.get("unread_count", 0),
     )
@@ -64,7 +55,7 @@ def _convert_message_to_response(msg: dict) -> TeamsMessageResponse:
         ),
         content=msg.get("content", ""),
         content_preview=msg.get("content_preview", ""),
-        created_at=_parse_datetime(msg.get("created_at")) or datetime.now(timezone.utc),
+        created_at=parse_datetime(msg.get("created_at")) or datetime.now(timezone.utc),
         is_read=msg.get("is_read", True),
         importance=msg.get("importance", "normal"),
         has_mentions=msg.get("has_mentions", False),
@@ -348,7 +339,7 @@ async def poll_teams(
                 messages_fetched=result.get("messages_fetched", 0),
                 messages_new=result.get("messages_new", 0),
                 chats_checked=result.get("chats_checked", 0),
-                polled_at=_parse_datetime(result.get("polled_at")) or datetime.now(timezone.utc),
+                polled_at=parse_datetime(result.get("polled_at")) or datetime.now(timezone.utc),
             ),
             timestamp=datetime.now(timezone.utc),
         )
@@ -375,7 +366,7 @@ async def get_teams_stats(
                 unread_chats=stats.get("unread_chats", 0),
                 messages_processed=stats.get("messages_processed", 0),
                 messages_flagged=stats.get("messages_flagged", 0),
-                last_poll=_parse_datetime(stats.get("last_poll")),
+                last_poll=parse_datetime(stats.get("last_poll")),
             ),
             timestamp=datetime.now(timezone.utc),
         )

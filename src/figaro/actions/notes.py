@@ -4,7 +4,6 @@ Note Actions for Figaro
 Concrete implementations of note-related actions using Passepartout.
 """
 
-import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -12,43 +11,10 @@ from typing import Any, Optional
 
 from src.core.events.universal_event import Entity
 from src.figaro.actions.base import Action, ActionResult, ValidationResult
+from src.figaro.actions.utils import sanitize_id_component
 from src.monitoring.logger import get_logger
 
 logger = get_logger("figaro.actions.notes")
-
-
-def _sanitize_id_component(text: str, max_length: int = 30) -> str:
-    """
-    Sanitize text for use in action IDs
-
-    Removes special characters and limits length to prevent
-    injection attacks or malformed IDs.
-
-    Args:
-        text: Text to sanitize
-        max_length: Maximum length of sanitized text
-
-    Returns:
-        Sanitized text safe for use in action IDs
-    """
-    if not text:
-        return "unknown"
-
-    # Remove all characters except alphanumeric, spaces, underscores, and hyphens
-    sanitized = re.sub(r'[^a-zA-Z0-9_ -]', '', text)
-
-    # Collapse multiple spaces/underscores
-    sanitized = re.sub(r'[\s_-]+', '_', sanitized)
-
-    # Strip leading/trailing underscores and whitespace
-    sanitized = sanitized.strip('_ ')
-
-    # Truncate to max length
-    if len(sanitized) > max_length:
-        sanitized = sanitized[:max_length]
-
-    # Ensure non-empty
-    return sanitized if sanitized else "unknown"
 
 
 @dataclass
@@ -75,7 +41,7 @@ class CreateNoteAction(Action):
     @property
     def action_id(self) -> str:
         """Unique identifier for this action"""
-        safe_title = _sanitize_id_component(self.title, max_length=30)
+        safe_title = sanitize_id_component(self.title, max_length=30)
         return f"create_note_{safe_title}_{self._action_id[:8]}"
 
     @property
@@ -258,7 +224,7 @@ class UpdateNoteAction(Action):
     @property
     def action_id(self) -> str:
         """Unique identifier for this action"""
-        safe_note_id = _sanitize_id_component(self.note_id, max_length=40)
+        safe_note_id = sanitize_id_component(self.note_id, max_length=40)
         return f"update_note_{safe_note_id}_{self._action_id[:8]}"
 
     @property

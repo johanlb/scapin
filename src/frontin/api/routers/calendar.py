@@ -21,6 +21,7 @@ from src.frontin.api.models.calendar import (
 )
 from src.frontin.api.models.responses import APIResponse, PaginatedResponse
 from src.frontin.api.services.calendar_service import CalendarService
+from src.frontin.api.utils import parse_datetime
 
 router = APIRouter()
 
@@ -30,23 +31,13 @@ def _get_calendar_service() -> CalendarService:
     return CalendarService()
 
 
-def _parse_datetime(value: str | None) -> datetime | None:
-    """Parse ISO datetime string"""
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
-
-
 def _convert_event_to_response(event: dict) -> CalendarEventResponse:
     """Convert event dict to response model"""
     return CalendarEventResponse(
         id=event.get("id", ""),
         title=event.get("title", ""),
-        start=_parse_datetime(event.get("start")) or datetime.now(timezone.utc),
-        end=_parse_datetime(event.get("end")) or datetime.now(timezone.utc),
+        start=parse_datetime(event.get("start")) or datetime.now(timezone.utc),
+        end=parse_datetime(event.get("end")) or datetime.now(timezone.utc),
         location=event.get("location"),
         is_online=event.get("is_online", False),
         meeting_url=event.get("meeting_url"),
@@ -224,7 +215,7 @@ async def poll_calendar(
                 events_fetched=result.get("events_fetched", 0),
                 events_new=result.get("events_new", 0),
                 events_updated=result.get("events_updated", 0),
-                polled_at=_parse_datetime(result.get("polled_at")) or datetime.now(timezone.utc),
+                polled_at=parse_datetime(result.get("polled_at")) or datetime.now(timezone.utc),
             ),
             timestamp=datetime.now(timezone.utc),
         )
@@ -273,8 +264,8 @@ async def create_calendar_event(
             data=EventCreatedResponse(
                 id=result["id"],
                 title=result["title"],
-                start=_parse_datetime(result["start"]) or request.start,
-                end=_parse_datetime(result["end"]) or request.end,
+                start=parse_datetime(result["start"]) or request.start,
+                end=parse_datetime(result["end"]) or request.end,
                 web_link=result.get("web_link"),
                 meeting_url=result.get("meeting_url"),
             ),

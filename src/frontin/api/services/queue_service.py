@@ -1693,16 +1693,6 @@ class QueueService:
             logger.warning(f"Failed to emit stats update: {e}")
 
 
-def _parse_datetime(value: str | None) -> datetime | None:
-    """Parse ISO datetime string"""
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
-
-
 class _EmailSender:
     """Adapter class for email sender info expected by templates."""
 

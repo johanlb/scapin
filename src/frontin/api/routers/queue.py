@@ -46,18 +46,9 @@ from src.frontin.api.models.queue import (
 )
 from src.frontin.api.models.responses import APIResponse, PaginatedResponse
 from src.frontin.api.services.queue_service import EnrichmentFailedError, QueueService
+from src.frontin.api.utils import parse_datetime
 
 router = APIRouter()
-
-
-def _parse_datetime(value: str | None) -> datetime | None:
-    """Parse ISO datetime string"""
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
 
 
 def _parse_extraction_confidence(
@@ -214,7 +205,7 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
         resolution_response = PeripetieResolutionResponse(
             type=resolution_data.get("type", ""),
             action_taken=resolution_data.get("action_taken", ""),
-            resolved_at=_parse_datetime(resolution_data.get("resolved_at")) or datetime.now(timezone.utc),
+            resolved_at=parse_datetime(resolution_data.get("resolved_at")) or datetime.now(timezone.utc),
             resolved_by=resolution_data.get("resolved_by", "user"),
             confidence_at_resolution=resolution_data.get("confidence_at_resolution"),
             user_modified_action=resolution_data.get("user_modified_action", False),
@@ -226,8 +217,8 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
     snooze_response = None
     if snooze_data:
         snooze_response = PeripetieSnoozeResponse(
-            until=_parse_datetime(snooze_data.get("until")) or datetime.now(timezone.utc),
-            created_at=_parse_datetime(snooze_data.get("created_at")) or datetime.now(timezone.utc),
+            until=parse_datetime(snooze_data.get("until")) or datetime.now(timezone.utc),
+            created_at=parse_datetime(snooze_data.get("created_at")) or datetime.now(timezone.utc),
             reason=snooze_data.get("reason"),
             snooze_count=snooze_data.get("snooze_count", 1),
         )
@@ -239,7 +230,7 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
         error_response = PeripetieErrorResponse(
             type=error_data.get("type", ""),
             message=error_data.get("message", ""),
-            occurred_at=_parse_datetime(error_data.get("occurred_at")) or datetime.now(timezone.utc),
+            occurred_at=parse_datetime(error_data.get("occurred_at")) or datetime.now(timezone.utc),
             retryable=error_data.get("retryable", True),
             retry_count=error_data.get("retry_count", 0),
         )
@@ -249,22 +240,22 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
     timestamps_response = None
     if timestamps_data:
         timestamps_response = PeripetieTimestampsResponse(
-            queued_at=_parse_datetime(timestamps_data.get("queued_at")) or datetime.now(timezone.utc),
-            analysis_started_at=_parse_datetime(timestamps_data.get("analysis_started_at")),
-            analysis_completed_at=_parse_datetime(timestamps_data.get("analysis_completed_at")),
-            reviewed_at=_parse_datetime(timestamps_data.get("reviewed_at")),
+            queued_at=parse_datetime(timestamps_data.get("queued_at")) or datetime.now(timezone.utc),
+            analysis_started_at=parse_datetime(timestamps_data.get("analysis_started_at")),
+            analysis_completed_at=parse_datetime(timestamps_data.get("analysis_completed_at")),
+            reviewed_at=parse_datetime(timestamps_data.get("reviewed_at")),
         )
 
     return QueueItemResponse(
         id=item.get("id", ""),
         account_id=item.get("account_id"),
-        queued_at=_parse_datetime(item.get("queued_at")) or datetime.now(timezone.utc),
+        queued_at=parse_datetime(item.get("queued_at")) or datetime.now(timezone.utc),
         metadata=QueueItemMetadata(
             id=str(metadata.get("id", "")),  # IMAP returns int, API expects str
             subject=metadata.get("subject", ""),
             from_address=metadata.get("from_address", ""),
             from_name=metadata.get("from_name", ""),
-            date=_parse_datetime(metadata.get("date")),
+            date=parse_datetime(metadata.get("date")),
             has_attachments=metadata.get("has_attachments", False),
             attachments=[
                 AttachmentResponse(
@@ -298,6 +289,11 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             proposed_tasks=proposed_tasks,
             context_used=analysis.get("context_used", []),
             draft_reply=analysis.get("draft_reply"),
+            # v2.2.2: Context transparency
+            retrieved_context=_convert_retrieved_context(analysis.get("retrieved_context")),
+            context_influence=_convert_context_influence(analysis.get("context_influence")),
+            # v2.3: Analysis transparency
+            multi_pass=_convert_multi_pass_metadata(analysis.get("multi_pass")),
         ),
         content=QueueItemContent(
             preview=content.get("preview", ""),
@@ -306,7 +302,7 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
         ),
         # Legacy fields
         status=item.get("status", "pending"),
-        reviewed_at=_parse_datetime(item.get("reviewed_at")),
+        reviewed_at=parse_datetime(item.get("reviewed_at")),
         review_decision=item.get("review_decision"),
         # v2.4 fields
         state=item_state,
@@ -379,8 +375,8 @@ async def get_queue_stats(
                 total=stats.get("total", 0),
                 by_status=stats.get("by_status", {}),
                 by_account=stats.get("by_account", {}),
-                oldest_item=_parse_datetime(stats.get("oldest_item")),
-                newest_item=_parse_datetime(stats.get("newest_item")),
+                oldest_item=parse_datetime(stats.get("oldest_item")),
+                newest_item=parse_datetime(stats.get("newest_item")),
                 # v2.4 fields
                 by_state=stats.get("by_state", {}),
                 by_resolution=stats.get("by_resolution", {}),

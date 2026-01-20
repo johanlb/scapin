@@ -30,6 +30,75 @@ class ValidationResult:
         return self.valid
 
 
+class ValidationBuilder:
+    """
+    Fluent builder for ValidationResult.
+
+    Allows chaining validation checks for cleaner validation code.
+
+    Example:
+        return (ValidationBuilder()
+            .error_if(not self.name, "Name is required")
+            .error_if(self.amount < 0, "Amount must be positive")
+            .warning_if(self.amount > 1000, "Large amount detected")
+            .build())
+    """
+
+    def __init__(self) -> None:
+        self._errors: list[str] = []
+        self._warnings: list[str] = []
+
+    def error(self, message: str) -> "ValidationBuilder":
+        """Add an error message."""
+        self._errors.append(message)
+        return self
+
+    def error_if(self, condition: bool, message: str) -> "ValidationBuilder":
+        """Add an error message if condition is True."""
+        if condition:
+            self._errors.append(message)
+        return self
+
+    def error_unless(self, condition: bool, message: str) -> "ValidationBuilder":
+        """Add an error message if condition is False."""
+        if not condition:
+            self._errors.append(message)
+        return self
+
+    def warning(self, message: str) -> "ValidationBuilder":
+        """Add a warning message."""
+        self._warnings.append(message)
+        return self
+
+    def warning_if(self, condition: bool, message: str) -> "ValidationBuilder":
+        """Add a warning message if condition is True."""
+        if condition:
+            self._warnings.append(message)
+        return self
+
+    def validate_date(self, value: str | None, field_name: str) -> "ValidationBuilder":
+        """Validate ISO date format if value is provided."""
+        if value:
+            try:
+                datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                self._errors.append(f"Invalid {field_name} format: {value} (use ISO format)")
+        return self
+
+    def build(self) -> ValidationResult:
+        """Build the ValidationResult."""
+        return ValidationResult(
+            valid=len(self._errors) == 0,
+            errors=self._errors,
+            warnings=self._warnings,
+        )
+
+    @property
+    def is_valid(self) -> bool:
+        """Check if validation passes so far (no errors)."""
+        return len(self._errors) == 0
+
+
 @dataclass
 class ActionResult:
     """Result of action execution"""

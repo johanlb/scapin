@@ -30,18 +30,9 @@ from src.frontin.api.models.email import (
 )
 from src.frontin.api.models.responses import APIResponse
 from src.frontin.api.services.email_service import EmailService
+from src.frontin.api.utils import parse_datetime
 
 router = APIRouter()
-
-
-def _parse_datetime(value: str | None) -> datetime | None:
-    """Parse ISO datetime string"""
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return None
 
 
 @router.get("/accounts", response_model=APIResponse[list[EmailAccountResponse]])
@@ -131,7 +122,7 @@ async def process_inbox(
                     subject=e["metadata"]["subject"],
                     from_address=e["metadata"]["from_address"],
                     from_name=e["metadata"].get("from_name"),
-                    date=_parse_datetime(e["metadata"].get("date")),
+                    date=parse_datetime(e["metadata"].get("date")),
                     has_attachments=e["metadata"].get("has_attachments", False),
                     folder=e["metadata"].get("folder"),
                 ),
@@ -142,7 +133,7 @@ async def process_inbox(
                     reasoning=e["analysis"].get("reasoning"),
                     destination=e["analysis"].get("destination"),
                 ),
-                processed_at=_parse_datetime(e["processed_at"]) or datetime.now(timezone.utc),
+                processed_at=parse_datetime(e["processed_at"]) or datetime.now(timezone.utc),
                 executed=e.get("executed", False),
             )
             for e in result.get("emails", [])
@@ -193,7 +184,7 @@ async def analyze_email(
                     subject=result["metadata"]["subject"],
                     from_address=result["metadata"]["from_address"],
                     from_name=result["metadata"].get("from_name"),
-                    date=_parse_datetime(result["metadata"].get("date")),
+                    date=parse_datetime(result["metadata"].get("date")),
                     has_attachments=result["metadata"].get("has_attachments", False),
                     folder=result["metadata"].get("folder"),
                 ),

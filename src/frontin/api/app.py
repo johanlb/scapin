@@ -8,15 +8,14 @@ import asyncio
 import contextlib
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 
 from src.core.config_manager import get_config
-from src.frontin.api.models.responses import APIResponse
+from src.frontin.api.middleware.error_handler import register_exception_handlers
 from src.frontin.api.routers import (
     auth_router,
     briefing_router,
@@ -177,26 +176,8 @@ def create_app() -> FastAPI:
         allow_headers=config.api.cors_headers,
     )
 
-    # Global exception handler
-    @app.exception_handler(Exception)
-    async def global_exception_handler(
-        _request: Request,
-        exc: Exception,
-    ) -> JSONResponse:
-        """Handle uncaught exceptions - sanitize error messages for security"""
-        # Log full exception details for debugging
-        logger.exception(f"Unhandled exception: {exc}")
-
-        # Return generic error message to client (don't leak internal details)
-        # In development, you can check logs for full details
-        return JSONResponse(
-            status_code=500,
-            content=APIResponse(
-                success=False,
-                error="Internal server error. Please try again later.",
-                timestamp=datetime.now(timezone.utc),
-            ).model_dump(mode="json"),
-        )
+    # Register centralized exception handlers
+    register_exception_handlers(app)
 
     # Include routers
     app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
