@@ -81,6 +81,19 @@ export const SELECTORS = {
   // Péripéties Re-analyze (SC-18)
   reanalyzeButton: '[data-testid="reanalyze-button"]',
 
+  // Péripéties UX States (v2.4)
+  peripetiesLoadingState: '[data-testid="peripeties-loading-state"]',
+  peripetiesSkeleton: '[data-testid="queue-item-skeleton"]',
+  peripetiesErrorState: '[data-testid="peripeties-error-state"]',
+  peripetiesErrorTitle: '[data-testid="peripeties-error-title"]',
+  peripetiesErrorMessage: '[data-testid="peripeties-error-message"]',
+  peripetiesErrorRetry: '[data-testid="peripeties-error-retry"]',
+  peripetiesEmptyState: '[data-testid="peripeties-empty-state"]',
+  peripetiesEmptyIcon: '[data-testid="peripeties-empty-icon"]',
+  peripetiesEmptyTitle: '[data-testid="peripeties-empty-title"]',
+  peripetiesEmptyDescription: '[data-testid="peripeties-empty-description"]',
+  peripetiesFetchButton: '[data-testid="peripeties-fetch-button"]',
+
   // Péripéties Detail - Multi-Pass Analysis (v2.3)
   multiPassSection: '[data-testid="multipass-section"]',
   multiPassSummary: '[data-testid="multipass-summary"]',

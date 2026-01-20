@@ -6,7 +6,7 @@
 	import { Skeleton, Card } from '$lib/components/ui';
 </script>
 
-<div class="pb-3">
+<div class="pb-3" data-testid="queue-item-skeleton">
 	<Card padding="md">
 		<div class="flex items-start gap-3">
 			<!-- Action icon skeleton -->

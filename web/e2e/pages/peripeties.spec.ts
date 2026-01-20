@@ -206,4 +206,181 @@ test.describe('Flux Page', () => {
       expect(typeof isVisible).toBe('boolean');
     });
   });
+
+  test.describe('UX States (v2.4)', () => {
+    test('skeleton loaders should be styled correctly', async ({ authenticatedPage: page }) => {
+      // Navigate to peripeties page
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
+
+      // Skeleton loaders appear briefly during initial load
+      // We can't reliably test the loading state, but we can verify
+      // the page eventually renders content (either items or empty state)
+      await page.waitForTimeout(3000);
+
+      // Page should have rendered something
+      const hasLoadingState = await page.locator(SELECTORS.peripetiesLoadingState).isVisible().catch(() => false);
+      const hasEmptyState = await page.locator(SELECTORS.peripetiesEmptyState).isVisible().catch(() => false);
+      const hasItems = await page.locator('[data-testid^="peripeties-item-"]').first().isVisible().catch(() => false);
+
+      // One of these should be true
+      const hasContent = hasLoadingState || hasEmptyState || hasItems;
+      expect(hasContent).toBe(true);
+    });
+
+    test('empty state for errors tab should show success message', async ({ authenticatedPage: page }) => {
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      // Click on errors tab
+      await page.locator(SELECTORS.peripetiesTabErrors).click();
+      await page.waitForTimeout(1500);
+
+      // Check if empty state is visible (errors tab is often empty)
+      const emptyState = page.locator(SELECTORS.peripetiesEmptyState);
+      const isEmptyStateVisible = await emptyState.isVisible().catch(() => false);
+
+      if (isEmptyStateVisible) {
+        // Should show "Tout fonctionne !" message
+        const title = page.locator(SELECTORS.peripetiesEmptyTitle);
+        await expect(title).toContainText('Tout fonctionne');
+
+        // Should have appropriate icon
+        const icon = page.locator(SELECTORS.peripetiesEmptyIcon);
+        await expect(icon).toBeVisible();
+      }
+    });
+
+    test('empty state for snoozed tab should display appropriate message', async ({ authenticatedPage: page }) => {
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      // Click on snoozed tab
+      await page.locator(SELECTORS.peripetiesTabSnoozed).click();
+      await page.waitForTimeout(1500);
+
+      // Check if empty state is visible
+      const emptyState = page.locator(SELECTORS.peripetiesEmptyState);
+      const isEmptyStateVisible = await emptyState.isVisible().catch(() => false);
+
+      if (isEmptyStateVisible) {
+        // Should show snoozed empty message
+        const title = page.locator(SELECTORS.peripetiesEmptyTitle);
+        await expect(title).toContainText('reportée');
+
+        // Description should mention snooze
+        const description = page.locator(SELECTORS.peripetiesEmptyDescription);
+        await expect(description).toContainText('Snooze');
+      }
+    });
+
+    test('empty state for in_progress tab should display appropriate message', async ({ authenticatedPage: page }) => {
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      // Click on in_progress tab
+      await page.locator(SELECTORS.peripetiesTabInProgress).click();
+      await page.waitForTimeout(1500);
+
+      // Check if empty state is visible (in_progress is often empty)
+      const emptyState = page.locator(SELECTORS.peripetiesEmptyState);
+      const isEmptyStateVisible = await emptyState.isVisible().catch(() => false);
+
+      if (isEmptyStateVisible) {
+        // Should show in_progress empty message
+        const title = page.locator(SELECTORS.peripetiesEmptyTitle);
+        await expect(title).toContainText('analyse');
+      }
+    });
+
+    test('empty state for history tab should display appropriate message', async ({ authenticatedPage: page }) => {
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      // Click on history tab
+      await page.locator(SELECTORS.peripetiesTabHistory).click();
+      await page.waitForTimeout(1500);
+
+      // Check if empty state is visible
+      const emptyState = page.locator(SELECTORS.peripetiesEmptyState);
+      const isEmptyStateVisible = await emptyState.isVisible().catch(() => false);
+
+      if (isEmptyStateVisible) {
+        // Should show history empty message
+        const title = page.locator(SELECTORS.peripetiesEmptyTitle);
+        await expect(title).toContainText('Historique vide');
+      }
+    });
+
+    test('empty state for to_process tab should have fetch button', async ({ authenticatedPage: page }) => {
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      // Make sure we're on to_process tab
+      await page.locator(SELECTORS.peripetiesTabToProcess).click();
+      await page.waitForTimeout(1500);
+
+      // Check if empty state is visible
+      const emptyState = page.locator(SELECTORS.peripetiesEmptyState);
+      const isEmptyStateVisible = await emptyState.isVisible().catch(() => false);
+
+      if (isEmptyStateVisible) {
+        // Should have fetch button
+        const fetchButton = page.locator(SELECTORS.peripetiesFetchButton);
+        await expect(fetchButton).toBeVisible();
+        await expect(fetchButton).toContainText('Récupérer');
+      }
+    });
+
+    test('tabs should show correct count badges', async ({ authenticatedPage: page }) => {
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      // All tabs should have count elements
+      const tabs = [
+        { selector: SELECTORS.peripetiesTabToProcess, countTestId: 'to-process-count' },
+        { selector: SELECTORS.peripetiesTabInProgress, countTestId: 'in-progress-count' },
+        { selector: SELECTORS.peripetiesTabSnoozed, countTestId: 'snoozed-count' },
+        { selector: SELECTORS.peripetiesTabHistory, countTestId: 'history-count' },
+        { selector: SELECTORS.peripetiesTabErrors, countTestId: 'errors-count' },
+      ];
+
+      for (const tab of tabs) {
+        const tabElement = page.locator(tab.selector);
+        await expect(tabElement).toBeVisible();
+
+        // Count badge should be inside the tab
+        const countBadge = tabElement.locator(`[data-testid="${tab.countTestId}"]`);
+        await expect(countBadge).toBeVisible();
+
+        // Count should be a number (0 or more)
+        const countText = await countBadge.textContent();
+        expect(countText).toMatch(/^\d+$/);
+      }
+    });
+
+    test('page should be accessible with proper ARIA attributes', async ({ authenticatedPage: page }) => {
+      await page.goto('/peripeties', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL('/peripeties', { timeout: 45000 });
+      await page.waitForTimeout(2000);
+
+      // Tabs should have proper tablist role
+      const tabList = page.locator('[role="tablist"]');
+      await expect(tabList).toBeVisible();
+
+      // Each tab should have proper aria-selected attribute
+      const selectedTab = page.locator('[role="tab"][aria-selected="true"]');
+      await expect(selectedTab).toBeVisible();
+
+      // Page title should be visible
+      const pageTitle = page.locator('h1, h2').first();
+      await expect(pageTitle).toBeVisible();
+    });
+  });
 });

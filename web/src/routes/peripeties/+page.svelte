@@ -1318,7 +1318,7 @@
 
 	<!-- Loading state with skeleton cards (v2.4) -->
 	{#if queueStore.loading && queueStore.items.length === 0}
-		<div role="status" aria-busy="true" aria-label="Chargement en cours">
+		<div role="status" aria-busy="true" aria-label="Chargement en cours" data-testid="peripeties-loading-state">
 			<span class="sr-only">Chargement de la file d'attente...</span>
 			{#each { length: 5 } as _}
 				<QueueItemSkeleton />
@@ -1327,13 +1327,13 @@
 
 		<!-- Error state with retry (v2.4) -->
 	{:else if queueStore.error && queueStore.items.length === 0}
-		<Card padding="lg">
+		<Card padding="lg" data-testid="peripeties-error-state">
 			<div class="text-center py-8">
 				<p class="text-4xl mb-3">⚠️</p>
-				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-2" data-testid="peripeties-error-title">
 					Erreur de chargement
 				</h3>
-				<p class="text-sm text-[var(--color-text-secondary)] mb-4">
+				<p class="text-sm text-[var(--color-text-secondary)] mb-4" data-testid="peripeties-error-message">
 					{queueStore.error}
 				</p>
 				<Button
@@ -1342,6 +1342,7 @@
 						queueStore.clearError();
 						queueStore.fetchQueueByTab(activeTab);
 					}}
+					data-testid="peripeties-error-retry"
 				>
 					Réessayer
 				</Button>
@@ -1350,9 +1351,9 @@
 
 		<!-- Empty state -->
 	{:else if queueStore.items.length === 0}
-		<Card padding="lg">
+		<Card padding="lg" data-testid="peripeties-empty-state">
 			<div class="text-center py-8">
-				<p class="text-4xl mb-3">
+				<p class="text-4xl mb-3" data-testid="peripeties-empty-icon">
 					{#if activeTab === 'to_process'}🎉
 					{:else if activeTab === 'in_progress'}⏳
 					{:else if activeTab === 'snoozed'}💤
@@ -1361,7 +1362,7 @@
 					{:else}📭
 					{/if}
 				</p>
-				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
+				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1" data-testid="peripeties-empty-title">
 					{#if activeTab === 'to_process'}
 						Boîte de réception vide
 					{:else if activeTab === 'in_progress'}
@@ -1376,7 +1377,7 @@
 						Aucune péripétie
 					{/if}
 				</h3>
-				<p class="text-sm text-[var(--color-text-secondary)] max-w-md mx-auto">
+				<p class="text-sm text-[var(--color-text-secondary)] max-w-md mx-auto" data-testid="peripeties-empty-description">
 					{#if activeTab === 'to_process'}
 						Scapin n'a détecté aucun email nécessitant votre attention. Cliquez sur "Récupérer" pour vérifier les nouveaux messages.
 					{:else if activeTab === 'in_progress'}
@@ -1399,6 +1400,7 @@
 							size="sm"
 							onclick={handleFetchEmails}
 							disabled={isFetchingEmails}
+							data-testid="peripeties-fetch-button"
 						>
 							{#if isFetchingEmails}
 								<span class="mr-1.5 animate-spin">⏳</span>
