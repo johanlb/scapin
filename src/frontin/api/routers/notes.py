@@ -214,9 +214,10 @@ async def get_deleted_notes(
     _user: Optional[TokenData] = Depends(get_current_user),
 ) -> APIResponse[list[NoteResponse]]:
     """
-    Get notes from Apple Notes 'Recently Deleted' folder
+    Get notes from Scapin's trash folder (_Supprimées/)
 
-    Returns notes that have been deleted but not yet permanently removed from Apple Notes.
+    Returns notes that have been soft-deleted but not yet permanently removed.
+    Each note includes a 'deleted_at' timestamp in its metadata.
     """
     try:
         notes = await service.get_deleted_notes()
@@ -228,6 +229,84 @@ async def get_deleted_notes(
     except Exception as e:
         logger.error(f"Failed to get deleted notes: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get deleted notes") from e
+
+
+@router.post("/deleted/{note_id}/restore", response_model=APIResponse[dict])
+async def restore_deleted_note(
+    note_id: str,
+    target_folder: str = Query("", description="Target folder path (empty for root)"),
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[dict]:
+    """
+    Restore a note from trash to a folder
+
+    Moves the note from the trash folder back to the specified folder.
+    If no target_folder is provided, restores to the root folder.
+    """
+    try:
+        success = await service.restore_note(note_id, target_folder)
+        if not success:
+            raise HTTPException(status_code=404, detail="Note not found in trash")
+        return APIResponse(
+            success=True,
+            data={"note_id": note_id, "restored_to": target_folder or "/"},
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to restore note: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to restore note") from e
+
+
+@router.delete("/deleted/{note_id}", response_model=APIResponse[dict])
+async def permanently_delete_note(
+    note_id: str,
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[dict]:
+    """
+    Permanently delete a note from trash
+
+    This action is irreversible. The note will be permanently removed from disk.
+    """
+    try:
+        success = await service.permanently_delete_note(note_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Note not found in trash")
+        return APIResponse(
+            success=True,
+            data={"note_id": note_id, "permanently_deleted": True},
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to permanently delete note: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to permanently delete note") from e
+
+
+@router.delete("/deleted", response_model=APIResponse[dict])
+async def empty_trash(
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[dict]:
+    """
+    Empty the trash - permanently delete all notes in trash
+
+    This action is irreversible. All notes in the trash folder will be permanently removed.
+    """
+    try:
+        count = await service.empty_trash()
+        return APIResponse(
+            success=True,
+            data={"deleted_count": count},
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(f"Failed to empty trash: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to empty trash") from e
 
 
 # =============================================================================

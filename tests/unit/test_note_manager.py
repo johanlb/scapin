@@ -470,3 +470,183 @@ class TestRepr:
         repr_str = repr(manager)
         assert "NoteManager" in repr_str
         assert "notes" in repr_str.lower()
+
+
+class TestTrashFunctionality:
+    """Test soft delete and trash management (Corbeille)"""
+
+    @pytest.fixture
+    def manager(self, tmp_path):
+        vector_store = Mock()
+        embedder = Mock()
+        return NoteManager(
+            notes_dir=tmp_path / "notes",
+            vector_store=vector_store,
+            embedder=embedder,
+            auto_index=False
+        )
+
+    def test_delete_note_moves_to_trash(self, manager):
+        """Test deleting a note moves it to trash folder instead of hard delete"""
+        # Create a note
+        note_id = manager.create_note(
+            title="Test Note",
+            content="Test content"
+        )
+
+        # Verify note exists
+        note = manager.get_note(note_id)
+        assert note is not None
+
+        # Delete the note
+        result = manager.delete_note(note_id)
+        assert result is True
+
+        # Verify note is no longer accessible via get_note
+        note = manager.get_note(note_id)
+        assert note is None
+
+        # Verify file exists in trash folder
+        from src.passepartout.note_manager import TRASH_FOLDER
+        trash_path = manager.notes_dir / TRASH_FOLDER / f"{note_id}.md"
+        assert trash_path.exists()
+
+    def test_get_deleted_notes(self, manager):
+        """Test retrieving notes from trash"""
+        # Create and delete some notes
+        note_ids = []
+        for i in range(3):
+            note_id = manager.create_note(
+                title=f"Note {i}",
+                content=f"Content {i}"
+            )
+            note_ids.append(note_id)
+            manager.delete_note(note_id)
+
+        # Get deleted notes
+        deleted = manager.get_deleted_notes()
+        assert len(deleted) == 3
+
+        # Verify all deleted notes are in the list
+        deleted_ids = [n.note_id for n in deleted]
+        for note_id in note_ids:
+            assert note_id in deleted_ids
+
+    def test_restore_note_from_trash(self, manager):
+        """Test restoring a note from trash"""
+        # Create and delete a note
+        note_id = manager.create_note(
+            title="Restore Me",
+            content="Important content"
+        )
+        manager.delete_note(note_id)
+
+        # Verify it's in trash
+        deleted = manager.get_deleted_notes()
+        assert len(deleted) == 1
+
+        # Restore the note
+        result = manager.restore_note(note_id, "")
+        assert result is True
+
+        # Verify note is accessible again
+        note = manager.get_note(note_id)
+        assert note is not None
+        assert note.title == "Restore Me"
+
+        # Verify trash is empty
+        deleted = manager.get_deleted_notes()
+        assert len(deleted) == 0
+
+    def test_restore_note_to_folder(self, manager):
+        """Test restoring a note to a specific folder"""
+        # Create and delete a note
+        note_id = manager.create_note(
+            title="Restore to Folder",
+            content="Content"
+        )
+        manager.delete_note(note_id)
+
+        # Restore to a specific folder
+        result = manager.restore_note(note_id, "Projects/Alpha")
+        assert result is True
+
+        # Verify note is in the correct folder
+        note_path = manager.notes_dir / "Projects" / "Alpha" / f"{note_id}.md"
+        assert note_path.exists()
+
+    def test_permanently_delete_note(self, manager):
+        """Test permanently deleting a note from trash"""
+        # Create and delete a note
+        note_id = manager.create_note(
+            title="Permanent Delete",
+            content="Content"
+        )
+        manager.delete_note(note_id)
+
+        # Permanently delete
+        result = manager.permanently_delete_note(note_id)
+        assert result is True
+
+        # Verify file is gone from trash
+        from src.passepartout.note_manager import TRASH_FOLDER
+        trash_path = manager.notes_dir / TRASH_FOLDER / f"{note_id}.md"
+        assert not trash_path.exists()
+
+        # Verify trash is empty
+        deleted = manager.get_deleted_notes()
+        assert len(deleted) == 0
+
+    def test_empty_trash(self, manager):
+        """Test emptying the entire trash"""
+        # Create and delete multiple notes
+        for i in range(5):
+            note_id = manager.create_note(
+                title=f"Note {i}",
+                content=f"Content {i}"
+            )
+            manager.delete_note(note_id)
+
+        # Verify trash has notes
+        deleted = manager.get_deleted_notes()
+        assert len(deleted) == 5
+
+        # Empty trash
+        count = manager.empty_trash()
+        assert count == 5
+
+        # Verify trash is empty
+        deleted = manager.get_deleted_notes()
+        assert len(deleted) == 0
+
+    def test_is_note_in_trash(self, manager):
+        """Test checking if a note is in trash"""
+        # Create a note
+        note_id = manager.create_note(
+            title="Check Trash",
+            content="Content"
+        )
+
+        # Not in trash yet
+        assert manager.is_note_in_trash(note_id) is False
+
+        # Delete the note
+        manager.delete_note(note_id)
+
+        # Now in trash
+        assert manager.is_note_in_trash(note_id) is True
+
+    def test_restore_nonexistent_note_fails(self, manager):
+        """Test restoring a non-existent note returns False"""
+        result = manager.restore_note("nonexistent-id", "")
+        assert result is False
+
+    def test_permanently_delete_nonexistent_note_fails(self, manager):
+        """Test permanently deleting a non-existent note returns False"""
+        result = manager.permanently_delete_note("nonexistent-id")
+        assert result is False
+
+    def test_empty_trash_when_already_empty(self, manager):
+        """Test emptying an already empty trash returns 0"""
+        count = manager.empty_trash()
+        assert count == 0

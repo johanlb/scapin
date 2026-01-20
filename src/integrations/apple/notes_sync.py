@@ -25,6 +25,7 @@ from src.integrations.apple.notes_models import (
 from src.monitoring.logger import get_logger
 from src.passepartout.backup_manager import BackupManager
 from src.passepartout.janitor import NoteJanitor
+from src.passepartout.note_manager import TRASH_FOLDER
 
 logger = get_logger("integrations.apple.sync")
 
@@ -45,7 +46,7 @@ class AppleNotesSync:
     """
 
     SYNC_MAPPING_FILE = "apple_notes_sync.json"
-    EXCLUDED_FOLDERS = {"Recently Deleted", "Quick Notes"}
+    EXCLUDED_FOLDERS = {"Recently Deleted", "Quick Notes", "_Supprimées"}
 
     # Fields that Apple Notes sync can safely overwrite
     # NOTE: "title" is intentionally NOT included - we preserve the Scapin title
@@ -266,6 +267,8 @@ class AppleNotesSync:
         """
         Get all Scapin notes indexed by relative path
 
+        Excludes notes in hidden directories and EXCLUDED_FOLDERS (trash, etc.)
+
         Returns:
             Dict mapping relative path to (absolute path, modified time)
         """
@@ -279,9 +282,14 @@ class AppleNotesSync:
             if any(part.startswith(".") for part in note_path.parts):
                 continue
 
-            rel_path = str(note_path.relative_to(self.notes_dir))
+            # Skip excluded folders (trash, etc.)
+            rel_path = note_path.relative_to(self.notes_dir)
+            if any(excl in rel_path.parts for excl in self.EXCLUDED_FOLDERS):
+                continue
+
+            rel_path_str = str(rel_path)
             modified = datetime.fromtimestamp(note_path.stat().st_mtime)
-            notes[rel_path] = (note_path, modified)
+            notes[rel_path_str] = (note_path, modified)
 
         return notes
 
@@ -593,19 +601,29 @@ class AppleNotesSync:
         data: dict,
         result: SyncResult,
     ) -> None:
-        """Execute a delete action"""
+        """Execute a delete action (soft delete to trash)"""
         direction = data.get("direction", "")
 
         if direction == "delete_apple":
+            # Delete from Apple Notes (moves to Apple's Recently Deleted)
             apple_note: AppleNote = data["apple_note"]
             if self.client.delete_note(apple_note.id):
                 self._remove_mapping(apple_note.id)
                 result.deleted.append(apple_note.name)
 
         elif direction == "delete_scapin":
+            # Soft delete: move Scapin note to trash folder instead of hard delete
             scapin_path: Path = data["scapin_path"]
             try:
-                scapin_path.unlink()
+                # Create trash folder if needed
+                trash_dir = self.notes_dir / TRASH_FOLDER
+                trash_dir.mkdir(parents=True, exist_ok=True)
+
+                # Move to trash
+                trash_path = trash_dir / scapin_path.name
+                scapin_path.rename(trash_path)
+                logger.info(f"Moved note to trash: {scapin_path.name}")
+
                 # Find and remove mapping
                 for apple_id, mapping in list(self._mappings.items()):
                     if mapping.scapin_path == str(scapin_path.relative_to(self.notes_dir)):
@@ -613,7 +631,7 @@ class AppleNotesSync:
                         break
                 result.deleted.append(scapin_path.stem)
             except Exception as e:
-                logger.error(f"Failed to delete Scapin note: {e}")
+                logger.error(f"Failed to move Scapin note to trash: {e}")
 
     def _extract_title_from_content(self, content: str, fallback_stem: str) -> str:
         """
