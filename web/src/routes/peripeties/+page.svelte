@@ -392,32 +392,33 @@
 			{ title: 'Réanalyse', duration: 300000 } // 5 minutes max
 		);
 
-		// Start polling stats every 3 seconds to show progress
-		const pollInterval = setInterval(async () => {
-			await queueStore.fetchStats();
-			await queueStore.fetchQueueByTab('to_process');
-
-			// Stop polling when no more items in progress
-			const inProgressCount = queueStore.stats?.by_tab?.in_progress ?? 0;
-			if (inProgressCount === 0) {
-				clearInterval(pollInterval);
-				isReanalyzing = false;
-				toastStore.dismiss(processingToastId);
-				toastStore.success('Réanalyse terminée', { title: 'Terminé' });
-			}
-		}, 3000);
-
-		// Initial refresh after short delay
-		setTimeout(async () => {
-			await queueStore.fetchStats();
-			await queueStore.fetchQueueByTab('to_process');
-		}, 500);
+		let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 		try {
-			const result = await reanalyzeAllPending();
-			// API returns immediately, polling handles the rest
+			// Call API - returns immediately after marking all items as in_progress
+			await reanalyzeAllPending();
+
+			// Refresh to show items in "En cours"
+			await queueStore.fetchStats();
+			await queueStore.fetchQueueByTab('to_process');
+
+			// Start polling every 3 seconds to track progress
+			pollInterval = setInterval(async () => {
+				await queueStore.fetchStats();
+				await queueStore.fetchQueueByTab('to_process');
+
+				const inProgressCount = queueStore.stats?.by_tab?.in_progress ?? 0;
+				if (inProgressCount === 0 && pollInterval) {
+					clearInterval(pollInterval);
+					pollInterval = null;
+					isReanalyzing = false;
+					toastStore.dismiss(processingToastId);
+					toastStore.success('Réanalyse terminée', { title: 'Terminé' });
+				}
+			}, 3000);
+
 		} catch (err) {
-			clearInterval(pollInterval);
+			if (pollInterval) clearInterval(pollInterval);
 			toastStore.dismiss(processingToastId);
 			toastStore.error('Impossible de réanalyser les éléments. Vérifiez la connexion au serveur.', {
 				title: 'Erreur'
