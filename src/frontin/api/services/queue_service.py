@@ -1304,6 +1304,7 @@ class QueueService:
         """
         from src.core.config_manager import get_config
         from src.passepartout.note_manager import get_note_manager
+        from src.sancho.context_searcher import ContextSearcher
         from src.sancho.convergence import MultiPassConfig
         from src.sancho.model_selector import ModelTier
         from src.sancho.multi_pass_analyzer import MultiPassAnalyzer
@@ -1327,14 +1328,20 @@ class QueueService:
                 mp_config.force_model = model_map.get(force_model.lower())
                 logger.info(f"Reanalysis with forced model: {force_model}")
 
-            # Use singleton NoteManager (auto_index=False by default)
+            # Use singleton NoteManager for PKM context
             note_manager = get_note_manager()
 
-            # Create MultiPassAnalyzer with coherence pass enabled
+            # Create ContextSearcher for PKM context retrieval (v2.5 fix)
+            context_searcher = ContextSearcher(
+                note_manager=note_manager,
+                cross_source_engine=None,  # No cross-source for reanalysis
+            )
+
+            # Create MultiPassAnalyzer with context search enabled
             analyzer = MultiPassAnalyzer(
                 ai_router=ai_router,
                 note_manager=note_manager,
-                context_searcher=None,  # Could add later for context enrichment
+                context_searcher=context_searcher,
                 config=mp_config,
                 enable_coherence_pass=True,
             )
