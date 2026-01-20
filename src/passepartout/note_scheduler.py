@@ -13,6 +13,7 @@ from typing import Optional, Union
 from src.monitoring.logger import get_logger
 from src.passepartout.note_metadata import NoteMetadata, NoteMetadataStore
 from src.passepartout.note_types import (
+    CycleType,
     NoteType,
     get_review_config,
 )
@@ -29,6 +30,7 @@ class SchedulingResult:
     new_interval_hours: float
     new_repetition_number: int
     quality_assessment: str  # Human-readable assessment
+    cycle_type: CycleType = CycleType.RETOUCHE  # v2: Which cycle was used
 
 
 class NoteScheduler:
@@ -77,6 +79,7 @@ class NoteScheduler:
         self,
         metadata: NoteMetadata,
         quality: int,
+        cycle_type: Optional[CycleType] = None,
     ) -> SchedulingResult:
         """
         Calculate next review date using SM-2 algorithm
@@ -84,6 +87,7 @@ class NoteScheduler:
         Args:
             metadata: Current note metadata
             quality: Review quality rating (0-5)
+            cycle_type: Which cycle to calculate for (None=legacy, RETOUCHE, LECTURE)
 
         Returns:
             SchedulingResult with new scheduling parameters
@@ -96,6 +100,8 @@ class NoteScheduler:
 
         # Get type-specific configuration
         config = get_review_config(metadata.note_type)
+        effective_cycle = cycle_type or CycleType.RETOUCHE
+
         if config.skip_revision:
             # This type should never be scheduled
             return SchedulingResult(
@@ -104,21 +110,42 @@ class NoteScheduler:
                 new_interval_hours=0.0,
                 new_repetition_number=metadata.repetition_number,
                 quality_assessment="Type exempt from review",
+                cycle_type=effective_cycle,
             )
 
-        # Current values
-        ef = metadata.easiness_factor
-        repetition = metadata.repetition_number
+        # Get current values based on cycle type
+        # None means use legacy fields for backward compatibility
+        if cycle_type is None:
+            # Legacy mode: use original fields
+            ef = metadata.easiness_factor
+            repetition = metadata.repetition_number
+            current_interval = metadata.interval_hours
+        elif cycle_type == CycleType.RETOUCHE:
+            ef = metadata.retouche_ef
+            repetition = metadata.retouche_rep
+            current_interval = metadata.retouche_interval
+        else:  # LECTURE
+            ef = metadata.lecture_ef
+            repetition = metadata.lecture_rep
+            current_interval = metadata.lecture_interval
 
         # SM-2 Easiness Factor update formula
         # EF' = EF + (0.1 - (5 - Q) * (0.08 + (5 - Q) * 0.02))
         ef_delta = 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)
         new_ef = max(self.MIN_EASINESS, min(self.MAX_EASINESS, ef + ef_delta))
 
+        # Base intervals differ by cycle type
+        base_interval = config.base_interval_hours
+        second_interval = self.SECOND_INTERVAL_HOURS
+        if cycle_type == CycleType.LECTURE:
+            # Lecture cycle uses longer intervals
+            base_interval = 24.0  # 1 day minimum
+            second_interval = 72.0  # 3 days for second interval
+
         # Calculate new interval
         if quality < self.QUALITY_PASS_THRESHOLD:
             # Failed review - reset to beginning
-            new_interval = config.base_interval_hours
+            new_interval = base_interval
             new_repetition = 0
             assessment = self._get_quality_assessment(quality, reset=True)
         else:
@@ -126,11 +153,11 @@ class NoteScheduler:
             new_repetition = repetition + 1
 
             if new_repetition == 1:
-                new_interval = config.base_interval_hours
+                new_interval = base_interval
             elif new_repetition == 2:
-                new_interval = self.SECOND_INTERVAL_HOURS
+                new_interval = second_interval
             else:
-                new_interval = metadata.interval_hours * new_ef
+                new_interval = current_interval * new_ef
 
             # Apply max interval cap
             max_interval_hours = config.max_interval_days * 24
@@ -143,7 +170,7 @@ class NoteScheduler:
         next_review = now + timedelta(hours=new_interval)
 
         logger.debug(
-            f"Scheduled note {metadata.note_id}: "
+            f"Scheduled note {metadata.note_id} ({effective_cycle.value}): "
             f"quality={quality}, EF={ef:.2f}→{new_ef:.2f}, "
             f"interval={new_interval:.1f}h, next={next_review.isoformat()}"
         )
@@ -154,6 +181,7 @@ class NoteScheduler:
             new_interval_hours=new_interval,
             new_repetition_number=new_repetition,
             quality_assessment=assessment,
+            cycle_type=effective_cycle,
         )
 
     def _get_quality_assessment(self, quality: int, reset: bool) -> str:
@@ -176,6 +204,7 @@ class NoteScheduler:
         note_id: str,
         quality: int,
         metadata: Optional[NoteMetadata] = None,
+        cycle_type: Optional[CycleType] = None,
     ) -> Optional[NoteMetadata]:
         """
         Record a review and update scheduling
@@ -184,6 +213,7 @@ class NoteScheduler:
             note_id: Note identifier
             quality: Review quality (0-5)
             metadata: Optional pre-loaded NoteMetadata object
+            cycle_type: Which cycle to record for (None=legacy, RETOUCHE, LECTURE)
 
         Returns:
             Updated NoteMetadata or None if not found
@@ -198,10 +228,28 @@ class NoteScheduler:
                 logger.warning(f"Cannot record review: note {note_id} not found")
                 return None
 
-        result = self.calculate_next_review(metadata, quality)
+        result = self.calculate_next_review(metadata, quality, cycle_type)
+        now = datetime.now(timezone.utc)
 
-        # Update metadata
-        metadata.reviewed_at = datetime.now(timezone.utc)
+        # Update metadata based on cycle type
+        if cycle_type == CycleType.RETOUCHE:
+            metadata.retouche_last = now
+            metadata.retouche_next = result.next_review
+            metadata.retouche_ef = result.new_easiness_factor
+            metadata.retouche_interval = result.new_interval_hours
+            metadata.retouche_rep = result.new_repetition_number
+            metadata.retouche_count += 1
+        elif cycle_type == CycleType.LECTURE:
+            metadata.lecture_last = now
+            metadata.lecture_next = result.next_review
+            metadata.lecture_ef = result.new_easiness_factor
+            metadata.lecture_interval = result.new_interval_hours
+            metadata.lecture_rep = result.new_repetition_number
+            metadata.lecture_count += 1
+        # If cycle_type is None, only update legacy fields (below)
+
+        # Always update legacy fields for backward compatibility
+        metadata.reviewed_at = now
         metadata.next_review = result.next_review
         metadata.easiness_factor = result.new_easiness_factor
         metadata.interval_hours = result.new_interval_hours
@@ -211,8 +259,10 @@ class NoteScheduler:
 
         self.store.save(metadata)
 
+        cycle_name = cycle_type.value if cycle_type else "legacy"
         logger.info(
-            f"Recorded review for {note_id}: Q={quality}, next in {result.new_interval_hours:.1f}h"
+            f"Recorded {cycle_name} review for {note_id}: "
+            f"Q={quality}, next in {result.new_interval_hours:.1f}h"
         )
 
         return metadata
@@ -221,6 +271,7 @@ class NoteScheduler:
         self,
         limit: int = 50,
         note_types: Optional[list[NoteType]] = None,
+        cycle_type: Optional[CycleType] = None,
     ) -> list[NoteMetadata]:
         """
         Get notes due for review
@@ -228,6 +279,7 @@ class NoteScheduler:
         Args:
             limit: Maximum notes to return
             note_types: Filter by types (None = all reviewable types)
+            cycle_type: Which cycle to check (None=legacy, RETOUCHE, LECTURE)
 
         Returns:
             List of notes due for review, ordered by priority
@@ -238,10 +290,23 @@ class NoteScheduler:
         else:
             note_types = [t for t in note_types if not get_review_config(t).skip_revision]
 
-        return self.store.get_due_for_review(
-            limit=limit,
-            note_types=note_types,
-        )
+        # Use cycle-specific method or legacy method
+        if cycle_type == CycleType.RETOUCHE:
+            return self.store.get_due_for_retouche(
+                limit=limit,
+                note_types=note_types,
+            )
+        elif cycle_type == CycleType.LECTURE:
+            return self.store.get_due_for_lecture(
+                limit=limit,
+                note_types=note_types,
+            )
+        else:
+            # Legacy mode: use original get_due_for_review
+            return self.store.get_due_for_review(
+                limit=limit,
+                note_types=note_types,
+            )
 
     def trigger_immediate_review(self, note_id: str) -> bool:
         """

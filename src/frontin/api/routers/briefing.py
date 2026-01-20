@@ -2,11 +2,14 @@
 Briefing Router
 
 Morning and pre-meeting briefing endpoints.
+Includes Memory Cycles v2: Filage (morning briefing) and Lecture (human review).
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from src.core.events import PerceivedEvent
 from src.frontin.api.deps import get_briefing_service
@@ -191,5 +194,297 @@ async def get_pre_meeting_briefing(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# === Memory Cycles v2: Filage & Lecture ===
+
+
+class FilageLectureResponse(BaseModel):
+    """Response model for a single Filage lecture"""
+
+    note_id: str
+    note_title: str
+    note_type: str
+    priority: int
+    reason: str
+    quality_score: Optional[int] = None
+    questions_pending: bool = False
+    questions_count: int = 0
+    related_event_id: Optional[str] = None
+
+
+class FilageResponse(BaseModel):
+    """Response model for Filage"""
+
+    date: str
+    generated_at: str
+    lectures: list[FilageLectureResponse]
+    total_lectures: int
+    events_today: int
+    notes_with_questions: int
+
+
+class LectureSessionResponse(BaseModel):
+    """Response model for Lecture session"""
+
+    session_id: str
+    note_id: str
+    note_title: str
+    note_content: str
+    started_at: str
+    quality_score: Optional[int] = None
+    questions: list[str] = Field(default_factory=list)
+    metadata: Optional[dict] = None
+
+
+class LectureCompleteRequest(BaseModel):
+    """Request model for completing a Lecture"""
+
+    quality: int = Field(..., ge=0, le=5, description="Review quality (0-5)")
+    answers: Optional[dict[str, str]] = Field(
+        default=None, description="Answers to questions (key=question_index)"
+    )
+
+
+class LectureResultResponse(BaseModel):
+    """Response model for Lecture completion result"""
+
+    note_id: str
+    quality_rating: int
+    next_lecture: str
+    interval_hours: float
+    answers_recorded: int
+    questions_remaining: int
+    success: bool
+    error: Optional[str] = None
+
+
+class LectureStatsResponse(BaseModel):
+    """Response model for Lecture statistics"""
+
+    note_id: str
+    lecture_count: int
+    lecture_ef: float
+    lecture_interval_hours: float
+    lecture_next: Optional[str] = None
+    lecture_last: Optional[str] = None
+    quality_score: Optional[int] = None
+    questions_pending: bool = False
+    questions_count: int = 0
+
+
+@router.get("/filage", response_model=APIResponse[FilageResponse])
+async def get_filage(
+    max_lectures: int = Query(20, ge=1, le=50, description="Maximum lectures to include"),
+) -> APIResponse[FilageResponse]:
+    """
+    Get the Filage (morning briefing with notes to review).
+
+    The Filage includes:
+    - Notes with pending questions (priority 1)
+    - Notes related to today's events (priority 2)
+    - Notes due for Lecture via SM-2 (priority 3)
+    - Recently retouched notes (priority 4)
+    """
+    try:
+        # Import here to avoid circular imports
+        from src.passepartout.filage_service import FilageService
+        from src.passepartout.note_manager import get_note_manager
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_scheduler import NoteScheduler
+
+        # Get singleton instances
+        note_manager = get_note_manager()
+        metadata_store = NoteMetadataStore()
+        scheduler = NoteScheduler(metadata_store)
+
+        filage_service = FilageService(
+            note_manager=note_manager,
+            metadata_store=metadata_store,
+            scheduler=scheduler,
+        )
+
+        filage = await filage_service.generate_filage(max_lectures=max_lectures)
+
+        # Convert to response model
+        lectures = [
+            FilageLectureResponse(
+                note_id=lecture.note_id,
+                note_title=lecture.note_title,
+                note_type=lecture.note_type.value,
+                priority=lecture.priority,
+                reason=lecture.reason,
+                quality_score=lecture.quality_score,
+                questions_pending=lecture.questions_pending,
+                questions_count=lecture.questions_count,
+                related_event_id=lecture.related_event_id,
+            )
+            for lecture in filage.lectures
+        ]
+
+        return APIResponse(
+            success=True,
+            data=FilageResponse(
+                date=filage.date,
+                generated_at=filage.generated_at,
+                lectures=lectures,
+                total_lectures=filage.total_lectures,
+                events_today=filage.events_today,
+                notes_with_questions=filage.notes_with_questions,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/lecture/{note_id}/start", response_model=APIResponse[LectureSessionResponse])
+async def start_lecture(
+    note_id: str,
+) -> APIResponse[LectureSessionResponse]:
+    """
+    Start a Lecture session for a note.
+
+    Returns the note content, pending questions, and session ID.
+    """
+    try:
+        # Import here to avoid circular imports
+        from src.passepartout.lecture_service import LectureService
+        from src.passepartout.note_manager import get_note_manager
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_scheduler import NoteScheduler
+
+        # Get singleton instances
+        note_manager = get_note_manager()
+        metadata_store = NoteMetadataStore()
+        scheduler = NoteScheduler(metadata_store)
+
+        lecture_service = LectureService(
+            note_manager=note_manager,
+            metadata_store=metadata_store,
+            scheduler=scheduler,
+        )
+
+        session = lecture_service.start_lecture(note_id)
+
+        if session is None:
+            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+
+        return APIResponse(
+            success=True,
+            data=LectureSessionResponse(
+                session_id=session.session_id,
+                note_id=session.note_id,
+                note_title=session.note_title,
+                note_content=session.note_content,
+                started_at=session.started_at,
+                quality_score=session.quality_score,
+                questions=session.questions,
+                metadata=session.metadata,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/lecture/{note_id}/complete", response_model=APIResponse[LectureResultResponse])
+async def complete_lecture(
+    note_id: str,
+    request: LectureCompleteRequest,
+) -> APIResponse[LectureResultResponse]:
+    """
+    Complete a Lecture session and update SM-2 scheduling.
+
+    Args:
+        note_id: Note that was reviewed
+        request: Quality rating (0-5) and optional answers
+    """
+    try:
+        # Import here to avoid circular imports
+        from src.passepartout.lecture_service import LectureService
+        from src.passepartout.note_manager import get_note_manager
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_scheduler import NoteScheduler
+
+        # Get singleton instances
+        note_manager = get_note_manager()
+        metadata_store = NoteMetadataStore()
+        scheduler = NoteScheduler(metadata_store)
+
+        lecture_service = LectureService(
+            note_manager=note_manager,
+            metadata_store=metadata_store,
+            scheduler=scheduler,
+        )
+
+        result = lecture_service.complete_lecture(
+            note_id=note_id,
+            quality=request.quality,
+            answers=request.answers,
+        )
+
+        return APIResponse(
+            success=result.success,
+            data=LectureResultResponse(
+                note_id=result.note_id,
+                quality_rating=result.quality_rating,
+                next_lecture=result.next_lecture,
+                interval_hours=result.interval_hours,
+                answers_recorded=result.answers_recorded,
+                questions_remaining=result.questions_remaining,
+                success=result.success,
+                error=result.error,
+            ),
+            timestamp=datetime.now(timezone.utc),
+            error=result.error,
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/lecture/{note_id}/stats", response_model=APIResponse[LectureStatsResponse])
+async def get_lecture_stats(
+    note_id: str,
+) -> APIResponse[LectureStatsResponse]:
+    """Get Lecture statistics for a note."""
+    try:
+        # Import here to avoid circular imports
+        from src.passepartout.lecture_service import LectureService
+        from src.passepartout.note_manager import get_note_manager
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_scheduler import NoteScheduler
+
+        # Get singleton instances
+        note_manager = get_note_manager()
+        metadata_store = NoteMetadataStore()
+        scheduler = NoteScheduler(metadata_store)
+
+        lecture_service = LectureService(
+            note_manager=note_manager,
+            metadata_store=metadata_store,
+            scheduler=scheduler,
+        )
+
+        stats = lecture_service.get_lecture_stats(note_id)
+
+        if stats is None:
+            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+
+        return APIResponse(
+            success=True,
+            data=LectureStatsResponse(**stats),
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

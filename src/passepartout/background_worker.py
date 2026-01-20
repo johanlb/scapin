@@ -2,6 +2,7 @@
 Background Worker for Note Review
 
 24/7 background process that handles note reviews according to SM-2 scheduling.
+Includes Memory Cycles v2: Retouche (AI) and Filage (briefing).
 Designed to run without blocking the frontend or API.
 """
 
@@ -18,9 +19,12 @@ from src.passepartout.note_manager import NoteManager
 from src.passepartout.note_metadata import NoteMetadataStore
 from src.passepartout.note_reviewer import NoteReviewer, ReviewResult
 from src.passepartout.note_scheduler import NoteScheduler
+from src.passepartout.note_types import CycleType
 
 if TYPE_CHECKING:
     from src.passepartout.cross_source import CrossSourceEngine
+    from src.passepartout.filage_service import Filage, FilageService
+    from src.passepartout.retouche_reviewer import RetoucheReviewer
     from src.sancho.processor import NoteProcessor
 
 logger = get_logger("passepartout.background_worker")
@@ -48,6 +52,13 @@ class WorkerStats:
     session_start: Optional[datetime] = None
     average_review_seconds: float = 0.0
 
+    # Memory Cycles v2 stats
+    retouches_today: int = 0
+    retouches_total: int = 0
+    last_retouche_at: Optional[datetime] = None
+    filage_prepared_today: bool = False
+    last_filage_at: Optional[datetime] = None
+
 
 @dataclass
 class WorkerConfig:
@@ -70,6 +81,14 @@ class WorkerConfig:
     # Notifications
     notify_on_high_confidence: bool = True
     notify_threshold: float = 0.9
+
+    # Memory Cycles v2
+    max_daily_retouches: int = 100  # More retouches allowed (AI-driven)
+    retouche_batch_size: int = 10  # Notes to retouche per cycle
+    quiet_hours_start: int = 23  # No retouche after 23h
+    quiet_hours_end: int = 7  # No retouche before 7h
+    filage_hour: int = 6  # Prepare Filage at 6h
+    filage_max_lectures: int = 20  # Max lectures in Filage
 
 
 class BackgroundWorker:
@@ -131,6 +150,11 @@ class BackgroundWorker:
         self._reviewer: Optional[NoteReviewer] = None
         self._processor: Optional[NoteProcessor] = None
 
+        # Memory Cycles v2 components
+        self._retouche_reviewer: Optional[RetoucheReviewer] = None
+        self._filage_service: Optional[FilageService] = None
+        self._current_filage: Optional[Filage] = None
+
     @property
     def state(self) -> WorkerState:
         return self._state
@@ -178,6 +202,26 @@ class BackgroundWorker:
                 note_manager=self._note_manager,
             )
 
+        # Memory Cycles v2 components
+        if self._retouche_reviewer is None:
+            from src.passepartout.retouche_reviewer import RetoucheReviewer
+
+            self._retouche_reviewer = RetoucheReviewer(
+                note_manager=self._note_manager,
+                metadata_store=self._metadata_store,
+                scheduler=self._scheduler,
+            )
+
+        if self._filage_service is None:
+            from src.passepartout.filage_service import FilageService
+
+            self._filage_service = FilageService(
+                note_manager=self._note_manager,
+                metadata_store=self._metadata_store,
+                scheduler=self._scheduler,
+                cross_source_engine=self._cross_source_engine,
+            )
+
     def _remaining_today(self) -> int:
         """Calculate remaining reviews for today"""
         return max(0, self.config.max_daily_reviews - self._stats.reviews_today)
@@ -217,6 +261,9 @@ class BackgroundWorker:
                 logger.info("New day detected, resetting daily stats")
                 self._stats.reviews_today = 0
                 self._stats.errors_today = 0
+                # Memory Cycles v2
+                self._stats.retouches_today = 0
+                self._stats.filage_prepared_today = False
 
     async def run(self) -> None:
         """
@@ -254,7 +301,15 @@ class BackgroundWorker:
                     await self._check_ingestion()
                     self._last_ingestion_check = time.time()
 
-                # 2. Regular SM-2 Reviews
+                # 2. Memory Cycles v2: Filage (morning briefing)
+                if self._is_filage_hour() and not self._stats.filage_prepared_today:
+                    await self._prepare_filage()
+
+                # 3. Memory Cycles v2: Retouche (AI improvement)
+                if not self._is_quiet_hours() and self._remaining_retouches_today() > 0:
+                    await self._run_retouche_cycle()
+
+                # 4. Regular SM-2 Reviews
                 # Get notes due for review
                 assert self._scheduler is not None
                 due_notes = self._scheduler.get_notes_due(limit=min(10, self._remaining_today()))
@@ -325,6 +380,112 @@ class BackgroundWorker:
         except Exception as e:
             logger.error(f"Ingestion check failed: {e}", exc_info=True)
 
+    # === Memory Cycles v2: Retouche & Filage ===
+
+    def _is_quiet_hours(self) -> bool:
+        """Check if we're in quiet hours (no Retouche)"""
+        now = datetime.now(timezone.utc)
+        # Simple UTC-based check (would use local timezone in production)
+        local_hour = (now.hour + 1) % 24  # UTC+1 for Paris (simplified)
+        return (
+            local_hour >= self.config.quiet_hours_start
+            or local_hour < self.config.quiet_hours_end
+        )
+
+    def _is_filage_hour(self) -> bool:
+        """Check if it's time to prepare the Filage"""
+        now = datetime.now(timezone.utc)
+        local_hour = (now.hour + 1) % 24  # UTC+1 for Paris (simplified)
+        return local_hour == self.config.filage_hour
+
+    def _remaining_retouches_today(self) -> int:
+        """Calculate remaining retouches for today"""
+        return max(0, self.config.max_daily_retouches - self._stats.retouches_today)
+
+    async def _run_retouche_cycle(self) -> None:
+        """Run a Retouche cycle (AI improvement of notes)"""
+        if self._retouche_reviewer is None or self._scheduler is None:
+            return
+
+        try:
+            # Get notes due for Retouche
+            batch_size = min(
+                self.config.retouche_batch_size,
+                self._remaining_retouches_today(),
+            )
+            due_notes = self._scheduler.get_notes_due(
+                limit=batch_size,
+                cycle_type=CycleType.RETOUCHE,
+            )
+
+            if not due_notes:
+                return
+
+            logger.info(f"Starting Retouche cycle with {len(due_notes)} notes")
+
+            for metadata in due_notes:
+                if self._stop_requested:
+                    break
+
+                try:
+                    result = await self._retouche_reviewer.review_note(metadata.note_id)
+
+                    # Update stats
+                    self._stats.retouches_today += 1
+                    self._stats.retouches_total += 1
+                    self._stats.last_retouche_at = datetime.now(timezone.utc)
+
+                    logger.info(
+                        f"Retouche complete for {metadata.note_id}: "
+                        f"quality={result.quality_before}→{result.quality_after}, "
+                        f"actions={len(result.actions)}, model={result.model_used}"
+                    )
+
+                    # Small delay between retouches
+                    await asyncio.sleep(2.0)
+
+                except Exception as e:
+                    logger.error(f"Retouche failed for {metadata.note_id}: {e}")
+                    self._stats.errors_today += 1
+
+        except Exception as e:
+            logger.error(f"Retouche cycle failed: {e}", exc_info=True)
+
+    async def _prepare_filage(self) -> None:
+        """Prepare the daily Filage (morning briefing)"""
+        if self._filage_service is None:
+            return
+
+        try:
+            logger.info("Preparing daily Filage")
+
+            filage = await self._filage_service.generate_filage(
+                max_lectures=self.config.filage_max_lectures,
+            )
+
+            self._current_filage = filage
+            self._stats.filage_prepared_today = True
+            self._stats.last_filage_at = datetime.now(timezone.utc)
+
+            logger.info(
+                f"Filage prepared: {filage.total_lectures} lectures, "
+                f"{filage.events_today} events, "
+                f"{filage.notes_with_questions} with questions"
+            )
+
+            # TODO: Emit WebSocket event for Filage ready
+
+        except Exception as e:
+            logger.error(f"Filage preparation failed: {e}", exc_info=True)
+
+    def get_current_filage(self) -> Optional["Filage"]:
+        """Get the current day's Filage"""
+        return self._current_filage
+
+    # === End Memory Cycles v2 ===
+
+    def _on_worker_stop(self) -> None:
+        """Called when worker stops"""
         self._set_state(WorkerState.STOPPED)
         logger.info("Background worker stopped")
 
@@ -397,11 +558,35 @@ class BackgroundWorker:
                     self._stats.last_review_at.isoformat() if self._stats.last_review_at else None
                 ),
                 "average_review_seconds": round(self._stats.average_review_seconds, 2),
+                # Memory Cycles v2
+                "retouches_today": self._stats.retouches_today,
+                "retouches_total": self._stats.retouches_total,
+                "last_retouche_at": (
+                    self._stats.last_retouche_at.isoformat()
+                    if self._stats.last_retouche_at
+                    else None
+                ),
+                "filage_prepared_today": self._stats.filage_prepared_today,
+                "last_filage_at": (
+                    self._stats.last_filage_at.isoformat() if self._stats.last_filage_at else None
+                ),
             },
             "config": {
                 "max_daily_reviews": self.config.max_daily_reviews,
                 "max_session_minutes": self.config.max_session_minutes,
                 "remaining_today": self._remaining_today(),
+                # Memory Cycles v2
+                "max_daily_retouches": self.config.max_daily_retouches,
+                "remaining_retouches_today": self._remaining_retouches_today(),
+                "quiet_hours": f"{self.config.quiet_hours_start}h-{self.config.quiet_hours_end}h",
+                "filage_hour": self.config.filage_hour,
+            },
+            "memory_cycles": {
+                "is_quiet_hours": self._is_quiet_hours(),
+                "is_filage_hour": self._is_filage_hour(),
+                "current_filage_lectures": (
+                    self._current_filage.total_lectures if self._current_filage else 0
+                ),
             },
         }
 

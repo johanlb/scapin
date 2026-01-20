@@ -2021,11 +2021,11 @@
 														<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
 															{note.note_type}
 														</span>
-														<a href="/notes/{note.note_id}" class="text-[var(--color-accent)] hover:underline">
+														<a href="/memoires/{note.path ? `${note.path}/${note.note_id}` : note.note_id}" class="text-[var(--color-accent)] hover:underline">
 															{note.title}
 														</a>
 														<span class="text-[var(--color-text-tertiary)]">
-															({Math.round(note.relevance * 100)}%)
+															({Math.round((note.relevance ?? 0) * 100)}%)
 														</span>
 													</div>
 												{/each}

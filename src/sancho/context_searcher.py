@@ -42,6 +42,7 @@ class NoteContextBlock:
     relevance: float  # 0-1 relevance score
     last_modified: Optional[datetime] = None
     tags: list[str] = field(default_factory=list)
+    path: str = ""  # Folder path for navigation (e.g., "Personal Knowledge Management/Personnes")
 
     def to_prompt_block(self) -> str:
         """Format for prompt injection"""
@@ -452,6 +453,7 @@ class ContextSearcher:
                     seen_ids.add(note.note_id)
 
                     # Create note context block with entity match info
+                    note_path = (note.metadata or {}).get("path", "")
                     note_block = NoteContextBlock(
                         note_id=note.note_id,
                         title=note.title,
@@ -460,6 +462,7 @@ class ContextSearcher:
                         relevance=min(1.0, result.match_score),
                         last_modified=getattr(note, "modified_at", None),
                         tags=note.tags or [],
+                        path=note_path,
                     )
                     notes.append(note_block)
 
@@ -505,6 +508,7 @@ class ContextSearcher:
                         seen_ids.add(note.note_id)
 
                         # Create note context block
+                        note_path = (note.metadata or {}).get("path", "")
                         note_block = NoteContextBlock(
                             note_id=note.note_id,
                             title=note.title,
@@ -513,6 +517,7 @@ class ContextSearcher:
                             relevance=min(1.0, score),
                             last_modified=getattr(note, "modified_at", None),
                             tags=note.tags or [],
+                            path=note_path,
                         )
                         notes.append(note_block)
 

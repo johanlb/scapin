@@ -1687,6 +1687,7 @@ class MultiPassAnalyzer:
                         "summary": n.summary[:200] if n.summary else "",
                         "relevance": round(n.relevance, 2),
                         "tags": n.tags,
+                        "path": getattr(n, "path", ""),
                     }
                     for n in context.notes
                 ],

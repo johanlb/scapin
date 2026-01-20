@@ -33,7 +33,7 @@ WAL_CHECKPOINT_THRESHOLD = 1000  # Checkpoint after this many operations
 logger = get_logger("passepartout.note_metadata")
 
 # Database schema version for migrations
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # Importance level ordering for priority sorting (lower value = higher priority)
 IMPORTANCE_ORDER: dict[ImportanceLevel, int] = {
@@ -91,6 +91,10 @@ class NoteMetadata:
     Stores all information needed for spaced repetition scheduling
     and enrichment tracking, separate from the note content itself.
     Uses slots=True for ~30% memory reduction per instance.
+
+    v2: Dual-cycle support (Retouche/Lecture)
+    - Retouche (IA): Amélioration automatique des notes
+    - Lecture (Humain): Révision espacée pour Johan
     """
 
     note_id: str
@@ -102,12 +106,12 @@ class NoteMetadata:
     reviewed_at: Optional[datetime] = None
     next_review: Optional[datetime] = None
 
-    # SM-2 Algorithm state
+    # SM-2 Algorithm state (legacy - kept for backward compatibility)
     easiness_factor: float = 2.5  # 1.3 - 2.5
     repetition_number: int = 0  # Consecutive successful reviews
     interval_hours: float = 2.0  # Current interval in hours
 
-    # Tracking
+    # Tracking (legacy)
     review_count: int = 0
     last_quality: Optional[int] = None  # 0-5, last review quality
     content_hash: str = ""  # SHA256 to detect external changes
@@ -119,6 +123,29 @@ class NoteMetadata:
 
     # History (stored as JSON)
     enrichment_history: list[EnrichmentRecord] = field(default_factory=list)
+
+    # === Dual-Cycle Fields (v2) ===
+
+    # Retouche (IA) - Amélioration automatique
+    retouche_ef: float = 2.5  # Easiness factor for Retouche cycle
+    retouche_rep: int = 0  # Repetition number for Retouche
+    retouche_interval: float = 2.0  # Current interval in hours
+    retouche_next: Optional[datetime] = None  # Next Retouche due
+    retouche_last: Optional[datetime] = None  # Last Retouche done
+    retouche_count: int = 0  # Total Retouches performed
+
+    # Lecture (Humain) - Révision espacée pour Johan
+    lecture_ef: float = 2.5  # Easiness factor for Lecture cycle
+    lecture_rep: int = 0  # Repetition number for Lecture
+    lecture_interval: float = 24.0  # Current interval in hours (starts longer)
+    lecture_next: Optional[datetime] = None  # Next Lecture due
+    lecture_last: Optional[datetime] = None  # Last Lecture done
+    lecture_count: int = 0  # Total Lectures performed
+
+    # Qualité & Questions (v2)
+    quality_score: Optional[int] = None  # 0-100, overall quality score
+    questions_pending: bool = False  # Has unanswered questions for Johan
+    questions_count: int = 0  # Number of pending questions
 
     def is_due_for_review(self, now: Optional[datetime] = None) -> bool:
         """Check if note is due for review"""
@@ -334,11 +361,22 @@ class NoteMetadataStore:
             self.close()
 
     def _init_db(self) -> None:
-        """Initialize database schema"""
+        """Initialize database schema with migration support"""
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
-            # Create main metadata table
+            # Check current schema version
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schema_version (
+                    version INTEGER PRIMARY KEY
+                )
+            """)
+
+            cursor.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
+            row = cursor.fetchone()
+            current_version = row[0] if row else 0
+
+            # Create main metadata table if not exists (v1 schema)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS note_metadata (
                     note_id TEXT PRIMARY KEY,
@@ -360,6 +398,10 @@ class NoteMetadataStore:
                 )
             """)
 
+            # Run migrations if needed
+            if current_version < 2:
+                self._migrate_v1_to_v2(cursor)
+
             # Create indexes for common queries
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_next_review
@@ -375,7 +417,6 @@ class NoteMetadataStore:
             """)
 
             # Composite index for get_due_for_review query optimization
-            # Query filters by importance, next_review, and optionally note_type
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_review_priority
                 ON note_metadata(importance, next_review, note_type)
@@ -387,19 +428,118 @@ class NoteMetadataStore:
                 ON note_metadata(reviewed_at)
             """)
 
-            # Schema version table
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS schema_version (
-                    version INTEGER PRIMARY KEY
-                )
-            """)
+            # Update schema version
+            cursor.execute("DELETE FROM schema_version")
             cursor.execute(
-                "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+                "INSERT INTO schema_version (version) VALUES (?)",
                 (SCHEMA_VERSION,),
             )
 
             conn.commit()
-            logger.debug("Database initialized", extra={"db_path": str(self.db_path)})
+            logger.debug(
+                "Database initialized",
+                extra={"db_path": str(self.db_path), "schema_version": SCHEMA_VERSION},
+            )
+
+    def _migrate_v1_to_v2(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Migrate from schema v1 to v2: Add dual-cycle fields (Retouche/Lecture).
+
+        Migration strategy:
+        - Copy existing SM-2 fields to retouche_* fields
+        - Initialize lecture_* fields with defaults
+        - Add quality_score and questions fields
+        """
+        logger.info("Migrating database schema from v1 to v2 (dual-cycle support)")
+
+        # Check which columns already exist
+        cursor.execute("PRAGMA table_info(note_metadata)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+
+        # Retouche (IA) columns - copy from existing SM-2 fields
+        new_columns_retouche = [
+            ("retouche_ef", "REAL", "easiness_factor"),
+            ("retouche_rep", "INTEGER", "repetition_number"),
+            ("retouche_interval", "REAL", "interval_hours"),
+            ("retouche_next", "TEXT", "next_review"),
+            ("retouche_last", "TEXT", "reviewed_at"),
+            ("retouche_count", "INTEGER", "review_count"),
+        ]
+
+        # Lecture (Humain) columns - initialize with defaults
+        new_columns_lecture = [
+            ("lecture_ef", "REAL NOT NULL DEFAULT 2.5"),
+            ("lecture_rep", "INTEGER NOT NULL DEFAULT 0"),
+            ("lecture_interval", "REAL NOT NULL DEFAULT 24.0"),
+            ("lecture_next", "TEXT"),
+            ("lecture_last", "TEXT"),
+            ("lecture_count", "INTEGER NOT NULL DEFAULT 0"),
+        ]
+
+        # Quality & Questions columns
+        new_columns_quality = [
+            ("quality_score", "INTEGER"),
+            ("questions_pending", "INTEGER NOT NULL DEFAULT 0"),
+            ("questions_count", "INTEGER NOT NULL DEFAULT 0"),
+        ]
+
+        # Add Retouche columns with data migration
+        for col_name, col_type, source_col in new_columns_retouche:
+            if col_name not in existing_columns:
+                # Add column with default
+                if col_type == "REAL":
+                    cursor.execute(
+                        f"ALTER TABLE note_metadata ADD COLUMN {col_name} {col_type} DEFAULT 2.5"
+                    )
+                elif col_type == "INTEGER":
+                    cursor.execute(
+                        f"ALTER TABLE note_metadata ADD COLUMN {col_name} {col_type} DEFAULT 0"
+                    )
+                else:
+                    cursor.execute(
+                        f"ALTER TABLE note_metadata ADD COLUMN {col_name} {col_type}"
+                    )
+                # Copy data from source column
+                cursor.execute(
+                    f"UPDATE note_metadata SET {col_name} = {source_col}"
+                )
+                logger.debug(f"Added column {col_name} with data from {source_col}")
+
+        # Add Lecture columns with defaults
+        for col_def in new_columns_lecture:
+            col_name = col_def[0]
+            col_type = col_def[1]
+            if col_name not in existing_columns:
+                cursor.execute(
+                    f"ALTER TABLE note_metadata ADD COLUMN {col_name} {col_type}"
+                )
+                logger.debug(f"Added column {col_name}")
+
+        # Add Quality columns
+        for col_def in new_columns_quality:
+            col_name = col_def[0]
+            col_type = col_def[1]
+            if col_name not in existing_columns:
+                cursor.execute(
+                    f"ALTER TABLE note_metadata ADD COLUMN {col_name} {col_type}"
+                )
+                logger.debug(f"Added column {col_name}")
+
+        # Create indexes for dual-cycle queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_retouche_next
+            ON note_metadata(retouche_next)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_lecture_next
+            ON note_metadata(lecture_next)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_questions_pending
+            ON note_metadata(questions_pending)
+        """)
+
+        logger.info("Migration v1 to v2 completed successfully")
 
     def _parse_datetime_safe(self, val: Optional[str], field_name: str = "") -> Optional[datetime]:
         """
@@ -442,6 +582,13 @@ class NoteMetadataStore:
             )
             history = []
 
+        # Helper to safely get row value with default (for v2 columns that may not exist)
+        def get_row_value(key: str, default: any) -> any:
+            try:
+                return row[key] if row[key] is not None else default
+            except (IndexError, KeyError):
+                return default
+
         return NoteMetadata(
             note_id=note_id,
             note_type=NoteType(row["note_type"]),
@@ -461,6 +608,30 @@ class NoteMetadataStore:
             auto_enrich=bool(row["auto_enrich"]),
             web_search_enabled=bool(row["web_search_enabled"]),
             enrichment_history=history,
+            # v2: Dual-cycle fields
+            retouche_ef=get_row_value("retouche_ef", 2.5),
+            retouche_rep=get_row_value("retouche_rep", 0),
+            retouche_interval=get_row_value("retouche_interval", 2.0),
+            retouche_next=self._parse_datetime_safe(
+                get_row_value("retouche_next", None), "retouche_next"
+            ),
+            retouche_last=self._parse_datetime_safe(
+                get_row_value("retouche_last", None), "retouche_last"
+            ),
+            retouche_count=get_row_value("retouche_count", 0),
+            lecture_ef=get_row_value("lecture_ef", 2.5),
+            lecture_rep=get_row_value("lecture_rep", 0),
+            lecture_interval=get_row_value("lecture_interval", 24.0),
+            lecture_next=self._parse_datetime_safe(
+                get_row_value("lecture_next", None), "lecture_next"
+            ),
+            lecture_last=self._parse_datetime_safe(
+                get_row_value("lecture_last", None), "lecture_last"
+            ),
+            lecture_count=get_row_value("lecture_count", 0),
+            quality_score=get_row_value("quality_score", None),
+            questions_pending=bool(get_row_value("questions_pending", False)),
+            questions_count=get_row_value("questions_count", 0),
         )
 
     def save(self, metadata: NoteMetadata) -> None:
@@ -483,8 +654,13 @@ class NoteMetadataStore:
                     reviewed_at, next_review, easiness_factor,
                     repetition_number, interval_hours, review_count,
                     last_quality, content_hash, importance,
-                    auto_enrich, web_search_enabled, enrichment_history
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    auto_enrich, web_search_enabled, enrichment_history,
+                    retouche_ef, retouche_rep, retouche_interval,
+                    retouche_next, retouche_last, retouche_count,
+                    lecture_ef, lecture_rep, lecture_interval,
+                    lecture_next, lecture_last, lecture_count,
+                    quality_score, questions_pending, questions_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     metadata.note_id,
@@ -503,6 +679,22 @@ class NoteMetadataStore:
                     int(metadata.auto_enrich),
                     int(metadata.web_search_enabled),
                     history_json,
+                    # v2: Dual-cycle fields
+                    metadata.retouche_ef,
+                    metadata.retouche_rep,
+                    metadata.retouche_interval,
+                    metadata.retouche_next.isoformat() if metadata.retouche_next else None,
+                    metadata.retouche_last.isoformat() if metadata.retouche_last else None,
+                    metadata.retouche_count,
+                    metadata.lecture_ef,
+                    metadata.lecture_rep,
+                    metadata.lecture_interval,
+                    metadata.lecture_next.isoformat() if metadata.lecture_next else None,
+                    metadata.lecture_last.isoformat() if metadata.lecture_last else None,
+                    metadata.lecture_count,
+                    metadata.quality_score,
+                    int(metadata.questions_pending),
+                    metadata.questions_count,
                 ),
             )
 
@@ -549,6 +741,22 @@ class NoteMetadataStore:
                         int(metadata.auto_enrich),
                         int(metadata.web_search_enabled),
                         history_json,
+                        # v2: Dual-cycle fields
+                        metadata.retouche_ef,
+                        metadata.retouche_rep,
+                        metadata.retouche_interval,
+                        metadata.retouche_next.isoformat() if metadata.retouche_next else None,
+                        metadata.retouche_last.isoformat() if metadata.retouche_last else None,
+                        metadata.retouche_count,
+                        metadata.lecture_ef,
+                        metadata.lecture_rep,
+                        metadata.lecture_interval,
+                        metadata.lecture_next.isoformat() if metadata.lecture_next else None,
+                        metadata.lecture_last.isoformat() if metadata.lecture_last else None,
+                        metadata.lecture_count,
+                        metadata.quality_score,
+                        int(metadata.questions_pending),
+                        metadata.questions_count,
                     )
                 )
 
@@ -559,8 +767,13 @@ class NoteMetadataStore:
                     reviewed_at, next_review, easiness_factor,
                     repetition_number, interval_hours, review_count,
                     last_quality, content_hash, importance,
-                    auto_enrich, web_search_enabled, enrichment_history
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    auto_enrich, web_search_enabled, enrichment_history,
+                    retouche_ef, retouche_rep, retouche_interval,
+                    retouche_next, retouche_last, retouche_count,
+                    lecture_ef, lecture_rep, lecture_interval,
+                    lecture_next, lecture_last, lecture_count,
+                    quality_score, questions_pending, questions_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 data_tuples,
             )
@@ -672,6 +885,213 @@ class NoteMetadataStore:
 
             return [self._row_to_metadata(row) for row in rows]
 
+    def get_due_for_retouche(
+        self,
+        limit: int = 50,
+        note_types: Optional[list[NoteType]] = None,
+        importance_min: ImportanceLevel = ImportanceLevel.LOW,
+    ) -> list[NoteMetadata]:
+        """
+        Get notes due for Retouche (IA review cycle)
+
+        Args:
+            limit: Maximum number of notes to return
+            note_types: Filter by note types (None = all)
+            importance_min: Minimum importance level to include
+
+        Returns:
+            List of NoteMetadata due for Retouche, ordered by priority
+        """
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Use module constant for importance ordering
+        min_importance_value = IMPORTANCE_ORDER.get(importance_min, 4)
+
+        # Build list of allowed importance levels
+        allowed_importance = [
+            level.value
+            for level, value in IMPORTANCE_ORDER.items()
+            if value <= min_importance_value and level != ImportanceLevel.ARCHIVE
+        ]
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Build query with filters - use retouche_next field
+            placeholders_importance = ",".join("?" * len(allowed_importance))
+            query = f"""
+                SELECT * FROM note_metadata
+                WHERE (retouche_next IS NULL OR retouche_next <= ?)
+                AND importance IN ({placeholders_importance})
+            """
+            params: list = [now, *allowed_importance]
+
+            if note_types:
+                placeholders = ",".join("?" * len(note_types))
+                query += f" AND note_type IN ({placeholders})"
+                params.extend([t.value for t in note_types])
+
+            # Order by importance (critical first) then by how overdue
+            query += """
+                ORDER BY
+                    CASE importance
+                        WHEN 'critical' THEN 1
+                        WHEN 'high' THEN 2
+                        WHEN 'normal' THEN 3
+                        WHEN 'low' THEN 4
+                        ELSE 5
+                    END,
+                    retouche_next ASC NULLS FIRST
+                LIMIT ?
+            """
+            params.append(limit)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            return [self._row_to_metadata(row) for row in rows]
+
+    def get_due_for_lecture(
+        self,
+        limit: int = 50,
+        note_types: Optional[list[NoteType]] = None,
+        importance_min: ImportanceLevel = ImportanceLevel.LOW,
+    ) -> list[NoteMetadata]:
+        """
+        Get notes due for Lecture (human review cycle)
+
+        Args:
+            limit: Maximum number of notes to return
+            note_types: Filter by note types (None = all)
+            importance_min: Minimum importance level to include
+
+        Returns:
+            List of NoteMetadata due for Lecture, ordered by priority
+        """
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Use module constant for importance ordering
+        min_importance_value = IMPORTANCE_ORDER.get(importance_min, 4)
+
+        # Build list of allowed importance levels
+        allowed_importance = [
+            level.value
+            for level, value in IMPORTANCE_ORDER.items()
+            if value <= min_importance_value and level != ImportanceLevel.ARCHIVE
+        ]
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Build query with filters - use lecture_next field
+            # Also filter for notes that have lecture_next set (have been retouched at least once)
+            placeholders_importance = ",".join("?" * len(allowed_importance))
+            query = f"""
+                SELECT * FROM note_metadata
+                WHERE lecture_next IS NOT NULL
+                AND lecture_next <= ?
+                AND importance IN ({placeholders_importance})
+            """
+            params: list = [now, *allowed_importance]
+
+            if note_types:
+                placeholders = ",".join("?" * len(note_types))
+                query += f" AND note_type IN ({placeholders})"
+                params.extend([t.value for t in note_types])
+
+            # Order by importance (critical first) then by how overdue
+            query += """
+                ORDER BY
+                    CASE importance
+                        WHEN 'critical' THEN 1
+                        WHEN 'high' THEN 2
+                        WHEN 'normal' THEN 3
+                        WHEN 'low' THEN 4
+                        ELSE 5
+                    END,
+                    lecture_next ASC
+                LIMIT ?
+            """
+            params.append(limit)
+
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            return [self._row_to_metadata(row) for row in rows]
+
+    def get_notes_with_pending_questions(
+        self,
+        limit: int = 50,
+    ) -> list[NoteMetadata]:
+        """
+        Get notes that have pending questions for Johan
+
+        Args:
+            limit: Maximum number of notes to return
+
+        Returns:
+            List of NoteMetadata with pending questions
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT * FROM note_metadata
+                WHERE questions_pending = 1
+                AND importance != 'archive'
+                ORDER BY
+                    CASE importance
+                        WHEN 'critical' THEN 1
+                        WHEN 'high' THEN 2
+                        WHEN 'normal' THEN 3
+                        WHEN 'low' THEN 4
+                        ELSE 5
+                    END,
+                    questions_count DESC
+                LIMIT ?
+            """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+
+            return [self._row_to_metadata(row) for row in rows]
+
+    def get_recently_retouched(
+        self,
+        hours: int = 48,
+        limit: int = 50,
+    ) -> list[NoteMetadata]:
+        """
+        Get notes recently retouched by IA
+
+        Args:
+            hours: Look back period in hours
+            limit: Maximum number of notes to return
+
+        Returns:
+            List of NoteMetadata recently retouched
+        """
+        since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT * FROM note_metadata
+                WHERE retouche_last IS NOT NULL
+                AND retouche_last >= ?
+                AND importance != 'archive'
+                ORDER BY retouche_last DESC
+                LIMIT ?
+            """,
+                (since, limit),
+            )
+            rows = cursor.fetchall()
+
+            return [self._row_to_metadata(row) for row in rows]
+
     def get_by_type(self, note_type: NoteType, limit: int = 100) -> list[NoteMetadata]:
         """
         Get metadata for notes of a specific type
@@ -778,11 +1198,18 @@ class NoteMetadataStore:
         config = get_review_config(note_type)
         now = datetime.now(timezone.utc)
 
-        # Calculate initial next_review
+        # Calculate initial next_review (legacy)
         if config.skip_revision:
             next_review = None
         else:
             next_review = now + timedelta(hours=config.base_interval_hours)
+
+        # v2: Initialize dual-cycle fields
+        # Retouche: délai 1h pour laisser le temps à la note de "mûrir"
+        retouche_next = now + timedelta(hours=1) if not config.skip_revision else None
+
+        # Lecture: pas de date initiale, sera programmée après première Retouche
+        lecture_next = None
 
         metadata = NoteMetadata(
             note_id=note_id,
@@ -793,6 +1220,22 @@ class NoteMetadataStore:
             interval_hours=config.base_interval_hours,
             content_hash=hashlib.sha256(content.encode()).hexdigest(),
             importance=importance,
+            # v2: Dual-cycle initialization
+            retouche_ef=2.5,
+            retouche_rep=0,
+            retouche_interval=config.base_interval_hours,
+            retouche_next=retouche_next,
+            retouche_last=None,
+            retouche_count=0,
+            lecture_ef=2.5,
+            lecture_rep=0,
+            lecture_interval=24.0,  # Lecture starts with 24h interval
+            lecture_next=lecture_next,
+            lecture_last=None,
+            lecture_count=0,
+            quality_score=None,
+            questions_pending=False,
+            questions_count=0,
         )
 
         self.save(metadata)

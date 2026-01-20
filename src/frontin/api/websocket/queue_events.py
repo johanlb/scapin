@@ -9,6 +9,11 @@ Events:
     - item_updated: Item state/resolution changed
     - item_removed: Item removed from queue
     - stats_updated: Queue statistics changed
+
+Memory Cycles v2 Events:
+    - retouche_done: AI improvement cycle completed
+    - filage_ready: Morning briefing prepared
+    - lecture_completed: Human review completed
 """
 
 import asyncio
@@ -160,6 +165,128 @@ class QueueEventEmitter:
 
         return sent_count
 
+    # === Memory Cycles v2 Events ===
+
+    async def emit_retouche_done(
+        self,
+        note_id: str,
+        note_title: str,
+        quality_before: Optional[int],
+        quality_after: int,
+        actions: list[str],
+        questions_added: int = 0,
+    ) -> int:
+        """
+        Emit event when a Retouche (AI improvement) completes.
+
+        Args:
+            note_id: ID of the note that was retouched
+            note_title: Title of the note
+            quality_before: Quality score before Retouche (0-100)
+            quality_after: Quality score after Retouche (0-100)
+            actions: List of action types performed
+            questions_added: Number of questions added for Johan
+
+        Returns:
+            Number of clients that received the event
+        """
+        message = {
+            "type": "retouche_done",
+            "note_id": note_id,
+            "note_title": note_title,
+            "quality_before": quality_before,
+            "quality_after": quality_after,
+            "actions": actions,
+            "questions_added": questions_added,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        sent_count = await self.manager.broadcast_to_channel(ChannelType.QUEUE, message)
+
+        logger.debug(
+            f"Emitted retouche_done event to {sent_count} clients",
+            extra={"note_id": note_id, "quality_delta": quality_after - (quality_before or 0)},
+        )
+
+        return sent_count
+
+    async def emit_filage_ready(
+        self,
+        date: str,
+        total_lectures: int,
+        events_today: int,
+        notes_with_questions: int,
+    ) -> int:
+        """
+        Emit event when the daily Filage (morning briefing) is ready.
+
+        Args:
+            date: Date of the Filage (YYYY-MM-DD)
+            total_lectures: Number of lectures in the Filage
+            events_today: Number of calendar events today
+            notes_with_questions: Number of notes with pending questions
+
+        Returns:
+            Number of clients that received the event
+        """
+        message = {
+            "type": "filage_ready",
+            "date": date,
+            "total_lectures": total_lectures,
+            "events_today": events_today,
+            "notes_with_questions": notes_with_questions,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        sent_count = await self.manager.broadcast_to_channel(ChannelType.QUEUE, message)
+
+        logger.debug(
+            f"Emitted filage_ready event to {sent_count} clients",
+            extra={"date": date, "total_lectures": total_lectures},
+        )
+
+        return sent_count
+
+    async def emit_lecture_completed(
+        self,
+        note_id: str,
+        note_title: str,
+        quality: int,
+        next_lecture: str,
+        answers_recorded: int = 0,
+    ) -> int:
+        """
+        Emit event when a Lecture (human review) completes.
+
+        Args:
+            note_id: ID of the note that was reviewed
+            note_title: Title of the note
+            quality: Quality rating given (0-5)
+            next_lecture: ISO timestamp of next scheduled lecture
+            answers_recorded: Number of questions answered
+
+        Returns:
+            Number of clients that received the event
+        """
+        message = {
+            "type": "lecture_completed",
+            "note_id": note_id,
+            "note_title": note_title,
+            "quality": quality,
+            "next_lecture": next_lecture,
+            "answers_recorded": answers_recorded,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        sent_count = await self.manager.broadcast_to_channel(ChannelType.QUEUE, message)
+
+        logger.debug(
+            f"Emitted lecture_completed event to {sent_count} clients",
+            extra={"note_id": note_id, "quality": quality},
+        )
+
+        return sent_count
+
     def emit_item_added_sync(self, item: dict[str, Any]) -> None:
         """
         Synchronous wrapper for emit_item_added.
@@ -200,6 +327,47 @@ class QueueEventEmitter:
         Use when called from sync code.
         """
         _schedule_async(self.emit_stats_updated(stats))
+
+    def emit_retouche_done_sync(
+        self,
+        note_id: str,
+        note_title: str,
+        quality_before: Optional[int],
+        quality_after: int,
+        actions: list[str],
+        questions_added: int = 0,
+    ) -> None:
+        """Synchronous wrapper for emit_retouche_done."""
+        _schedule_async(
+            self.emit_retouche_done(
+                note_id, note_title, quality_before, quality_after, actions, questions_added
+            )
+        )
+
+    def emit_filage_ready_sync(
+        self,
+        date: str,
+        total_lectures: int,
+        events_today: int,
+        notes_with_questions: int,
+    ) -> None:
+        """Synchronous wrapper for emit_filage_ready."""
+        _schedule_async(
+            self.emit_filage_ready(date, total_lectures, events_today, notes_with_questions)
+        )
+
+    def emit_lecture_completed_sync(
+        self,
+        note_id: str,
+        note_title: str,
+        quality: int,
+        next_lecture: str,
+        answers_recorded: int = 0,
+    ) -> None:
+        """Synchronous wrapper for emit_lecture_completed."""
+        _schedule_async(
+            self.emit_lecture_completed(note_id, note_title, quality, next_lecture, answers_recorded)
+        )
 
 
 def _sanitize_item(item: dict[str, Any]) -> dict[str, Any]:

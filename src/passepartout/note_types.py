@@ -9,6 +9,18 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 
+class CycleType(str, Enum):
+    """
+    Types de cycles de révision (v2: Memory Cycles)
+
+    - RETOUCHE: Cycle IA pour amélioration automatique des notes
+    - LECTURE: Cycle humain pour révision espacée par Johan
+    """
+
+    RETOUCHE = "retouche"  # IA améliore automatiquement
+    LECTURE = "lecture"  # Johan révise manuellement
+
+
 class NoteType(str, Enum):
     """
     Types de notes supportés
