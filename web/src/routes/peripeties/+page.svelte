@@ -1983,7 +1983,7 @@
 														<span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
 															{note.note_type}
 														</span>
-														<a href="/notes/{note.note_id}" class="text-[var(--color-accent)] hover:underline">
+														<a href="/memoires/{note.path ? `${note.path}/${note.note_id}` : note.note_id}" class="text-[var(--color-accent)] hover:underline">
 															{note.title}
 														</a>
 														<span class="text-[var(--color-text-tertiary)]">
@@ -2211,7 +2211,7 @@
 									<div class="flex flex-wrap gap-1">
 										{#each currentItem.analysis.context_used as noteId}
 											<a
-												href="/notes/{noteId}"
+												href="/memoires/{noteId}"
 												class="text-xs px-2 py-0.5 rounded-full bg-[var(--color-event-notes)]/20 text-[var(--color-event-notes)] hover:bg-[var(--color-event-notes)]/30"
 											>
 												📝 {noteId.slice(0, 15)}...
