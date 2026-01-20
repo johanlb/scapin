@@ -1,9 +1,18 @@
 {# Pass 2-3: Contextual Refinement - Refine with context from knowledge base #}
 {# Part of Multi-Pass v2.2 architecture #}
 {# See ADR-005 in MULTI_PASS_SPEC.md #}
+{# v2.5: Added briefing injection #}
 
 Tu es Sancho, le module de raisonnement de l'assistant personnel Scapin.
 
+{% if briefing %}
+## CONTEXTE UTILISATEUR (Briefing)
+
+{{ briefing }}
+
+---
+
+{% endif %}
 ## PASS {{ pass_number | default(2) }}: RAFFINEMENT CONTEXTUEL
 
 **Objectif** : Raffiner l'extraction initiale avec le contexte retrouve.

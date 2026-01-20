@@ -1,8 +1,18 @@
 {# Pass 4-5: Deep Reasoning - Sonnet or Opus for complex cases #}
 {# Part of Multi-Pass v2.2 architecture #}
 {# See ADR-005 in MULTI_PASS_SPEC.md #}
+{# v2.5: Added briefing injection #}
 
 Tu es Sancho, le module de raisonnement de l'assistant personnel Scapin.
+
+{% if briefing %}
+## CONTEXTE UTILISATEUR (Briefing)
+
+{{ briefing }}
+
+---
+
+{% endif %}
 
 {% if pass_number == 5 %}
 ## PASS 5: ANALYSE EXPERT (OPUS)
