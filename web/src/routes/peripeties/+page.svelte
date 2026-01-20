@@ -16,6 +16,8 @@
 	// v2.3: Analysis Transparency components
 	import PassTimeline from '$lib/components/peripeties/PassTimeline.svelte';
 	import ConfidenceSparkline from '$lib/components/peripeties/ConfidenceSparkline.svelte';
+	// v2.4: Skeleton loader for improved UX
+	import QueueItemSkeleton from '$lib/components/peripeties/QueueItemSkeleton.svelte';
 	import { queueStore } from '$lib/stores';
 	import { queueWsStore } from '$lib/stores/queueWebsocket.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
@@ -1314,20 +1316,37 @@
 		</div>
 	</div>
 
-	<!-- Loading state -->
+	<!-- Loading state with skeleton cards (v2.4) -->
 	{#if queueStore.loading && queueStore.items.length === 0}
-		<div
-			class="flex justify-center py-12"
-			role="status"
-			aria-busy="true"
-			aria-label="Chargement en cours"
-		>
-			<div
-				class="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
-				aria-hidden="true"
-			></div>
+		<div role="status" aria-busy="true" aria-label="Chargement en cours">
 			<span class="sr-only">Chargement de la file d'attente...</span>
+			{#each { length: 5 } as _}
+				<QueueItemSkeleton />
+			{/each}
 		</div>
+
+		<!-- Error state with retry (v2.4) -->
+	{:else if queueStore.error && queueStore.items.length === 0}
+		<Card padding="lg">
+			<div class="text-center py-8">
+				<p class="text-4xl mb-3">⚠️</p>
+				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+					Erreur de chargement
+				</h3>
+				<p class="text-sm text-[var(--color-text-secondary)] mb-4">
+					{queueStore.error}
+				</p>
+				<Button
+					variant="primary"
+					onclick={() => {
+						queueStore.clearError();
+						queueStore.fetchQueueByTab(activeTab);
+					}}
+				>
+					Réessayer
+				</Button>
+			</div>
+		</Card>
 
 		<!-- Empty state -->
 	{:else if queueStore.items.length === 0}
@@ -1344,32 +1363,53 @@
 				</p>
 				<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
 					{#if activeTab === 'to_process'}
-						Aucune péripétie à traiter
+						Boîte de réception vide
 					{:else if activeTab === 'in_progress'}
 						Aucune analyse en cours
 					{:else if activeTab === 'snoozed'}
 						Aucune péripétie reportée
 					{:else if activeTab === 'history'}
-						Aucun historique disponible
+						Historique vide
 					{:else if activeTab === 'errors'}
-						Aucune erreur
+						Tout fonctionne !
 					{:else}
 						Aucune péripétie
 					{/if}
 				</h3>
-				<p class="text-sm text-[var(--color-text-secondary)]">
+				<p class="text-sm text-[var(--color-text-secondary)] max-w-md mx-auto">
 					{#if activeTab === 'to_process'}
-						Aucune péripétie ne requiert votre attention
+						Scapin n'a détecté aucun email nécessitant votre attention. Cliquez sur "Récupérer" pour vérifier les nouveaux messages.
 					{:else if activeTab === 'in_progress'}
-						Sancho n'analyse aucun élément actuellement
+						Sancho n'analyse aucun élément actuellement. Les analyses démarrent automatiquement lors de la récupération des emails.
 					{:else if activeTab === 'snoozed'}
-						Vous n'avez reporté aucune péripétie
+						Vous n'avez reporté aucune péripétie. Utilisez le bouton "Snooze" pour reporter le traitement d'un email.
+					{:else if activeTab === 'history'}
+						Aucune péripétie traitée pour le moment. L'historique apparaîtra ici après vos premières décisions.
 					{:else if activeTab === 'errors'}
-						Bonne nouvelle, tout fonctionne correctement !
+						Aucune erreur enregistrée. Scapin fonctionne correctement !
 					{:else}
 						Lancez la récupération pour alimenter la file
 					{/if}
 				</p>
+				<!-- v2.4: Action button for empty to_process state -->
+				{#if activeTab === 'to_process'}
+					<div class="mt-4">
+						<Button
+							variant="primary"
+							size="sm"
+							onclick={handleFetchEmails}
+							disabled={isFetchingEmails}
+						>
+							{#if isFetchingEmails}
+								<span class="mr-1.5 animate-spin">⏳</span>
+								Récupération...
+							{:else}
+								<span class="mr-1.5">📥</span>
+								Récupérer les emails
+							{/if}
+						</Button>
+					</div>
+				{/if}
 			</div>
 		</Card>
 
@@ -2168,6 +2208,23 @@
 													? formatRelativeTime(item.metadata.date)
 													: formatRelativeTime(item.queued_at)}
 											</span>
+											<!-- v2.4: Context indicators -->
+											{#if item.metadata.has_attachments}
+												<span
+													class="ml-1 text-[var(--color-text-tertiary)]"
+													title="Contient des pièces jointes"
+												>
+													📎
+												</span>
+											{/if}
+											{#if item.analysis.context_used && item.analysis.context_used.length > 0}
+												<span
+													class="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300"
+													title="L'analyse a utilisé {item.analysis.context_used.length} note{item.analysis.context_used.length > 1 ? 's' : ''} existante{item.analysis.context_used.length > 1 ? 's' : ''}"
+												>
+													🧠 Contexte
+												</span>
+											{/if}
 										</p>
 
 										<!-- Summary -->
@@ -2279,7 +2336,7 @@
 						<div class="text-center py-8">
 							<p class="text-4xl mb-3">
 								{#if activeTab === 'history'}✅
-								{:else if activeTab === 'errors'}⚠️
+								{:else if activeTab === 'errors'}🎉
 								{:else if activeTab === 'snoozed'}💤
 								{:else if activeTab === 'in_progress'}⏳
 								{:else}📭
@@ -2287,19 +2344,29 @@
 							</p>
 							<h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-1">
 								{#if activeTab === 'history'}
-									Aucune péripétie dans l'historique
+									Historique vide
 								{:else if activeTab === 'errors'}
-									Aucune erreur enregistrée
+									Tout fonctionne !
 								{:else if activeTab === 'snoozed'}
 									Aucune péripétie reportée
 								{:else if activeTab === 'in_progress'}
 									Aucune analyse en cours
 								{:else}
-									Aucune péripétie
+									Boîte de réception vide
 								{/if}
 							</h3>
 							<p class="text-sm text-[var(--color-text-secondary)]">
-								Lancez la récupération des emails pour alimenter la file
+								{#if activeTab === 'history'}
+									Les péripéties traitées apparaîtront ici
+								{:else if activeTab === 'errors'}
+									Aucun email n'a rencontré de problème
+								{:else if activeTab === 'snoozed'}
+									Les péripéties reportées apparaîtront ici
+								{:else if activeTab === 'in_progress'}
+									Les analyses en cours apparaîtront ici
+								{:else}
+									Lancez la récupération des emails pour alimenter la file
+								{/if}
 							</p>
 						</div>
 					</Card>
