@@ -688,41 +688,55 @@
 		}
 	}
 
-	// Reanalyze with Opus state
-	let isReanalyzingOpus = $state(false);
-	let showOpusPanel = $state(false);
-	let opusInstruction = $state('');
+	// Reanalyze panel state (v2.5: full panel with model selection)
+	let isReanalyzingItem = $state(false);
+	let showReanalyzePanel = $state(false);
+	let reanalyzeInstruction = $state('');
+	let reanalyzeModel = $state<'standard' | 'haiku' | 'sonnet' | 'opus'>('standard');
 
-	function toggleOpusPanel() {
-		showOpusPanel = !showOpusPanel;
-		if (!showOpusPanel) {
-			opusInstruction = '';
+	function toggleReanalyzePanel() {
+		showReanalyzePanel = !showReanalyzePanel;
+		if (!showReanalyzePanel) {
+			reanalyzeInstruction = '';
+			reanalyzeModel = 'standard';
 		}
 	}
 
-	async function handleReanalyzeOpus(
+	// Legacy aliases for backwards compatibility
+	let isReanalyzingOpus = $derived(isReanalyzingItem);
+	let showOpusPanel = $derived(showReanalyzePanel);
+	let opusInstruction = $derived(reanalyzeInstruction);
+	function toggleOpusPanel() { toggleReanalyzePanel(); }
+
+	async function handleReanalyzeItem(
 		item: QueueItem,
 		mode: 'immediate' | 'background' = 'immediate'
 	) {
-		if (isReanalyzingOpus || isProcessing) return;
-		isReanalyzingOpus = true;
-		showOpusPanel = false;
+		if (isReanalyzingItem || isProcessing) return;
+		isReanalyzingItem = true;
+		showReanalyzePanel = false;
 
-		const instruction = opusInstruction.trim();
-		opusInstruction = '';
+		const instruction = reanalyzeInstruction.trim();
+		const selectedModel = reanalyzeModel;
+		reanalyzeInstruction = '';
+		reanalyzeModel = 'standard';
+
+		// Map 'standard' to null (let multi-pass decide)
+		const forceModel = selectedModel === 'standard' ? null : selectedModel;
+		const modelLabel = selectedModel === 'standard' ? 'Multi-pass' : selectedModel.charAt(0).toUpperCase() + selectedModel.slice(1);
 
 		const processingToastId =
 			mode === 'immediate'
 				? toastStore.info(
 						instruction
 							? `Réanalyse avec instruction: "${instruction.slice(0, 50)}..."`
-							: 'Réanalyse en cours avec Opus...',
-						{ title: 'Analyse approfondie', duration: 120000 }
+							: `Réanalyse en cours (${modelLabel})...`,
+						{ title: 'Réanalyse', duration: 120000 }
 					)
-				: toastStore.info("Réanalyse en file d'attente", { title: 'Analyse Opus', duration: 3000 });
+				: toastStore.info("Réanalyse en file d'attente", { title: 'Réanalyse', duration: 3000 });
 
 		try {
-			const result = await reanalyzeQueueItem(item.id, instruction, mode, 'opus');
+			const result = await reanalyzeQueueItem(item.id, instruction, mode, forceModel);
 
 			toastStore.dismiss(processingToastId);
 
@@ -737,20 +751,26 @@
 
 				toastStore.success(
 					`Nouvelle analyse terminée. Action: ${result.new_analysis.action} (${result.new_analysis.confidence}%)`,
-					{ title: 'Analyse Opus' }
+					{ title: `Analyse ${modelLabel}` }
 				);
 			} else {
 				toastStore.warning("La réanalyse n'a pas produit de nouveau résultat.", {
-					title: 'Analyse Opus'
+					title: 'Réanalyse'
 				});
 			}
 		} catch (e) {
 			toastStore.dismiss(processingToastId);
-			console.error('Reanalyze with Opus failed:', e);
+			console.error('Reanalysis failed:', e);
 			toastStore.error('Échec de la réanalyse. Veuillez réessayer.', { title: 'Erreur' });
 		} finally {
-			isReanalyzingOpus = false;
+			isReanalyzingItem = false;
 		}
+	}
+
+	// Legacy alias
+	async function handleReanalyzeOpus(item: QueueItem, mode: 'immediate' | 'background' = 'immediate') {
+		reanalyzeModel = 'opus';
+		await handleReanalyzeItem(item, mode);
 	}
 
 	function handleDelete(item: QueueItem) {
@@ -1053,12 +1073,12 @@
 			}
 		});
 
-		// Reanalyze with Opus
+		// Reanalyze panel
 		menuItems.push({
-			id: 'reanalyze-opus',
-			label: 'Réanalyser (Opus)',
-			icon: '🧠',
-			handler: () => toggleOpusPanel()
+			id: 'reanalyze',
+			label: 'Réanalyser',
+			icon: '🔄',
+			handler: () => toggleReanalyzePanel()
 		});
 
 		// View details
@@ -1603,16 +1623,16 @@
 								<span class="opacity-60 font-mono text-xs">A</span>
 							</Button>
 							<Button
-								variant={showOpusPanel ? 'primary' : 'secondary'}
+								variant={showReanalyzePanel ? 'primary' : 'secondary'}
 								size="sm"
-								onclick={toggleOpusPanel}
-								disabled={isProcessing || isReanalyzingOpus}
-								data-testid="reanalyze-opus-button"
+								onclick={toggleReanalyzePanel}
+								disabled={isProcessing || isReanalyzingItem}
+								data-testid="reanalyze-button"
 							>
-								{#if isReanalyzingOpus}
+								{#if isReanalyzingItem}
 									⏳
 								{:else}
-									🧠 <span class="opacity-60 font-mono text-xs">R</span>
+									🔄 <span class="opacity-60 font-mono text-xs">R</span>
 								{/if}
 							</Button>
 							{#if otherOptions.length > 0}
@@ -1688,11 +1708,11 @@
 									{formatRelativeTime(currentItem.metadata.date)}
 								</span>
 							{/if}
-							{#if currentItem.queued_at}
+							{#if currentItem.timestamps?.analysis_completed_at || currentItem.queued_at}
 								<span class="flex items-center gap-1.5" title="Date d'analyse par Scapin">
 									<span class="text-base">🧠</span>
 									<span class="font-medium text-[var(--color-text-secondary)]">Analysé</span>
-									{formatRelativeTime(currentItem.queued_at)}
+									{formatRelativeTime(currentItem.timestamps?.analysis_completed_at || currentItem.queued_at)}
 								</span>
 							{/if}
 							<!-- Complexity badges (v2.3) -->
@@ -2016,42 +2036,101 @@
 							</details>
 						{/if}
 
-						<!-- SECTION 5: OPUS INSTRUCTION PANEL (when visible) -->
-						{#if showOpusPanel}
+						<!-- SECTION 5: REANALYZE PANEL (v2.5: full options) -->
+						{#if showReanalyzePanel}
 							<div
-								class="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800"
+								class="p-3 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)]"
 							>
-								<div class="flex items-center gap-2 mb-2">
-									<span class="text-lg">🧠</span>
-									<span class="text-sm font-medium text-purple-800 dark:text-purple-200"
-										>Réanalyse avec Opus</span
+								<div class="flex items-center gap-2 mb-3">
+									<span class="text-lg">🔄</span>
+									<span class="text-sm font-medium text-[var(--color-text-primary)]"
+										>Réanalyser cette péripétie</span
 									>
 								</div>
-								<textarea
-									bind:value={opusInstruction}
-									placeholder="Instruction personnalisée (optionnel) : ex. Classer dans Archive/2025/Relevés..."
-									class="w-full p-2 text-sm rounded border border-purple-200 dark:border-purple-700 bg-white dark:bg-[var(--color-bg-tertiary)] text-[var(--color-text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
-									rows="2"
-								></textarea>
-								<div class="flex gap-2 mt-2">
+
+								<!-- Instruction personnalisée -->
+								<div class="mb-3">
+									<span class="block text-xs font-medium text-[var(--color-text-secondary)] mb-1">
+										Instruction personnalisée (optionnel)
+									</span>
+									<textarea
+										bind:value={reanalyzeInstruction}
+										placeholder="Ex: Classer dans Archive/2025/Relevés, considérer comme urgent..."
+										class="w-full p-2 text-sm rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+										rows="2"
+										aria-label="Instruction personnalisée"
+									></textarea>
+								</div>
+
+								<!-- Sélection du modèle -->
+								<div class="mb-3" role="radiogroup" aria-label="Modèle d'analyse">
+									<span class="block text-xs font-medium text-[var(--color-text-secondary)] mb-2">
+										Modèle d'analyse
+									</span>
+									<div class="grid grid-cols-2 gap-2">
+										<label
+											class="flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors {reanalyzeModel === 'standard' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/50'}"
+										>
+											<input type="radio" bind:group={reanalyzeModel} value="standard" class="sr-only" />
+											<span class="text-sm">⚡</span>
+											<div class="flex-1">
+												<div class="text-sm font-medium">Standard</div>
+												<div class="text-xs text-[var(--color-text-tertiary)]">Multi-pass adaptatif</div>
+											</div>
+										</label>
+										<label
+											class="flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors {reanalyzeModel === 'haiku' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/50'}"
+										>
+											<input type="radio" bind:group={reanalyzeModel} value="haiku" class="sr-only" />
+											<span class="text-sm">🌸</span>
+											<div class="flex-1">
+												<div class="text-sm font-medium">Haiku</div>
+												<div class="text-xs text-[var(--color-text-tertiary)]">Rapide, économique</div>
+											</div>
+										</label>
+										<label
+											class="flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors {reanalyzeModel === 'sonnet' ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/50'}"
+										>
+											<input type="radio" bind:group={reanalyzeModel} value="sonnet" class="sr-only" />
+											<span class="text-sm">📝</span>
+											<div class="flex-1">
+												<div class="text-sm font-medium">Sonnet</div>
+												<div class="text-xs text-[var(--color-text-tertiary)]">Équilibré</div>
+											</div>
+										</label>
+										<label
+											class="flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors {reanalyzeModel === 'opus' ? 'border-purple-500 bg-purple-500/10' : 'border-[var(--color-border)] hover:border-purple-500/50'}"
+										>
+											<input type="radio" bind:group={reanalyzeModel} value="opus" class="sr-only" />
+											<span class="text-sm">🏆</span>
+											<div class="flex-1">
+												<div class="text-sm font-medium text-purple-600 dark:text-purple-400">Opus</div>
+												<div class="text-xs text-[var(--color-text-tertiary)]">Maximum de précision</div>
+											</div>
+										</label>
+									</div>
+								</div>
+
+								<!-- Actions -->
+								<div class="flex gap-2">
 									<Button
 										variant="primary"
 										size="sm"
-										onclick={() => handleReanalyzeOpus(currentItem, 'immediate')}
-										disabled={isReanalyzingOpus}
+										onclick={() => handleReanalyzeItem(currentItem, 'immediate')}
+										disabled={isReanalyzingItem}
 									>
 										▶️ Maintenant
 									</Button>
 									<Button
 										variant="secondary"
 										size="sm"
-										onclick={() => handleReanalyzeOpus(currentItem, 'background')}
-										disabled={isReanalyzingOpus}
+										onclick={() => handleReanalyzeItem(currentItem, 'background')}
+										disabled={isReanalyzingItem}
 									>
 										📥 Plus tard
 									</Button>
 									<div class="flex-1"></div>
-									<Button variant="ghost" size="sm" onclick={toggleOpusPanel}>Annuler</Button>
+									<Button variant="ghost" size="sm" onclick={toggleReanalyzePanel}>Annuler</Button>
 								</div>
 							</div>
 						{/if}
@@ -2146,7 +2225,7 @@
 							>
 								<span>📧 {currentItem.metadata.from_address}</span>
 								<span>📁 {currentItem.metadata.folder || 'INBOX'}</span>
-								<span>🕐 {formatRelativeTime(currentItem.queued_at)}</span>
+								<span>🕐 {formatRelativeTime(currentItem.timestamps?.analysis_completed_at || currentItem.queued_at)}</span>
 							</div>
 						{/if}
 

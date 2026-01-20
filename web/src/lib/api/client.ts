@@ -882,6 +882,14 @@ export interface QueueItemAnalysis {
 	multi_pass: MultiPassMetadata | null;
 }
 
+// v2.4: Timestamps for péripétie lifecycle
+export interface PeripetieTimestamps {
+	queued_at: string;
+	analysis_started_at: string | null;
+	analysis_completed_at: string | null;
+	reviewed_at: string | null;
+}
+
 export interface QueueItem {
 	id: string;
 	account_id: string | null;
@@ -896,6 +904,8 @@ export interface QueueItem {
 	status: string;
 	reviewed_at: string | null;
 	review_decision: string | null;
+	// v2.4: Enhanced timestamps
+	timestamps?: PeripetieTimestamps | null;
 }
 
 // NOTE: QueueStats is defined at the top of the file (line ~130)

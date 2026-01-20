@@ -14,6 +14,7 @@ Part of the v2.2+ context retrieval improvements.
 See TODO list item "Option D" for design decisions.
 """
 
+import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -138,9 +139,9 @@ class EntitySearcher:
         try:
             all_notes = self.note_manager.get_all_notes()
             for note in all_notes:
-                # Store by lowercase title for case-insensitive matching
-                title_lower = note.title.lower().strip()
-                self._title_cache[title_lower] = note
+                # Store by normalized title (lowercase + accent-free) for matching
+                title_normalized = self._normalize_name(note.title)
+                self._title_cache[title_normalized] = note
 
             self._title_cache_valid = True
             logger.debug(f"Title cache rebuilt with {len(self._title_cache)} notes")
@@ -156,9 +157,15 @@ class EntitySearcher:
         Handles:
         - Case normalization
         - Whitespace cleanup
+        - Accent/diacritic removal (e.g., "Nàutil" -> "nautil")
         - Common abbreviations (M., Mme, Dr, etc.)
         """
         name = name.lower().strip()
+
+        # Remove accents/diacritics for accent-insensitive matching
+        # NFKD decomposes characters (é -> e + combining accent)
+        # encode('ascii', 'ignore') removes non-ASCII (the combining accents)
+        name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
 
         # Expand common French abbreviations
         abbreviations = {

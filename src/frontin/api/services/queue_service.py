@@ -1213,6 +1213,15 @@ class QueueService:
                 item["user_instruction"] = user_instruction
                 item["reanalysis_count"] = item.get("reanalysis_count", 0) + 1
 
+                # Update timestamps for re-analysis
+                from datetime import datetime, timezone
+
+                now = datetime.now(timezone.utc)
+                if "timestamps" not in item:
+                    item["timestamps"] = {}
+                item["timestamps"]["analysis_completed_at"] = now.isoformat()
+                item["timestamps"]["analysis_started_at"] = now.isoformat()
+
                 self._storage.update_item(item_id, item)
 
                 logger.info(
