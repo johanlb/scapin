@@ -1553,15 +1553,19 @@ class QueueService:
         Reanalyze all pending queue items.
 
         Triggers a fresh AI analysis for all items in 'pending' status.
-        Runs asynchronously - each item is reanalyzed in sequence.
+        Marks all items as in_progress immediately and returns,
+        then runs analyses in the background.
 
         Returns:
-            Dict with total, started, failed counts and status
+            Dict with total count and status
         """
+        import asyncio
+
         pending_items = self._storage.load_queue(status="pending")
         total = len(pending_items)
-        started = 0
-        failed = 0
+
+        if total == 0:
+            return {"total": 0, "started": 0, "failed": 0, "status": "complete"}
 
         logger.info(f"Starting bulk reanalysis of {total} pending items")
 
@@ -1571,7 +1575,24 @@ class QueueService:
             if item_id:
                 self._storage.update_item(item_id, {"status": "in_progress"})
 
-        for item in pending_items:
+        # Launch background task for actual analysis
+        asyncio.create_task(self._reanalyze_items_background(pending_items))
+
+        # Return immediately with count
+        return {
+            "total": total,
+            "started": total,  # All started (in background)
+            "failed": 0,
+            "status": "processing",
+        }
+
+    async def _reanalyze_items_background(self, items: list[dict[str, Any]]) -> None:
+        """Background task to reanalyze items one by one."""
+        total = len(items)
+        started = 0
+        failed = 0
+
+        for item in items:
             item_id = item.get("id")
             if not item_id:
                 failed += 1
@@ -1625,13 +1646,6 @@ class QueueService:
                 logger.error(f"Error reanalyzing item {item_id}: {e}")
 
         logger.info(f"Bulk reanalysis complete: {started}/{total} succeeded, {failed} failed")
-
-        return {
-            "total": total,
-            "started": started,
-            "failed": failed,
-            "status": "complete" if failed == 0 else "partial",
-        }
 
     async def enqueue_email(
         self,
