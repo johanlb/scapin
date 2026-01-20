@@ -25,6 +25,8 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 
 **Confiance attendue** : 60-80% (tu travailles à l'aveugle)
 
+**Exception** : Pour les contenus éphémères évidents (RÈGLE 0), ta confiance peut atteindre 95%+ et le processus s'arrête là.
+
 ---
 
 ## ÉVÉNEMENT À OBSERVER (la péripétie)
@@ -191,6 +193,8 @@ Bazin cherchera dans les mémoires. Exemples :
     }
   ],
   "action": "archive|flag|queue|delete|rien",
+  "early_stop": false,
+  "early_stop_reason": null,
   "confidence": {
     "entity_confidence": 0.75,
     "action_confidence": 0.70,
@@ -204,6 +208,11 @@ Bazin cherchera dans les mémoires. Exemples :
   ]
 }
 ```
+
+**ARRÊT PRÉCOCE** : Si `action: "delete"` pour contenu éphémère avec confiance > 95% :
+- `early_stop: true`
+- `early_stop_reason: "ephemeral_content"` (ou `spam`, `otp`, `notification`)
+- Le processus s'arrête, Bazin/Planchet/Mousqueton ne seront pas appelés.
 
 ---
 

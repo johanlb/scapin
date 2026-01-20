@@ -28,6 +28,9 @@ Grimaud a observé. Bazin a confronté aux mémoires. À toi de **critiquer**.
 
 > *"Un doute non exprimé est une erreur en puissance."*
 
+**RÈGLE D'ARRÊT** : Si ta `current_confidence > 90%` et `can_proceed: true`, le processus s'arrête.
+Les extractions de **Bazin** deviennent le résultat final. Mousqueton n'intervient pas.
+
 ---
 
 ## ÉVÉNEMENT PERÇU (la péripétie)
@@ -189,7 +192,8 @@ Grimaud a observé. Bazin a confronté aux mémoires. À toi de **critiquer**.
       "Raison 1 de la confiance limitée...",
       "Raison 2..."
     ],
-    "can_proceed": true
+    "can_proceed": true,
+    "needs_mousqueton": true
   },
   "questions_for_mousqueton": [
     "Question critique 1 à trancher...",
@@ -202,6 +206,9 @@ Grimaud a observé. Bazin a confronté aux mémoires. À toi de **critiquer**.
 ---
 
 **Rappel, Planchet** : Tu es le critique. Tu cherches les failles.
-Si tout est correct, dis-le clairement. Si tu trouves des problèmes, Mousqueton devra trancher.
+
+**Règle de décision** :
+- `current_confidence > 90%` ET `can_proceed: true` → `needs_mousqueton: false` → **FIN** (Bazin validé)
+- Sinon → `needs_mousqueton: true` → Mousqueton arbitre
 
 *Maintenant, examine le travail de tes collègues et pose les questions qui fâchent.*
