@@ -294,6 +294,7 @@ def migrate_legacy_status(legacy_status: str) -> tuple[PeripetieState, Optional[
     """
     mapping = {
         "pending": (PeripetieState.AWAITING_REVIEW, None),
+        "in_progress": (PeripetieState.ANALYZING, None),
         "approved": (PeripetieState.PROCESSED, ResolutionType.MANUAL_APPROVED),
         "rejected": (PeripetieState.PROCESSED, ResolutionType.MANUAL_REJECTED),
         "skipped": (PeripetieState.PROCESSED, ResolutionType.MANUAL_SKIPPED),
