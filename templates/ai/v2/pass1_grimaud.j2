@@ -31,6 +31,7 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 
 **Source** : {{ event.source_type }}
 **Date** : {{ event.timestamp }}
+**Âge** : {% set age_days = (now - event.timestamp).days if event.timestamp else 0 %}{{ age_days }} jour(s) {% if age_days > 30 %}⚠️ ANCIEN{% elif age_days > 7 %}📅 Récent{% else %}✨ Frais{% endif %}
 {% if event.sender %}
 **Expéditeur** : {{ event.sender.name }}{% if event.sender.email %} <{{ event.sender.email }}>{% endif %}
 {% endif %}
@@ -71,6 +72,11 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 | **Automatiques vides** | Accusés de réception auto, "Message bien reçu", bounces |
 
 *Si l'événement tombe dans une de ces catégories → `"action": "delete"` et `"extractions": []`*
+
+**Obsolescence temporelle** (liée à l'âge) :
+- ⚠️ **ANCIEN (>30 jours)** : Dates relatives ("demain", "la semaine prochaine") sont périmées. Seuls les faits intemporels restent pertinents.
+- 📅 **Récent (7-30 jours)** : Vérifier si les deadlines/événements sont passés.
+- ✨ **Frais (<7 jours)** : Traitement normal.
 
 ---
 

@@ -34,6 +34,7 @@ Grimaud t'a transmis son observation brute. À toi de la **confronter aux mémoi
 
 **Source** : {{ event.source_type }}
 **Date** : {{ event.timestamp }}
+**Âge** : {% set age_days = (now - event.timestamp).days if event.timestamp else 0 %}{{ age_days }} jour(s) {% if age_days > 30 %}⚠️ ANCIEN — Vérifie les doublons !{% elif age_days > 7 %}📅 Récent{% else %}✨ Frais{% endif %}
 {% if event.sender %}
 **Expéditeur** : {{ event.sender.name }}{% if event.sender.email %} <{{ event.sender.email }}>{% endif %}
 {% endif %}
@@ -157,6 +158,11 @@ Grimaud t'a transmis son observation brute. À toi de la **confronter aux mémoi
 - Cette information existe-t-elle déjà ?
 - Si oui → `note_action: "enrichir"` (pas "créer")
 - Si redondant → `importance: "basse"`
+
+**Attention à l'âge** :
+- ⚠️ **ANCIEN (>30 jours)** : Forte probabilité de doublon. L'info a peut-être déjà été intégrée aux mémoires par un autre chemin.
+- 📅 **Récent (7-30 jours)** : Vérifier attentivement les mémoires récentes.
+- ✨ **Frais (<7 jours)** : Probablement nouveau, mais vérifie quand même.
 
 ### 3. ENRICHIR — Ce que Grimaud n'a pas vu
 
