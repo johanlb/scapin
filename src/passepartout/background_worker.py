@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 from src.monitoring.logger import get_logger
+from src.passepartout.janitor import NoteJanitor
 from src.passepartout.note_manager import NoteManager
 from src.passepartout.note_metadata import NoteMetadataStore
 from src.passepartout.note_reviewer import NoteReviewer, ReviewResult
@@ -47,6 +48,8 @@ class WorkerStats:
     last_review_at: Optional[datetime] = None
     session_start: Optional[datetime] = None
     average_review_seconds: float = 0.0
+    last_janitor_run: Optional[datetime] = None
+    janitor_repairs_total: int = 0
 
 
 @dataclass
@@ -62,6 +65,7 @@ class WorkerConfig:
     sleep_when_idle_seconds: float = 300.0  # 5 minutes
     sleep_on_error_seconds: float = 60.0
     ingestion_interval_seconds: float = 60.0  # Check for modified notes every minute
+    janitor_interval_hours: float = 24.0  # Run janitor once per day
 
     # Throttling
     cpu_throttle_threshold: float = 80.0  # Pause if CPU > 80%
@@ -130,6 +134,7 @@ class BackgroundWorker:
         self._scheduler: Optional[NoteScheduler] = None
         self._reviewer: Optional[NoteReviewer] = None
         self._processor: Optional[NoteProcessor] = None
+        self._janitor: Optional[NoteJanitor] = None
 
     @property
     def state(self) -> WorkerState:
@@ -177,6 +182,9 @@ class BackgroundWorker:
             self._processor = NoteProcessor(
                 note_manager=self._note_manager,
             )
+
+        if self._janitor is None:
+            self._janitor = NoteJanitor(self.notes_dir)
 
     def _remaining_today(self) -> int:
         """Calculate remaining reviews for today"""
@@ -246,7 +254,10 @@ class BackgroundWorker:
 
                 self._set_state(WorkerState.RUNNING)
 
-                # 1. Ingestion / Change Detection
+                # 1. Janitor / Hygiene check (daily)
+                await self._check_janitor()
+
+                # 2. Ingestion / Change Detection
                 if (
                     time.time() - self._last_ingestion_check
                     > self.config.ingestion_interval_seconds
@@ -254,7 +265,7 @@ class BackgroundWorker:
                     await self._check_ingestion()
                     self._last_ingestion_check = time.time()
 
-                # 2. Regular SM-2 Reviews
+                # 3. Regular SM-2 Reviews
                 # Get notes due for review
                 assert self._scheduler is not None
                 due_notes = self._scheduler.get_notes_due(limit=min(10, self._remaining_today()))
@@ -296,6 +307,38 @@ class BackgroundWorker:
                 logger.error(f"Worker error: {e}")
                 self._stats.errors_today += 1
                 await asyncio.sleep(self.config.sleep_on_error_seconds)
+
+    async def _check_janitor(self) -> None:
+        """Run janitor if enough time has passed since last run"""
+        if not self._janitor:
+            return
+
+        # Check if janitor should run
+        now = datetime.now(timezone.utc)
+        interval_seconds = self.config.janitor_interval_hours * 3600
+
+        if self._stats.last_janitor_run:
+            elapsed = (now - self._stats.last_janitor_run).total_seconds()
+            if elapsed < interval_seconds:
+                return  # Not time yet
+
+        try:
+            logger.info("Running janitor hygiene check...")
+            stats = self._janitor.clean_directory(dry_run=False)
+
+            self._stats.last_janitor_run = now
+            self._stats.janitor_repairs_total += stats.get("repaired", 0)
+
+            if stats["repaired"] > 0:
+                logger.info(
+                    f"Janitor completed: scanned={stats['scanned']}, "
+                    f"repaired={stats['repaired']}, errors={stats['errors']}"
+                )
+            else:
+                logger.debug(f"Janitor completed: all {stats['scanned']} notes valid")
+
+        except Exception as e:
+            logger.error(f"Janitor failed: {e}", exc_info=True)
 
     async def _check_ingestion(self) -> None:
         """Check for recently modified notes and trigger analysis"""
@@ -397,11 +440,18 @@ class BackgroundWorker:
                     self._stats.last_review_at.isoformat() if self._stats.last_review_at else None
                 ),
                 "average_review_seconds": round(self._stats.average_review_seconds, 2),
+                "last_janitor_run": (
+                    self._stats.last_janitor_run.isoformat()
+                    if self._stats.last_janitor_run
+                    else None
+                ),
+                "janitor_repairs_total": self._stats.janitor_repairs_total,
             },
             "config": {
                 "max_daily_reviews": self.config.max_daily_reviews,
                 "max_session_minutes": self.config.max_session_minutes,
                 "remaining_today": self._remaining_today(),
+                "janitor_interval_hours": self.config.janitor_interval_hours,
             },
         }
 

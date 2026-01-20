@@ -1,13 +1,15 @@
 """
 System Router
 
-Health, stats, and configuration endpoints.
+Health, stats, configuration, and maintenance endpoints.
 """
 
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 
 from src.core.config_manager import ScapinConfig
 from src.frontin.api.deps import get_cached_config
@@ -21,6 +23,17 @@ from src.frontin.api.models.responses import (
     SystemStatusResponse,
 )
 from src.frontin.api.services.status_service import StatusService
+from src.passepartout.janitor import NoteJanitor
+
+
+class JanitorResult(BaseModel):
+    """Result of janitor run"""
+
+    scanned: int
+    issues_found: int
+    repaired: int
+    errors: int
+    dry_run: bool
 
 router = APIRouter()
 
@@ -252,5 +265,43 @@ async def get_status() -> APIResponse[SystemStatusResponse]:
     return APIResponse(
         success=True,
         data=status,
+        timestamp=datetime.now(timezone.utc),
+    )
+
+
+@router.post("/maintenance/janitor", response_model=APIResponse[JanitorResult])
+async def run_janitor(
+    dry_run: bool = False,
+    config: ScapinConfig = Depends(get_cached_config),
+) -> APIResponse[JanitorResult]:
+    """
+    Run note janitor for hygiene maintenance
+
+    The janitor validates and repairs note structure:
+    - Validates YAML frontmatter
+    - Adds missing frontmatter to notes
+    - Ensures title field exists
+    - Fixes malformed YAML
+
+    Args:
+        dry_run: If True, only report issues without making changes
+
+    Returns:
+        Statistics about scanned, repaired, and errored notes
+    """
+    notes_dir = Path(config.notes.notes_dir)
+    janitor = NoteJanitor(notes_dir)
+
+    stats = janitor.clean_directory(dry_run=dry_run)
+
+    return APIResponse(
+        success=True,
+        data=JanitorResult(
+            scanned=stats["scanned"],
+            issues_found=stats["issues_found"],
+            repaired=stats["repaired"],
+            errors=stats["errors"],
+            dry_run=dry_run,
+        ),
         timestamp=datetime.now(timezone.utc),
     )

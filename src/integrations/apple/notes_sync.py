@@ -184,6 +184,13 @@ class AppleNotesSync:
             if not dry_run:
                 self.backup_manager.create_snapshot(prefix="pre_sync")
 
+            # HYGIENE: Run janitor to validate/repair notes before sync
+            janitor_stats = self.janitor.clean_directory(dry_run=dry_run)
+            if janitor_stats["repaired"] > 0:
+                logger.info(
+                    f"Janitor repaired {janitor_stats['repaired']} notes before sync"
+                )
+
             # Get all notes from both sources
             apple_notes = self._get_apple_notes()
             scapin_notes = self._get_scapin_notes()
