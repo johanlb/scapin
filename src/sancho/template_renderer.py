@@ -64,6 +64,19 @@ class TemplateRenderer:
         self._env.filters["format_date"] = self._format_date
         self._env.filters["format_confidence"] = self._format_confidence
 
+        # Initialize ContextLoader for briefing injection (v2.5)
+        self._briefing_context: Optional[str] = None
+        try:
+            from src.passepartout.context_loader import ContextLoader
+            context_loader = ContextLoader()
+            self._briefing_context = context_loader.load_context()
+            if self._briefing_context:
+                logger.info("Briefing context loaded (%d chars)", len(self._briefing_context))
+            else:
+                logger.warning("No briefing context found")
+        except Exception as e:
+            logger.warning("Failed to load briefing context: %s", e)
+
         logger.info(
             "TemplateRenderer initialized (dir=%s, auto_reload=%s)",
             self._template_dir,
@@ -103,6 +116,10 @@ class TemplateRenderer:
 
         # Add 'now' to context for age calculations
         context["now"] = datetime.now(timezone.utc)
+
+        # Add briefing context if available (v2.5)
+        if self._briefing_context and "briefing" not in context:
+            context["briefing"] = self._briefing_context
 
         try:
             template = self._env.get_template(template_name)

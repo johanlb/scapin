@@ -6,7 +6,7 @@ Responsible for loading, caching, and formatting "Global Context" files
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from src.core.config_manager import get_config
 from src.monitoring.logger import get_logger
@@ -23,7 +23,13 @@ class ContextLoader:
     """
 
     # Files to look for in the briefing directory
-    BRIEFING_FILES = ["Profile.md", "Projects.md", "Goals.md", "Preferences.md"]
+    # Support both standard names and Apple Notes sync names (with -AppleNotes suffix)
+    BRIEFING_FILES = [
+        ("Profile.md", "Profile-AppleNotes.md"),
+        ("Projects.md", "Projects-AppleNotes.md"),
+        ("Goals.md", "Goals-AppleNotes.md"),
+        ("Preferences.md", "Preferences-AppleNotes.md"),
+    ]
 
     def __init__(self, notes_dir: Optional[Path] = None):
         """
@@ -44,7 +50,7 @@ class ContextLoader:
         self.briefing_dir = self.notes_dir / "Briefing"
 
         # Cache structure: {filename: {'content': str, 'mtime': float}}
-        self._cache: Dict[str, Dict] = {}
+        self._cache: dict[str, dict] = {}
 
     def load_context(self) -> str:
         """
@@ -59,11 +65,15 @@ class ContextLoader:
 
         context_parts = []
 
-        for filename in self.BRIEFING_FILES:
-            content = self._read_file_cached(filename)
+        for file_options in self.BRIEFING_FILES:
+            # Each entry is a tuple of (primary_name, alternative_name)
+            primary, alternative = file_options
+            content = self._read_file_cached(primary)
+            if not content:
+                content = self._read_file_cached(alternative)
             if content:
-                # Add a header for the section
-                section_name = filename.replace(".md", "").upper()
+                # Add a header for the section (use primary name for consistency)
+                section_name = primary.replace(".md", "").upper()
                 context_parts.append(f"--- {section_name} ---")
                 context_parts.append(content)
                 context_parts.append("")  # Spacing
@@ -99,6 +109,6 @@ class ContextLoader:
             logger.error(f"Failed to read briefing file {filename}: {e}")
             return None
 
-    def get_loaded_files(self) -> List[str]:
+    def get_loaded_files(self) -> list[str]:
         """Return list of currently loaded context files."""
-        return [k for k in self._cache.keys()]
+        return list(self._cache)
