@@ -600,12 +600,15 @@ class NotesService:
 
         # Build response
         search_results = []
-        for note, score in results:  # type: ignore
+        for note, l2_distance in results:  # type: ignore
             response = _note_to_response(note)
+            # Convert L2 distance to similarity score (higher = better)
+            # Using formula: similarity = 1 / (1 + distance)
+            similarity_score = 1.0 / (1.0 + float(l2_distance))
             search_results.append(
                 NoteSearchResult(
                     note=response,
-                    score=score,
+                    score=similarity_score,
                     highlights=[],  # TODO: Generate highlights from matches
                 )
             )
