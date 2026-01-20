@@ -180,6 +180,7 @@ L'architecture "Quatre Valets" remplace le système multi-pass v2.2 par une appr
 ```
 
 **Tâches** :
+0. TRIER — Filtrer les notes non pertinentes (`notes_ignored`)
 1. IDENTIFIER — Résoudre les ambiguïtés de noms
 2. VÉRIFIER — Détecter les doublons
 3. ENRICHIR — Ajouter le contexte manquant

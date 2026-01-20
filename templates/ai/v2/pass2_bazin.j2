@@ -91,11 +91,15 @@ Grimaud t'a transmis son observation brute. À toi de la **confronter aux mémoi
 ## LES MÉMOIRES (ton territoire)
 
 {% if context.notes %}
-### Notes PKM pertinentes ({{ context.notes | length }})
+### Notes PKM candidates ({{ context.notes | length }})
+
+**⚠️ ATTENTION** : Certaines notes peuvent être des faux positifs (même nom mais contexte différent).
+**Ignore** les notes qui ne sont pas pertinentes pour cet événement précis.
+
 {% for note in context.notes[:max_context_notes | default(5)] %}
 #### 📄 {{ note.title }} [{{ note.note_type }}]
 **Dernière MAJ**: {{ note.last_modified | format_date }}
-**Pertinence**: {{ note.relevance | format_confidence }}
+**Pertinence estimée**: {{ note.relevance | format_confidence }}
 
 {{ note.summary | truncate_smart(500) }}
 
@@ -146,6 +150,13 @@ Grimaud t'a transmis son observation brute. À toi de la **confronter aux mémoi
 ---
 
 ## TES TÂCHES (dans cet ordre)
+
+### 0. TRIER — Quelles notes sont vraiment pertinentes ?
+
+- Les notes fournies sont des **candidates**, pas toutes pertinentes
+- **Ignore** les notes qui n'ont aucun lien avec l'événement
+- Note les dans `notes_ignored` avec une brève raison
+- **Utilise uniquement** les notes vraiment utiles (dans `notes_used`)
 
 ### 1. IDENTIFIER — Qui est qui ?
 
@@ -246,6 +257,7 @@ Pour chaque extraction, sois **précis** sur ce qui doit être écrit :
   ],
   "context_influence": {
     "notes_used": ["Marc Dupont", "Projet Alpha"],
+    "notes_ignored": ["Factures 2024 — hors sujet"],
     "explanation": "La note 'Marc Dupont' confirme son rôle. Le budget Q1 correspond.",
     "confirmations": ["Montant 15k€ = budget Q1 du projet"],
     "contradictions": [],
