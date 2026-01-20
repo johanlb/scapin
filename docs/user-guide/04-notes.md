@@ -6,8 +6,6 @@ Les **Notes** sont le cœur de votre base de connaissances. Scapin utilise vos n
 
 ## Structure
 
-### Organisation
-
 ### Organisation : Stratégie "Project-First"
 
 Scapin privilégie une organisation **centralisée** pour éviter la fragmentation. Au lieu de dizaines de petites notes atomiques, l'information est regroupée dans des notes "piliers" :
