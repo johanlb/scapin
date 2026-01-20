@@ -352,11 +352,11 @@
 						{formatRelativeTime(item.metadata.date)}
 					</span>
 				{/if}
-				{#if item.queued_at}
+				{#if item.timestamps?.analysis_completed_at || item.queued_at}
 					<span class="flex items-center gap-1.5" title="Date d'analyse par Scapin">
 						<span class="text-base">&#x1f9e0;</span>
 						<span class="font-medium text-[var(--color-text-secondary)]">Analysé</span>
-						{formatRelativeTime(item.queued_at)}
+						{formatRelativeTime(item.timestamps?.analysis_completed_at || item.queued_at)}
 					</span>
 				{/if}
 				{#if item.reviewed_at}

@@ -360,3 +360,91 @@ Content
         assert "linked_sources:" in result
         assert "type: folder" in result
         assert "type: whatsapp" in result
+
+
+class TestSyncDeletionBehavior:
+    """Tests for sync deletion behavior with trash folder."""
+
+    def test_excluded_folders_includes_trash(self, sync_service):
+        """Verify _Supprimées is in excluded folders."""
+        assert "_Supprimées" in AppleNotesSync.EXCLUDED_FOLDERS
+        assert "Recently Deleted" in AppleNotesSync.EXCLUDED_FOLDERS
+
+    def test_execute_delete_scapin_moves_to_trash(self, sync_service, temp_notes_dir):
+        """Test that deleting Scapin note moves it to trash instead of hard delete."""
+        from src.integrations.apple.notes_models import SyncDirection, SyncResult
+        from src.passepartout.note_manager import TRASH_FOLDER
+
+        # Create a note file
+        note_path = temp_notes_dir / "test-note.md"
+        note_path.write_text("""---
+title: Test Note
+---
+
+Content
+""")
+
+        # Execute delete
+        result = SyncResult(success=True, direction=SyncDirection.BIDIRECTIONAL)
+        sync_service._execute_delete(
+            "test-note",
+            {"scapin_path": note_path, "direction": "delete_scapin"},
+            result,
+        )
+
+        # Verify file moved to trash, not deleted
+        assert not note_path.exists()
+        trash_path = temp_notes_dir / TRASH_FOLDER / "test-note.md"
+        assert trash_path.exists()
+        assert "test-note" in result.deleted
+
+    def test_execute_delete_apple_calls_client(self, sync_service, sample_apple_note):
+        """Test that deleting Apple note calls the client delete method."""
+        from src.integrations.apple.notes_models import SyncDirection, SyncResult
+
+        # Execute delete
+        result = SyncResult(success=True, direction=SyncDirection.BIDIRECTIONAL)
+        sync_service.client.delete_note.return_value = True
+
+        sync_service._execute_delete(
+            "apple-123",
+            {"apple_note": sample_apple_note, "direction": "delete_apple"},
+            result,
+        )
+
+        # Verify client method was called
+        sync_service.client.delete_note.assert_called_once_with("apple-123")
+        assert "Test Note" in result.deleted
+
+    def test_scapin_trash_notes_excluded_from_sync(self, sync_service, temp_notes_dir):
+        """Test that notes in Scapin's trash folder are excluded from sync."""
+        from src.passepartout.note_manager import TRASH_FOLDER
+
+        # Create trash folder with a note
+        trash_dir = temp_notes_dir / TRASH_FOLDER
+        trash_dir.mkdir()
+        (trash_dir / "deleted-note.md").write_text("""---
+title: Deleted Note
+---
+
+Content
+""")
+
+        # Also create a normal note
+        (temp_notes_dir / "normal-note.md").write_text("""---
+title: Normal Note
+---
+
+Content
+""")
+
+        # Get Scapin notes
+        scapin_notes = sync_service._get_scapin_notes()
+
+        # Verify trash note is excluded
+        paths = list(scapin_notes.keys())
+        assert any("normal-note" in p for p in paths)
+        # The excluded folders check uses folder.name, not full path
+        # So notes directly inside notes_dir with "_Supprimées" as subfolder should be excluded
+        for p in paths:
+            assert TRASH_FOLDER not in p, f"Trash note found in sync: {p}"

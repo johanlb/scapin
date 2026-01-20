@@ -89,8 +89,13 @@ def _validate_folder_path(path: str, base_dir: Path) -> Path:
     return resolved
 
 
-def _note_to_response(note: Note) -> NoteResponse:
-    """Convert Note domain model to API response"""
+def _note_to_response(note: Note, deleted_at: str | None = None) -> NoteResponse:
+    """Convert Note domain model to API response
+
+    Args:
+        note: Note domain model
+        deleted_at: Optional ISO timestamp of when note was deleted (for trash notes)
+    """
     # Generate excerpt from content
     content = note.content.strip()
     excerpt = content[:200] + "..." if len(content) > 200 else content
@@ -103,6 +108,11 @@ def _note_to_response(note: Note) -> NoteResponse:
 
     # Ensure title is a string (YAML can parse numeric-only titles as int)
     title = str(note.title) if note.title is not None else ""
+
+    # Build metadata, adding deleted_at if present
+    metadata = dict(note.metadata)
+    if deleted_at:
+        metadata["deleted_at"] = deleted_at
 
     return NoteResponse(
         note_id=note.note_id,
@@ -118,7 +128,7 @@ def _note_to_response(note: Note) -> NoteResponse:
         created_at=note.created_at,
         updated_at=note.updated_at,
         pinned=pinned,
-        metadata=note.metadata,
+        metadata=metadata,
     )
 
 
@@ -986,48 +996,81 @@ class NotesService:
 
     async def get_deleted_notes(self) -> list[NoteResponse]:
         """
-        Get notes from Apple Notes 'Recently Deleted' folder
+        Get notes from Scapin's trash folder (_Supprimées/)
 
         Returns:
             List of NoteResponse for deleted notes
         """
-        from src.integrations.apple.notes_client import AppleNotesClient
-
-        logger.info("Fetching deleted notes from Apple Notes...")
+        logger.info("Fetching deleted notes from Scapin trash...")
 
         try:
-            client = AppleNotesClient()
-            if not client.is_available():
-                logger.warning("Apple Notes not available")
-                return []
+            manager = self._get_manager()
+            deleted_notes = await asyncio.to_thread(manager.get_deleted_notes)
+            logger.info(f"Found {len(deleted_notes)} deleted notes in trash")
 
-            deleted_notes = client.get_deleted_notes()
-            logger.info(f"Found {len(deleted_notes)} deleted notes")
-
-            # Convert AppleNote to NoteResponse
+            # Convert Note to NoteResponse
             responses = []
-            for apple_note in deleted_notes:
-                # Create a lightweight NoteResponse for display
-                content = apple_note.body_text or ""
-                responses.append(
-                    NoteResponse(
-                        note_id=apple_note.id,
-                        title=apple_note.name,
-                        content=content,
-                        excerpt=content[:200] if content else "",
-                        folder="Recently Deleted",
-                        tags=[],
-                        created_at=apple_note.created_at or datetime.now(timezone.utc),
-                        updated_at=apple_note.modified_at or datetime.now(timezone.utc),
-                        wikilinks=[],
-                    )
-                )
+            for note in deleted_notes:
+                deleted_at = manager._notes_metadata.get(note.note_id, {}).get("deleted_at")
+                responses.append(_note_to_response(note, deleted_at=deleted_at))
 
             return responses
 
         except Exception as e:
             logger.error(f"Failed to get deleted notes: {e}", exc_info=True)
             return []
+
+    async def restore_note(self, note_id: str, target_folder: str = "") -> bool:
+        """
+        Restore a note from trash to its original or specified folder
+
+        Args:
+            note_id: Note identifier
+            target_folder: Target folder path (empty string for root)
+
+        Returns:
+            True if restored, False if note not found in trash
+        """
+        logger.info(f"Restoring note {note_id} from trash...")
+        manager = self._get_manager()
+        result = await asyncio.to_thread(manager.restore_note, note_id, target_folder)
+        if result:
+            logger.info(f"Restored note {note_id}")
+        else:
+            logger.warning(f"Failed to restore note {note_id}")
+        return result
+
+    async def permanently_delete_note(self, note_id: str) -> bool:
+        """
+        Permanently delete a note from trash
+
+        Args:
+            note_id: Note identifier
+
+        Returns:
+            True if permanently deleted, False if note not found
+        """
+        logger.info(f"Permanently deleting note {note_id}...")
+        manager = self._get_manager()
+        result = await asyncio.to_thread(manager.permanently_delete_note, note_id)
+        if result:
+            logger.info(f"Permanently deleted note {note_id}")
+        else:
+            logger.warning(f"Failed to permanently delete note {note_id}")
+        return result
+
+    async def empty_trash(self) -> int:
+        """
+        Permanently delete all notes in trash
+
+        Returns:
+            Number of notes permanently deleted
+        """
+        logger.info("Emptying trash...")
+        manager = self._get_manager()
+        count = await asyncio.to_thread(manager.empty_trash)
+        logger.info(f"Emptied trash: {count} notes deleted")
+        return count
 
     async def rebuild_index(self) -> dict[str, Any]:
         """

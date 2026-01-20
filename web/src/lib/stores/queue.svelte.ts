@@ -97,7 +97,7 @@ async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
 
 	try {
 		const [response, stats] = await Promise.all([
-			listQueueItems(page, 20, 'pending', undefined, tab),
+			listQueueItems(page, 50, 'pending', undefined, tab),
 			getQueueStats()
 		]);
 

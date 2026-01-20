@@ -35,6 +35,9 @@ logger = get_logger("passepartout.note_manager")
 # LRU Cache configuration
 DEFAULT_CACHE_MAX_SIZE = 2000  # Maximum notes to keep in memory
 
+# Trash folder for soft-deleted notes
+TRASH_FOLDER = "_Supprimées"
+
 # Pre-compiled regex for frontmatter parsing (performance optimization)
 FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)
 # Pre-compiled regex for wikilinks: [[target]] or [[target|label]]
@@ -676,12 +679,19 @@ class NoteManager:
         """
         Get note by ID (thread-safe with LRU update)
 
+        Notes in the trash folder are NOT returned by this method.
+        Use get_deleted_notes() to access trashed notes.
+
         Args:
             note_id: Note identifier
 
         Returns:
-            Note object or None if not found
+            Note object or None if not found (or if in trash)
         """
+        # Check if note is in trash - don't return it via get_note
+        if self.is_note_in_trash(note_id):
+            return None
+
         # Check cache first (thread-safe)
         with self._cache_lock:
             if note_id in self._note_cache:
@@ -916,9 +926,10 @@ class NoteManager:
 
     def delete_note(self, note_id: str) -> bool:
         """
-        Delete a note
+        Soft delete a note (move to trash folder)
 
-        Removes note file from disk and from vector store.
+        Moves note file to the trash folder (_Supprimées/).
+        Use permanently_delete_note() for hard deletion.
 
         Args:
             note_id: Note identifier
@@ -931,6 +942,21 @@ class NoteManager:
             logger.warning("Note not found for deletion", extra={"note_id": note_id})
             return False
 
+        # Get current file path
+        file_path = self._get_note_path(note_id)
+        if not file_path.exists():
+            logger.warning("Note file not found", extra={"file_path": str(file_path)})
+            return False
+
+        # Create trash folder if needed
+        trash_dir = self.notes_dir / TRASH_FOLDER
+        trash_dir.mkdir(parents=True, exist_ok=True)
+
+        # Move to trash
+        trash_path = trash_dir / f"{note_id}.md"
+        file_path.rename(trash_path)
+        logger.info("Moved note to trash", extra={"note_id": note_id, "trash_path": str(trash_path)})
+
         # Remove from vector store
         self.vector_store.remove(note_id)
 
@@ -939,22 +965,176 @@ class NoteManager:
             if note_id in self._note_cache:
                 del self._note_cache[note_id]
 
-        # Delete file
-        file_path = self._get_note_path(note_id)
-        if file_path.exists():
-            file_path.unlink()
-            logger.info("Deleted note file", extra={"file_path": str(file_path)})
+        # Update metadata index to reflect trash location
+        if note_id in self._notes_metadata:
+            self._notes_metadata[note_id]["path"] = TRASH_FOLDER
+            self._notes_metadata[note_id]["deleted_at"] = datetime.now(timezone.utc).isoformat()
+        self._save_metadata_index()
 
-            # Git commit deletion
-            if self.git:
-                self.git.commit_delete(f"{note_id}.md", note_title=note.title)
+        # Git commit move to trash
+        if self.git:
+            self.git.commit_move(
+                old_path=str(file_path.relative_to(self.notes_dir)),
+                new_path=str(trash_path.relative_to(self.notes_dir)),
+                note_title=note.title,
+            )
+
+        logger.info("Soft deleted note", extra={"note_id": note_id})
+        return True
+
+    def get_deleted_notes(self) -> list[Note]:
+        """
+        Get all notes in the trash folder
+
+        Returns:
+            List of deleted Note objects
+        """
+        trash_dir = self.notes_dir / TRASH_FOLDER
+        if not trash_dir.exists():
+            return []
+
+        deleted_notes = []
+        for file_path in trash_dir.glob("*.md"):
+            note = self._read_note_file(file_path)
+            if note:
+                deleted_notes.append(note)
+
+        # Sort by deletion date (newest first)
+        deleted_notes.sort(
+            key=lambda n: self._notes_metadata.get(n.note_id, {}).get("deleted_at", ""),
+            reverse=True,
+        )
+        return deleted_notes
+
+    def restore_note(self, note_id: str, target_folder: str = "") -> bool:
+        """
+        Restore a note from trash to its original or specified folder
+
+        Args:
+            note_id: Note identifier
+            target_folder: Target folder path (empty string for root)
+
+        Returns:
+            True if restored, False if note not found in trash
+        """
+        trash_path = self.notes_dir / TRASH_FOLDER / f"{note_id}.md"
+        if not trash_path.exists():
+            logger.warning("Note not found in trash", extra={"note_id": note_id})
+            return False
+
+        # Determine target path
+        if target_folder:
+            target_dir = self.notes_dir / target_folder
+            target_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            target_dir = self.notes_dir
+
+        target_path = target_dir / f"{note_id}.md"
+
+        # Move from trash to target
+        trash_path.rename(target_path)
+        logger.info("Restored note from trash", extra={"note_id": note_id, "target": str(target_path)})
+
+        # Update metadata index
+        if note_id in self._notes_metadata:
+            self._notes_metadata[note_id]["path"] = target_folder
+            if "deleted_at" in self._notes_metadata[note_id]:
+                del self._notes_metadata[note_id]["deleted_at"]
+        self._save_metadata_index()
+
+        # Re-index the note in vector store
+        note = self._read_note_file(target_path)
+        if note:
+            # Build search text and add to vector store
+            search_text = f"{note.title}\n{note.content}"
+            metadata = {
+                "title": note.title,
+                "tags": note.tags,
+                "path": target_folder,
+            }
+            self.vector_store.add(doc_id=note.note_id, text=search_text, metadata=metadata)
+
+        # Git commit restore
+        if self.git:
+            self.git.commit_move(
+                old_path=str(trash_path.relative_to(self.notes_dir)),
+                new_path=str(target_path.relative_to(self.notes_dir)),
+                note_title=note.title if note else note_id,
+            )
+
+        return True
+
+    def permanently_delete_note(self, note_id: str) -> bool:
+        """
+        Permanently delete a note from trash
+
+        Args:
+            note_id: Note identifier
+
+        Returns:
+            True if permanently deleted, False if note not found
+        """
+        # Check if note is in trash
+        trash_path = self.notes_dir / TRASH_FOLDER / f"{note_id}.md"
+        if trash_path.exists():
+            file_path = trash_path
+        else:
+            # Also allow deleting notes not in trash (for flexibility)
+            file_path = self._get_note_path(note_id)
+            if not file_path.exists():
+                logger.warning("Note not found for permanent deletion", extra={"note_id": note_id})
+                return False
+
+        # Get note title for git commit
+        note = self._read_note_file(file_path)
+        note_title = note.title if note else note_id
+
+        # Hard delete file
+        file_path.unlink()
+        logger.info("Permanently deleted note", extra={"note_id": note_id})
+
+        # Remove from vector store (in case it wasn't already)
+        self.vector_store.remove(note_id)
+
+        # Remove from cache
+        with self._cache_lock:
+            if note_id in self._note_cache:
+                del self._note_cache[note_id]
 
         # Remove from metadata index
         self._remove_from_metadata_index(note_id)
         self._save_metadata_index()
 
-        logger.info("Deleted note", extra={"note_id": note_id})
+        # Git commit deletion
+        if self.git:
+            self.git.commit_delete(str(file_path.relative_to(self.notes_dir)), note_title=note_title)
+
         return True
+
+    def empty_trash(self) -> int:
+        """
+        Permanently delete all notes in trash
+
+        Returns:
+            Number of notes permanently deleted
+        """
+        trash_dir = self.notes_dir / TRASH_FOLDER
+        if not trash_dir.exists():
+            return 0
+
+        deleted_count = 0
+        for file_path in trash_dir.glob("*.md"):
+            note_id = file_path.stem
+            if self.permanently_delete_note(note_id):
+                deleted_count += 1
+
+        logger.info("Emptied trash", extra={"deleted_count": deleted_count})
+        return deleted_count
+
+    def is_note_in_trash(self, note_id: str) -> bool:
+        """Check if a note is in the trash folder"""
+        trash_path = self.notes_dir / TRASH_FOLDER / f"{note_id}.md"
+        return trash_path.exists()
 
     def move_note(self, note_id: str, target_folder: str) -> bool:
         """
