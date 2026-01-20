@@ -1,4 +1,4 @@
-# Cycles Mémoire — Specification v1.1
+# Cycles Mémoire — Specification v1.2
 
 **Date** : 20 janvier 2026
 **Statut** : Draft
@@ -648,9 +648,201 @@ Retourne l'état des deux cycles SM-2 pour une note.
 
 ---
 
+## Décisions Techniques
+
+### 1. Stockage des Questions (approche hybride)
+
+Les questions injectées par l'IA sont stockées à trois niveaux :
+
+| Couche | Contenu | Raison |
+|--------|---------|--------|
+| **Markdown** | Questions visibles dans la note | Johan les voit aussi dans Apple Notes |
+| **Frontmatter** | Métadonnées | `questions_count`, `questions_pending` |
+| **SQLite** | Historique + réponses temporaires | Tracking, analytics |
+
+**Format Markdown :**
+```markdown
+## Questions en attente
+- [ ] Quel est son rôle exact chez Azuri ?
+- [ ] Y a-t-il un lien avec [[Jennifer Hirst]] ?
+```
+
+**Format Frontmatter :**
+```yaml
+questions_count: 2
+questions_pending: true
+last_question_added: 2026-01-20T10:30:00
+```
+
+**Table SQLite :**
+```sql
+CREATE TABLE note_questions (
+    id INTEGER PRIMARY KEY,
+    note_id TEXT NOT NULL,
+    question TEXT NOT NULL,
+    question_type TEXT,  -- clarification, missing_info, validation, etc.
+    created_at TIMESTAMP,
+    answered_at TIMESTAMP,
+    answer TEXT,
+    integrated_at TIMESTAMP,  -- quand la réponse a été intégrée par Retouche
+    FOREIGN KEY (note_id) REFERENCES note_metadata(note_id)
+);
+```
+
+### 2. Flux des Réponses
+
+Quand Johan répond à une question :
+
+```
+Johan répond à une question
+       │
+       ▼
+Réponse stockée dans SQLite (answer, answered_at)
+       │
+       ▼
+Note modifiée (la réponse est ajoutée au contenu)
+       │
+       ▼
+Ingestion détecte la modification (cycle 60s)
+       │
+       ▼
+Retouche programmée (bypass SM-2 car modification)
+       │
+       ▼
+IA intègre proprement la réponse dans le contenu
+       │
+       ▼
+Question marquée comme intégrée (integrated_at)
+```
+
+**Pas de logique spéciale nécessaire** — le mécanisme de détection de modification existant suffit.
+
+### 3. Délai pour Nouvelles Notes
+
+Une note nouvellement créée n'est retouchée qu'après **1 heure minimum**.
+
+| Situation | Délai avant Retouche |
+|-----------|---------------------|
+| Note créée (sync Apple ou manuelle) | 1h minimum |
+| Note modifiée | 60s (cycle ingestion) |
+| SM-2 due | Immédiat |
+
+**Raison** : Évite de retoucher une note que Johan est encore en train d'écrire.
+
+**Implémentation :**
+```python
+def should_retouche(note: Note) -> bool:
+    age = now - note.created_at
+    if age < timedelta(hours=1):
+        return False  # Trop récente
+
+    if note.next_retouche and note.next_retouche <= now:
+        return True  # SM-2 due
+
+    return False
+```
+
+### 4. Escalade Adaptative des Modèles IA
+
+La Retouche utilise une escalade basée sur la **confiance de l'IA** :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ESCALADE ADAPTATIVE                          │
+│                                                                 │
+│   Haiku analyse la note                                         │
+│          │                                                      │
+│          ├── confiance ≥ 0.7 ──▶ OK, appliquer                  │
+│          │                                                      │
+│          ├── confiance 0.5-0.7 ──▶ Sonnet ré-analyse            │
+│          │                              │                       │
+│          │                              ├── confiance ≥ 0.7 ──▶ OK
+│          │                              │                       │
+│          │                              └── confiance < 0.7 ──▶ Opus
+│          │                                                      │
+│          └── confiance < 0.5 ──▶ Opus directement               │
+│                                  (restructuration majeure)      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Critères de confiance :**
+
+| Confiance | Signification | Action |
+|-----------|---------------|--------|
+| ≥ 0.7 | L'IA est sûre de ses suggestions | Appliquer avec modèle actuel |
+| 0.5-0.7 | Incertitude modérée | Escalader au modèle supérieur |
+| < 0.5 | Forte incertitude ou complexité | Escalader à Opus |
+
+**Format de réponse IA :**
+```json
+{
+  "confidence": 0.65,
+  "confidence_reason": "Note complexe avec multiples sujets, restructuration recommandée",
+  "actions": [...],
+  "needs_escalation": true
+}
+```
+
+### 5. Notification des Retouches
+
+Johan est informé des retouches via deux canaux :
+
+#### Canal 1 : Filage du matin
+
+Les notes fraîchement retouchées apparaissent dans la section "✨ Fraîchement retouchées" du Filage.
+
+#### Canal 2 : Historique Péripéties
+
+La page Péripéties/Historique devient un **journal d'activité complet** :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    PÉRIPÉTIES — HISTORIQUE                      │
+│                                                                 │
+│  📅 Aujourd'hui                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  10:45  📧 Email traité                                         │
+│         "Re: Réunion projet Azuri" → Note enrichie              │
+│                                                                 │
+│  10:30  🔄 Retouche effectuée                                   │
+│         "Marc Dupont" — Score 45% → 72%                         │
+│         • 2 questions ajoutées                                  │
+│         • Lien [[Azuri]] ajouté                                 │
+│         [Voir les détails]                                      │
+│                                                                 │
+│  09:15  🔀 Restructuration                                      │
+│         "Projet Azuri" scindée en 3 notes                       │
+│         • Azuri - Historique                                    │
+│         • Azuri - Contacts                                      │
+│         • Azuri - Finances                                      │
+│         [Voir les détails] [Annuler]                            │
+│                                                                 │
+│  08:00  📋 Filage préparé                                       │
+│         12 Lectures sélectionnées pour aujourd'hui              │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Types d'événements dans l'historique :**
+
+| Type | Icône | Description |
+|------|-------|-------------|
+| `email_processed` | 📧 | Email analysé et traité |
+| `retouche_done` | 🔄 | Note retouchée par l'IA |
+| `restructure` | 🔀 | Scission/fusion de notes |
+| `question_added` | ❓ | Questions injectées |
+| `question_answered` | ✅ | Johan a répondu à une question |
+| `filage_prepared` | 📋 | Filage du matin généré |
+| `lecture_completed` | 📖 | Lecture terminée |
+
+---
+
 ## Changelog
 
 | Version | Date | Changements |
 |---------|------|-------------|
+| 1.2 | 2026-01-20 | Ajout décisions techniques (stockage questions, escalade IA, notifications) |
 | 1.1 | 2026-01-20 | Ajout détails Retouche (6 actions, restructuration graphe, questions), boucle co-construction |
 | 1.0 | 2026-01-20 | Draft initial — Cycles Retouche/Lecture/Filage |
