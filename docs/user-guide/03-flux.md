@@ -1,6 +1,8 @@
-# 3. Flux
+# 3. Péripéties
 
-Le **Flux** est le centre de traitement de vos emails et messages. C'est ici que Scapin vous présente les éléments analysés pour validation.
+Les **Péripéties** sont le centre de traitement de vos emails et messages. C'est ici que Scapin vous présente les éléments analysés pour validation.
+
+> **Note v2.4** : Cette section a été renommée de "Flux" à "Péripéties" pour mieux refléter le concept littéraire du projet.
 
 ---
 
@@ -304,25 +306,34 @@ Tâche (28%)
 
 ---
 
-## Filtres
+## Navigation par Onglets (v2.4)
 
-### Par Status
+La page Péripéties utilise maintenant une navigation à 5 onglets qui reflète le cycle de vie complet des items :
 
-- **En attente** : À traiter
-- **Approuvés** : Historique des validations
-- **Rejetés** : Historique des refus
+| Onglet | Description | Compte |
+|--------|-------------|--------|
+| **À traiter** | Items analysés en attente de votre décision | Badge jaune |
+| **En cours** | Items en cours d'analyse par Sancho | Badge accent |
+| **Snoozés** | Items reportés (réapparaîtront plus tard) | Badge gris |
+| **Historique** | Items traités (approuvés, modifiés, rejetés) | Badge gris |
+| **Erreurs** | Items ayant rencontré un problème | Badge rouge |
 
-### Par Source
+### États du Pipeline
 
-- Email
-- Teams
-- Calendrier
+Chaque item passe par ces états :
 
-### Par Urgence
+```
+queued → analyzing → awaiting_review → processed
+                         ↓
+                       error
+```
 
-- Urgent (rouge)
-- Normal
-- Basse priorité
+### Filtres Supplémentaires
+
+Dans chaque onglet, vous pouvez filtrer par :
+
+- **Source** : Email, Teams, Calendrier
+- **Urgence** : Urgent (rouge), Normal, Basse priorité
 
 ---
 
