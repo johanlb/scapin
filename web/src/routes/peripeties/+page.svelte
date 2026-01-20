@@ -392,8 +392,22 @@
 			{ title: 'Réanalyse', duration: 300000 } // 5 minutes max
 		);
 
-		// Refresh stats after short delay to show "in progress" indicator
-		// (backend marks all items as in_progress at the start)
+		// Start polling stats every 3 seconds to show progress
+		const pollInterval = setInterval(async () => {
+			await queueStore.fetchStats();
+			await queueStore.fetchQueueByTab('to_process');
+
+			// Stop polling when no more items in progress
+			const inProgressCount = queueStore.stats?.by_tab?.in_progress ?? 0;
+			if (inProgressCount === 0) {
+				clearInterval(pollInterval);
+				isReanalyzing = false;
+				toastStore.dismiss(processingToastId);
+				toastStore.success('Réanalyse terminée', { title: 'Terminé' });
+			}
+		}, 3000);
+
+		// Initial refresh after short delay
 		setTimeout(async () => {
 			await queueStore.fetchStats();
 			await queueStore.fetchQueueByTab('to_process');
@@ -401,27 +415,13 @@
 
 		try {
 			const result = await reanalyzeAllPending();
-
-			toastStore.dismiss(processingToastId);
-
-			// Refresh queue
-			await queueStore.fetchQueueByTab('to_process');
-			await queueStore.fetchStats();
-
-			if (result.started > 0) {
-				toastStore.success(
-					`${result.started}/${result.total_items} élément${result.started > 1 ? 's' : ''} réanalysé${result.started > 1 ? 's' : ''}${result.failed > 0 ? ` (${result.failed} échec${result.failed > 1 ? 's' : ''})` : ''}`,
-					{ title: 'Réanalyse terminée' }
-				);
-			} else {
-				toastStore.warning("Aucun élément n'a pu être réanalysé", { title: 'Réanalyse échouée' });
-			}
+			// API returns immediately, polling handles the rest
 		} catch (err) {
+			clearInterval(pollInterval);
 			toastStore.dismiss(processingToastId);
 			toastStore.error('Impossible de réanalyser les éléments. Vérifiez la connexion au serveur.', {
 				title: 'Erreur'
 			});
-		} finally {
 			isReanalyzing = false;
 		}
 	}
