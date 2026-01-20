@@ -48,8 +48,10 @@ class AppleNotesSync:
     EXCLUDED_FOLDERS = {"Recently Deleted", "Quick Notes"}
 
     # Fields that Apple Notes sync can safely overwrite
+    # NOTE: "title" is intentionally NOT included - we preserve the Scapin title
+    # to avoid re-corrupting titles that were fixed (Apple Notes may have
+    # corrupted titles from old sync bugs)
     APPLE_SYSTEM_FIELDS = {
-        "title",
         "source",
         "apple_id",
         "apple_folder",
