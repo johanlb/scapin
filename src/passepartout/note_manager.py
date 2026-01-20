@@ -186,8 +186,10 @@ class NoteManager:
             },
         )
 
-        # Index existing notes (try to load from disk first)
-        if auto_index and not self._try_load_index():
+        # Always try to load existing index from disk
+        # If auto_index is True, rebuild if index doesn't exist or is stale
+        index_loaded = self._try_load_index()
+        if auto_index and not index_loaded:
             self._index_all_notes()
             self._save_index()
 
