@@ -253,8 +253,11 @@ class SearchService:
                 excerpt = re.sub(r"^#+\s+", "", excerpt)
                 excerpt = re.sub(r"\*\*|\*|__|_", "", excerpt)
 
-                # Normalize score to 0-1 range
-                normalized_score = min(1.0, max(0.0, float(score)))
+                # Convert L2 distance to similarity score (higher = better)
+                # Using formula: similarity = 1 / (1 + distance)
+                # distance=0 → similarity=1, distance→∞ → similarity→0
+                l2_distance = float(score)
+                normalized_score = 1.0 / (1.0 + l2_distance)
 
                 items.append(
                     NoteSearchResultItem(

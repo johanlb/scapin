@@ -87,7 +87,7 @@ class NoteSearchResult(BaseModel):
     """Search result with relevance score"""
 
     note: NoteResponse = Field(..., description="Matching note")
-    score: float = Field(..., ge=0.0, description="Relevance score (L2 distance, lower is better)")
+    score: float = Field(..., ge=0.0, le=1.0, description="Relevance score (0-1, higher is better)")
     highlights: list[str] = Field(
         default_factory=list, description="Highlighted matching excerpts"
     )

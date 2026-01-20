@@ -27,7 +27,7 @@ class SearchResultBase(BaseModel):
     type: SearchResultType = Field(..., description="Result type")
     title: str = Field(..., description="Title or subject")
     excerpt: str = Field(..., description="Content excerpt with highlights")
-    score: float = Field(..., ge=0.0, le=1.0, description="Relevance score")
+    score: float = Field(..., ge=0.0, le=1.0, description="Relevance score (0-1, higher is better)")
     timestamp: datetime = Field(..., description="Item timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Type-specific metadata")
 
