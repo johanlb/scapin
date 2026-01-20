@@ -356,9 +356,55 @@ Dans chaque onglet, vous pouvez filtrer par :
 
 ---
 
+## Mises à jour en Temps Réel (v2.4)
+
+Scapin utilise désormais une connexion WebSocket pour vous notifier des changements en temps réel :
+
+### Indicateur de Connexion
+
+Un badge **Live** (vert) ou **Déconnecté** (gris) apparaît dans l'en-tête de la page :
+- **Live** : Vous recevez les mises à jour instantanément
+- **Déconnecté** : Rafraîchissez manuellement pour voir les changements
+
+### Événements Temps Réel
+
+| Événement | Description |
+|-----------|-------------|
+| **Nouvel item** | Toast notification + mise à jour des compteurs |
+| **Item traité** | Disparaît de la liste automatiquement |
+| **Stats mises à jour** | Badges des onglets actualisés |
+| **Erreur** | Notification avec possibilité de réessayer |
+
+---
+
+## Indicateurs Contextuels (v2.4)
+
+Chaque péripétie affiche des indicateurs visuels pour vous aider à comprendre le contexte :
+
+| Indicateur | Signification |
+|------------|---------------|
+| 📎 | Contient des pièces jointes |
+| 🧠 **Contexte** | L'analyse a utilisé vos notes existantes |
+| ⚡ | Analyse rapide (1 passe, haute confiance) |
+| 🔍 | Contexte personnel consulté |
+| 🏆 | Modèle Opus utilisé (analyse complexe) |
+
+---
+
+## États de Chargement (v2.4)
+
+Scapin affiche des états visuels clairs pendant les opérations :
+
+- **Skeleton loaders** : Cartes fantômes animées pendant le chargement initial
+- **États vides personnalisés** : Messages utiles par onglet avec suggestions d'action
+- **Erreurs avec Retry** : Bouton "Réessayer" en cas de problème de connexion
+
+---
+
 ## Conseils
 
 1. **Traitez régulièrement** — 2-3 fois par jour, 5 min chaque
 2. **Faites confiance aux scores élevés** — > 85% est généralement correct
 3. **Utilisez les raccourcis** — Plus rapide que la souris
 4. **Vérifiez les entités** — Elles enrichissent votre base de notes
+5. **Surveillez l'indicateur Live** — Assurez-vous d'être connecté pour les mises à jour temps réel
