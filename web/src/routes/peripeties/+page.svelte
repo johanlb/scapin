@@ -735,6 +735,13 @@
 					)
 				: toastStore.info("Réanalyse en file d'attente", { title: 'Réanalyse', duration: 3000 });
 
+		// Optimistic update: remove item from current view (it's now in_progress)
+		const savedItem = { ...item };
+		queueStore.removeFromList(item.id);
+		if (currentIndex >= queueStore.items.length) {
+			currentIndex = Math.max(0, queueStore.items.length - 1);
+		}
+
 		try {
 			const result = await reanalyzeQueueItem(item.id, instruction, mode, forceModel);
 
@@ -754,6 +761,8 @@
 					{ title: `Analyse ${modelLabel}` }
 				);
 			} else {
+				// Reanalysis didn't produce a result - restore item to list
+				queueStore.restoreItem(savedItem);
 				toastStore.warning("La réanalyse n'a pas produit de nouveau résultat.", {
 					title: 'Réanalyse'
 				});
@@ -761,6 +770,8 @@
 		} catch (e) {
 			toastStore.dismiss(processingToastId);
 			console.error('Reanalysis failed:', e);
+			// Restore item to list on error
+			queueStore.restoreItem(savedItem);
 			toastStore.error('Échec de la réanalyse. Veuillez réessayer.', { title: 'Erreur' });
 		} finally {
 			isReanalyzingItem = false;
