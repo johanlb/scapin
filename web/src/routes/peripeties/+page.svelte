@@ -392,6 +392,13 @@
 			{ title: 'Réanalyse', duration: 300000 } // 5 minutes max
 		);
 
+		// Refresh stats after short delay to show "in progress" indicator
+		// (backend marks all items as in_progress at the start)
+		setTimeout(async () => {
+			await queueStore.fetchStats();
+			await queueStore.fetchQueueByTab('to_process');
+		}, 500);
+
 		try {
 			const result = await reanalyzeAllPending();
 

@@ -1565,6 +1565,12 @@ class QueueService:
 
         logger.info(f"Starting bulk reanalysis of {total} pending items")
 
+        # Mark ALL items as in_progress upfront so UI shows correct count
+        for item in pending_items:
+            item_id = item.get("id")
+            if item_id:
+                self._storage.update_item(item_id, {"status": "in_progress"})
+
         for item in pending_items:
             item_id = item.get("id")
             if not item_id:
@@ -1574,9 +1580,6 @@ class QueueService:
             try:
                 metadata = item.get("metadata", {})
                 content = item.get("content", {})
-
-                # Mark as in_progress during reanalysis
-                self._storage.update_item(item_id, {"status": "in_progress"})
 
                 # Run reanalysis without user instruction
                 new_analysis = await self._reanalyze_sync(
