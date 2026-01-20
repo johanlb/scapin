@@ -9,6 +9,7 @@ Thread-safe et optimisé pour performance.
 
 import logging
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
@@ -55,6 +56,26 @@ from src.sganarelle.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class LearningContext:
+    """
+    Context for a learning cycle.
+
+    Groups all the inputs needed for the learn() method,
+    making it easier to pass around and test.
+    """
+
+    event: "PerceivedEvent"
+    working_memory: "WorkingMemory"
+    actions: list["Action"]
+    execution_success: bool
+    user_feedback: Optional["UserFeedback"] = None
+    provider_name: str = "anthropic"
+    model_tier: str = "haiku"
+    ai_latency_ms: float = 0.0
+    ai_cost_usd: float = 0.0
 
 
 class LearningEngineError(Exception):

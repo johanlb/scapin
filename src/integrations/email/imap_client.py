@@ -7,6 +7,7 @@ Thread-safe IMAP client for fetching and managing emails.
 import codecs
 import email
 import imaplib
+import re
 import threading
 from contextlib import contextmanager
 from email.header import decode_header
@@ -532,6 +533,104 @@ class IMAPClient:
             logger.error(f"Error fetching emails: {e}", exc_info=True)
             return []
 
+    def _extract_message_id_from_header(self, header_data: bytes) -> str | None:
+        """
+        Extract Message-ID from raw header data.
+
+        Args:
+            header_data: Raw bytes of the header section
+
+        Returns:
+            Message-ID string (without angle brackets) or None
+        """
+        try:
+            header_str = header_data.decode("utf-8", errors="replace")
+            for line in header_str.split("\n"):
+                if line.lower().startswith("message-id:"):
+                    message_id = line.split(":", 1)[1].strip()
+                    # Remove angle brackets if present
+                    if message_id.startswith("<") and message_id.endswith(">"):
+                        message_id = message_id[1:-1]
+                    return message_id
+        except Exception as e:
+            logger.debug(f"Failed to extract Message-ID: {e}")
+        return None
+
+    def _parse_fetch_response(self, response: list) -> dict[bytes, str]:
+        """
+        Parse IMAP FETCH response to extract UID -> Message-ID mapping.
+
+        Args:
+            response: Raw IMAP FETCH response
+
+        Returns:
+            Dictionary mapping UID (bytes) to Message-ID (str)
+        """
+        uid_to_message_id: dict[bytes, str] = {}
+
+        for item in response:
+            if item is None or item == b")":
+                continue
+
+            if not isinstance(item, tuple) or len(item) < 2:
+                continue
+
+            header, header_data = item[0], item[1]
+            if not isinstance(header, bytes) or not isinstance(header_data, bytes):
+                continue
+
+            # Extract UID from header string (format: b'123 (UID 456 BODY[HEADER...])')
+            match = re.search(b"UID\\s+(\\d+)", header, re.IGNORECASE)
+            if not match:
+                continue
+
+            current_uid = match.group(1)
+
+            # Extract Message-ID from header data
+            message_id = self._extract_message_id_from_header(header_data)
+
+            if message_id:
+                uid_to_message_id[current_uid] = message_id
+            else:
+                # Fallback if Message-ID is missing
+                uid_str = current_uid.decode()
+                fallback_id = f"UID-{uid_str}@{self.account_id}.scapin.local"
+                uid_to_message_id[current_uid] = fallback_id
+
+        return uid_to_message_id
+
+    def _fetch_batch_message_ids(
+        self, batch_ids: list[bytes]
+    ) -> dict[bytes, str]:
+        """
+        Fetch Message-IDs for a batch of UIDs.
+
+        Args:
+            batch_ids: List of UIDs to fetch
+
+        Returns:
+            Dictionary mapping UID to Message-ID
+        """
+        if not batch_ids or self._connection is None:
+            return {}
+
+        # Sort UIDs ascending (some servers optimize for this)
+        sorted_batch = sorted(batch_ids, key=lambda x: int(x))
+        msg_set = b",".join(sorted_batch)
+        msg_set_str = msg_set.decode()
+
+        logger.info(f"Fetching headers for {len(batch_ids)} UIDs: {msg_set_str}")
+
+        status, response = self._connection.uid(
+            "FETCH", msg_set_str, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
+        )
+
+        if status != "OK":
+            logger.warning("Failed to fetch headers for UID batch")
+            return {}
+
+        return self._parse_fetch_response(response)
+
     def _filter_unprocessed_emails(
         self, msg_ids: list[bytes], _folder: str, limit: Optional[int] = None
     ) -> list[bytes]:
@@ -559,83 +658,15 @@ class IMAPClient:
         try:
             tracker = get_processed_tracker()
             unprocessed_ids: list[bytes] = []
-            batch_size = 10  # Fetch headers in batches of 10
+            batch_size = 10
 
-            # Process in batches, stopping early when we have enough
             for batch_start in range(0, len(msg_ids), batch_size):
                 batch_end = min(batch_start + batch_size, len(msg_ids))
                 batch_ids = msg_ids[batch_start:batch_end]
 
-                # Fetch Message-ID headers for this batch using UIDs
-                # IMPORTANT: Sort UIDs ascending for the FETCH command as some servers
-                # optimize for or require ascending order.
-                sorted_batch = sorted(batch_ids, key=lambda x: int(x))
-                msg_set = b",".join(sorted_batch)
-                msg_set_str = msg_set.decode()
-                logger.info(f"Fetching headers for {len(batch_ids)} UIDs: {msg_set_str}")
-
-                status, response = self._connection.uid(
-                    "FETCH", msg_set_str, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
-                )
-
-                if status != "OK":
-                    logger.warning(
-                        f"Failed to fetch headers for UID batch {batch_start}-{batch_end}"
-                    )
-                    continue
-
-                # Parse response to get UID -> Message-ID mapping
-                uid_to_message_id: dict[bytes, str] = {}
-                debug_first_item = None
-
-                for item in response:
-                    if item is None or item == b")":
-                        continue
-
-                    if isinstance(item, tuple) and len(item) >= 2:
-                        header = item[0]
-                        header_data = item[1]
-
-                        if not debug_first_item:
-                            debug_first_item = header
-
-                        if isinstance(header, bytes) and isinstance(header_data, bytes):
-                            try:
-                                # Extract UID from header string (format: b'123 (UID 456 BODY[HEADER...])')
-                                import re
-
-                                match = re.search(b"UID\\s+(\\d+)", header, re.IGNORECASE)
-                                if match:
-                                    current_uid = match.group(1)
-                                else:
-                                    continue
-
-                                # ... existing parsing ...
-                                header_str = header_data.decode("utf-8", errors="replace")
-                                message_id = None
-                                for line in header_str.split("\n"):
-                                    if line.lower().startswith("message-id:"):
-                                        message_id = line.split(":", 1)[1].strip()
-                                        if message_id.startswith("<") and message_id.endswith(">"):
-                                            message_id = message_id[1:-1]
-                                        uid_to_message_id[current_uid] = message_id
-                                        break
-
-                                # Fallback if Message-ID is missing
-                                if current_uid not in uid_to_message_id:
-                                    uid_str = current_uid.decode()
-                                    fallback_id = f"UID-{uid_str}@{self.account_id}.scapin.local"
-                                    uid_to_message_id[current_uid] = fallback_id
-
-                            except Exception as e:
-                                logger.debug(f"Failed to parse header for UID: {e}")
-
-                # Get Message-IDs for this batch
+                # Fetch and parse Message-IDs for this batch
+                uid_to_message_id = self._fetch_batch_message_ids(batch_ids)
                 batch_message_ids = list(uid_to_message_id.values())
-
-                logger.info(
-                    f"Batch parsed {len(uid_to_message_id)}/{len(batch_ids)} UIDs. First header: {debug_first_item}"
-                )
 
                 if not batch_message_ids:
                     continue
@@ -651,7 +682,7 @@ class IMAPClient:
                     if message_id and message_id in unprocessed_message_ids:
                         unprocessed_ids.append(uid)
 
-                        # Stop early if we have enough!
+                        # Stop early if we have enough
                         if limit and len(unprocessed_ids) >= limit:
                             logger.info(
                                 f"Early stop: found {limit} unprocessed emails "
@@ -670,7 +701,6 @@ class IMAPClient:
 
         except Exception as e:
             logger.error(f"Error filtering unprocessed emails: {e}", exc_info=True)
-            # On error, return original list to avoid blocking email processing
             return msg_ids[:limit] if limit else msg_ids
 
     def _flag_failed_email(self, msg_id: bytes, folder: str, error: str) -> None:
