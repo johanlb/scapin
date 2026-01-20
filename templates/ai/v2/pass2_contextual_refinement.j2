@@ -76,9 +76,9 @@ La passe précédente a des doutes. Vérifie particulièrement ces points (sans 
 {% for note in context.notes[:max_context_notes | default(5)] %}
 #### {{ note.title }} [{{ note.note_type }}]
 **Derniere MAJ**: {{ note.last_modified | format_date }}
-**Pertinence**: {{ note.relevance_score | format_confidence }}
+**Pertinence**: {{ note.relevance | format_confidence }}
 
-{{ note.snippet | truncate_smart(500) }}
+{{ note.summary | truncate_smart(500) }}
 
 {% endfor %}
 {% else %}
