@@ -66,6 +66,37 @@ class QueueService:
         self._action_history = action_history or get_action_history()
         self._event_emitter = event_emitter or get_queue_event_emitter()
 
+        # Recover any items stuck in 'in_progress' from a previous crash
+        self._recover_orphaned_items()
+
+    def _recover_orphaned_items(self) -> None:
+        """
+        Recover orphaned items that were left in 'in_progress' status.
+
+        This can happen if the server restarts during bulk reanalysis.
+        Items stuck in 'in_progress' are reset to 'pending' so they can
+        be processed again.
+        """
+        try:
+            orphaned_items = self._storage.load_queue(status="in_progress")
+
+            if not orphaned_items:
+                return
+
+            logger.warning(
+                f"Found {len(orphaned_items)} orphaned items in 'in_progress' status, "
+                "recovering to 'pending'"
+            )
+
+            for item in orphaned_items:
+                item_id = item.get("id")
+                if item_id:
+                    self._storage.update_item(item_id, {"status": "pending"})
+                    logger.info(f"Recovered orphaned item {item_id} to pending")
+
+        except Exception as e:
+            logger.error(f"Failed to recover orphaned items: {e}")
+
     async def list_items(
         self,
         account_id: str | None = None,
