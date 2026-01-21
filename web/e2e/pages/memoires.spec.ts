@@ -359,7 +359,13 @@ test.describe('Note Actions', () => {
 
   test('should open note detail page with correct URL when clicking new window button', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - the 3-column layout doesn't exist and window.open doesn't make sense
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const noteTitle = page.locator('article h1');
     const hasNote = await noteTitle.isVisible().catch(() => false);
 
