@@ -1547,8 +1547,9 @@ class MultiPassAnalyzer:
         adjusted_action = action
         adjusted_extractions = extractions
 
-        # Check for valuable extractions (note enrichments, not just OmniFocus tasks)
-        has_valuable_extractions = any(ext.note_cible and not ext.omnifocus for ext in extractions)
+        # Check for valuable extractions (any extraction targeting a note has historical value)
+        # An extraction with note_cible is valuable regardless of omnifocus flag
+        has_valuable_extractions = any(ext.note_cible for ext in extractions)
 
         # Rule 1: Downgrade "flag" or "queue" for old emails
         # - Both require active follow-up which is inappropriate for old emails
