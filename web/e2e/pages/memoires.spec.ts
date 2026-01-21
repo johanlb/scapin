@@ -356,6 +356,42 @@ test.describe('Note Actions', () => {
       await expect(newWindowButton).toBeVisible();
     }
   });
+
+  test('should open note detail page with correct URL when clicking new window button', async ({
+    authenticatedPage: page,
+  }) => {
+    const noteTitle = page.locator('article h1');
+    const hasNote = await noteTitle.isVisible().catch(() => false);
+
+    if (hasNote) {
+      // Intercept window.open calls
+      const windowOpenPromise = page.evaluate(() => {
+        return new Promise<string>((resolve) => {
+          const originalOpen = window.open;
+          window.open = (url: string | URL | undefined) => {
+            resolve(url?.toString() || '');
+            return null;
+          };
+          // Restore after 5 seconds if not called
+          setTimeout(() => {
+            window.open = originalOpen;
+            resolve('');
+          }, 5000);
+        });
+      });
+
+      // Click the new window button
+      const newWindowButton = page.locator('button[title="Ouvrir dans une nouvelle fenêtre"]');
+      await newWindowButton.click();
+
+      // Wait for window.open to be called
+      const openedUrl = await windowOpenPromise;
+
+      // URL should start with /memoires/ (not /notes/)
+      expect(openedUrl).toMatch(/^\/memoires\//);
+      expect(openedUrl).not.toMatch(/^\/notes\//);
+    }
+  });
 });
 
 test.describe('Error Handling', () => {
