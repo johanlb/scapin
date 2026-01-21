@@ -919,8 +919,10 @@ def _convert_retrieved_context(
             note_id=n.get("note_id", ""),
             title=n.get("title", ""),
             note_type=n.get("note_type", "general"),
+            summary=n.get("summary", ""),
             relevance=n.get("relevance", 0.0),
-            snippet=n.get("snippet", ""),
+            tags=n.get("tags", []),
+            path=n.get("path", ""),
         )
         for n in retrieved_context.get("notes", [])
     ]
