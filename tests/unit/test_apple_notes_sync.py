@@ -75,11 +75,14 @@ class TestProtectedFields:
         assert hasattr(AppleNotesSync, "APPLE_SYSTEM_FIELDS")
         system = AppleNotesSync.APPLE_SYSTEM_FIELDS
 
-        # Check Apple fields
-        assert "title" in system
+        # Check Apple fields (title intentionally excluded to preserve Scapin titles)
+        assert "title" not in system  # Title is preserved, not overwritten by Apple
         assert "source" in system
         assert "apple_id" in system
         assert "synced" in system
+        assert "apple_folder" in system
+        assert "created" in system
+        assert "modified" in system
 
     def test_no_overlap_between_protected_and_system(self):
         """Verify no field is both protected and system."""
@@ -138,8 +141,8 @@ Old content
         # Format note with Smart Merge
         result = sync_service._format_scapin_note(sample_apple_note, existing_path)
 
-        # Apple fields should be updated
-        assert "title: Test Note" in result  # Updated by Apple
+        # Title should be PRESERVED (not updated by Apple)
+        assert "title: Old Title" in result  # Title preserved, not overwritten
         assert "apple_id: apple-123" in result
 
         # Scapin fields should be PRESERVED
@@ -173,8 +176,9 @@ Content
 
         result = sync_service._format_scapin_note(sample_apple_note, existing_path)
 
-        # Apple fields should be updated
-        assert "title: Test Note" in result
+        # Title should be PRESERVED (not updated by Apple)
+        assert "title: Old Title" in result  # Title preserved, not overwritten
+        # Other Apple fields should be updated
         assert "apple_folder: Notes" in result
         # Note: modified is updated to Apple's new value
         assert "2026-01-17" in result  # New modified date

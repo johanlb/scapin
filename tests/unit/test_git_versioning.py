@@ -525,7 +525,7 @@ class TestNoteManagerGitIntegration:
 
         manager.delete_note(note_id)
 
-        # Check deletion commit was created
+        # Check soft delete (move to trash) commit was created
         commits = list(manager.git.repo.iter_commits())
-        assert len(commits) == 3  # Initial + create + delete
-        assert "Delete note" in commits[0].message
+        assert len(commits) == 3  # Initial + create + move to trash
+        assert "Move note" in commits[0].message  # Soft delete = move to _Supprimées

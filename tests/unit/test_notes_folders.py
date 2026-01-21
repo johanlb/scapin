@@ -194,6 +194,8 @@ class TestNotesService:
             config = MagicMock()
             config.notes_dir = tmpdir
             service = NotesService(config=config)
+            # Inject NoteManager with tmpdir to avoid using singleton
+            service._note_manager = NoteManager(Path(tmpdir), auto_index=False, git_enabled=False)
 
             result = await service.create_folder("Projects/New")
 

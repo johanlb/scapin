@@ -952,8 +952,10 @@ class NoteManager:
         trash_dir = self.notes_dir / TRASH_FOLDER
         trash_dir.mkdir(parents=True, exist_ok=True)
 
-        # Move to trash
+        # Move to trash (preserve subfolder structure)
         trash_path = trash_dir / f"{note_id}.md"
+        # Create parent directories in trash if note is in a subfolder
+        trash_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.rename(trash_path)
         logger.info("Moved note to trash", extra={"note_id": note_id, "trash_path": str(trash_path)})
 
@@ -973,9 +975,11 @@ class NoteManager:
 
         # Git commit move to trash
         if self.git:
+            # Resolve symlinks to handle /private/var vs /var on macOS
+            resolved_notes_dir = self.notes_dir.resolve()
             self.git.commit_move(
-                old_path=str(file_path.relative_to(self.notes_dir)),
-                new_path=str(trash_path.relative_to(self.notes_dir)),
+                old_path=str(file_path.resolve().relative_to(resolved_notes_dir)),
+                new_path=str(trash_path.resolve().relative_to(resolved_notes_dir)),
                 note_title=note.title,
             )
 

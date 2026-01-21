@@ -344,15 +344,20 @@ class TestSearchService:
         mock_note.metadata = {"path": "Tests"}
 
         # Mock NoteManager
+        # Note: search_notes returns L2 distance, which is converted to similarity
+        # using formula: similarity = 1 / (1 + distance)
+        # To get a similarity score of ~0.85, we need distance ≈ 0.176
+        l2_distance = 0.176
+        expected_score = 1.0 / (1.0 + l2_distance)  # ≈ 0.85
         mock_manager = MagicMock()
-        mock_manager.search_notes.return_value = [(mock_note, 0.85)]
+        mock_manager.search_notes.return_value = [(mock_note, l2_distance)]
         service._note_manager = mock_manager
 
         results = await service._search_notes("meetings", 10, None, None)
 
         assert len(results) == 1
         assert results[0].id == "note-123"
-        assert results[0].score == 0.85
+        assert abs(results[0].score - expected_score) < 0.01  # Allow small float error
         mock_manager.search_notes.assert_called_once()
 
     @pytest.mark.asyncio
