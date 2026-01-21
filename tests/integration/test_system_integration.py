@@ -112,7 +112,7 @@ class TestSystemIntegration:
         )
 
         # Render template
-        tm = TemplateManager(templates_dir=template_dir)
+        tm = TemplateManager(template_dir=template_dir)
         rendered = tm.render(
             "email_analysis.j2",
             subject=email_metadata.subject,
@@ -286,7 +286,7 @@ class TestSystemIntegration:
         template_file = template_dir / "test.j2"
         safe_write_file(template_file, "Hello {{ name }}")
 
-        tm = TemplateManager(templates_dir=template_dir)
+        tm = TemplateManager(template_dir=template_dir)
 
         # First render - loads template
         result1 = tm.render("test.j2", name="World")
@@ -296,10 +296,7 @@ class TestSystemIntegration:
         result2 = tm.render("test.j2", name="Alice")
         assert result2 == "Hello Alice"
 
-        # Clear cache
-        tm.clear_cache()
-
-        # Third render - reloads template
+        # Third render - Jinja2 handles caching automatically with auto_reload=True
         result3 = tm.render("test.j2", name="Bob")
         assert result3 == "Hello Bob"
 

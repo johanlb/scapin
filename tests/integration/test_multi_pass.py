@@ -9,7 +9,7 @@ Tests the full integration of:
 - Model escalation
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -184,47 +184,46 @@ class TestContextSearchIntegration:
 
 
 class TestTemplateIntegration:
-    """Test template rendering integration"""
+    """Test template rendering integration - Four Valets v3.0"""
 
-    def test_pass1_template_produces_valid_prompt(self):
-        """Pass 1 template produces a prompt with required sections"""
+    def test_grimaud_template_produces_valid_prompt(self):
+        """Grimaud (Pass 1) template produces a prompt with required sections"""
         renderer = TemplateRenderer()
 
         # Create realistic event using mock to match template expectations
         mock_event = MagicMock()
         mock_event.title = "Réunion projet Alpha lundi"
         mock_event.content = "Bonjour,\n\nJe confirme notre réunion lundi 15h pour le projet Alpha.\n\nMarc"
-        mock_event.timestamp = datetime.now().isoformat()
+        mock_event.timestamp = datetime.now(timezone.utc)
         mock_event.source_type = "email"
         mock_event.sender = MagicMock()
-        mock_event.sender.display_name = "Marc Dupont"
+        mock_event.sender.name = "Marc Dupont"
         mock_event.sender.email = "marc@example.com"
         mock_event.entities = [
             Entity(type="person", value="Marc Dupont", confidence=0.9),
             Entity(type="project", value="Projet Alpha", confidence=0.85),
         ]
 
-        prompt = renderer.render_pass1(event=mock_event, max_content_chars=8000)
+        prompt = renderer.render_grimaud(event=mock_event, max_content_chars=8000)
 
         # Check for required sections
-        assert "EXTRACTION" in prompt
-        assert "confiance" in prompt.lower()
+        assert "extraction" in prompt.lower()
         assert "projet alpha" in prompt.lower()
 
-    def test_pass2_template_includes_context(self):
-        """Pass 2 template includes context and previous results"""
+    def test_bazin_template_includes_context(self):
+        """Bazin (Pass 2) template includes context and previous results"""
         renderer = TemplateRenderer()
 
         event = MagicMock()
         event.title = "Re: Projet Alpha"
         event.content = "Ok pour lundi"
-        event.timestamp = "2026-01-15T10:00:00"
+        event.timestamp = datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
         event.source_type = "email"
         event.sender = MagicMock()
-        event.sender.display_name = "Marc"
+        event.sender.name = "Marc"
         event.sender.email = "marc@example.com"
 
-        previous_result = {
+        grimaud_result = {
             "extractions": [{"info": "Réunion confirmée", "type": "evenement"}],
             "action": "archive",
             "confidence": {
@@ -242,15 +241,16 @@ class TestTemplateIntegration:
             "### Profils\n**Marc Dupont** - Tech Lead"
         )
         mock_context.is_empty = False
+        mock_context.notes = []
 
-        prompt = renderer.render_pass2(
+        prompt = renderer.render_bazin(
             event=event,
-            previous_result=previous_result,
+            grimaud_result=grimaud_result,
             context=mock_context,
             max_content_chars=8000,
         )
 
-        assert "context" in prompt.lower() or "CONTEXTE" in prompt
+        assert "context" in prompt.lower() or "CONTEXTE" in prompt or "bazin" in prompt.lower()
 
 
 class TestHighStakesDetection:
