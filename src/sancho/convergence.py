@@ -345,6 +345,25 @@ class AnalysisContext:
 
 
 @dataclass
+class AdaptiveEscalationConfig:
+    """Configuration for adaptive model escalation based on confidence."""
+
+    # Enable/disable adaptive escalation
+    enabled: bool = True
+
+    # Confidence threshold below which to escalate to a more powerful model
+    threshold: float = 0.80
+
+    # Model escalation map
+    escalation_map: dict[str, str] = field(
+        default_factory=lambda: {
+            "haiku": "sonnet",
+            "sonnet": "opus",
+        }
+    )
+
+
+@dataclass
 class FourValetsConfig:
     """Configuration for Four Valets v3.0 architecture."""
 
@@ -362,7 +381,7 @@ class FourValetsConfig:
     planchet_stop_confidence: float = 0.90
     mousqueton_queue_confidence: float = 0.90
 
-    # Modèles par valet
+    # Modèles par valet (défaut)
     models: dict[str, str] = field(
         default_factory=lambda: {
             "grimaud": "haiku",
@@ -380,6 +399,11 @@ class FourValetsConfig:
             "planchet": {"temperature": 0.3, "max_tokens": 2000},
             "mousqueton": {"temperature": 0.2, "max_tokens": 2500},
         }
+    )
+
+    # Adaptive escalation (escalate to stronger model if confidence < threshold)
+    adaptive_escalation: AdaptiveEscalationConfig = field(
+        default_factory=AdaptiveEscalationConfig
     )
 
     # Fallback vers legacy si erreur
@@ -434,12 +458,38 @@ class MultiPassConfig:
 
 
 # Status messages for UI (see UI_VOCABULARY.md)
+# Legacy multi-pass messages (v2.2)
 PASS_STATUS_MESSAGES = {
     1: "Sancho jette un coup d'œil au contenu...",
     2: "Sancho investigue...",
     3: "Sancho enquête de manière approfondie...",
     4: "Sancho consulte ses sources...",
     5: "Sancho délibère sur cette affaire...",
+}
+
+# Four Valets v3.0 status messages (during analysis)
+VALET_STATUS_MESSAGES = {
+    "grimaud": "Grimaud observe la péripétie...",
+    "bazin": "Bazin consulte les mémoires...",
+    "planchet": "Planchet vérifie et critique...",
+    "mousqueton": "Mousqueton délibère...",
+}
+
+# Four Valets v3.0 UI names (for pass history display)
+# Format: "Action par Valet (modèle)"
+VALET_UI_NAMES = {
+    "grimaud": "Premier coup d'œil",
+    "bazin": "Éclairage des mémoires",
+    "planchet": "Critique et vérification",
+    "mousqueton": "Arbitrage final",
+}
+
+# Four Valets v3.0 short names (for compact display)
+VALET_SHORT_NAMES = {
+    "grimaud": "Grimaud observe",
+    "bazin": "Bazin éclaire",
+    "planchet": "Planchet vérifie",
+    "mousqueton": "Mousqueton tranche",
 }
 
 PASS_UI_NAMES = {

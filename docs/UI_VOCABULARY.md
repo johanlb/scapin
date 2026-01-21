@@ -173,30 +173,59 @@ L'interface Scapin utilise un vocabulaire évocateur du XVIIe siècle et de l'un
 
 ---
 
-## Table de correspondance : Analyse Multi-Pass
+## Table de correspondance : Analyse Multi-Pass (Four Valets v3.0)
 
-### Noms des passes
+### Les Quatre Valets de Sancho
 
-| Terme UI | Pass technique | Modèle | Description |
-|----------|----------------|--------|-------------|
-| **Coup d'œil** | Pass 1 | Haiku | Première lecture sans contexte |
-| **Investigation** | Pass 2 | Haiku | Enrichissement avec contexte |
-| **Enquête approfondie** | Pass 3 | Haiku | Approfondissement, nouvelles entités |
-| **Consultation** | Pass 4 | Sonnet | Raisonnement avancé |
-| **Délibération** | Pass 5 | Opus | Analyse experte, arbitrage |
+| Valet | Maître | Rôle | Modèle (défaut) |
+|-------|--------|------|-----------------|
+| **Grimaud** | Athos | Observation silencieuse — extraction brute | Haiku |
+| **Bazin** | Aramis | Éclairage des mémoires — enrichissement contextuel | Haiku (→ Sonnet/Opus) |
+| **Planchet** | d'Artagnan | Critique et vérification — validation | Haiku (→ Sonnet/Opus) |
+| **Mousqueton** | Porthos | Arbitrage final — décision | Sonnet (→ Opus) |
+
+### Noms des passes (affichage détaillé)
+
+| Valet | Nom UI (format long) | Exemple avec modèle |
+|-------|---------------------|---------------------|
+| Grimaud | **Premier coup d'œil** par Grimaud | "Premier coup d'œil par Grimaud (haiku)" |
+| Bazin | **Éclairage des mémoires** par Bazin | "Éclairage des mémoires par Bazin (sonnet)" |
+| Planchet | **Critique et vérification** par Planchet | "Critique et vérification par Planchet (opus)" |
+| Mousqueton | **Arbitrage final** par Mousqueton | "Arbitrage final par Mousqueton (opus)" |
+
+### Noms des passes (affichage compact)
+
+| Valet | Nom UI (format court) |
+|-------|-----------------------|
+| Grimaud | Grimaud observe |
+| Bazin | Bazin éclaire |
+| Planchet | Planchet vérifie |
+| Mousqueton | Mousqueton tranche |
 
 ### Messages de statut pendant l'analyse
 
-| Pass | Message de statut |
-|------|-------------------|
-| Pass 1 | "Sancho jette un coup d'œil à cette péripétie..." |
-| Pass 2 | "Sancho investigue..." |
-| Pass 3 | "Sancho enquête de manière approfondie..." |
-| Pass 4 | "Sancho consulte ses sources..." |
-| Pass 5 | "Sancho délibère sur cette affaire..." |
+| Valet | Message de statut |
+|-------|-------------------|
+| Grimaud | "Grimaud observe la péripétie..." |
+| Bazin | "Bazin consulte les mémoires..." |
+| Planchet | "Planchet vérifie et critique..." |
+| Mousqueton | "Mousqueton délibère..." |
 | Recherche contexte | "Passepartout fouille dans vos mémoires..." |
 | Préparation | "Figaro prépare ses fourberies..." |
 | Terminé | "Sancho a terminé son examen" |
+
+### Escalade adaptative des modèles
+
+L'escalade se fait automatiquement selon deux critères :
+
+**1. Confiance insuffisante (< 80%)**
+- Haiku → Sonnet → Opus
+
+**2. Contenu critique (escalade directe vers Opus)**
+- Contenu légal/contractuel (bail, contrat, facture...)
+- Document financier (bilan, rapport financier...)
+- Montant élevé (> 1000€)
+- Signalement par l'IA (contenu sensible détecté)
 
 ### Confiance décomposée
 

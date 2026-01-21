@@ -306,6 +306,83 @@ class MultiPassAnalyzer:
         ]
     )
 
+    # Sensitive content indicators (conflicts, HR issues, strategic decisions)
+    # These require careful handling → escalate to Opus
+    SENSITIVE_INDICATORS = frozenset(
+        [
+            # Conflicts and heated discussions
+            "conflit",
+            "conflict",
+            "dispute",
+            "litige",
+            "désaccord",
+            "disagreement",
+            "plainte",
+            "complaint",
+            "réclamation",
+            "claim",
+            "mécontentement",
+            "dissatisfaction",
+            "insatisfait",
+            "unhappy",
+            "inacceptable",
+            "unacceptable",
+            "mise en demeure",
+            "formal notice",
+            # HR and employment issues
+            "licenciement",
+            "dismissal",
+            "layoff",
+            "fin de contrat",
+            "end of contract",
+            "démission",
+            "resignation",
+            "rupture conventionnelle",
+            "avertissement",
+            "warning",
+            "sanction",
+            "entretien préalable",
+            "disciplinary",
+            # Negotiations and strategic decisions
+            "négociation",
+            "negotiation",
+            "proposition commerciale",
+            "offre ferme",
+            "firm offer",
+            "contre-proposition",
+            "counter-offer",
+            "décision stratégique",
+            "strategic decision",
+            "partenariat",
+            "partnership",
+            "acquisition",
+            "fusion",
+            "merger",
+            # Urgency and critical issues
+            "urgent",
+            "critique",
+            "critical",
+            "priorité absolue",
+            "top priority",
+            "deadline impérative",
+            "immédiat",
+            "immediate",
+            "asap",
+            # Confidential and sensitive data
+            "confidentiel",
+            "confidential",
+            "secret",
+            "ne pas diffuser",
+            "do not share",
+            "strictement personnel",
+            "strictly personal",
+            "données personnelles",
+            "personal data",
+            "rgpd",
+            "gdpr",
+        ]
+    )
+
     # Newsletter/digest indicators (periodic content, no lasting value)
     NEWSLETTER_INDICATORS = frozenset(
         [
@@ -1135,6 +1212,116 @@ class MultiPassAnalyzer:
         age = now - event_date
         return max(0, age.days)
 
+    # --- Critical content detection (triggers Opus escalation) ---
+
+    # Threshold for high-stakes amounts (triggers Opus escalation)
+    HIGH_AMOUNT_THRESHOLD = 1000  # EUR
+
+    def _is_critical_content(self, event: PerceivedEvent) -> tuple[bool, Optional[str]]:
+        """
+        Check if content is critical and requires Opus-level analysis.
+
+        Critical content includes:
+        - Legal/contractual documents (bail, contrat, facture, etc.)
+        - Financial documents (bilan, rapport financier, etc.)
+        - Sensitive content (conflicts, HR issues, negotiations, etc.)
+        - High amounts (> 1000€)
+
+        Args:
+            event: The event to check
+
+        Returns:
+            Tuple of (is_critical, reason)
+        """
+        title = (getattr(event, "title", "") or "").lower()
+        content = (getattr(event, "content", "") or "").lower()
+        full_text = f"{title} {content}"
+
+        # Check 1: Legal/contractual content
+        is_legal = any(ind in full_text for ind in self.LEGAL_INDICATORS)
+        if is_legal:
+            matched = next((ind for ind in self.LEGAL_INDICATORS if ind in full_text), "unknown")
+            logger.info(f"Critical content detected: legal/contractual (matched: '{matched}')")
+            return True, f"legal_contractual:{matched}"
+
+        # Check 2: Financial documents
+        is_financial = any(ind in full_text for ind in self.FINANCIAL_INDICATORS)
+        if is_financial:
+            matched = next((ind for ind in self.FINANCIAL_INDICATORS if ind in full_text), "unknown")
+            logger.info(f"Critical content detected: financial document (matched: '{matched}')")
+            return True, f"financial_document:{matched}"
+
+        # Check 3: Sensitive content (conflicts, HR, negotiations, confidential)
+        is_sensitive = any(ind in full_text for ind in self.SENSITIVE_INDICATORS)
+        if is_sensitive:
+            matched = next((ind for ind in self.SENSITIVE_INDICATORS if ind in full_text), "unknown")
+            logger.info(f"Critical content detected: sensitive (matched: '{matched}')")
+            return True, f"sensitive:{matched}"
+
+        # Check 4: High amounts (> 1000€)
+        amount = self._extract_highest_amount(full_text)
+        if amount and amount > self.HIGH_AMOUNT_THRESHOLD:
+            logger.info(f"Critical content detected: high amount ({amount}€ > {self.HIGH_AMOUNT_THRESHOLD}€)")
+            return True, f"high_amount:{amount}€"
+
+        return False, None
+
+    def _extract_highest_amount(self, text: str) -> Optional[float]:
+        """
+        Extract the highest monetary amount from text.
+
+        Handles formats like:
+        - 1500€, 1 500€, 1500 €
+        - 1500 euros, 1 500 EUR
+        - 1,500.00€ (US format)
+        - 1.500,00€ (EU format)
+
+        Args:
+            text: Text to search for amounts
+
+        Returns:
+            Highest amount found, or None if no amounts found
+        """
+        import re
+
+        amounts = []
+
+        # Pattern for amounts with € or euros/EUR
+        patterns = [
+            r'(\d{1,3}(?:[\s.,]\d{3})*(?:[.,]\d{2})?)\s*(?:€|euros?|eur)\b',
+            r'(?:€|euros?|eur)\s*(\d{1,3}(?:[\s.,]\d{3})*(?:[.,]\d{2})?)',
+        ]
+
+        for pattern in patterns:
+            matches = re.findall(pattern, text, re.IGNORECASE)
+            for match in matches:
+                try:
+                    # Normalize the number
+                    num_str = match.strip()
+                    # Remove spaces
+                    num_str = num_str.replace(" ", "")
+                    # Handle EU vs US format
+                    if "," in num_str and "." in num_str:
+                        # Both present: determine which is decimal
+                        if num_str.rfind(",") > num_str.rfind("."):
+                            # EU format: 1.500,00
+                            num_str = num_str.replace(".", "").replace(",", ".")
+                        else:
+                            # US format: 1,500.00
+                            num_str = num_str.replace(",", "")
+                    elif "," in num_str:
+                        # Could be EU decimal (1500,00) or thousand sep (1,500)
+                        if len(num_str.split(",")[-1]) == 2:
+                            num_str = num_str.replace(",", ".")
+                        else:
+                            num_str = num_str.replace(",", "")
+
+                    amounts.append(float(num_str))
+                except ValueError:
+                    continue
+
+        return max(amounts) if amounts else None
+
     # --- Ephemeral content detection helpers ---
 
     def _is_protected_document(self, full_text: str, from_person: str) -> bool:
@@ -1661,10 +1848,27 @@ class MultiPassAnalyzer:
 
         logger.info(f"Starting Four Valets analysis for event {event.event_id}")
 
+        # === DETECT CRITICAL CONTENT (triggers Opus escalation) ===
+        # Critical content: legal/contractual, financial documents, high amounts (> 1000€)
+        is_critical, critical_reason = self._is_critical_content(event)
+        if is_critical:
+            logger.info(f"Critical content detected: {critical_reason} → Opus escalation enabled")
+
         # === GRIMAUD (Pass 1) — Extraction silencieuse ===
         grimaud = await self._run_grimaud(event)
         passes.append(grimaud)
         total_tokens += grimaud.tokens_used
+
+        # Check if Grimaud flagged the content as critical/sensitive
+        # This allows the AI to signal critical content even if not auto-detected
+        grimaud_flagged_critical = getattr(grimaud, "is_critical", False) or (
+            grimaud.confidence_assessment
+            and grimaud.confidence_assessment.get("is_critical", False)
+        )
+        if grimaud_flagged_critical and not is_critical:
+            is_critical = True
+            critical_reason = "grimaud_flagged"
+            logger.info("Grimaud flagged content as critical → Opus escalation enabled")
 
         # Check for early stop (ephemeral content at 95%+ confidence)
         if self._should_early_stop(grimaud):
@@ -1689,12 +1893,12 @@ class MultiPassAnalyzer:
             )
 
         # === BAZIN (Pass 2) — Enrichissement contextuel ===
-        bazin = await self._run_bazin(event, grimaud, context)
+        bazin = await self._run_bazin(event, grimaud, context, is_critical)
         passes.append(bazin)
         total_tokens += bazin.tokens_used
 
         # === PLANCHET (Pass 3) — Critique et validation ===
-        planchet = await self._run_planchet(event, passes, context)
+        planchet = await self._run_planchet(event, passes, context, is_critical)
         passes.append(planchet)
         total_tokens += planchet.tokens_used
 
@@ -1713,7 +1917,7 @@ class MultiPassAnalyzer:
             )
 
         # === MOUSQUETON (Pass 4) — Arbitrage final ===
-        mousqueton = await self._run_mousqueton(event, passes, context)
+        mousqueton = await self._run_mousqueton(event, passes, context, is_critical)
         passes.append(mousqueton)
         total_tokens += mousqueton.tokens_used
 
@@ -1755,6 +1959,7 @@ class MultiPassAnalyzer:
         event: PerceivedEvent,
         grimaud: PassResult,
         context: Optional[StructuredContext],
+        is_critical_content: bool = False,
     ) -> PassResult:
         """
         Execute Bazin (Pass 2) — Enrichissement contextuel.
@@ -1769,7 +1974,11 @@ class MultiPassAnalyzer:
             max_content_chars=self.config.four_valets.bazin_max_chars,
             max_context_notes=self.config.four_valets.bazin_max_notes,
         )
-        model_tier = self._get_valet_model("bazin")
+        # Pass Grimaud's confidence for adaptive escalation
+        # Critical content escalates directly to Opus
+        model_tier = self._get_valet_model(
+            "bazin", grimaud.confidence.overall, is_critical_content
+        )
 
         result = await self._call_model(
             prompt=prompt,
@@ -1785,6 +1994,7 @@ class MultiPassAnalyzer:
         event: PerceivedEvent,
         previous_passes: list[PassResult],
         context: Optional[StructuredContext],
+        is_critical_content: bool = False,
     ) -> PassResult:
         """
         Execute Planchet (Pass 3) — Critique et validation.
@@ -1802,7 +2012,11 @@ class MultiPassAnalyzer:
             context=context,
             max_content_chars=getattr(self.config.four_valets, "planchet_max_chars", 8000),
         )
-        model_tier = self._get_valet_model("planchet")
+        # Pass Bazin's confidence for adaptive escalation
+        # Critical content escalates directly to Opus
+        model_tier = self._get_valet_model(
+            "planchet", bazin.confidence.overall, is_critical_content
+        )
 
         result = await self._call_model(
             prompt=prompt,
@@ -1818,6 +2032,7 @@ class MultiPassAnalyzer:
         event: PerceivedEvent,
         previous_passes: list[PassResult],
         context: Optional[StructuredContext],
+        is_critical_content: bool = False,
     ) -> PassResult:
         """
         Execute Mousqueton (Pass 4) — Arbitrage final.
@@ -1836,7 +2051,11 @@ class MultiPassAnalyzer:
             planchet_result=planchet.to_dict(),
             context=context,
         )
-        model_tier = self._get_valet_model("mousqueton")
+        # Pass Planchet's confidence for adaptive escalation (Sonnet → Opus if needed)
+        # Critical content escalates directly to Opus
+        model_tier = self._get_valet_model(
+            "mousqueton", planchet.confidence.overall, is_critical_content
+        )
 
         result = await self._call_model(
             prompt=prompt,
@@ -1872,10 +2091,61 @@ class MultiPassAnalyzer:
         threshold = self.config.four_valets.planchet_stop_confidence
         return not planchet.needs_mousqueton and planchet.confidence.overall >= threshold
 
-    def _get_valet_model(self, valet: str) -> ModelTier:
-        """Get the configured model for a valet."""
+    def _get_valet_model(
+        self,
+        valet: str,
+        previous_confidence: Optional[float] = None,
+        is_critical_content: bool = False,
+    ) -> ModelTier:
+        """
+        Get the model for a valet, with adaptive escalation if confidence is low.
+
+        Implements the adaptive escalation from FOUR_VALETS_SPEC.md section 5.2:
+        - If previous pass confidence < threshold (0.80), escalate to stronger model
+        - Escalation map: haiku → sonnet → opus
+
+        Additionally, escalate directly to Opus for critical content:
+        - Legal/contractual documents (bail, contrat, facture, etc.)
+        - High amounts (> 1000€)
+
+        Args:
+            valet: Valet name (grimaud, bazin, planchet, mousqueton)
+            previous_confidence: Confidence from the previous pass (triggers escalation if < threshold)
+            is_critical_content: If True, escalate directly to Opus (legal/contractual or high amount)
+
+        Returns:
+            ModelTier to use for this valet
+        """
+        # Critical content: escalate directly to Opus for Bazin onwards
+        # Legal/contractual documents and high amounts require careful analysis
+        if is_critical_content and valet in ("bazin", "planchet", "mousqueton"):
+            logger.info(
+                f"Critical content escalation for {valet}: direct to Opus "
+                f"(legal/contractual content or high amount)"
+            )
+            return ModelTier.OPUS
+
+        # Get default model for this valet
         model_name = self.config.four_valets.models.get(valet, "haiku")
-        return ModelTier(model_name)
+        base_model = ModelTier(model_name)
+
+        # Check for adaptive escalation based on confidence
+        escalation_config = self.config.four_valets.adaptive_escalation
+        if (
+            escalation_config.enabled
+            and previous_confidence is not None
+            and previous_confidence < escalation_config.threshold
+        ):
+            # Escalate to a more powerful model
+            escalated_model_name = escalation_config.escalation_map.get(model_name)
+            if escalated_model_name:
+                logger.info(
+                    f"Adaptive escalation for {valet}: {model_name} → {escalated_model_name} "
+                    f"(previous confidence {previous_confidence:.0%} < {escalation_config.threshold:.0%})"
+                )
+                return ModelTier(escalated_model_name)
+
+        return base_model
 
     def _get_valet_api_params(self, valet: str) -> dict:
         """Get the API parameters for a valet."""

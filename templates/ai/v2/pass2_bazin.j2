@@ -181,6 +181,17 @@ Grimaud t'a transmis son observation brute. À toi de la **confronter aux mémoi
 - Complète les dates via le calendrier
 - Lie les projets et personnes entre eux
 
+**⚠️ RÈGLE OBLIGATOIRE — PROPOSITIONS D'ENRICHISSEMENT**
+
+Si une note candidate a une **pertinence ≥ 80%** ET que l'événement contient des **informations nouvelles** liées à cette note, **TU DOIS créer une extraction** pour l'enrichir.
+
+Exemples de situations où tu DOIS proposer un enrichissement :
+- Note "Nautil 6" (pertinence 100%) + email annonçant fin de bail → **CRÉER** une extraction pour enrichir avec la date de fin
+- Note "Projet Alpha" (pertinence 90%) + email confirmant un budget → **CRÉER** une extraction pour enrichir avec le montant
+- Note "Marc Dupont" (pertinence 85%) + email mentionnant un nouveau rôle → **CRÉER** une extraction pour enrichir avec le rôle
+
+**Si Grimaud n'a pas proposé d'enrichissement mais qu'une note pertinente existe, AJOUTE cette extraction.**
+
 ### 4. PRÉPARER L'ÉCRITURE MÉMOIRE (pour Passepartout)
 
 Pour chaque extraction, sois **précis** sur ce qui doit être écrit :
@@ -199,6 +210,25 @@ Pour chaque extraction, sois **précis** sur ce qui doit être écrit :
     "format_suggere": "bullet_date",
     "contexte_existant": "Le budget Q1 était de 30k€"
   }
+}
+```
+
+**Exemple 2 — Enrichissement à partir d'une note pertinente trouvée**
+Si tu trouves une note "Nautil 6" avec pertinence 100% et que l'email annonce une fin de bail :
+
+```json
+{
+  "info": "Fin de bail Nautil 6 prévue le 30/04/2025 - préavis reçu du locataire",
+  "type": "fait",
+  "importance": "haute",
+  "note_cible": "Nautil 6",
+  "note_action": "enrichir",
+  "memory_hint": {
+    "section_cible": "## Location",
+    "format_suggere": "bullet_date",
+    "contexte_existant": "Informations sur le bail actuel"
+  },
+  "date": "2025-04-30"
 }
 ```
 
