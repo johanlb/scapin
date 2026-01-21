@@ -581,8 +581,12 @@
 
 	function openInNewWindow() {
 		if (!selectedNote) return;
-		// Open the note in a new window/tab
-		const url = `/memoires/${encodeURIComponent(selectedNote.path)}`;
+		// Build the full path: folder/note_id
+		// The [...path] route extracts noteId from the last segment
+		const fullPath = selectedNote.path
+			? `${selectedNote.path}/${selectedNote.note_id}`
+			: selectedNote.note_id;
+		const url = `/memoires/${fullPath}`;
 		window.open(url, '_blank', 'width=800,height=600');
 	}
 

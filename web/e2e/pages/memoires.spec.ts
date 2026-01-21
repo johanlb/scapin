@@ -357,8 +357,9 @@ test.describe('Note Actions', () => {
     }
   });
 
-  test('should open note detail page with correct URL when clicking new window button', async ({
+  test('should open note detail page and display note content when clicking new window button', async ({
     authenticatedPage: page,
+    context,
   }, testInfo) => {
     // Skip on mobile - the 3-column layout doesn't exist and window.open doesn't make sense
     if (testInfo.project.name.includes('mobile')) {
@@ -366,37 +367,56 @@ test.describe('Note Actions', () => {
       return;
     }
 
+    // Wait for a note to be displayed
     const noteTitle = page.locator('article h1');
-    const hasNote = await noteTitle.isVisible().catch(() => false);
+    const hasNote = await noteTitle.isVisible({ timeout: 10000 }).catch(() => false);
 
-    if (hasNote) {
-      // Intercept window.open calls
-      const windowOpenPromise = page.evaluate(() => {
-        return new Promise<string>((resolve) => {
-          const originalOpen = window.open;
-          window.open = (url: string | URL | undefined) => {
-            resolve(url?.toString() || '');
-            return null;
-          };
-          // Restore after 5 seconds if not called
-          setTimeout(() => {
-            window.open = originalOpen;
-            resolve('');
-          }, 5000);
-        });
-      });
-
-      // Click the new window button
-      const newWindowButton = page.locator('button[title="Ouvrir dans une nouvelle fenêtre"]');
-      await newWindowButton.click();
-
-      // Wait for window.open to be called
-      const openedUrl = await windowOpenPromise;
-
-      // URL should start with /memoires/ (not /notes/)
-      expect(openedUrl).toMatch(/^\/memoires\//);
-      expect(openedUrl).not.toMatch(/^\/notes\//);
+    if (!hasNote) {
+      // No notes available, skip the test
+      test.skip();
+      return;
     }
+
+    // Get the note title from the main page for later comparison
+    const expectedTitle = await noteTitle.textContent();
+    expect(expectedTitle).toBeTruthy();
+
+    // Click the new window button and wait for popup
+    const newWindowButton = page.locator('button[title="Ouvrir dans une nouvelle fenêtre"]');
+    await expect(newWindowButton).toBeVisible();
+
+    // Wait for the popup window
+    const [popup] = await Promise.all([
+      context.waitForEvent('page'),
+      newWindowButton.click(),
+    ]);
+
+    // Wait for the popup to load
+    await popup.waitForLoadState('domcontentloaded');
+
+    // Verify the URL pattern
+    const popupUrl = popup.url();
+    expect(popupUrl).toContain('/memoires/');
+    expect(popupUrl).not.toContain('/notes/');
+
+    // Wait for the note to load in the popup (not loading state)
+    await popup.waitForTimeout(2000);
+
+    // Verify the note title is displayed in the popup page
+    const popupTitle = popup.locator('h1');
+    await expect(popupTitle).toBeVisible({ timeout: 10000 });
+
+    // The title in the detail page should match the title from the list
+    const actualTitle = await popupTitle.textContent();
+    expect(actualTitle?.trim()).toBe(expectedTitle?.trim());
+
+    // Verify no error message is shown
+    const errorMessage = popup.locator('text=Note introuvable');
+    const hasError = await errorMessage.isVisible().catch(() => false);
+    expect(hasError).toBe(false);
+
+    // Close the popup
+    await popup.close();
   });
 });
 
