@@ -1,0 +1,131 @@
+{# Pass 2: Bazin - User Prompt (DYNAMIC) #}
+{# Cette partie contient les données variables de chaque requête #}
+
+{% if briefing %}
+## BRIEFING (ce que tu sais de Johan)
+
+{{ briefing }}
+
+---
+{% endif %}
+
+## ÉVÉNEMENT PERÇU (la péripétie)
+
+**Source** : {{ event.source_type }}
+**Date** : {{ event.timestamp }}
+**Âge** : {% set age_days = (now - event.timestamp).days if event.timestamp else 0 %}{{ age_days }} jour(s) {% if age_days > 30 %}⚠️ ANCIEN — Vérifie les doublons !{% elif age_days > 7 %}📅 Récent{% else %}✨ Frais{% endif %}
+{% if event.sender %}
+**Expéditeur** : {{ event.sender.name }}{% if event.sender.email %} <{{ event.sender.email }}>{% endif %}
+{% endif %}
+{% if event.title %}
+**Sujet** : {{ event.title }}
+{% endif %}
+
+### CONTENU (résumé)
+
+{{ event.content | truncate_smart(max_content_chars // 2) }}
+
+---
+
+## RAPPORT DE GRIMAUD (Pass {{ previous_result.pass_number | default(1) }})
+
+### Ce qu'il a observé
+{% for extraction in previous_result.extractions %}
+- **{{ extraction.type }}** ({{ extraction.importance }}): {{ extraction.info }}
+  {% if extraction.note_cible %}- Note cible: {{ extraction.note_cible }}{% endif %}
+  {% if extraction.omnifocus %}- OmniFocus: oui{% endif %}
+  {% if extraction.calendar %}- Calendrier: oui{% endif %}
+{% endfor %}
+
+{% if not previous_result.extractions %}
+*Grimaud n'a rien extrait. Vérifie s'il a raison.*
+{% endif %}
+
+### Son verdict : {{ previous_result.action }}
+
+### Sa confiance
+- Entités: {{ (previous_result.confidence.entity_confidence * 100) | int }}%
+- Action: {{ (previous_result.confidence.action_confidence * 100) | int }}%
+- Extraction: {{ (previous_result.confidence.extraction_confidence * 100) | int }}%
+- Complétude: {{ (previous_result.confidence.completeness * 100) | int }}%
+- **Global**: {{ (previous_result.confidence.overall * 100) | int }}%
+
+### Entités qu'il a vues
+{% for entity in previous_result.entities_discovered %}
+- {{ entity }}
+{% endfor %}
+
+### Son raisonnement
+{{ previous_result.reasoning }}
+
+{% if previous_result.next_pass_questions %}
+### ⚠️ QUESTIONS DE GRIMAUD (à vérifier en priorité)
+{% for q in previous_result.next_pass_questions %}
+- [ ] {{ q }}
+{% endfor %}
+{% endif %}
+
+---
+
+## LES MÉMOIRES (ton territoire)
+
+{% if context.notes %}
+### Notes PKM candidates ({{ context.notes | length }})
+
+**⚠️ ATTENTION** : Certaines notes peuvent être des faux positifs (même nom mais contexte différent).
+**Ignore** les notes qui ne sont pas pertinentes pour cet événement précis.
+
+{% for note in context.notes[:max_context_notes | default(5)] %}
+#### 📄 {{ note.title }} [{{ note.note_type }}]
+**Dernière MAJ**: {{ note.last_modified | format_date }}
+**Pertinence estimée**: {{ note.relevance | format_confidence }}
+
+{{ note.summary | truncate_smart(500) }}
+
+{% endfor %}
+{% else %}
+*Aucune note trouvée. Les entités sont-elles nouvelles ?*
+{% endif %}
+
+{% if context.entity_profiles %}
+### Profils d'entités connus
+{% for name, profile in context.entity_profiles.items() %}
+#### 👤 {{ profile.canonical_name }} ({{ profile.entity_type }})
+{% if profile.role %}- Rôle: {{ profile.role }}{% endif %}
+{% for fact in profile.key_facts[:3] %}
+- {{ fact }}
+{% endfor %}
+{% if profile.related_entities %}
+- Lié à: {{ profile.related_entities | join(", ") }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if context.calendar %}
+### Calendrier
+{% for event in context.calendar[:3] %}
+- **{{ event.title }}** : {{ event.start_time | format_date("%d/%m %H:%M") }}
+  {% if event.attendees %}Participants: {{ event.attendees | join(", ") }}{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if context.tasks %}
+### Tâches OmniFocus existantes
+{% for task in context.tasks[:3] %}
+- **{{ task.title }}** ({{ task.status }})
+  {% if task.due_date %}Échéance: {{ task.due_date | format_date }}{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if context.conflicts %}
+### ⚠️ CONFLITS DÉTECTÉS
+{% for conflict in context.conflicts %}
+- {{ conflict.type }}: {{ conflict.description }}
+  - Source 1: {{ conflict.source_1 }}
+  - Source 2: {{ conflict.source_2 }}
+{% endfor %}
+{% endif %}
+
+---
+
+*Maintenant, consulte les mémoires et affine le rapport.*

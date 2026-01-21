@@ -1,0 +1,101 @@
+{# Pass 3: Planchet - User Prompt (DYNAMIC) #}
+{# Cette partie contient les données variables de chaque requête #}
+
+{% if briefing %}
+## BRIEFING (ce que tu sais de Johan)
+
+{{ briefing }}
+
+---
+{% endif %}
+
+## ÉVÉNEMENT PERÇU (la péripétie)
+
+**Source** : {{ event.source_type }}
+**Date** : {{ event.timestamp }}
+**Âge** : {% set age_days = (now - event.timestamp).days if event.timestamp else 0 %}{{ age_days }} jour(s) {% if age_days > 30 %}⚠️ ANCIEN — Pourquoi si tard ?{% elif age_days > 7 %}📅 Récent{% else %}✨ Frais{% endif %}
+{% if event.sender %}
+**Expéditeur** : {{ event.sender.name }}{% if event.sender.email %} <{{ event.sender.email }}>{% endif %}
+{% endif %}
+{% if event.title %}
+**Sujet** : {{ event.title }}
+{% endif %}
+
+### CONTENU
+
+{{ event.content | truncate_smart(max_content_chars) }}
+
+---
+
+## RAPPORT DE GRIMAUD (Pass 1)
+
+### Ce qu'il a observé
+{% for extraction in previous_passes[0].extractions %}
+- **{{ extraction.type }}** ({{ extraction.importance }}): {{ extraction.info }}
+  {% if extraction.note_cible %}- Note cible: {{ extraction.note_cible }}{% endif %}
+{% endfor %}
+
+{% if not previous_passes[0].extractions %}
+*Grimaud n'a rien extrait.*
+{% endif %}
+
+### Son verdict : {{ previous_passes[0].action }}
+### Sa confiance : {{ (previous_passes[0].confidence.overall * 100) | int }}%
+
+---
+
+## RAPPORT DE BAZIN (Pass 2)
+
+### Ce qu'il a affiné
+{% for extraction in previous_passes[1].extractions %}
+- **{{ extraction.type }}** ({{ extraction.importance }}): {{ extraction.info }}
+  {% if extraction.note_cible %}- Note cible: {{ extraction.note_cible }}{% endif %}
+{% endfor %}
+
+{% if not previous_passes[1].extractions %}
+*Bazin n'a rien extrait non plus.*
+{% endif %}
+
+### Son verdict : {{ previous_passes[1].action }}
+### Sa confiance : {{ (previous_passes[1].confidence.overall * 100) | int }}%
+
+{% if previous_passes[1].changes_made %}
+### Changements par rapport à Grimaud
+{% for change in previous_passes[1].changes_made %}
+- {{ change }}
+{% endfor %}
+{% endif %}
+
+{% if previous_passes[1].context_influence %}
+### Influence du contexte
+{{ previous_passes[1].context_influence.explanation }}
+
+{% if previous_passes[1].context_influence.contradictions %}
+**Contradictions détectées** :
+{% for c in previous_passes[1].context_influence.contradictions %}
+- {{ c }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+---
+
+## LES MÉMOIRES (pour référence)
+
+{% if context.notes %}
+### Notes PKM utilisées
+{% for note in context.notes[:5] %}
+- 📄 **{{ note.title }}** [{{ note.note_type }}] — Pertinence: {{ note.relevance | format_confidence }}
+{% endfor %}
+{% endif %}
+
+{% if context.conflicts %}
+### ⚠️ CONFLITS NON RÉSOLUS
+{% for conflict in context.conflicts %}
+- {{ conflict.type }}: {{ conflict.description }}
+{% endfor %}
+{% endif %}
+
+---
+
+*Maintenant, examine le travail de tes collègues, ajuste si nécessaire, et rends ton verdict.*

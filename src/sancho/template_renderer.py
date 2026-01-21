@@ -8,6 +8,7 @@ Part of Sancho's multi-pass extraction system (v2.2).
 See ADR-005 in MULTI_PASS_SPEC.md for design decisions.
 """
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -17,6 +18,25 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoe
 from src.monitoring.logger import get_logger
 
 logger = get_logger("template_renderer")
+
+
+@dataclass
+class SplitPrompt:
+    """
+    A prompt split into system and user parts for cache optimization.
+
+    The system prompt contains static instructions (cacheable by Anthropic API).
+    The user prompt contains dynamic data (event, context, previous results).
+    """
+
+    system: str
+    user: str
+
+    @property
+    def combined(self) -> str:
+        """Get the combined prompt (for backwards compatibility)."""
+        return f"{self.system}\n\n---\n\n{self.user}"
+
 
 # Default template directory (relative to project root)
 DEFAULT_TEMPLATE_DIR = Path(__file__).parent.parent.parent / "templates" / "ai" / "v2"
@@ -273,6 +293,142 @@ class TemplateRenderer:
             full_context=context,  # Template expects full_context
             briefing=self._get_briefing(),
         )
+
+    # ==================== Cache-Optimized Rendering (v3.1) ====================
+    #
+    # These methods return SplitPrompt with separate system/user prompts
+    # to enable Anthropic API prompt caching.
+    #
+    # System prompt: Static instructions (cacheable, ~70% of tokens)
+    # User prompt: Dynamic data (event, context, previous results)
+
+    def render_grimaud_split(
+        self,
+        event: Any,
+        max_content_chars: int = 8000,
+    ) -> SplitPrompt:
+        """
+        Render Grimaud (Pass 1) with cache optimization.
+
+        Returns separate system and user prompts for Anthropic cache.
+
+        Args:
+            event: PerceivedEvent to analyze
+            max_content_chars: Maximum content length
+
+        Returns:
+            SplitPrompt with system and user parts
+        """
+        system = self.render("pass1_grimaud_system")
+        user = self.render(
+            "pass1_grimaud_user",
+            event=event,
+            max_content_chars=max_content_chars,
+            briefing=self._get_briefing(),
+        )
+        return SplitPrompt(system=system, user=user)
+
+    def render_bazin_split(
+        self,
+        event: Any,
+        grimaud_result: dict,
+        context: Any,
+        max_content_chars: int = 8000,
+        max_context_notes: int = 5,
+    ) -> SplitPrompt:
+        """
+        Render Bazin (Pass 2) with cache optimization.
+
+        Returns separate system and user prompts for Anthropic cache.
+
+        Args:
+            event: PerceivedEvent to analyze
+            grimaud_result: Result from Grimaud pass
+            context: StructuredContext with notes, calendar, etc.
+            max_content_chars: Maximum content length
+            max_context_notes: Maximum notes to include
+
+        Returns:
+            SplitPrompt with system and user parts
+        """
+        system = self.render("pass2_bazin_system")
+        user = self.render(
+            "pass2_bazin_user",
+            event=event,
+            previous_result=grimaud_result,
+            context=context,
+            max_content_chars=max_content_chars,
+            max_context_notes=max_context_notes,
+            briefing=self._get_briefing(),
+        )
+        return SplitPrompt(system=system, user=user)
+
+    def render_planchet_split(
+        self,
+        event: Any,
+        grimaud_result: dict,
+        bazin_result: dict,
+        context: Any,
+        max_content_chars: int = 8000,
+    ) -> SplitPrompt:
+        """
+        Render Planchet (Pass 3) with cache optimization.
+
+        Returns separate system and user prompts for Anthropic cache.
+
+        Args:
+            event: PerceivedEvent to analyze
+            grimaud_result: Result from Grimaud pass
+            bazin_result: Result from Bazin pass
+            context: StructuredContext with notes, calendar, etc.
+            max_content_chars: Maximum content length
+
+        Returns:
+            SplitPrompt with system and user parts
+        """
+        system = self.render("pass3_planchet_system")
+        user = self.render(
+            "pass3_planchet_user",
+            event=event,
+            previous_passes=[grimaud_result, bazin_result],
+            context=context,
+            max_content_chars=max_content_chars,
+            briefing=self._get_briefing(),
+        )
+        return SplitPrompt(system=system, user=user)
+
+    def render_mousqueton_split(
+        self,
+        event: Any,
+        grimaud_result: dict,
+        bazin_result: dict,
+        planchet_result: dict,
+        context: Any,
+    ) -> SplitPrompt:
+        """
+        Render Mousqueton (Pass 4) with cache optimization.
+
+        Returns separate system and user prompts for Anthropic cache.
+
+        Args:
+            event: PerceivedEvent to analyze
+            grimaud_result: Result from Grimaud pass
+            bazin_result: Result from Bazin pass
+            planchet_result: Result from Planchet pass
+            context: StructuredContext with notes, calendar, etc.
+
+        Returns:
+            SplitPrompt with system and user parts
+        """
+        system = self.render("pass4_mousqueton_system")
+        user = self.render(
+            "pass4_mousqueton_user",
+            event=event,
+            previous_passes=[grimaud_result, bazin_result, planchet_result],
+            full_context=context,
+            briefing=self._get_briefing(),
+        )
+        return SplitPrompt(system=system, user=user)
 
     # Custom Jinja2 filters
 

@@ -58,6 +58,24 @@ OLD_EMAIL_THRESHOLD_DAYS = 90  # 3 months
 # Emails older than this don't get OmniFocus tasks created
 VERY_OLD_EMAIL_THRESHOLD_DAYS = 365  # 1 year
 
+# Types d'extraction avec valeur historique intrinsèque (ne jamais réduire la confiance)
+HISTORICAL_VALUE_TYPES = {"reference", "montant", "relation"}
+
+# Mots-clés indiquant une valeur contractuelle/historique dans le contenu
+HISTORICAL_KEYWORDS = {
+    # Contractuel
+    "bail", "contrat", "signature", "signé", "résilié", "résiliation",
+    "achat", "vente", "vendu", "acheté", "acquisition",
+    # Relations locatives/immobilières
+    "locataire", "propriétaire", "loyer", "caution", "dépôt",
+    # Périodes
+    "début", "fin", "période", "durée", "terme",
+    # Événements de vie
+    "naissance", "décès", "mariage", "divorce",
+    # Références
+    "facture", "devis", "commande", "livraison",
+}
+
 
 class MultiPassAnalyzerError(Exception):
     """Base exception for multi-pass analyzer errors"""
@@ -751,6 +769,84 @@ class MultiPassAnalyzer:
             )
 
         except ParseError:
+            logger.warning("Failed to parse response, will retry on next pass")
+            raise
+
+        except Exception as e:
+            logger.error(f"API call failed: {e}", exc_info=True)
+            raise APICallError(f"API call failed: {e}") from e
+
+    async def _call_model_with_cache(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        model_tier: ModelTier,
+        pass_number: int,
+        pass_type: PassType,
+    ) -> PassResult:
+        """
+        Call the AI model with prompt caching enabled.
+
+        Uses Anthropic's prompt caching feature to cache the system prompt,
+        reducing costs by ~90% on cached tokens and improving latency.
+
+        Args:
+            system_prompt: Static system prompt (will be cached)
+            user_prompt: Dynamic user prompt
+            model_tier: Model tier to use
+            pass_number: Current pass number
+            pass_type: Type of pass
+
+        Returns:
+            Parsed PassResult
+
+        Raises:
+            APICallError: If API call fails
+            ParseError: If response parsing fails
+        """
+        start_time = time.time()
+        model = self.MODEL_MAP[model_tier]
+
+        try:
+            # Call Claude via router with cache
+            response, usage = self.ai_router._call_claude_with_cache(
+                user_prompt=user_prompt,
+                system_prompt=system_prompt,
+                model=model,
+                max_tokens=2048,
+            )
+
+            duration_ms = (time.time() - start_time) * 1000
+
+            if response is None:
+                raise APICallError("API returned None response")
+
+            # Log cache stats
+            cache_read = usage.get("cache_read_input_tokens", 0)
+            cache_write = usage.get("cache_creation_input_tokens", 0)
+            if cache_read > 0:
+                logger.info(
+                    f"Pass {pass_number} ({pass_type.value}): Cache HIT - "
+                    f"{cache_read} tokens from cache"
+                )
+            elif cache_write > 0:
+                logger.info(
+                    f"Pass {pass_number} ({pass_type.value}): Cache WRITE - "
+                    f"{cache_write} tokens written to cache"
+                )
+
+            # Parse response
+            return self._parse_response(
+                response=response,
+                model_tier=model_tier,
+                model_id=model.value,
+                pass_number=pass_number,
+                pass_type=pass_type,
+                usage=usage,
+                duration_ms=duration_ms,
+            )
+
+        except ParseError:
             # Re-raise our own exceptions
             raise
         except Exception as e:
@@ -1028,21 +1124,18 @@ class MultiPassAnalyzer:
                 else:
                     ext_confidence = ExtractionConfidence.from_single_score(default_confidence)
 
-                # Check for past dates (> 90 days ago)
+                # Check for past dates and adjust confidence with nuanced rules (Option D)
                 ext_date = ext_data.get("date")
-                has_obsolete_date = False
-                if ext_date:
-                    has_obsolete_date = self._is_date_obsolete(ext_date)
-                    if has_obsolete_date:
-                        # Don't mark as required if date is obsolete
+                obsolete_date_reason = ""
+                if ext_date and self._is_date_obsolete(ext_date):
+                    ext_confidence, should_require, obsolete_date_reason = (
+                        self._adjust_confidence_for_obsolete_date(
+                            ext_confidence, ext_type, importance, info, ext_date
+                        )
+                    )
+                    # Only override required if the adjustment says not to require
+                    if not should_require:
                         required = False
-                        # Set very low confidence to signal "not actionable"
-                        ext_confidence = ExtractionConfidence(
-                            quality=0.0, target_match=0.0, relevance=0.0, completeness=0.0
-                        )
-                        logger.debug(
-                            f"Extraction with obsolete date ({ext_date}): not required, confidence=0"
-                        )
 
                 extraction = Extraction(
                     info=info,
@@ -1176,6 +1269,117 @@ class MultiPassAnalyzer:
         except (ValueError, TypeError):
             logger.debug(f"Could not parse date: {date_str}")
             return None
+
+    def _get_date_age_days(self, date_str: str) -> int:
+        """
+        Calculate how many days ago a date was.
+
+        Args:
+            date_str: Date string to check
+
+        Returns:
+            Number of days in the past (negative if future), or 0 if parsing fails
+        """
+        date_obj = self._parse_date_string(date_str)
+        if not date_obj:
+            return 0
+
+        today = datetime.now(timezone.utc).date()
+        return (today - date_obj).days
+
+    def _has_historical_keywords(self, info: str) -> bool:
+        """
+        Check if extraction info contains keywords indicating historical/contractual value.
+
+        Args:
+            info: The extraction info text
+
+        Returns:
+            True if historical keywords are found
+        """
+        info_lower = info.lower()
+        return any(keyword in info_lower for keyword in HISTORICAL_KEYWORDS)
+
+    def _adjust_confidence_for_obsolete_date(
+        self,
+        ext_confidence: ExtractionConfidence,
+        ext_type: str,
+        importance: str,
+        info: str,
+        date_str: str,
+    ) -> tuple[ExtractionConfidence, bool, str]:
+        """
+        Adjust extraction confidence based on date obsolescence with nuanced rules (Option D).
+
+        Rules:
+        1. Types with intrinsic historical value (reference, montant, relation) → keep original
+        2. Content with historical keywords → keep original
+        3. High importance → reduce to 50% minimum
+        4. Others → reduce to 20% minimum
+
+        Args:
+            ext_confidence: Original extraction confidence
+            ext_type: Type of extraction (fait, evenement, reference, etc.)
+            importance: Importance level (haute, moyenne, basse)
+            info: The extraction info text
+            date_str: The date string
+
+        Returns:
+            Tuple of (adjusted_confidence, should_require, reason)
+        """
+        age_days = self._get_date_age_days(date_str)
+
+        # Date in the future or recent (< 90 days) → no adjustment needed
+        if age_days < 90:
+            return ext_confidence, True, ""
+
+        # Rule 1: Types with intrinsic historical value → keep original confidence
+        if ext_type in HISTORICAL_VALUE_TYPES:
+            logger.debug(
+                f"Keeping confidence for historical type '{ext_type}' despite old date ({age_days} days)"
+            )
+            return ext_confidence, True, f"historical_type:{ext_type}"
+
+        # Rule 2: Historical keywords in content → keep original confidence
+        if self._has_historical_keywords(info):
+            logger.debug(
+                f"Keeping confidence due to historical keywords in: {info[:50]}..."
+            )
+            return ext_confidence, True, "historical_keywords"
+
+        # Rule 3: High importance → 50% minimum confidence
+        if importance == "haute":
+            min_confidence = 0.5
+            adjusted = ExtractionConfidence(
+                quality=max(ext_confidence.quality * 0.5, min_confidence),
+                target_match=max(ext_confidence.target_match * 0.5, min_confidence),
+                relevance=max(ext_confidence.relevance * 0.5, min_confidence),
+                completeness=max(ext_confidence.completeness * 0.5, min_confidence),
+            )
+            logger.debug(
+                f"Reduced confidence to 50% for high-importance extraction with old date ({age_days} days)"
+            )
+            return adjusted, False, "old_date_high_importance"
+
+        # Rule 4: Others → 20% minimum confidence (allows human review)
+        # Scale reduction based on age: 90-365 days → 40%, 1-3 years → 30%, >3 years → 20%
+        if age_days < 365:
+            reduction_factor = 0.4
+        elif age_days < 1095:  # 3 years
+            reduction_factor = 0.3
+        else:
+            reduction_factor = 0.2
+
+        adjusted = ExtractionConfidence(
+            quality=max(ext_confidence.quality * reduction_factor, 0.2),
+            target_match=max(ext_confidence.target_match * reduction_factor, 0.2),
+            relevance=max(ext_confidence.relevance * reduction_factor, 0.2),
+            completeness=max(ext_confidence.completeness * reduction_factor, 0.2),
+        )
+        logger.debug(
+            f"Reduced confidence to {reduction_factor*100:.0f}% for extraction with old date ({age_days} days)"
+        )
+        return adjusted, False, f"old_date_{age_days}d"
 
     def _calculate_event_age_days(self, event: PerceivedEvent) -> int:
         """
@@ -1938,15 +2142,19 @@ class MultiPassAnalyzer:
 
         Like Athos's silent servant, Grimaud extracts raw information
         without context or commentary.
+
+        Uses prompt caching for the static system prompt (~70% of tokens).
         """
-        prompt = self.template_renderer.render_grimaud(
+        # Use split rendering for cache optimization
+        split_prompt = self.template_renderer.render_grimaud_split(
             event=event,
             max_content_chars=self.config.four_valets.grimaud_max_chars,
         )
         model_tier = self._get_valet_model("grimaud")
 
-        result = await self._call_model(
-            prompt=prompt,
+        result = await self._call_model_with_cache(
+            system_prompt=split_prompt.system,
+            user_prompt=split_prompt.user,
             model_tier=model_tier,
             pass_number=1,
             pass_type=PassType.GRIMAUD,
@@ -1966,8 +2174,11 @@ class MultiPassAnalyzer:
 
         Like Aramis's pious servant, Bazin adds wisdom and context
         from the PKM knowledge base.
+
+        Uses prompt caching for the static system prompt (~60% of tokens).
         """
-        prompt = self.template_renderer.render_bazin(
+        # Use split rendering for cache optimization
+        split_prompt = self.template_renderer.render_bazin_split(
             event=event,
             grimaud_result=grimaud.to_dict(),
             context=context,
@@ -1980,8 +2191,9 @@ class MultiPassAnalyzer:
             "bazin", grimaud.confidence.overall, is_critical_content
         )
 
-        result = await self._call_model(
-            prompt=prompt,
+        result = await self._call_model_with_cache(
+            system_prompt=split_prompt.system,
+            user_prompt=split_prompt.user,
             model_tier=model_tier,
             pass_number=2,
             pass_type=PassType.BAZIN,
@@ -2001,11 +2213,14 @@ class MultiPassAnalyzer:
 
         Like d'Artagnan's resourceful servant, Planchet questions
         everything and validates the extractions.
+
+        Uses prompt caching for the static system prompt (~65% of tokens).
         """
         grimaud = previous_passes[0]
         bazin = previous_passes[1] if len(previous_passes) > 1 else grimaud
 
-        prompt = self.template_renderer.render_planchet(
+        # Use split rendering for cache optimization
+        split_prompt = self.template_renderer.render_planchet_split(
             event=event,
             grimaud_result=grimaud.to_dict(),
             bazin_result=bazin.to_dict(),
@@ -2018,8 +2233,9 @@ class MultiPassAnalyzer:
             "planchet", bazin.confidence.overall, is_critical_content
         )
 
-        result = await self._call_model(
-            prompt=prompt,
+        result = await self._call_model_with_cache(
+            system_prompt=split_prompt.system,
+            user_prompt=split_prompt.user,
             model_tier=model_tier,
             pass_number=3,
             pass_type=PassType.PLANCHET,
@@ -2039,12 +2255,15 @@ class MultiPassAnalyzer:
 
         Like Porthos's practical servant, Mousqueton makes the final
         decision when there's disagreement between the valets.
+
+        Uses prompt caching for the static system prompt (~50% of tokens).
         """
         grimaud = previous_passes[0]
         bazin = previous_passes[1] if len(previous_passes) > 1 else grimaud
         planchet = previous_passes[2] if len(previous_passes) > 2 else bazin
 
-        prompt = self.template_renderer.render_mousqueton(
+        # Use split rendering for cache optimization
+        split_prompt = self.template_renderer.render_mousqueton_split(
             event=event,
             grimaud_result=grimaud.to_dict(),
             bazin_result=bazin.to_dict(),
@@ -2057,8 +2276,9 @@ class MultiPassAnalyzer:
             "mousqueton", planchet.confidence.overall, is_critical_content
         )
 
-        result = await self._call_model(
-            prompt=prompt,
+        result = await self._call_model_with_cache(
+            system_prompt=split_prompt.system,
+            user_prompt=split_prompt.user,
             model_tier=model_tier,
             pass_number=4,
             pass_type=PassType.MOUSQUETON,

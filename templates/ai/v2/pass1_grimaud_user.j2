@@ -1,0 +1,37 @@
+{# Pass 1: Grimaud - User Prompt (DYNAMIC) #}
+{# Cette partie contient les données variables de chaque requête #}
+
+{% if briefing %}
+## BRIEFING (ce que tu sais de Johan)
+
+{{ briefing }}
+
+---
+{% endif %}
+
+## ÉVÉNEMENT À OBSERVER (la péripétie)
+
+**Source** : {{ event.source_type }}
+**Date** : {{ event.timestamp }}
+**Âge** : {% set age_days = (now - event.timestamp).days if event.timestamp else 0 %}{{ age_days }} jour(s) {% if age_days > 30 %}⚠️ ANCIEN{% elif age_days > 7 %}📅 Récent{% else %}✨ Frais{% endif %}
+{% if event.sender %}
+**Expéditeur** : {{ event.sender.name }}{% if event.sender.email %} <{{ event.sender.email }}>{% endif %}
+{% endif %}
+{% if event.title %}
+**Sujet** : {{ event.title }}
+{% endif %}
+
+### CONTENU
+
+{{ event.content | truncate_smart(max_content_chars) }}
+
+{% if event.entities %}
+### ENTITÉS PRÉ-DÉTECTÉES
+{% for entity in event.entities %}
+- {{ entity.type }}: {{ entity.value }}{% if entity.metadata %} ({{ entity.metadata }}){% endif %}
+{% endfor %}
+{% endif %}
+
+---
+
+*Maintenant, observe cet événement et rapporte.*

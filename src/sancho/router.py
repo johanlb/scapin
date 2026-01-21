@@ -643,6 +643,86 @@ class AIRouter:
             lambda: self.analyze_with_prompt(prompt, model, system_prompt, max_tokens, max_retries),
         )
 
+    def _call_claude_with_cache(
+        self,
+        user_prompt: str,
+        system_prompt: str,
+        model: AIModel,
+        max_tokens: int = 2048,
+    ) -> tuple[Optional[str], dict]:
+        """
+        Call Claude API with prompt caching enabled.
+
+        Uses Anthropic's prompt caching feature to cache the system prompt,
+        reducing costs by ~90% on cached tokens and improving latency.
+
+        The system prompt is marked with cache_control to be cached.
+
+        Args:
+            user_prompt: Dynamic user prompt (event data, context)
+            system_prompt: Static system prompt (instructions, rules) - will be cached
+            model: Model to use
+            max_tokens: Maximum tokens in response
+
+        Returns:
+            Tuple of (response text or None, usage dict with cache info)
+        """
+        try:
+            # Build request with cache_control on system prompt
+            # See: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+            message = self._client.messages.create(
+                model=model.value,
+                max_tokens=max_tokens,
+                system=[
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+
+            # Extract usage information including cache stats
+            input_tokens = message.usage.input_tokens if hasattr(message, "usage") else 0
+            output_tokens = message.usage.output_tokens if hasattr(message, "usage") else 0
+
+            # Cache-specific usage (if available)
+            cache_creation_input_tokens = getattr(
+                message.usage, "cache_creation_input_tokens", 0
+            )
+            cache_read_input_tokens = getattr(
+                message.usage, "cache_read_input_tokens", 0
+            )
+
+            usage = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "cache_creation_input_tokens": cache_creation_input_tokens,
+                "cache_read_input_tokens": cache_read_input_tokens,
+            }
+
+            # Log cache performance
+            if cache_read_input_tokens > 0:
+                logger.debug(
+                    f"Cache HIT: {cache_read_input_tokens} tokens read from cache"
+                )
+            elif cache_creation_input_tokens > 0:
+                logger.debug(
+                    f"Cache WRITE: {cache_creation_input_tokens} tokens written to cache"
+                )
+
+            # Extract text from response
+            if message.content and len(message.content) > 0:
+                return message.content[0].text, usage
+
+            return None, usage
+
+        except Exception as e:
+            logger.error(f"Claude API call with cache failed: {e}", exc_info=True)
+            raise
+
     def _call_claude_with_system(
         self,
         prompt: str,
