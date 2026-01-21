@@ -1300,10 +1300,18 @@ class MultiPassAnalyzer:
         now = datetime.now(timezone.utc)
 
         # Get event date and ensure timezone awareness
-        event_date = getattr(event, "occurred_at", None) or event.received_at
+        event_date = getattr(event, "occurred_at", None) or getattr(event, "received_at", None)
 
         if event_date is None:
             return 0
+
+        # Convert string to datetime if needed
+        if isinstance(event_date, str):
+            try:
+                event_date = datetime.fromisoformat(event_date.replace("Z", "+00:00"))
+            except ValueError:
+                logger.warning(f"Could not parse event date: {event_date}")
+                return 0
 
         if event_date.tzinfo is None:
             event_date = event_date.replace(tzinfo=timezone.utc)
