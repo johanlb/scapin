@@ -2857,4 +2857,147 @@ export type {
 	AlertsResponse
 };
 
+// ============================================================================
+// MEMORY CYCLES TYPES (Filage & Lecture)
+// ============================================================================
+
+interface FilageLecture {
+	note_id: string;
+	note_title: string;
+	note_type: string;
+	priority: number;
+	reason: string;
+	quality_score: number | null;
+	questions_pending: boolean;
+	questions_count: number;
+	related_event_id?: string;
+}
+
+interface Filage {
+	date: string;
+	generated_at: string;
+	lectures: FilageLecture[];
+	total_lectures: number;
+	events_today: number;
+	notes_with_questions: number;
+}
+
+interface LectureSession {
+	session_id: string;
+	note_id: string;
+	note_title: string;
+	note_content: string;
+	started_at: string;
+	quality_score: number | null;
+	questions: string[];
+}
+
+interface LectureResult {
+	note_id: string;
+	quality_rating: number;
+	next_lecture: string;
+	interval_hours: number;
+	answers_recorded: number;
+	questions_remaining: number;
+	success: boolean;
+}
+
+interface PendingQuestion {
+	question_id: string;
+	note_id: string;
+	note_title: string;
+	question_text: string;
+	created_at: string;
+	answered: boolean;
+	answer?: string;
+}
+
+interface QuestionsListResponse {
+	questions: PendingQuestion[];
+	total: number;
+	by_note: Record<string, number>;
+}
+
+interface LectureStats {
+	note_id: string;
+	total_lectures: number;
+	average_quality: number;
+	last_lecture: string | null;
+	next_lecture: string | null;
+	easiness_factor: number;
+	interval_hours: number;
+}
+
+// ============================================================================
+// MEMORY CYCLES API FUNCTIONS
+// ============================================================================
+
+/**
+ * Get daily filage (morning briefing) with prioritized lectures
+ */
+export async function getFilage(maxLectures = 20): Promise<Filage> {
+	return fetchApi<Filage>(`/briefing/filage?max_lectures=${maxLectures}`);
+}
+
+/**
+ * Start a lecture session for a specific note
+ */
+export async function startLecture(noteId: string): Promise<LectureSession> {
+	return fetchApi<LectureSession>(`/briefing/lecture/${encodeURIComponent(noteId)}/start`, {
+		method: 'POST'
+	});
+}
+
+/**
+ * Complete a lecture session with quality rating and optional question answers
+ */
+export async function completeLecture(
+	noteId: string,
+	quality: number,
+	answers?: Record<string, string>
+): Promise<LectureResult> {
+	return fetchApi<LectureResult>(`/briefing/lecture/${encodeURIComponent(noteId)}/complete`, {
+		method: 'POST',
+		body: JSON.stringify({ quality, answers })
+	});
+}
+
+/**
+ * Get lecture stats for a specific note
+ */
+export async function getLectureStats(noteId: string): Promise<LectureStats> {
+	return fetchApi<LectureStats>(`/notes/${encodeURIComponent(noteId)}/lecture-stats`);
+}
+
+/**
+ * Get list of pending questions across all notes
+ */
+export async function getPendingQuestions(limit = 50): Promise<QuestionsListResponse> {
+	return fetchApi<QuestionsListResponse>(`/notes/questions/pending?limit=${limit}`);
+}
+
+/**
+ * Answer a pending question
+ */
+export async function answerPendingQuestion(
+	questionId: string,
+	answer: string
+): Promise<{ success: boolean }> {
+	return fetchApi<{ success: boolean }>(`/notes/questions/${encodeURIComponent(questionId)}/answer`, {
+		method: 'POST',
+		body: JSON.stringify({ answer })
+	});
+}
+
 export { ApiError };
+
+export type {
+	// Memory Cycles types
+	FilageLecture,
+	Filage,
+	LectureSession,
+	LectureResult,
+	PendingQuestion,
+	QuestionsListResponse,
+	LectureStats
+};

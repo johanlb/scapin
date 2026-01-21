@@ -1,18 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { openCommandPalette } from '$lib/stores';
+	import { memoryCyclesStore } from '$lib/stores/memory-cycles.svelte';
 
 	interface NavItem {
 		href: string;
 		label: string;
 		icon: string;
+		badge?: () => number;
 	}
 
 	const navItems: NavItem[] = [
 		{ href: '/', label: 'Matinée', icon: '☀️' },
 		{ href: '/peripeties', label: 'Péripéties', icon: '🎪' },
 		{ href: '/drafts', label: 'Brouillons', icon: '✏️' },
-		{ href: '/memoires', label: 'Mémoires', icon: '📝' },
+		{ href: '/memoires', label: 'Mémoires', icon: '📝', badge: () => memoryCyclesStore.pendingQuestionsCount },
 		{ href: '/discussions', label: 'Conversations', icon: '💬' },
 		{ href: '/confessions', label: 'Confessions', icon: '📖' },
 		{ href: '/valets', label: 'Valets', icon: '🎭' },
@@ -91,6 +93,7 @@
 	<nav class="flex-1 p-2 space-y-1" aria-label="Navigation principale">
 		{#each navItems as item}
 			{@const active = isActive(item.href, $page.url.pathname)}
+			{@const badgeCount = item.badge ? item.badge() : 0}
 			<a
 				href={item.href}
 				aria-current={active ? 'page' : undefined}
@@ -102,13 +105,26 @@
 					? 'glass-subtle text-[var(--color-accent)] shadow-[inset_0_0_0_1px_var(--color-accent)]/20'
 					: 'text-[var(--color-text-secondary)] hover:bg-[var(--glass-subtle)] hover:text-[var(--color-text-primary)]'}"
 			>
-				<span class="text-lg flex-shrink-0 w-6 text-center" aria-hidden="true">{item.icon}</span>
+				<span class="text-lg flex-shrink-0 w-6 text-center relative" aria-hidden="true">
+					{item.icon}
+					{#if badgeCount > 0 && !expanded}
+						<span class="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+					{/if}
+				</span>
 				{#if expanded}
-					<span class="font-medium text-sm whitespace-nowrap overflow-hidden">{item.label}</span>
+					<span class="font-medium text-sm whitespace-nowrap overflow-hidden flex-1">{item.label}</span>
+					{#if badgeCount > 0}
+						<span class="text-xs px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 font-medium">
+							{badgeCount}
+						</span>
+					{/if}
 				{:else}
 					<!-- Tooltip on hover when collapsed -->
 					<span class="absolute left-full ml-2 px-2 py-1 glass-prominent text-[var(--color-text-primary)] text-xs font-medium rounded-xl shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
 						{item.label}
+						{#if badgeCount > 0}
+							<span class="ml-1 text-red-500">({badgeCount})</span>
+						{/if}
 					</span>
 				{/if}
 			</a>
