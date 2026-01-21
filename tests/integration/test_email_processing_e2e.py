@@ -173,8 +173,10 @@ class TestEmailProcessingE2E:
 
     @patch('src.integrations.email.imap_client.imaplib.IMAP4_SSL')
     @patch('anthropic.Anthropic')
+    @patch('src.sancho.templates.get_template_manager')
     def test_process_email_with_uppercase_enums_from_ai(
         self,
+        mock_get_tm,
         mock_anthropic,
         mock_imap,
         mock_email_config,
@@ -186,6 +188,11 @@ class TestEmailProcessingE2E:
         Claude sometimes returns "DELETE" instead of "delete", "SPAM" instead of "spam".
         Should normalize to lowercase before validation.
         """
+        # Mock template manager to return a simple prompt
+        mock_tm = MagicMock()
+        mock_tm.render.return_value = "Analyze this email"
+        mock_get_tm.return_value = mock_tm
+
         # Create normal email
         msg = EmailMessage()
         msg['From'] = 'spammer@spam.com'
