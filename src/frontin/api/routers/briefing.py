@@ -601,7 +601,7 @@ async def trigger_retouche(
                 success=result.success,
                 quality_before=quality_before,
                 quality_after=quality_after,
-                improvements_count=len(result.improvements) if result.improvements else 0,
+                improvements_count=len(result.actions) if result.actions else 0,
                 message=result.error if result.error else "Retouche terminée avec succès",
             ),
             timestamp=datetime.now(timezone.utc),
