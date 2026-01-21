@@ -7,6 +7,8 @@
 	import { formatRelativeTime } from '$lib/utils/formatters';
 	import { briefingStore } from '$lib/stores';
 	import { notesReviewStore } from '$lib/stores/notes-review.svelte';
+	import { memoryCyclesStore } from '$lib/stores/memory-cycles.svelte';
+	import FilageWidget from '$lib/components/memory/FilageWidget.svelte';
 	import type { ScapinEvent } from '$lib/types';
 
 	// Mock data for development (fallback when API unavailable)
@@ -82,7 +84,11 @@
 
 	// Load data on mount
 	onMount(async () => {
-		await Promise.all([loadBriefingData(), notesReviewStore.fetchStats()]);
+		await Promise.all([
+			loadBriefingData(),
+			notesReviewStore.fetchStats(),
+			memoryCyclesStore.fetchFilage(20)
+		]);
 	});
 
 	async function loadBriefingData(): Promise<void> {
@@ -247,6 +253,16 @@
 			</Card>
 		</section>
 
+		<!-- Filage Widget (Memory Cycles) -->
+		{#if memoryCyclesStore.filage && memoryCyclesStore.totalLectures > 0}
+			<FilageWidget
+				totalLectures={memoryCyclesStore.totalLectures}
+				completedToday={memoryCyclesStore.completedToday}
+				questionsCount={memoryCyclesStore.pendingQuestionsCount}
+				loading={memoryCyclesStore.loading}
+			/>
+		{/if}
+
 		<!-- Notes Review Widget -->
 		{#if notesReviewStore.stats && notesReviewStore.stats.total_due > 0}
 			<section class="mb-5" data-testid="notes-review-widget">
@@ -255,7 +271,7 @@
 				>
 					<span>📝</span> Notes à réviser
 				</h2>
-				<Card interactive onclick={() => goto('/notes/review')}>
+				<Card interactive onclick={() => goto('/memoires/review')}>
 					<div class="flex items-center justify-between p-3">
 						<div>
 							<p class="text-lg font-semibold text-[var(--color-text-primary)]">
