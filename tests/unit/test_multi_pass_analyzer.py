@@ -560,7 +560,7 @@ class TestContextTransparency:
     async def test_no_context_when_early_stop(
         self, mock_ai_router, mock_template_renderer, sample_event
     ):
-        """No context data when analysis stops at Pass 1"""
+        """No context data when analysis stops at Pass 1 (legacy pipeline)"""
         mock_ai_router._call_claude = MagicMock(return_value=(
             '{"action": "archive", "confidence": 98, "extractions": [], "reasoning": "Very clear"}',
             {"input_tokens": 100, "output_tokens": 100},
@@ -572,7 +572,8 @@ class TestContextTransparency:
             enable_coherence_pass=False,
         )
 
-        result = await analyzer.analyze(sample_event)
+        # Use legacy pipeline (Four Valets disabled)
+        result = await analyzer.analyze(sample_event, use_four_valets=False)
 
         assert result.passes_count == 1
         assert result.retrieved_context is None

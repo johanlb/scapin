@@ -24,10 +24,26 @@ logger = get_logger("convergence")
 class PassType(Enum):
     """Types of analysis passes"""
 
+    # Legacy v2.2
     BLIND_EXTRACTION = "blind"  # Pass 1: No context
     CONTEXTUAL_REFINEMENT = "refine"  # Pass 2-3: With context
     DEEP_REASONING = "deep"  # Pass 4: Sonnet
     EXPERT_ANALYSIS = "expert"  # Pass 5: Opus
+
+    # Four Valets v3.0
+    GRIMAUD = "grimaud"  # Pass 1 - Extraction silencieuse (Athos)
+    BAZIN = "bazin"  # Pass 2 - Enrichissement contextuel (Aramis)
+    PLANCHET = "planchet"  # Pass 3 - Critique et validation (d'Artagnan)
+    MOUSQUETON = "mousqueton"  # Pass 4 - Arbitrage final (Porthos)
+
+
+class ValetType(str, Enum):
+    """Type de valet dans l'architecture Four Valets v3.0."""
+
+    GRIMAUD = "grimaud"  # Pass 1 - Extraction silencieuse (Athos)
+    BAZIN = "bazin"  # Pass 2 - Enrichissement contextuel (Aramis)
+    PLANCHET = "planchet"  # Pass 3 - Critique et validation (d'Artagnan)
+    MOUSQUETON = "mousqueton"  # Pass 4 - Arbitrage final (Porthos)
 
 
 @dataclass
@@ -253,6 +269,17 @@ class PassResult:
     # Explicit questions for the next pass (Cooperation v2.3)
     next_pass_questions: list[str] = field(default_factory=list)
 
+    # Four Valets v3.0 fields
+    valet: Optional["ValetType"] = None
+    early_stop: bool = False
+    early_stop_reason: Optional[str] = None
+    needs_mousqueton: bool = True
+    notes_used: list[str] = field(default_factory=list)
+    notes_ignored: list[str] = field(default_factory=list)
+    critique: Optional[dict[str, Any]] = None
+    arbitrage: Optional[dict[str, Any]] = None
+    memory_hint: Optional[dict[str, Any]] = None
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
@@ -291,6 +318,16 @@ class PassResult:
             "duration_ms": self.duration_ms,
             "context_influence": self.context_influence,
             "next_pass_questions": self.next_pass_questions,
+            # Four Valets v3.0 fields
+            "valet": self.valet.value if self.valet else None,
+            "early_stop": self.early_stop,
+            "early_stop_reason": self.early_stop_reason,
+            "needs_mousqueton": self.needs_mousqueton,
+            "notes_used": self.notes_used,
+            "notes_ignored": self.notes_ignored,
+            "critique": self.critique,
+            "arbitrage": self.arbitrage,
+            "memory_hint": self.memory_hint,
         }
 
 
@@ -303,6 +340,48 @@ class AnalysisContext:
     high_stakes: bool = False
     is_thread: bool = False
     has_attachments: bool = False
+
+
+@dataclass
+class FourValetsConfig:
+    """Configuration for Four Valets v3.0 architecture."""
+
+    # Activation
+    enabled: bool = True
+
+    # Limites de contenu par valet
+    grimaud_max_chars: int = 8000
+    bazin_max_chars: int = 4000
+    bazin_max_notes: int = 5
+    planchet_max_chars: int = 4000
+
+    # Seuils d'arrêt
+    grimaud_early_stop_confidence: float = 0.95
+    planchet_stop_confidence: float = 0.90
+    mousqueton_queue_confidence: float = 0.90
+
+    # Modèles par valet
+    models: dict[str, str] = field(
+        default_factory=lambda: {
+            "grimaud": "haiku",
+            "bazin": "haiku",
+            "planchet": "haiku",
+            "mousqueton": "sonnet",
+        }
+    )
+
+    # Paramètres API par valet
+    api_params: dict[str, dict] = field(
+        default_factory=lambda: {
+            "grimaud": {"temperature": 0.1, "max_tokens": 1500},
+            "bazin": {"temperature": 0.2, "max_tokens": 2000},
+            "planchet": {"temperature": 0.3, "max_tokens": 2000},
+            "mousqueton": {"temperature": 0.2, "max_tokens": 2500},
+        }
+    )
+
+    # Fallback vers legacy si erreur
+    fallback_to_legacy: bool = True
 
 
 @dataclass
@@ -342,6 +421,14 @@ class MultiPassConfig:
     owner_names: list[str] = field(
         default_factory=lambda: ["johan", "johan le bail", "johan l.", "johanlb"]
     )
+
+    # Four Valets v3.0 configuration
+    four_valets: FourValetsConfig = field(default_factory=FourValetsConfig)
+
+    @property
+    def four_valets_enabled(self) -> bool:
+        """Check if Four Valets mode is enabled."""
+        return self.four_valets.enabled
 
 
 # Status messages for UI (see UI_VOCABULARY.md)

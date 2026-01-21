@@ -115,7 +115,7 @@ Amélioration du système → Répéter
 
 ### Architecture Cognitive (Phase 0.5 — ✅ Complète)
 
-Scapin utilise une **boucle cognitive itérative** — pas une IA one-shot, mais un raisonnement multi-étapes véritable (Multi-Pass v2.2) :
+Scapin utilise une **boucle cognitive itérative** — pas une IA one-shot, mais un raisonnement multi-étapes véritable :
 
 ```
 Événement → Trivelin → Sancho ↔ Passepartout → Planchet → Figaro → Sganarelle
@@ -123,15 +123,16 @@ Scapin utilise une **boucle cognitive itérative** — pas une IA one-shot, mais
                          └─────────── Boucle d'Apprentissage ─────────┘
 ```
 
-**Raisonnement Multi-Passes de Sancho** (v2.2) :
+**Raisonnement Four Valets de Sancho** (v3.0) :
 
-| Passe | Processus | Modèle | Confiance Cible |
-|-------|-----------|--------|-----------------|
-| **1-3** | Analyse & Contexte | Haiku | ~80% |
-| **4** | Raffinement | Sonnet | ~90% |
-| **5** | Expertise (si besoin) | Opus | ~95%+ |
+| Valet | Rôle | Modèle | Arrêt |
+|-------|------|--------|-------|
+| **Grimaud** | Extraction silencieuse | Haiku | Si early_stop (OTP, spam) |
+| **Bazin** | Enrichissement contextuel | Haiku | — |
+| **Planchet** | Critique et validation | Haiku | Si conf ≥ 90% et pas d'arbitrage |
+| **Mousqueton** | Arbitrage final | Sonnet | Toujours |
 
-**Arrêt** : Confiance ≥ 95% OU convergence atteinte (0 changement).
+**Arrêt** : Confiance ≥ 95% (Grimaud) ou ≥ 90% (Planchet) ou arbitrage Mousqueton.
 **Atomicité** : L'email n'est archivé que si l'enrichissement de la base de connaissances (PKM) réussit.
 
 ---

@@ -44,6 +44,7 @@ from src.sancho.convergence import (
     MultiPassConfig,
     PassResult,
     PassType,
+    ValetType,
     get_pass_type,
     is_high_stakes,
     select_model,
@@ -139,6 +140,14 @@ class MultiPassResult:
     # Context influence from last contextual pass (v2.2.2+)
     context_influence: Optional[dict[str, Any]] = None
 
+    # Four Valets v3.0 fields
+    stopped_at: Optional[str] = None  # "grimaud", "planchet", "mousqueton"
+
+    @property
+    def four_valets_mode(self) -> bool:
+        """True si analysé avec Four Valets v3.0."""
+        return self.stopped_at is not None
+
     @property
     def high_confidence(self) -> bool:
         """Check if result is high confidence (>= 90%)"""
@@ -187,6 +196,9 @@ class MultiPassResult:
             # Retrieved context for transparency (v2.2.2+)
             "retrieved_context": self.retrieved_context,
             "context_influence": self.context_influence,
+            # Four Valets v3.0 fields
+            "stopped_at": self.stopped_at,
+            "four_valets_mode": self.four_valets_mode,
         }
 
 
@@ -353,18 +365,19 @@ class MultiPassAnalyzer:
         self,
         event: PerceivedEvent,
         sender_importance: str = "normal",
+        use_four_valets: bool = True,
     ) -> MultiPassResult:
         """
         Analyze an event using multi-pass extraction.
 
-        1. Pass 1: Blind extraction (Haiku, no context)
-        2. If not converged: search context, run Pass 2
-        3. Continue until convergence or max passes
-        4. Escalate to Sonnet/Opus if needed
+        If use_four_valets is True and Four Valets is enabled in config,
+        uses the v3.0 Four Valets pipeline (Grimaud → Bazin → Planchet → Mousqueton).
+        Otherwise, falls back to the legacy v2.2 pipeline.
 
         Args:
             event: Perceived event to analyze
             sender_importance: Sender importance level (normal, important, vip)
+            use_four_valets: Whether to use Four Valets v3.0 pipeline (default: True)
 
         Returns:
             MultiPassResult with extractions and metadata
@@ -372,6 +385,17 @@ class MultiPassAnalyzer:
         Raises:
             MultiPassAnalyzerError: If analysis fails
         """
+        # Route to Four Valets v3.0 or legacy v2.2 pipeline
+        if use_four_valets and self.config.four_valets_enabled:
+            try:
+                return await self._run_four_valets_pipeline(event, sender_importance)
+            except Exception as e:
+                if self.config.four_valets.fallback_to_legacy:
+                    logger.warning(f"Four Valets failed, falling back to legacy: {e}")
+                else:
+                    raise
+
+        # Legacy v2.2 pipeline
         start_time = time.time()
         total_tokens = 0
         pass_history: list[PassResult] = []
@@ -942,6 +966,16 @@ class MultiPassAnalyzer:
             # Get explicit questions for next pass (v2.3)
             next_pass_questions = data.get("next_pass_questions", [])
 
+            # Four Valets v3.0 fields
+            early_stop = bool(data.get("early_stop", False))
+            early_stop_reason = data.get("early_stop_reason")
+            needs_mousqueton = bool(data.get("needs_mousqueton", True))
+            notes_used = data.get("notes_used", [])
+            notes_ignored = data.get("notes_ignored", [])
+            critique = data.get("critique")
+            arbitrage = data.get("arbitrage")
+            memory_hint = data.get("memory_hint")
+
             return PassResult(
                 pass_number=pass_number,
                 pass_type=pass_type,
@@ -958,6 +992,15 @@ class MultiPassAnalyzer:
                 thinking=thinking,
                 context_influence=context_influence,
                 next_pass_questions=next_pass_questions,
+                # Four Valets v3.0 fields
+                early_stop=early_stop,
+                early_stop_reason=early_stop_reason,
+                needs_mousqueton=needs_mousqueton,
+                notes_used=notes_used,
+                notes_ignored=notes_ignored,
+                critique=critique,
+                arbitrage=arbitrage,
+                memory_hint=memory_hint,
             )
 
         except json.JSONDecodeError as e:
@@ -1753,6 +1796,384 @@ class MultiPassAnalyzer:
             # Retrieved context for transparency (v2.2.2+)
             retrieved_context=serialized_context,
             context_influence=last_context_influence,
+        )
+
+    # ==================== Four Valets v3.0 ====================
+
+    async def _run_four_valets_pipeline(
+        self,
+        event: PerceivedEvent,
+        sender_importance: str = "normal",
+    ) -> MultiPassResult:
+        """
+        Four Valets v3.0 pipeline.
+
+        Pipeline:
+        1. Grimaud (Pass 1) — Extraction silencieuse
+        2. Bazin (Pass 2) — Enrichissement contextuel
+        3. Planchet (Pass 3) — Critique et validation
+        4. Mousqueton (Pass 4) — Arbitrage final (si nécessaire)
+
+        Args:
+            event: Perceived event to analyze
+            sender_importance: Sender importance level
+
+        Returns:
+            MultiPassResult with extractions and metadata
+        """
+        start_time = time.time()
+        total_tokens = 0
+        passes: list[PassResult] = []
+        context: Optional[StructuredContext] = None
+
+        logger.info(f"Starting Four Valets analysis for event {event.event_id}")
+
+        # === GRIMAUD (Pass 1) — Extraction silencieuse ===
+        grimaud = await self._run_grimaud(event)
+        passes.append(grimaud)
+        total_tokens += grimaud.tokens_used
+
+        # Check for early stop (ephemeral content at 95%+ confidence)
+        if self._should_early_stop(grimaud):
+            logger.info(f"Grimaud early stop: {grimaud.early_stop_reason}")
+            return await self._finalize_four_valets(
+                passes=passes,
+                event=event,
+                start_time=start_time,
+                total_tokens=total_tokens,
+                stopped_at="grimaud",
+                stop_reason=f"early_stop: {grimaud.early_stop_reason}",
+                context=None,
+            )
+
+        # Get context for Bazin
+        if self.context_searcher and grimaud.entities_discovered:
+            logger.debug(f"Searching context for entities: {grimaud.entities_discovered}")
+            context = await self.context_searcher.search_for_entities(
+                list(grimaud.entities_discovered),
+                sender_email=getattr(event, "from_person", None),
+            )
+
+        # === BAZIN (Pass 2) — Enrichissement contextuel ===
+        bazin = await self._run_bazin(event, grimaud, context)
+        passes.append(bazin)
+        total_tokens += bazin.tokens_used
+
+        # === PLANCHET (Pass 3) — Critique et validation ===
+        planchet = await self._run_planchet(event, passes, context)
+        passes.append(planchet)
+        total_tokens += planchet.tokens_used
+
+        # Check if Planchet can conclude without Mousqueton
+        if self._planchet_can_conclude(planchet):
+            logger.info(f"Planchet concludes at {planchet.confidence.overall:.0%} confidence")
+            return await self._finalize_four_valets(
+                passes=passes,
+                event=event,
+                start_time=start_time,
+                total_tokens=total_tokens,
+                stopped_at="planchet",
+                stop_reason=f"planchet_confident ({planchet.confidence.overall:.0%})",
+                context=context,
+            )
+
+        # === MOUSQUETON (Pass 4) — Arbitrage final ===
+        mousqueton = await self._run_mousqueton(event, passes, context)
+        passes.append(mousqueton)
+        total_tokens += mousqueton.tokens_used
+
+        return await self._finalize_four_valets(
+            passes=passes,
+            event=event,
+            start_time=start_time,
+            total_tokens=total_tokens,
+            stopped_at="mousqueton",
+            stop_reason="mousqueton_arbitrage",
+            context=context,
+        )
+
+    async def _run_grimaud(self, event: PerceivedEvent) -> PassResult:
+        """
+        Execute Grimaud (Pass 1) — Extraction silencieuse.
+
+        Like Athos's silent servant, Grimaud extracts raw information
+        without context or commentary.
+        """
+        prompt = self.template_renderer.render_grimaud(
+            event=event,
+            max_content_chars=self.config.four_valets.grimaud_max_chars,
+        )
+        model_tier = self._get_valet_model("grimaud")
+
+        result = await self._call_model(
+            prompt=prompt,
+            model_tier=model_tier,
+            pass_number=1,
+            pass_type=PassType.GRIMAUD,
+        )
+        result.valet = ValetType.GRIMAUD
+        return result
+
+    async def _run_bazin(
+        self,
+        event: PerceivedEvent,
+        grimaud: PassResult,
+        context: Optional[StructuredContext],
+    ) -> PassResult:
+        """
+        Execute Bazin (Pass 2) — Enrichissement contextuel.
+
+        Like Aramis's pious servant, Bazin adds wisdom and context
+        from the PKM knowledge base.
+        """
+        prompt = self.template_renderer.render_bazin(
+            event=event,
+            grimaud_result=grimaud.to_dict(),
+            context=context,
+            max_content_chars=self.config.four_valets.bazin_max_chars,
+            max_context_notes=self.config.four_valets.bazin_max_notes,
+        )
+        model_tier = self._get_valet_model("bazin")
+
+        result = await self._call_model(
+            prompt=prompt,
+            model_tier=model_tier,
+            pass_number=2,
+            pass_type=PassType.BAZIN,
+        )
+        result.valet = ValetType.BAZIN
+        return result
+
+    async def _run_planchet(
+        self,
+        event: PerceivedEvent,
+        previous_passes: list[PassResult],
+        context: Optional[StructuredContext],
+    ) -> PassResult:
+        """
+        Execute Planchet (Pass 3) — Critique et validation.
+
+        Like d'Artagnan's resourceful servant, Planchet questions
+        everything and validates the extractions.
+        """
+        grimaud = previous_passes[0]
+        bazin = previous_passes[1] if len(previous_passes) > 1 else grimaud
+
+        prompt = self.template_renderer.render_planchet(
+            event=event,
+            grimaud_result=grimaud.to_dict(),
+            bazin_result=bazin.to_dict(),
+            context=context,
+        )
+        model_tier = self._get_valet_model("planchet")
+
+        result = await self._call_model(
+            prompt=prompt,
+            model_tier=model_tier,
+            pass_number=3,
+            pass_type=PassType.PLANCHET,
+        )
+        result.valet = ValetType.PLANCHET
+        return result
+
+    async def _run_mousqueton(
+        self,
+        event: PerceivedEvent,
+        previous_passes: list[PassResult],
+        context: Optional[StructuredContext],
+    ) -> PassResult:
+        """
+        Execute Mousqueton (Pass 4) — Arbitrage final.
+
+        Like Porthos's practical servant, Mousqueton makes the final
+        decision when there's disagreement between the valets.
+        """
+        grimaud = previous_passes[0]
+        bazin = previous_passes[1] if len(previous_passes) > 1 else grimaud
+        planchet = previous_passes[2] if len(previous_passes) > 2 else bazin
+
+        prompt = self.template_renderer.render_mousqueton(
+            event=event,
+            grimaud_result=grimaud.to_dict(),
+            bazin_result=bazin.to_dict(),
+            planchet_result=planchet.to_dict(),
+            context=context,
+        )
+        model_tier = self._get_valet_model("mousqueton")
+
+        result = await self._call_model(
+            prompt=prompt,
+            model_tier=model_tier,
+            pass_number=4,
+            pass_type=PassType.MOUSQUETON,
+        )
+        result.valet = ValetType.MOUSQUETON
+        return result
+
+    def _should_early_stop(self, grimaud: PassResult) -> bool:
+        """
+        Check if Grimaud requests early stop.
+
+        Early stop is triggered for ephemeral content (OTP codes, newsletters)
+        when Grimaud is highly confident (>95%) that the email should be deleted.
+        """
+        threshold = self.config.four_valets.grimaud_early_stop_confidence
+        return (
+            grimaud.early_stop
+            and grimaud.action == "delete"
+            and grimaud.confidence.overall >= threshold
+        )
+
+    def _planchet_can_conclude(self, planchet: PassResult) -> bool:
+        """
+        Check if Planchet can conclude without Mousqueton.
+
+        Planchet can conclude if:
+        - needs_mousqueton is False
+        - confidence is above threshold (90%)
+        """
+        threshold = self.config.four_valets.planchet_stop_confidence
+        return not planchet.needs_mousqueton and planchet.confidence.overall >= threshold
+
+    def _get_valet_model(self, valet: str) -> ModelTier:
+        """Get the configured model for a valet."""
+        model_name = self.config.four_valets.models.get(valet, "haiku")
+        return ModelTier(model_name)
+
+    def _get_valet_api_params(self, valet: str) -> dict:
+        """Get the API parameters for a valet."""
+        return self.config.four_valets.api_params.get(valet, {})
+
+    async def _finalize_four_valets(
+        self,
+        passes: list[PassResult],
+        event: PerceivedEvent,
+        start_time: float,
+        total_tokens: int,
+        stopped_at: str,
+        stop_reason: str,
+        context: Optional[StructuredContext] = None,
+    ) -> MultiPassResult:
+        """
+        Build the final MultiPassResult for Four Valets pipeline.
+
+        Similar to _build_result but with Four Valets specific handling.
+        """
+        last_pass = passes[-1]
+        total_duration = (time.time() - start_time) * 1000
+
+        # Build analysis context
+        analysis_context = AnalysisContext(
+            sender_importance="normal",
+            has_attachments=bool(getattr(event, "attachments", None)),
+            is_thread=bool(getattr(event, "thread_id", None)),
+        )
+
+        # Check for high-stakes
+        high_stakes_detected = is_high_stakes(
+            last_pass.extractions,
+            analysis_context,
+            self.config,
+        )
+
+        # Collect all entities
+        all_entities: set[str] = set()
+        for p in passes:
+            all_entities.update(p.entities_discovered)
+
+        # Apply age-based adjustments
+        age_days = self._calculate_event_age_days(event)
+        adjusted_action, adjusted_extractions, age_adjustment = self._apply_age_adjustments(
+            last_pass.action,
+            last_pass.extractions,
+            age_days,
+            event,
+        )
+        if age_adjustment:
+            logger.info(f"Age adjustment applied: {age_adjustment}")
+
+        # Run coherence pass on adjusted extractions
+        coherence_validated = False
+        coherence_corrections = 0
+        coherence_duplicates = 0
+        coherence_confidence = 1.0
+        coherence_warnings: list[dict] = []
+
+        if adjusted_extractions:
+            validated_extractions, coherence_result = await self._run_coherence_pass(
+                adjusted_extractions, event
+            )
+            if coherence_result is not None:
+                adjusted_extractions = validated_extractions
+                coherence_validated = True
+                coherence_corrections = coherence_result.coherence_summary.corrected
+                coherence_duplicates = coherence_result.coherence_summary.duplicates_detected
+                coherence_confidence = coherence_result.coherence_confidence
+                coherence_warnings = [
+                    {"type": w.type, "index": w.extraction_index, "message": w.message}
+                    for w in coherence_result.warnings
+                ]
+                total_tokens += coherence_result.tokens_used
+
+        # Update stop reason
+        final_stop_reason = stop_reason
+        if age_adjustment:
+            final_stop_reason = f"{stop_reason}; {age_adjustment}"
+        if coherence_validated and coherence_corrections > 0:
+            final_stop_reason = (
+                f"{final_stop_reason}; coherence_pass: {coherence_corrections} corrected"
+            )
+
+        # Determine if escalated (Mousqueton uses Sonnet)
+        escalated = stopped_at == "mousqueton"
+
+        # Serialize context for transparency
+        serialized_context: Optional[dict[str, Any]] = None
+        if context is not None:
+            serialized_context = {
+                "entities_searched": context.query_entities,
+                "sources_searched": context.sources_searched,
+                "total_results": context.total_results,
+                "notes": [
+                    {
+                        "note_id": n.note_id,
+                        "title": n.title,
+                        "note_type": n.note_type,
+                        "summary": n.summary[:200] if n.summary else "",
+                        "relevance": round(n.relevance, 2),
+                        "tags": n.tags,
+                    }
+                    for n in context.notes
+                ],
+            }
+
+        # Extract context_influence from last pass
+        last_context_influence = last_pass.context_influence
+
+        return MultiPassResult(
+            extractions=adjusted_extractions,
+            action=adjusted_action,
+            confidence=last_pass.confidence,
+            entities_discovered=all_entities,
+            passes_count=len(passes),
+            total_duration_ms=total_duration,
+            total_tokens=total_tokens,
+            final_model=last_pass.model_used,
+            escalated=escalated,
+            pass_history=passes,
+            stop_reason=final_stop_reason,
+            high_stakes=high_stakes_detected,
+            # Coherence validation metadata
+            coherence_validated=coherence_validated,
+            coherence_corrections=coherence_corrections,
+            coherence_duplicates_detected=coherence_duplicates,
+            coherence_confidence=coherence_confidence,
+            coherence_warnings=coherence_warnings,
+            # Retrieved context for transparency
+            retrieved_context=serialized_context,
+            context_influence=last_context_influence,
+            # Four Valets v3.0 specific
+            stopped_at=stopped_at,
         )
 
 

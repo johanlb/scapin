@@ -212,6 +212,141 @@ class TemplateRenderer:
             unresolved_issues=unresolved_issues,
         )
 
+    # ==================== Four Valets v3.0 ====================
+
+    def _get_briefing(self) -> str:
+        """
+        Get briefing context for Four Valets prompts.
+
+        Returns:
+            Briefing string or empty string if not available.
+        """
+        return self._briefing_context or ""
+
+    def render_grimaud(
+        self,
+        event: Any,
+        max_content_chars: int = 8000,
+    ) -> str:
+        """
+        Render Grimaud (Pass 1) template - Extraction silencieuse.
+
+        Grimaud extracts raw information without context, like Athos's
+        silent servant who observes without speaking.
+
+        Args:
+            event: PerceivedEvent to analyze
+            max_content_chars: Maximum content length
+
+        Returns:
+            Rendered prompt string
+        """
+        return self.render(
+            "pass1_grimaud",
+            event=event,
+            max_content_chars=max_content_chars,
+            briefing=self._get_briefing(),
+        )
+
+    def render_bazin(
+        self,
+        event: Any,
+        grimaud_result: dict,
+        context: Any,
+        max_content_chars: int = 8000,
+        max_context_notes: int = 5,
+    ) -> str:
+        """
+        Render Bazin (Pass 2) template - Enrichissement contextuel.
+
+        Bazin enriches extractions with context from PKM notes, like
+        Aramis's pious servant who adds wisdom and context.
+
+        Args:
+            event: PerceivedEvent to analyze
+            grimaud_result: Result from Grimaud pass
+            context: StructuredContext with notes, calendar, etc.
+            max_content_chars: Maximum content length
+            max_context_notes: Maximum notes to include
+
+        Returns:
+            Rendered prompt string
+        """
+        return self.render(
+            "pass2_bazin",
+            event=event,
+            grimaud_result=grimaud_result,
+            context=context,
+            max_content_chars=max_content_chars,
+            max_context_notes=max_context_notes,
+            briefing=self._get_briefing(),
+        )
+
+    def render_planchet(
+        self,
+        event: Any,
+        grimaud_result: dict,
+        bazin_result: dict,
+        context: Any,
+    ) -> str:
+        """
+        Render Planchet (Pass 3) template - Critique et validation.
+
+        Planchet critiques and validates the extractions, like
+        d'Artagnan's resourceful servant who questions everything.
+
+        Args:
+            event: PerceivedEvent to analyze
+            grimaud_result: Result from Grimaud pass
+            bazin_result: Result from Bazin pass
+            context: StructuredContext with notes, calendar, etc.
+
+        Returns:
+            Rendered prompt string
+        """
+        return self.render(
+            "pass3_planchet",
+            event=event,
+            grimaud_result=grimaud_result,
+            bazin_result=bazin_result,
+            context=context,
+            briefing=self._get_briefing(),
+        )
+
+    def render_mousqueton(
+        self,
+        event: Any,
+        grimaud_result: dict,
+        bazin_result: dict,
+        planchet_result: dict,
+        context: Any,
+    ) -> str:
+        """
+        Render Mousqueton (Pass 4) template - Arbitrage final.
+
+        Mousqueton makes the final decision when there's disagreement,
+        like Porthos's practical servant who settles disputes.
+
+        Args:
+            event: PerceivedEvent to analyze
+            grimaud_result: Result from Grimaud pass
+            bazin_result: Result from Bazin pass
+            planchet_result: Result from Planchet pass
+            context: StructuredContext with notes, calendar, etc.
+
+        Returns:
+            Rendered prompt string
+        """
+        return self.render(
+            "pass4_mousqueton",
+            event=event,
+            grimaud_result=grimaud_result,
+            bazin_result=bazin_result,
+            planchet_result=planchet_result,
+            context=context,
+            briefing=self._get_briefing(),
+        )
+
     # Custom Jinja2 filters
 
     @staticmethod

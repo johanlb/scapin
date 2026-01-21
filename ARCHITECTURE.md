@@ -1,8 +1,8 @@
 # Scapin - Cognitive Architecture
 
-**Version**: 2.4.0 (Memory Cycles v2: Retouche/Lecture/Filage)
+**Version**: 3.0.0 (Four Valets Architecture)
 **Date**: 2026-01-21
-**Status**: ✅ v1.0.0-rc.1 RELEASED — Memory Cycles implemented
+**Status**: ✅ v1.0.0-rc.1 RELEASED — Four Valets v3.0 + Memory Cycles
 
 > Named after Scapin, Molière's cunning and resourceful valet - the perfect metaphor for an intelligent assistant that works tirelessly on your behalf.
 
@@ -11,7 +11,8 @@
 ## 📋 Table of Contents
 
 - [Vision](#vision)
-- [Workflow v2: Knowledge Extraction](#workflow-v2-knowledge-extraction) ⭐ NEW (v2.3: Explicit Dialogue & Async I/O)
+- [Workflow v2: Knowledge Extraction](#workflow-v2-knowledge-extraction)
+- [Four Valets v3.0](#four-valets-v30-architecture) ⭐ NEW
 - [Core Principles](#core-principles)
 - [Architecture Overview](#architecture-overview)
 - [Component Specifications](#component-specifications)
@@ -286,6 +287,99 @@ Scapin's architecture follows a valet-themed design, where each module represent
 | **Sganarelle** | Learning & Adaptation | Molière's recurring character | Learning engine - adapts from experience |
 | **Passepartout** | Navigation & Search | Verne's *Around the World in 80 Days* | Knowledge management - finds anything |
 | **Frontin** | Service & API | Lesage/Regnard's comedies | API layer - the elegant French valet interface |
+
+---
+
+## 🎭 Four Valets v3.0 Architecture
+
+> **Spec complète**: [docs/FOUR_VALETS_SPEC.md](docs/FOUR_VALETS_SPEC.md)
+> **Plan d'implémentation**: [docs/FOUR_VALETS_IMPLEMENTATION_PLAN.md](docs/FOUR_VALETS_IMPLEMENTATION_PLAN.md)
+
+### Vision
+
+Le Four Valets v3.0 refactore le pipeline d'analyse multi-pass avec une architecture inspirée des quatre valets des **Trois Mousquetaires**. Chaque valet a un rôle distinct dans le processus d'analyse :
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    FOUR VALETS v3.0 PIPELINE                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  GRIMAUD (Pass 1) — Extraction silencieuse              [HAIKU]   │   │
+│  │  Comme le valet silencieux d'Athos, extrait l'information brute   │   │
+│  │  sans commentaire ni contexte. Peut décider early_stop (OTP, spam)│   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ early_stop? │──→ OUI ──→ TERMINÉ (delete/archive)          │
+│            └──────┬──────┘           (conf ≥ 95%)                       │
+│                   ↓ NON                                                  │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  BAZIN (Pass 2) — Enrichissement contextuel             [HAIKU]   │   │
+│  │  Comme le valet pieux d'Aramis, apporte sagesse et contexte       │   │
+│  │  depuis le PKM. Filtre notes_used vs notes_ignored explicitement  │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                              ↓                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  PLANCHET (Pass 3) — Critique et validation             [HAIKU]   │   │
+│  │  Comme le valet débrouillard de d'Artagnan, questionne tout       │   │
+│  │  et valide les extractions. Décide si Mousqueton est nécessaire   │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                    │                                                     │
+│            ┌──────┴──────┐                                              │
+│            │ conf ≥ 90%  │──→ OUI ──→ TERMINÉ                           │
+│            │ + !needs_   │           (cohérence + application)          │
+│            │ mousqueton  │                                              │
+│            └──────┬──────┘                                              │
+│                   ↓ NON                                                  │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  MOUSQUETON (Pass 4) — Arbitrage final                  [SONNET]  │   │
+│  │  Comme le valet pratique de Porthos, tranche les différends       │   │
+│  │  et prend la décision finale quand les avis divergent             │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                              ↓                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │  COHÉRENCE & APPLICATION                                [LOCAL]   │   │
+│  │  • Validation des extractions • Enrichissement PKM                │   │
+│  │  • Création tâches/événements • Action finale                     │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│  DISTRIBUTION ESTIMÉE: 5% Grimaud | 60% Planchet | 35% Mousqueton       │
+│  COÛT MOYEN: ~$0.0045/événement                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Les Quatre Valets
+
+| Valet | Maître | Personnalité | Rôle dans le Pipeline |
+|-------|--------|--------------|----------------------|
+| **Grimaud** | Athos | Silencieux, efficace | Extraction brute sans contexte |
+| **Bazin** | Aramis | Pieux, savant | Enrichissement contextuel |
+| **Planchet** | d'Artagnan | Débrouillard, questionneur | Critique et validation |
+| **Mousqueton** | Porthos | Pratique, décisif | Arbitrage final |
+
+### Règles d'Arrêt (Stopping Rules)
+
+| Point | Condition | Résultat |
+|-------|-----------|----------|
+| Après Grimaud | `early_stop=true` + `action=delete` + `conf≥95%` | Suppression directe |
+| Après Planchet | `needs_mousqueton=false` + `conf≥90%` | Application sans arbitrage |
+| Après Mousqueton | Toujours | Application finale |
+
+### Innovations v3.0
+
+1. **Early Stop pour contenu éphémère** : Grimaud peut couper court pour OTP, newsletters, spam avec 95%+ confiance
+2. **Filtrage explicite du contexte** : Bazin indique `notes_used` vs `notes_ignored` pour transparence
+3. **Critique structurée** : Planchet évalue chaque extraction avec confiance décomposée
+4. **Memory Hints** : Suggestions d'enrichissement pour Passepartout (PKM)
+5. **Fallback vers v2.2** : Si Four Valets échoue, retour automatique au pipeline legacy
+
+### Compatibilité
+
+Le Four Valets v3.0 est rétro-compatible avec le pipeline v2.2 :
+- `use_four_valets=True` (défaut) : Utilise le nouveau pipeline
+- `use_four_valets=False` : Utilise le pipeline legacy v2.2
+- Si Four Valets échoue et `fallback_to_legacy=True` : Retour automatique au v2.2
 
 ---
 
