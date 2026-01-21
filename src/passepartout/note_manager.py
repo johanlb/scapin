@@ -347,7 +347,7 @@ class NoteManager:
             )
             return False
 
-    def _get_index_age_hours(self) -> float | None:
+    def _get_index_age_hours(self) -> Optional[float]:
         """
         Get the age of the index file in hours
 
@@ -448,6 +448,7 @@ class NoteManager:
             "pinned": note.metadata.get("pinned", False),
             "tags": note.tags or [],
             "excerpt": excerpt,
+            "links": note.outgoing_links or [],
         }
 
     def _remove_from_metadata_index(self, note_id: str) -> None:
@@ -791,7 +792,9 @@ class NoteManager:
 
         # Git commit
         if self.git:
-            self.git.commit(f"{note_id}.md", "Update note", note_title=note.title)
+            rel_path = self.get_relative_path(note_id)
+            if rel_path:
+                self.git.commit(rel_path, "Update note", note_title=note.title)
 
         # Update metadata index for fast tree building
         self._update_metadata_index(note)
@@ -957,7 +960,9 @@ class NoteManager:
         # Create parent directories in trash if note is in a subfolder
         trash_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.rename(trash_path)
-        logger.info("Moved note to trash", extra={"note_id": note_id, "trash_path": str(trash_path)})
+        logger.info(
+            "Moved note to trash", extra={"note_id": note_id, "trash_path": str(trash_path)}
+        )
 
         # Remove from vector store
         self.vector_store.remove(note_id)
@@ -1037,7 +1042,9 @@ class NoteManager:
 
         # Move from trash to target
         trash_path.rename(target_path)
-        logger.info("Restored note from trash", extra={"note_id": note_id, "target": str(target_path)})
+        logger.info(
+            "Restored note from trash", extra={"note_id": note_id, "target": str(target_path)}
+        )
 
         # Update metadata index
         if note_id in self._notes_metadata:
@@ -1111,7 +1118,9 @@ class NoteManager:
 
         # Git commit deletion
         if self.git:
-            self.git.commit_delete(str(file_path.relative_to(self.notes_dir)), note_title=note_title)
+            self.git.commit_delete(
+                str(file_path.relative_to(self.notes_dir)), note_title=note_title
+            )
 
         return True
 
@@ -1700,6 +1709,24 @@ class NoteManager:
         else:
             file_path = (self.notes_dir / f"{note_id}.md").resolve()
 
+        # Fallback: if not found at root/metadata-recorded path, try to find it in any subfolder
+        # This handles cases where metadata index might be stale
+        if not file_path.exists():
+            # Quick check for common locations or just root if not searched yet
+            root_path = (self.notes_dir / f"{note_id}.md").resolve()
+            if root_path.exists():
+                file_path = root_path
+            else:
+                # Last resort: glob for the file (limited to notes_dir)
+                # We skip hidden folders like .git or .scapin_index
+                matches = list(self.notes_dir.rglob(f"{note_id}.md"))
+                # Filter out hidden files/folders
+                matches = [m for m in matches if not any(p.startswith(".") for p in m.parts)]
+                if matches:
+                    file_path = matches[0].resolve()
+                    # Proactively update metadata index since we found it
+                    logger.info(f"Found note {note_id} via fallback search at {file_path}")
+
         # Security check: ensure path is within notes_dir
         notes_dir_resolved = self.notes_dir.resolve()
         try:
@@ -1711,6 +1738,24 @@ class NoteManager:
             ) from e
 
         return file_path
+
+    def get_relative_path(self, note_id: str) -> Optional[str]:
+        """
+        Get relative path to note file from notes_dir
+
+        Args:
+            note_id: Note identifier
+
+        Returns:
+            Relative path string or None if note not found
+        """
+        try:
+            file_path = self._get_note_path(note_id)
+            if file_path.exists():
+                return str(file_path.relative_to(self.notes_dir.resolve()))
+            return None
+        except (ValueError, FileNotFoundError):
+            return None
 
     def _write_note_file(self, note: Note, file_path: Path) -> None:
         """
@@ -2170,8 +2215,6 @@ def get_note_manager(
                 except Exception:
                     notes_dir = Path.home() / "Documents" / "Scapin" / "Notes"
 
-            _note_manager = NoteManager(
-                notes_dir, git_enabled=git_enabled, auto_index=auto_index
-            )
+            _note_manager = NoteManager(notes_dir, git_enabled=git_enabled, auto_index=auto_index)
 
     return _note_manager

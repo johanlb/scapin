@@ -189,8 +189,12 @@ class TestV2WorkingMemory:
             ContextNote(title="Note 1", type="projet", content_summary="...", relevance=0.9)
         ]
         memory.cross_source_context = [
-            CrossSourceContext(source="email", title="Email 1", content_summary="...", relevance=0.8),
-            CrossSourceContext(source="calendar", title="Event 1", content_summary="...", relevance=0.7),
+            CrossSourceContext(
+                source="email", title="Email 1", content_summary="...", relevance=0.8
+            ),
+            CrossSourceContext(
+                source="calendar", title="Event 1", content_summary="...", relevance=0.7
+            ),
         ]
 
         assert memory.total_context_items == 3
@@ -390,11 +394,15 @@ class TestV2ProcessingResultV22:
             CrossSourceContext(source="email", title="Test", content_summary="...", relevance=0.8)
         ]
         patterns = [
-            PatternMatch(pattern_id="p1", description="Test", confidence=0.9, suggested_action="archive", occurrences=10)
+            PatternMatch(
+                pattern_id="p1",
+                description="Test",
+                confidence=0.9,
+                suggested_action="archive",
+                occurrences=10,
+            )
         ]
-        questions = [
-            ClarificationQuestion(question="Test?", reason="Low confidence")
-        ]
+        questions = [ClarificationQuestion(question="Test?", reason="Low confidence")]
 
         result = V2ProcessingResult(
             success=True,
@@ -448,7 +456,13 @@ class TestV2ProcessingResultV22:
             success=True,
             event_id="test_123",
             pattern_matches=[
-                PatternMatch(pattern_id="p1", description="Test", confidence=0.9, suggested_action="archive", occurrences=10)
+                PatternMatch(
+                    pattern_id="p1",
+                    description="Test",
+                    confidence=0.9,
+                    suggested_action="archive",
+                    occurrences=10,
+                )
             ],
         )
 
@@ -470,15 +484,16 @@ class TestV2EmailProcessorV22Methods:
     @pytest.fixture
     def mock_processor(self) -> V2EmailProcessor:
         """Create a processor with mocked dependencies."""
-        with patch("src.trivelin.v2_processor.get_config") as mock_config, \
-             patch("src.trivelin.v2_processor.get_ai_router") as mock_router, \
-             patch("src.trivelin.v2_processor.NoteManager") as mock_nm, \
-             patch("src.trivelin.v2_processor.ContextEngine") as mock_ce, \
-             patch("src.trivelin.v2_processor.CrossSourceEngine") as mock_cse, \
-             patch("src.trivelin.v2_processor.PatternStore") as mock_ps, \
-             patch("src.trivelin.v2_processor.EventAnalyzer") as mock_ea, \
-             patch("src.trivelin.v2_processor.PKMEnricher") as mock_en:
-
+        with (
+            patch("src.trivelin.v2_processor.get_config") as mock_config,
+            patch("src.trivelin.v2_processor.get_ai_router") as mock_router,
+            patch("src.trivelin.v2_processor.NoteManager") as mock_nm,
+            patch("src.trivelin.v2_processor.ContextEngine") as mock_ce,
+            patch("src.trivelin.v2_processor.CrossSourceEngine") as mock_cse,
+            patch("src.trivelin.v2_processor.PatternStore") as mock_ps,
+            patch("src.trivelin.v2_processor.MultiPassAnalyzer") as mock_mpa,
+            patch("src.trivelin.v2_processor.PKMEnricher") as mock_en,
+        ):
             # Configure mocks
             mock_config.return_value = MagicMock()
             mock_config.return_value.ai = MagicMock()
@@ -517,7 +532,9 @@ class TestV2EmailProcessorV22Methods:
         query = mock_processor._build_cross_source_query(event)
         assert "Just a title" in query
 
-    def test_generate_clarification_questions_low_confidence(self, mock_processor: V2EmailProcessor) -> None:
+    def test_generate_clarification_questions_low_confidence(
+        self, mock_processor: V2EmailProcessor
+    ) -> None:
         """Test question generation for low confidence."""
         event = make_test_event(
             sender_name="Bob",
@@ -539,7 +556,9 @@ class TestV2EmailProcessorV22Methods:
         assert len(questions) >= 1
         assert any("action" in q.question.lower() for q in questions)
 
-    def test_generate_clarification_questions_with_extractions(self, mock_processor: V2EmailProcessor) -> None:
+    def test_generate_clarification_questions_with_extractions(
+        self, mock_processor: V2EmailProcessor
+    ) -> None:
         """Test question generation with extractions."""
         event = make_test_event()
 
@@ -564,9 +583,14 @@ class TestV2EmailProcessorV22Methods:
         questions = mock_processor._generate_clarification_questions(event, analysis)
 
         # Should have question about extractions
-        assert any("extraites" in q.question.lower() or "correctes" in q.question.lower() for q in questions)
+        assert any(
+            "extraites" in q.question.lower() or "correctes" in q.question.lower()
+            for q in questions
+        )
 
-    def test_generate_clarification_questions_high_confidence(self, mock_processor: V2EmailProcessor) -> None:
+    def test_generate_clarification_questions_high_confidence(
+        self, mock_processor: V2EmailProcessor
+    ) -> None:
         """Test no questions for high confidence."""
         event = make_test_event()
 
@@ -623,7 +647,9 @@ class TestV2EmailProcessorV22Methods:
         event = make_test_event(title="Test")
 
         # Mock search failure
-        mock_processor.cross_source_engine.search = AsyncMock(side_effect=Exception("Search failed"))
+        mock_processor.cross_source_engine.search = AsyncMock(
+            side_effect=Exception("Search failed")
+        )
 
         result = await mock_processor._get_cross_source_context(event)
 
@@ -658,9 +684,7 @@ class TestV2EmailProcessorV22Methods:
             last_seen=now_utc(),
             created_at=now_utc(),
         )
-        mock_processor.pattern_store.find_matching_patterns = MagicMock(
-            return_value=[mock_pattern]
-        )
+        mock_processor.pattern_store.find_matching_patterns = MagicMock(return_value=[mock_pattern])
 
         result = mock_processor._validate_with_patterns(event, analysis)
 

@@ -191,9 +191,7 @@ class TestV2EmailProcessorInit:
 
     def test_init_with_config(self, mock_config, mock_ai_router, mock_note_manager):
         """Test initialization with provided config"""
-        with patch(
-            "src.trivelin.v2_processor.ContextEngine"
-        ) as MockContextEngine:
+        with patch("src.trivelin.v2_processor.ContextEngine") as MockContextEngine:
             MockContextEngine.return_value = MagicMock()
 
             processor = V2EmailProcessor(
@@ -205,7 +203,7 @@ class TestV2EmailProcessorInit:
             assert processor.config == mock_config
             assert processor.ai_router == mock_ai_router
             assert processor.note_manager == mock_note_manager
-            assert processor.analyzer is not None
+            assert processor.multi_pass_analyzer is not None
             assert processor.enricher is not None
 
     def test_init_omnifocus_disabled(self, mock_config, mock_ai_router, mock_note_manager):
@@ -232,8 +230,13 @@ class TestProcessEvent:
 
     @pytest.mark.asyncio
     async def test_process_event_high_confidence(
-        self, mock_config, mock_ai_router, mock_note_manager, mock_event,
-        mock_analysis_result, mock_enrichment_result
+        self,
+        mock_config,
+        mock_ai_router,
+        mock_note_manager,
+        mock_event,
+        mock_analysis_result,
+        mock_enrichment_result,
     ):
         """Test processing with high confidence triggers auto-apply"""
         with patch("src.trivelin.v2_processor.ContextEngine") as MockCE:
@@ -246,7 +249,7 @@ class TestProcessEvent:
             )
 
             # Mock analyzer
-            processor.analyzer.analyze = AsyncMock(return_value=mock_analysis_result)
+            processor.multi_pass_analyzer.analyze = AsyncMock(return_value=mock_analysis_result)
 
             # Mock enricher
             processor.enricher.apply = AsyncMock(return_value=mock_enrichment_result)
@@ -258,7 +261,7 @@ class TestProcessEvent:
 
             assert result.success is True
             assert result.auto_applied is True
-            processor.analyzer.analyze.assert_called_once()
+            processor.multi_pass_analyzer.analyze.assert_called_once()
             processor.enricher.apply.assert_called_once()
 
     @pytest.mark.asyncio
@@ -284,7 +287,7 @@ class TestProcessEvent:
                 note_manager=mock_note_manager,
             )
 
-            processor.analyzer.analyze = AsyncMock(return_value=low_conf_analysis)
+            processor.multi_pass_analyzer.analyze = AsyncMock(return_value=low_conf_analysis)
             processor._get_context_notes = AsyncMock(return_value=[])
 
             result = await processor.process_event(mock_event, auto_apply=True)
@@ -295,8 +298,7 @@ class TestProcessEvent:
 
     @pytest.mark.asyncio
     async def test_process_event_auto_apply_disabled(
-        self, mock_config, mock_ai_router, mock_note_manager, mock_event,
-        mock_analysis_result
+        self, mock_config, mock_ai_router, mock_note_manager, mock_event, mock_analysis_result
     ):
         """Test processing with auto_apply=False"""
         with patch("src.trivelin.v2_processor.ContextEngine"):
@@ -306,7 +308,7 @@ class TestProcessEvent:
                 note_manager=mock_note_manager,
             )
 
-            processor.analyzer.analyze = AsyncMock(return_value=mock_analysis_result)
+            processor.multi_pass_analyzer.analyze = AsyncMock(return_value=mock_analysis_result)
             processor._get_context_notes = AsyncMock(return_value=[])
 
             result = await processor.process_event(mock_event, auto_apply=False)
@@ -327,9 +329,7 @@ class TestProcessEvent:
                 note_manager=mock_note_manager,
             )
 
-            processor.analyzer.analyze = AsyncMock(
-                side_effect=Exception("API error")
-            )
+            processor.multi_pass_analyzer.analyze = AsyncMock(side_effect=Exception("API error"))
             processor._get_context_notes = AsyncMock(return_value=[])
 
             result = await processor.process_event(mock_event)
@@ -348,8 +348,13 @@ class TestProcessBatch:
 
     @pytest.mark.asyncio
     async def test_process_batch(
-        self, mock_config, mock_ai_router, mock_note_manager, mock_event,
-        mock_analysis_result, mock_enrichment_result
+        self,
+        mock_config,
+        mock_ai_router,
+        mock_note_manager,
+        mock_event,
+        mock_analysis_result,
+        mock_enrichment_result,
     ):
         """Test batch processing multiple events"""
         events = [mock_event, mock_event, mock_event]
@@ -361,7 +366,7 @@ class TestProcessBatch:
                 note_manager=mock_note_manager,
             )
 
-            processor.analyzer.analyze = AsyncMock(return_value=mock_analysis_result)
+            processor.multi_pass_analyzer.analyze = AsyncMock(return_value=mock_analysis_result)
             processor.enricher.apply = AsyncMock(return_value=mock_enrichment_result)
             processor._get_context_notes = AsyncMock(return_value=[])
 
@@ -372,8 +377,7 @@ class TestProcessBatch:
 
     @pytest.mark.asyncio
     async def test_process_batch_partial_failure(
-        self, mock_config, mock_ai_router, mock_note_manager, mock_event,
-        mock_analysis_result
+        self, mock_config, mock_ai_router, mock_note_manager, mock_event, mock_analysis_result
     ):
         """Test batch processing with some failures"""
         events = [mock_event, mock_event]
@@ -386,7 +390,7 @@ class TestProcessBatch:
             )
 
             # First succeeds, second fails
-            processor.analyzer.analyze = AsyncMock(
+            processor.multi_pass_analyzer.analyze = AsyncMock(
                 side_effect=[
                     mock_analysis_result,
                     Exception("Second failed"),
@@ -452,9 +456,7 @@ class TestContextRetrieval:
         """Test that context retrieval errors return empty list"""
         with patch("src.trivelin.v2_processor.ContextEngine") as MockCE:
             mock_ce_instance = MagicMock()
-            mock_ce_instance.retrieve_context = AsyncMock(
-                side_effect=Exception("Search failed")
-            )
+            mock_ce_instance.retrieve_context = AsyncMock(side_effect=Exception("Search failed"))
             MockCE.return_value = mock_ce_instance
 
             processor = V2EmailProcessor(

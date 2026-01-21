@@ -22,20 +22,36 @@
 
 	const parsedLines = $derived.by(() => {
 		const lines: DiffLine[] = [];
-		const diffLines = diff.diff_text.split('\n');
 
-		for (const line of diffLines) {
-			if (line.startsWith('+++') || line.startsWith('---')) {
-				// Skip file headers
-				continue;
-			} else if (line.startsWith('@@')) {
-				lines.push({ type: 'header', content: line });
-			} else if (line.startsWith('+')) {
-				lines.push({ type: 'addition', content: line.slice(1) });
-			} else if (line.startsWith('-')) {
-				lines.push({ type: 'deletion', content: line.slice(1) });
-			} else if (line.startsWith(' ') || line === '') {
-				lines.push({ type: 'context', content: line.slice(1) || '' });
+		if (!diff.changes || diff.changes.length === 0) {
+			// Fallback to parsing diff_text if changes are not available
+			const diffLines = diff.diff_text.split('\n');
+			for (const line of diffLines) {
+				if (line.startsWith('+++') || line.startsWith('---')) continue;
+				if (line.startsWith('@@')) {
+					lines.push({ type: 'header', content: line });
+				} else if (line.startsWith('+')) {
+					lines.push({ type: 'addition', content: line.slice(1) });
+				} else if (line.startsWith('-')) {
+					lines.push({ type: 'deletion', content: line.slice(1) });
+				} else if (line.startsWith(' ') || line === '') {
+					lines.push({ type: 'context', content: line.slice(1) || '' });
+				}
+			}
+			return lines;
+		}
+
+		// Use structured changes
+		for (const section of diff.changes) {
+			lines.push({ type: 'header', content: section.header });
+			for (const line of section.lines) {
+				if (line.startsWith('+')) {
+					lines.push({ type: 'addition', content: line.slice(1) });
+				} else if (line.startsWith('-')) {
+					lines.push({ type: 'deletion', content: line.slice(1) });
+				} else if (line.startsWith(' ') || line === '') {
+					lines.push({ type: 'context', content: line.slice(1) || '' });
+				}
 			}
 		}
 
@@ -45,7 +61,9 @@
 
 <div class="version-diff {className}">
 	<!-- Stats header -->
-	<div class="flex items-center gap-4 px-3 py-2 bg-[var(--glass-tint)] rounded-t-lg border-b border-[var(--glass-border-subtle)]">
+	<div
+		class="flex items-center gap-4 px-3 py-2 bg-[var(--glass-tint)] rounded-t-lg border-b border-[var(--glass-border-subtle)]"
+	>
 		<span class="text-sm font-medium text-[var(--color-text-secondary)]">
 			{#if fromLabel && toLabel}
 				{fromLabel} → {toLabel}
@@ -60,14 +78,17 @@
 	</div>
 
 	<!-- Diff content -->
-	<div class="diff-content overflow-x-auto bg-[var(--color-bg-secondary)] rounded-b-lg border border-t-0 border-[var(--glass-border-subtle)]">
+	<div
+		class="diff-content overflow-x-auto bg-[var(--color-bg-secondary)] rounded-b-lg border border-t-0 border-[var(--glass-border-subtle)]"
+	>
 		<pre class="p-3 text-sm font-mono leading-relaxed">{#each parsedLines as line}<span
-			class="diff-line block"
-			class:diff-addition={line.type === 'addition'}
-			class:diff-deletion={line.type === 'deletion'}
-			class:diff-header={line.type === 'header'}
-			class:diff-context={line.type === 'context'}
-		>{#if line.type === 'addition'}+{:else if line.type === 'deletion'}-{:else if line.type === 'header'}@{:else}{' '}{/if}{line.content}</span>{/each}</pre>
+					class="diff-line block"
+					class:diff-addition={line.type === 'addition'}
+					class:diff-deletion={line.type === 'deletion'}
+					class:diff-header={line.type === 'header'}
+					class:diff-context={line.type === 'context'}
+					>{#if line.type === 'addition'}+{:else if line.type === 'deletion'}-{:else if line.type === 'header'}@{:else}{' '}{/if}{line.content}</span
+				>{/each}</pre>
 	</div>
 </div>
 

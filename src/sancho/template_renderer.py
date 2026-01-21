@@ -68,6 +68,7 @@ class TemplateRenderer:
         self._briefing_context: Optional[str] = None
         try:
             from src.passepartout.context_loader import ContextLoader
+
             context_loader = ContextLoader()
             self._briefing_context = context_loader.load_context()
             if self._briefing_context:
@@ -134,84 +135,6 @@ class TemplateRenderer:
             logger.error("Template not found: %s", template_name)
             raise
 
-    def render_pass1(
-        self,
-        event: Any,
-        max_content_chars: int = 8000,
-    ) -> str:
-        """
-        Render Pass 1 (Blind Extraction) template.
-
-        Args:
-            event: PerceivedEvent to analyze
-            max_content_chars: Maximum content length
-
-        Returns:
-            Rendered prompt string
-        """
-        return self.render(
-            "pass1_blind_extraction",
-            event=event,
-            max_content_chars=max_content_chars,
-        )
-
-    def render_pass2(
-        self,
-        event: Any,
-        previous_result: dict,
-        context: Any,
-        max_content_chars: int = 8000,
-        max_context_notes: int = 5,
-    ) -> str:
-        """
-        Render Pass 2+ (Contextual Refinement) template.
-
-        Args:
-            event: PerceivedEvent to analyze
-            previous_result: Result from previous pass
-            context: StructuredContext with notes, calendar, etc.
-            max_content_chars: Maximum content length
-            max_context_notes: Maximum notes to include
-
-        Returns:
-            Rendered prompt string
-        """
-        return self.render(
-            "pass2_contextual_refinement",
-            event=event,
-            previous_result=previous_result,
-            context=context,
-            max_content_chars=max_content_chars,
-            max_context_notes=max_context_notes,
-        )
-
-    def render_pass4(
-        self,
-        event: Any,
-        passes: list[dict],
-        full_context: Any,
-        unresolved_issues: list[str],
-    ) -> str:
-        """
-        Render Pass 4-5 (Deep Reasoning) template.
-
-        Args:
-            event: PerceivedEvent to analyze
-            passes: List of previous pass results
-            full_context: Full StructuredContext
-            unresolved_issues: List of unresolved issues
-
-        Returns:
-            Rendered prompt string
-        """
-        return self.render(
-            "pass4_deep_reasoning",
-            event=event,
-            passes=passes,
-            full_context=full_context,
-            unresolved_issues=unresolved_issues,
-        )
-
     # ==================== Four Valets v3.0 ====================
 
     def _get_briefing(self) -> str:
@@ -275,7 +198,7 @@ class TemplateRenderer:
         return self.render(
             "pass2_bazin",
             event=event,
-            grimaud_result=grimaud_result,
+            previous_result=grimaud_result,  # Template expects previous_result
             context=context,
             max_content_chars=max_content_chars,
             max_context_notes=max_context_notes,
@@ -307,8 +230,7 @@ class TemplateRenderer:
         return self.render(
             "pass3_planchet",
             event=event,
-            grimaud_result=grimaud_result,
-            bazin_result=bazin_result,
+            previous_passes=[grimaud_result, bazin_result],  # Template expects previous_passes
             context=context,
             briefing=self._get_briefing(),
         )
@@ -340,10 +262,12 @@ class TemplateRenderer:
         return self.render(
             "pass4_mousqueton",
             event=event,
-            grimaud_result=grimaud_result,
-            bazin_result=bazin_result,
-            planchet_result=planchet_result,
-            context=context,
+            previous_passes=[
+                grimaud_result,
+                bazin_result,
+                planchet_result,
+            ],  # Template expects previous_passes
+            full_context=context,  # Template expects full_context
             briefing=self._get_briefing(),
         )
 

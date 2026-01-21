@@ -22,7 +22,7 @@ class ExtractionResponse(BaseModel):
 
 
 class AnalysisResultResponse(BaseModel):
-    """Analysis result from EventAnalyzer"""
+    """Analysis result from MultiPassAnalyzer (Four Valets)"""
 
     extractions: list[ExtractionResponse] = Field(default_factory=list)
     action: str = Field(description="Recommended email action")

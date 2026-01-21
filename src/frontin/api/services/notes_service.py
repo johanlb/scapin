@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Union
 
 from src.core.config_manager import ScapinConfig
 from src.frontin.api.models.notes import (
@@ -89,7 +89,7 @@ def _validate_folder_path(path: str, base_dir: Path) -> Path:
     return resolved
 
 
-def _note_to_response(note: Note, deleted_at: str | None = None) -> NoteResponse:
+def _note_to_response(note: Note, deleted_at: Optional[str] = None) -> NoteResponse:
     """Convert Note domain model to API response
 
     Args:
@@ -267,8 +267,8 @@ class NotesService:
     """
 
     config: ScapinConfig
-    _note_manager: NoteManager | None = field(default=None, init=False)
-    _git_manager: GitVersionManager | None = field(default=None, init=False)
+    _note_manager: Optional[NoteManager] = field(default=None, init=False)
+    _git_manager: Optional[GitVersionManager] = field(default=None, init=False)
 
     def _get_manager(self) -> NoteManager:
         """Get or create NoteManager instance (uses singleton)"""
@@ -350,8 +350,8 @@ class NotesService:
 
     async def list_notes(
         self,
-        path: str | None = None,
-        tags: list[str] | None = None,
+        path: Optional[str] = None,
+        tags: Optional[list[str]] = None,
         pinned_only: bool = False,
         limit: int = 50,
         offset: int = 0,
@@ -411,7 +411,7 @@ class NotesService:
         # Full note content is loaded via get_note() when user selects a note
         return [_summary_to_response(s) for s in paginated_summaries], total
 
-    async def get_note(self, note_id: str) -> NoteResponse | None:
+    async def get_note(self, note_id: str) -> Optional[NoteResponse]:
         """
         Get a single note by ID
 
@@ -435,7 +435,7 @@ class NotesService:
         title: str,
         content: str,
         path: str = "",
-        tags: list[str] | None = None,
+        tags: Optional[list[str]] = None,
         pinned: bool = False,
     ) -> NoteResponse:
         """
@@ -474,12 +474,12 @@ class NotesService:
     async def update_note(
         self,
         note_id: str,
-        title: str | None = None,
-        content: str | None = None,
-        path: str | None = None,
-        tags: list[str] | None = None,
-        pinned: bool | None = None,
-    ) -> NoteResponse | None:
+        title: Optional[str] = None,
+        content: Optional[str] = None,
+        path: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        pinned: Optional[bool] = None,
+    ) -> Optional[NoteResponse]:
         """
         Update an existing note
 
@@ -547,7 +547,7 @@ class NotesService:
             logger.info(f"Note deleted: {note_id}")
         return result
 
-    async def move_note(self, note_id: str, target_folder: str) -> NoteMoveResponse | None:
+    async def move_note(self, note_id: str, target_folder: str) -> Optional[NoteMoveResponse]:
         """
         Move a note to a different folder
 
@@ -630,7 +630,7 @@ class NotesService:
             total=len(search_results),
         )
 
-    async def get_note_links(self, note_id: str) -> NoteLinksResponse | None:
+    async def get_note_links(self, note_id: str) -> Optional[NoteLinksResponse]:
         """
         Get bidirectional links for a note
 
@@ -647,41 +647,48 @@ class NotesService:
         if note is None:
             return None
 
-        # Get all notes once for both operations
-        all_notes = manager.get_all_notes()
+        # Optimization: Use metadata summaries and aliases index instead of reading all files
+        summaries = manager.get_notes_summary()
+        aliases = manager.get_aliases_index()
 
-        # Build title-to-note mapping for outgoing link resolution
-        title_to_note = {n.title.lower(): n for n in all_notes}
+        # Build ID-to-summary map for fast lookup
+        id_to_meta = {s["note_id"]: s for s in summaries}
 
-        # Extract and resolve outgoing wikilinks
-        outgoing_texts = _extract_wikilinks(note.content)
+        # Resolve outgoing wikilinks
         outgoing: list[WikilinkResponse] = []
-        for text in outgoing_texts:
-            target = title_to_note.get(text.lower())
+        for text in note.outgoing_links:
+            # Match title or alias
+            target_id = aliases.get(text.lower())
+            target_meta = id_to_meta.get(target_id) if target_id else None
+
             outgoing.append(
                 WikilinkResponse(
                     text=text,
-                    target_id=target.note_id if target else None,
-                    target_title=target.title if target else None,
-                    exists=target is not None,
+                    target_id=target_id,
+                    target_title=target_meta["title"] if target_meta else None,
+                    exists=target_id is not None,
                 )
             )
 
         # Find incoming links (notes that link to this one)
-        # Pre-compute lowercase title for comparison
         note_title_lower = note.title.lower()
         incoming: list[WikilinkResponse] = []
-        for other in all_notes:
-            if other.note_id == note_id:
+
+        for s in summaries:
+            # Skip self
+            if s["note_id"] == note_id:
                 continue
-            other_links = _extract_wikilinks(other.content)
-            # Use set for O(1) lookup instead of list comprehension
-            if note_title_lower in {link.lower() for link in other_links}:
+
+            # Check links if available in summary (new field)
+            # Fallback to empty list if not yet indexed
+            other_links = s.get("links", [])
+
+            if any(link.lower() == note_title_lower for link in other_links):
                 incoming.append(
                     WikilinkResponse(
-                        text=note.title,
-                        target_id=other.note_id,
-                        target_title=other.title,
+                        text=s["title"],
+                        target_id=s["note_id"],
+                        target_title=s["title"],
                         exists=True,
                     )
                 )
@@ -692,7 +699,7 @@ class NotesService:
             incoming=incoming,
         )
 
-    async def toggle_pin(self, note_id: str) -> NoteResponse | None:
+    async def toggle_pin(self, note_id: str) -> Optional[NoteResponse]:
         """
         Toggle pin status for a note
 
@@ -718,7 +725,7 @@ class NotesService:
         self,
         note_id: str,
         limit: int = 50,
-    ) -> NoteVersionsResponse | None:
+    ) -> Optional[NoteVersionsResponse]:
         """
         List version history for a note
 
@@ -738,7 +745,7 @@ class NotesService:
             return None
 
         git_manager = self._get_git_manager()
-        filename = f"{note_id}.md"
+        filename = manager.get_relative_path(note_id) or f"{note_id}.md"
         versions = git_manager.list_versions(filename, limit=limit)
 
         return NoteVersionsResponse(
@@ -760,7 +767,7 @@ class NotesService:
         self,
         note_id: str,
         version_id: str,
-    ) -> NoteVersionContentResponse | None:
+    ) -> Optional[NoteVersionContentResponse]:
         """
         Get note content at a specific version
 
@@ -779,8 +786,9 @@ class NotesService:
 
         logger.info(f"Getting version {version_id} of note {note_id}")
         git_manager = self._get_git_manager()
+        manager = self._get_manager()
 
-        filename = f"{note_id}.md"
+        filename = manager.get_relative_path(note_id) or f"{note_id}.md"
         content = git_manager.get_version(filename, version_id)
 
         if content is None:
@@ -813,7 +821,7 @@ class NotesService:
         note_id: str,
         from_version: str,
         to_version: str,
-    ) -> NoteDiffResponse | None:
+    ) -> Optional[NoteDiffResponse]:
         """
         Get diff between two versions of a note
 
@@ -834,8 +842,9 @@ class NotesService:
 
         logger.info(f"Diffing note {note_id}: {from_version} -> {to_version}")
         git_manager = self._get_git_manager()
+        manager = self._get_manager()
 
-        filename = f"{note_id}.md"
+        filename = manager.get_relative_path(note_id) or f"{note_id}.md"
         diff = git_manager.diff(filename, from_version, to_version)
 
         if diff is None:
@@ -861,7 +870,7 @@ class NotesService:
         self,
         note_id: str,
         version_id: str,
-    ) -> NoteResponse | None:
+    ) -> Optional[NoteResponse]:
         """
         Restore a note to a previous version
 
@@ -882,12 +891,13 @@ class NotesService:
         manager = self._get_manager()
         git_manager = self._get_git_manager()
 
+        filename = manager.get_relative_path(note_id) or f"{note_id}.md"
+
         # Verify note exists
         note = manager.get_note(note_id)
         if note is None:
             return None
 
-        filename = f"{note_id}.md"
         success = git_manager.restore(filename, version_id)
 
         if not success:

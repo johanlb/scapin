@@ -212,9 +212,7 @@ class GitVersionManager:
                 # Check if there are staged changes
                 if not self.repo.index.diff("HEAD"):
                     # Check for untracked files
-                    untracked = [
-                        f for f in self.repo.untracked_files if f == note_filename
-                    ]
+                    untracked = [f for f in self.repo.untracked_files if f == note_filename]
                     if not untracked:
                         logger.debug(f"No changes to commit for {note_filename}")
                         return None
@@ -364,9 +362,7 @@ class GitVersionManager:
                         version_id=commit.hexsha[:7],
                         full_hash=commit.hexsha,
                         message=commit.message.strip(),
-                        timestamp=datetime.fromtimestamp(
-                            commit.committed_date, tz=timezone.utc
-                        ),
+                        timestamp=datetime.fromtimestamp(commit.committed_date, tz=timezone.utc),
                         author=commit.author.name or self.author_name,
                     )
                 )
@@ -489,7 +485,9 @@ class GitVersionManager:
             if current_section:
                 changes.append(current_section)
 
-            note_id = note_filename.replace(".md", "")
+            from pathlib import Path
+
+            note_id = Path(note_filename).stem
             return NoteDiff(
                 note_id=note_id,
                 from_version=from_version,

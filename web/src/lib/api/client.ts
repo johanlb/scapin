@@ -1791,6 +1791,11 @@ interface NoteVersionContent {
 	timestamp: string;
 }
 
+interface DiffChangeSection {
+	header: string;
+	lines: string[];
+}
+
 interface NoteDiff {
 	note_id: string;
 	from_version: string;
@@ -1798,6 +1803,7 @@ interface NoteDiff {
 	additions: number;
 	deletions: number;
 	diff_text: string;
+	changes: DiffChangeSection[];
 }
 
 // ============================================================================

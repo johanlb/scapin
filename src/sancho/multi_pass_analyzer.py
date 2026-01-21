@@ -1,27 +1,21 @@
 """
-Multi-Pass Analyzer — Workflow v2.2
+Multi-Pass Analyzer — Workflow v3.0 (Four Valets)
 
-Analyseur d'événements avec architecture multi-passes et escalade intelligente
-Haiku → Sonnet → Opus.
+Analyseur d'événements utilisant le pipeline des "Quatre Valets" :
+Grimaud → Bazin → Planchet → Mousqueton.
 
-Ce module implémente la phase d'analyse du pipeline v2.2 :
-1. Pass 1: Extraction aveugle (Haiku, sans contexte)
-2. Pass 2-3: Raffinement contextuel (Haiku, avec ContextSearcher)
-3. Pass 4: Raisonnement profond (Sonnet, si confidence < 80%)
-4. Pass 5: Analyse expert (Opus, si confidence < 75% ou high-stakes)
-
-Key innovations v2.2:
-- Extraction → Contexte → Raffinement (inverted flow)
-- DecomposedConfidence (entity, action, extraction, completeness)
-- Convergence-based stopping (not fixed passes)
-- Targeted model escalation
+Ce module implémente la phase d'analyse du pipeline v3.0 :
+1. Grimaud : Extraction silencieuse (raw facts)
+2. Bazin : Enrichissement contextuel (PKM context)
+3. Planchet : Critique et validation (cross-check)
+4. Mousqueton : Arbitrage final (resolution)
 
 Usage:
     analyzer = MultiPassAnalyzer(ai_router, context_searcher)
     result = await analyzer.analyze(event)
 
-Part of Sancho's multi-pass extraction system (v2.2).
-See ADR-005 in MULTI_PASS_SPEC.md for design decisions.
+Part of Sancho's Four Valets extraction system.
+See ADR-005 for design decisions.
 """
 
 import json
@@ -45,10 +39,7 @@ from src.sancho.convergence import (
     PassResult,
     PassType,
     ValetType,
-    get_pass_type,
     is_high_stakes,
-    select_model,
-    should_stop,
 )
 from src.sancho.model_selector import ModelTier
 from src.sancho.router import AIModel, AIRouter, _repair_json_with_library, clean_json_string
@@ -235,58 +226,166 @@ class MultiPassAnalyzer:
 
     # Ephemeral content detection constants
     # Financial documents that must ALWAYS be archived (never ephemeral)
-    FINANCIAL_INDICATORS = frozenset([
-        "bilan", "bilan financier", "bilan annuel", "annual report",
-        "financial statement", "financial report", "rapport financier",
-        "comptes annuels", "états financiers", "compte de résultat",
-        "résumé financier", "financial summary", "audit", "comptes",
-        "rapport annuel", "yearly report", "fiscal year", "clôture comptable",
-        "exercice comptable", "year end",
-    ])
+    FINANCIAL_INDICATORS = frozenset(
+        [
+            "bilan",
+            "bilan financier",
+            "bilan annuel",
+            "annual report",
+            "financial statement",
+            "financial report",
+            "rapport financier",
+            "comptes annuels",
+            "états financiers",
+            "compte de résultat",
+            "résumé financier",
+            "financial summary",
+            "audit",
+            "comptes",
+            "rapport annuel",
+            "yearly report",
+            "fiscal year",
+            "clôture comptable",
+            "exercice comptable",
+            "year end",
+        ]
+    )
 
     # Legal/corporate documents that must ALWAYS be archived (never ephemeral)
-    LEGAL_INDICATORS = frozenset([
-        "contrat", "contract", "facture", "invoice", "bon de commande",
-        "purchase order", "devis signé", "procès-verbal", "pv de réunion",
-        "procuration", "power of attorney", "statuts sociaux", "bylaws",
-        "certificat", "certificate", "attestation officielle",
-        "déclaration fiscale", "companies act", "accord commercial",
-        "accord signé", "legal agreement", "avenant au contrat", "amendment",
-        "résiliation", "termination notice", "licence commerciale",
-        "business license", "permis de construire",
-        # Real estate / rental documents
-        "bail", "lease", "locataire", "tenant", "location", "rental",
-        "préavis", "notice period", "fin de bail", "end of lease",
-        "renouvellement", "renewal", "loyer", "rent", "propriétaire", "landlord",
-    ])
+    LEGAL_INDICATORS = frozenset(
+        [
+            "contrat",
+            "contract",
+            "facture",
+            "invoice",
+            "bon de commande",
+            "purchase order",
+            "devis signé",
+            "procès-verbal",
+            "pv de réunion",
+            "procuration",
+            "power of attorney",
+            "statuts sociaux",
+            "bylaws",
+            "certificat",
+            "certificate",
+            "attestation officielle",
+            "déclaration fiscale",
+            "companies act",
+            "accord commercial",
+            "accord signé",
+            "legal agreement",
+            "avenant au contrat",
+            "amendment",
+            "résiliation",
+            "termination notice",
+            "licence commerciale",
+            "business license",
+            "permis de construire",
+            # Real estate / rental documents
+            "bail",
+            "lease",
+            "locataire",
+            "tenant",
+            "location",
+            "rental",
+            "préavis",
+            "notice period",
+            "fin de bail",
+            "end of lease",
+            "renouvellement",
+            "renewal",
+            "loyer",
+            "rent",
+            "propriétaire",
+            "landlord",
+        ]
+    )
 
     # Newsletter/digest indicators (periodic content, no lasting value)
-    NEWSLETTER_INDICATORS = frozenset([
-        "newsletter", "digest", "daily", "weekly", "monthly", "highlights",
-        "roundup", "recap", "summary", "bulletin", "noreply", "no-reply",
-        "mailer", "news@", "updates@", "medium", "substack", "mailchimp",
-        "sendinblue",
-    ])
+    NEWSLETTER_INDICATORS = frozenset(
+        [
+            "newsletter",
+            "digest",
+            "daily",
+            "weekly",
+            "monthly",
+            "highlights",
+            "roundup",
+            "recap",
+            "summary",
+            "bulletin",
+            "noreply",
+            "no-reply",
+            "mailer",
+            "news@",
+            "updates@",
+            "medium",
+            "substack",
+            "mailchimp",
+            "sendinblue",
+        ]
+    )
 
     # OTP/verification code indicators (always ephemeral)
-    OTP_INDICATORS = frozenset([
-        "otp", "one-time password", "code de vérification", "verification code",
-        "code d'authentification", "authentication code", "code de sécurité",
-        "security code", "code de confirmation", "confirmation code",
-        "code à usage unique", "single-use code", "2fa", "two-factor",
-        "mot de passe temporaire", "temporary password", "code pin",
-        "entrer le code", "enter the code", "saisissez le code",
-        "pour vous authentifier", "to authenticate", "pour confirmer",
-        "code suivant", "following code", "voici votre code",
-    ])
+    OTP_INDICATORS = frozenset(
+        [
+            "otp",
+            "one-time password",
+            "code de vérification",
+            "verification code",
+            "code d'authentification",
+            "authentication code",
+            "code de sécurité",
+            "security code",
+            "code de confirmation",
+            "confirmation code",
+            "code à usage unique",
+            "single-use code",
+            "2fa",
+            "two-factor",
+            "mot de passe temporaire",
+            "temporary password",
+            "code pin",
+            "entrer le code",
+            "enter the code",
+            "saisissez le code",
+            "pour vous authentifier",
+            "to authenticate",
+            "pour confirmer",
+            "code suivant",
+            "following code",
+            "voici votre code",
+        ]
+    )
 
     # Event/invitation indicators (time-bound content)
-    EVENT_INDICATORS = frozenset([
-        "vous invite", "invitation", "événement", "event", "rendez-vous",
-        "rencontrer", "découvrir", "jeudi", "vendredi", "samedi", "dimanche",
-        "lundi", "mardi", "mercredi", "à 17h", "à 18h", "à 19h", "à 20h",
-        "offre valable", "jusqu'au", "expire", "limited time",
-    ])
+    EVENT_INDICATORS = frozenset(
+        [
+            "vous invite",
+            "invitation",
+            "événement",
+            "event",
+            "rendez-vous",
+            "rencontrer",
+            "découvrir",
+            "jeudi",
+            "vendredi",
+            "samedi",
+            "dimanche",
+            "lundi",
+            "mardi",
+            "mercredi",
+            "à 17h",
+            "à 18h",
+            "à 19h",
+            "à 20h",
+            "offre valable",
+            "jusqu'au",
+            "expire",
+            "limited time",
+        ]
+    )
 
     # Date patterns for extraction (French/English)
     DATE_PATTERNS = [
@@ -369,19 +468,15 @@ class MultiPassAnalyzer:
         self,
         event: PerceivedEvent,
         sender_importance: str = "normal",
-        use_four_valets: bool = True,
     ) -> MultiPassResult:
         """
-        Analyze an event using multi-pass extraction.
+        Analyze an event using the Four Valets v3.0 pipeline.
 
-        If use_four_valets is True and Four Valets is enabled in config,
-        uses the v3.0 Four Valets pipeline (Grimaud → Bazin → Planchet → Mousqueton).
-        Otherwise, falls back to the legacy v2.2 pipeline.
+        Pipeline: Grimaud → Bazin → Planchet → Mousqueton.
 
         Args:
             event: Perceived event to analyze
             sender_importance: Sender importance level (normal, important, vip)
-            use_four_valets: Whether to use Four Valets v3.0 pipeline (default: True)
 
         Returns:
             MultiPassResult with extractions and metadata
@@ -389,252 +484,12 @@ class MultiPassAnalyzer:
         Raises:
             MultiPassAnalyzerError: If analysis fails
         """
-        # Route to Four Valets v3.0 or legacy v2.2 pipeline
-        if use_four_valets and self.config.four_valets_enabled:
-            try:
-                return await self._run_four_valets_pipeline(event, sender_importance)
-            except Exception as e:
-                if self.config.four_valets.fallback_to_legacy:
-                    logger.warning(f"Four Valets failed, falling back to legacy: {e}")
-                else:
-                    raise
-
-        # Legacy v2.2 pipeline
-        start_time = time.time()
-        total_tokens = 0
-        pass_history: list[PassResult] = []
-        context: Optional[StructuredContext] = None
-        escalated = False
-
-        # Build analysis context
-        analysis_context = AnalysisContext(
-            sender_importance=sender_importance,
-            has_attachments=bool(getattr(event, "attachments", None)),
-            is_thread=bool(getattr(event, "thread_id", None)),
-        )
-
-        # Pass 1: Blind extraction
-        logger.info(f"Starting multi-pass analysis for event {event.event_id}")
-        current_result = await self._run_pass1(event)
-        pass_history.append(current_result)
-        total_tokens += current_result.tokens_used
-
-        # Check for early stop
-        stop, reason = should_stop(current_result, None, self.config)
-        if stop:
-            logger.info(f"Stopping after Pass 1: {reason}")
-            return await self._build_result(
-                pass_history,
-                start_time,
-                total_tokens,
-                reason,
-                escalated,
-                analysis_context,
-                event,
-                context=None,  # No context yet (early stop after Pass 1)
-            )
-
-        # Get context for subsequent passes
-        if self.context_searcher and current_result.entities_discovered:
-            logger.debug(f"Searching context for entities: {current_result.entities_discovered}")
-            context = await self.context_searcher.search_for_entities(
-                list(current_result.entities_discovered),
-                sender_email=getattr(event, "from_person", None),
-            )
-
-            # Update analysis context with conflict info
-            if context and context.conflicts:
-                analysis_context.has_conflicting_info = True
-
-        # Passes 2-5: Iterate until convergence
-        for pass_num in range(2, self.config.max_passes + 1):
-            previous_result = current_result
-
-            # Select model for this pass
-            model_tier, model_reason = select_model(
-                pass_num,
-                previous_result.confidence.overall,
-                analysis_context,
-                self.config,
-            )
-
-            # Track escalation
-            if model_tier in (ModelTier.SONNET, ModelTier.OPUS):
-                escalated = True
-
-            # Run appropriate pass
-            pass_type = get_pass_type(pass_num)
-
-            if pass_type == PassType.CONTEXTUAL_REFINEMENT:
-                current_result = await self._run_pass2(
-                    event,
-                    previous_result,
-                    context,
-                    pass_num,
-                    model_tier,
-                )
-            else:  # DEEP_REASONING or EXPERT_ANALYSIS
-                current_result = await self._run_pass4(
-                    event,
-                    pass_history,
-                    context,
-                    pass_num,
-                    model_tier,
-                )
-
-            pass_history.append(current_result)
-            total_tokens += current_result.tokens_used
-
-            # Check convergence
-            stop, reason = should_stop(current_result, previous_result, self.config)
-            if stop:
-                logger.info(f"Stopping after Pass {pass_num}: {reason}")
-                return await self._build_result(
-                    pass_history,
-                    start_time,
-                    total_tokens,
-                    reason,
-                    escalated,
-                    analysis_context,
-                    event,
-                    context=context,
-                )
-
-            # Search for new entities discovered in this pass
-            if self.context_searcher:
-                new_entities = current_result.entities_discovered - set().union(
-                    *[p.entities_discovered for p in pass_history[:-1]]
-                )
-                if new_entities:
-                    logger.debug(f"Found new entities in Pass {pass_num}: {new_entities}")
-                    additional_context = await self.context_searcher.search_for_entities(
-                        list(new_entities)
-                    )
-                    if context and additional_context:
-                        # Merge contexts
-                        context.notes.extend(additional_context.notes)
-                        context.entity_profiles.update(additional_context.entity_profiles)
-
-        # Max passes reached
-        logger.warning(f"Max passes ({self.config.max_passes}) reached without convergence")
-        return await self._build_result(
-            pass_history,
-            start_time,
-            total_tokens,
-            f"max_passes_reached ({self.config.max_passes})",
-            escalated,
-            analysis_context,
-            event,
-            context=context,
-        )
-
-    async def _run_pass1(self, event: PerceivedEvent) -> PassResult:
-        """
-        Run Pass 1: Blind extraction without context.
-
-        Args:
-            event: Event to analyze
-
-        Returns:
-            PassResult from blind extraction
-        """
-        prompt = self.template_renderer.render_pass1(
-            event=event,
-            max_content_chars=self.config.max_content_chars,
-        )
-
-        return await self._call_model(
-            prompt=prompt,
-            model_tier=ModelTier.HAIKU,
-            pass_number=1,
-            pass_type=PassType.BLIND_EXTRACTION,
-        )
-
-    async def _run_pass2(
-        self,
-        event: PerceivedEvent,
-        previous_result: PassResult,
-        context: Optional["StructuredContext"],
-        pass_number: int,
-        model_tier: ModelTier,
-    ) -> PassResult:
-        """
-        Run Pass 2-3: Contextual refinement.
-
-        Args:
-            event: Event to analyze
-            previous_result: Result from previous pass
-            context: Structured context from searcher
-            pass_number: Current pass number (2 or 3)
-            model_tier: Model to use
-
-        Returns:
-            PassResult from contextual refinement
-        """
-        # Convert previous result to dict for template
-        previous_dict = previous_result.to_dict()
-
-        prompt = self.template_renderer.render_pass2(
-            event=event,
-            previous_result=previous_dict,
-            context=context,
-            max_content_chars=self.config.max_content_chars,
-            max_context_notes=self.config.max_context_notes,
-        )
-
-        pass_type = PassType.CONTEXTUAL_REFINEMENT
-
-        return await self._call_model(
-            prompt=prompt,
-            model_tier=model_tier,
-            pass_number=pass_number,
-            pass_type=pass_type,
-        )
-
-    async def _run_pass4(
-        self,
-        event: PerceivedEvent,
-        pass_history: list[PassResult],
-        context: Optional["StructuredContext"],
-        pass_number: int,
-        model_tier: ModelTier,
-    ) -> PassResult:
-        """
-        Run Pass 4-5: Deep reasoning with Sonnet/Opus.
-
-        Args:
-            event: Event to analyze
-            pass_history: History of all previous passes
-            context: Full structured context
-            pass_number: Current pass number (4 or 5)
-            model_tier: Model to use (Sonnet or Opus)
-
-        Returns:
-            PassResult from deep reasoning
-        """
-        # Convert pass history to dicts for template
-        passes_dicts = [p.to_dict() for p in pass_history]
-
-        # Identify unresolved issues
-        unresolved_issues = self._identify_unresolved_issues(pass_history)
-
-        prompt = self.template_renderer.render_pass4(
-            event=event,
-            passes=passes_dicts,
-            full_context=context,
-            unresolved_issues=unresolved_issues,
-        )
-
-        pass_type = (
-            PassType.EXPERT_ANALYSIS if model_tier == ModelTier.OPUS else PassType.DEEP_REASONING
-        )
-
-        return await self._call_model(
-            prompt=prompt,
-            model_tier=model_tier,
-            pass_number=pass_number,
-            pass_type=pass_type,
-        )
+        # Always use Four Valets v3.0 pipeline
+        try:
+            return await self._run_four_valets_pipeline(event, sender_importance)
+        except Exception as e:
+            logger.error(f"Four Valets analysis failed: {e}", exc_info=True)
+            raise MultiPassAnalyzerError(f"Analysis failed: {e}") from e
 
     async def _run_coherence_pass(
         self,
@@ -763,52 +618,6 @@ class MultiPassAnalyzer:
                 validated_extractions.append(ext)
 
         return validated_extractions
-
-    def _identify_unresolved_issues(self, pass_history: list[PassResult]) -> list[str]:
-        """
-        Identify issues that remain unresolved across passes.
-
-        Args:
-            pass_history: History of all passes
-
-        Returns:
-            List of unresolved issue descriptions
-        """
-        issues = []
-
-        if not pass_history:
-            return issues
-
-        last_pass = pass_history[-1]
-
-        # Check weak confidence dimensions
-        weak_dims = last_pass.confidence.needs_improvement(threshold=0.85)
-        for dim in weak_dims:
-            issues.append(
-                f"Low {dim} confidence ({getattr(last_pass.confidence, f'{dim}_confidence', 0):.0%})"
-            )
-
-        # Check for oscillating actions across passes
-        if len(pass_history) >= 2:
-            actions = [p.action for p in pass_history]
-            if len(set(actions)) > 1:
-                issues.append(f"Action oscillating between: {', '.join(set(actions))}")
-
-        # Check for conflicting extractions
-        # (same note_cible with different info)
-        all_extractions: dict[str, list[str]] = {}
-        for p in pass_history:
-            for e in p.extractions:
-                if e.note_cible:
-                    if e.note_cible not in all_extractions:
-                        all_extractions[e.note_cible] = []
-                    all_extractions[e.note_cible].append(e.info)
-
-        for note, infos in all_extractions.items():
-            if len(set(infos)) > 1:
-                issues.append(f"Conflicting info for '{note}'")
-
-        return issues
 
     async def _call_model(
         self,
@@ -1339,7 +1148,11 @@ class MultiPassAnalyzer:
 
         if is_financial or is_legal:
             matched_ind = next(
-                (ind for ind in self.FINANCIAL_INDICATORS | self.LEGAL_INDICATORS if ind in full_text),
+                (
+                    ind
+                    for ind in self.FINANCIAL_INDICATORS | self.LEGAL_INDICATORS
+                    if ind in full_text
+                ),
                 "unknown",
             )
             logger.info(
@@ -1857,6 +1670,7 @@ class MultiPassAnalyzer:
                 stopped_at="grimaud",
                 stop_reason=f"early_stop: {grimaud.early_stop_reason}",
                 context=None,
+                sender_importance=sender_importance,
             )
 
         # Get context for Bazin
@@ -1888,6 +1702,7 @@ class MultiPassAnalyzer:
                 stopped_at="planchet",
                 stop_reason=f"planchet_confident ({planchet.confidence.overall:.0%})",
                 context=context,
+                sender_importance=sender_importance,
             )
 
         # === MOUSQUETON (Pass 4) — Arbitrage final ===
@@ -1903,6 +1718,7 @@ class MultiPassAnalyzer:
             stopped_at="mousqueton",
             stop_reason="mousqueton_arbitrage",
             context=context,
+            sender_importance=sender_importance,
         )
 
     async def _run_grimaud(self, event: PerceivedEvent) -> PassResult:
@@ -2066,6 +1882,7 @@ class MultiPassAnalyzer:
         stopped_at: str,
         stop_reason: str,
         context: Optional[StructuredContext] = None,
+        sender_importance: str = "normal",
     ) -> MultiPassResult:
         """
         Build the final MultiPassResult for Four Valets pipeline.
@@ -2077,7 +1894,7 @@ class MultiPassAnalyzer:
 
         # Build analysis context
         analysis_context = AnalysisContext(
-            sender_importance="normal",
+            sender_importance=sender_importance,
             has_attachments=bool(getattr(event, "attachments", None)),
             is_thread=bool(getattr(event, "thread_id", None)),
         )

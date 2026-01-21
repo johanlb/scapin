@@ -71,23 +71,24 @@ def _build_multi_pass_data(multi_pass_result: Any) -> dict[str, Any] | None:
         escalation_triggered = False
         if i > 0:
             prev_model = models_used[i - 1]
-            escalation_triggered = (
-                (prev_model == "haiku" and model in ["sonnet", "opus"])
-                or (prev_model == "sonnet" and model == "opus")
+            escalation_triggered = (prev_model == "haiku" and model in ["sonnet", "opus"]) or (
+                prev_model == "sonnet" and model == "opus"
             )
 
-        pass_history.append({
-            "pass_number": i + 1,
-            "model_used": model,
-            "pass_type": pass_type_value,
-            "duration_ms": getattr(pass_result, "duration_ms", 0),
-            "tokens_used": getattr(pass_result, "tokens_used", 0),
-            "confidence_before": prev_confidence,
-            "confidence_after": confidence_after,
-            "escalation_triggered": escalation_triggered,
-            "reasoning": getattr(pass_result, "reasoning", ""),
-            "thinking_bubbles": getattr(pass_result, "thinking_bubbles", []),
-        })
+        pass_history.append(
+            {
+                "pass_number": i + 1,
+                "model_used": model,
+                "pass_type": pass_type_value,
+                "duration_ms": getattr(pass_result, "duration_ms", 0),
+                "tokens_used": getattr(pass_result, "tokens_used", 0),
+                "confidence_before": prev_confidence,
+                "confidence_after": confidence_after,
+                "escalation_triggered": escalation_triggered,
+                "reasoning": getattr(pass_result, "reasoning", ""),
+                "thinking_bubbles": getattr(pass_result, "thinking_bubbles", []),
+            }
+        )
         prev_confidence = confidence_after
 
     return {
@@ -101,6 +102,7 @@ def _build_multi_pass_data(multi_pass_result: Any) -> dict[str, Any] | None:
         "total_duration_ms": multi_pass_result.total_duration_ms,
         "pass_history": pass_history,
     }
+
 
 router = APIRouter()
 
@@ -130,8 +132,7 @@ def _get_v2_processor():
 
     from src.trivelin.v2_processor import V2EmailProcessor
 
-    use_multi_pass = getattr(config.workflow_v2, "use_multi_pass", True)
-    return V2EmailProcessor(config=config.workflow_v2, use_multi_pass=use_multi_pass)
+    return V2EmailProcessor(config=config.workflow_v2)
 
 
 @router.get("/config", response_model=APIResponse[WorkflowConfigResponse])
@@ -205,7 +206,7 @@ async def analyze_email_v2(
 
     Processes the email through the knowledge extraction pipeline:
     1. Retrieves context notes
-    2. Analyzes with EventAnalyzer (Haiku → Sonnet if needed)
+    2. Analyzes with MultiPassAnalyzer (Four Valets v3.0)
     3. Auto-applies extractions if high confidence
 
     Args:
