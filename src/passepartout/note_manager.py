@@ -2130,7 +2130,7 @@ _note_manager_lock = threading.Lock()
 def get_note_manager(
     notes_dir: Optional[Path] = None,
     git_enabled: bool = True,
-    auto_index: bool = False,
+    auto_index: bool = True,
 ) -> NoteManager:
     """
     Get or create singleton NoteManager instance (thread-safe)
@@ -2141,7 +2141,7 @@ def get_note_manager(
     Args:
         notes_dir: Directory for notes (default: from config or ~/Documents/Scapin/Notes)
         git_enabled: Enable Git operations
-        auto_index: Enable auto-indexing on init (default False for performance)
+        auto_index: Enable auto-indexing on init (default True to ensure index exists)
 
     Returns:
         NoteManager singleton instance
