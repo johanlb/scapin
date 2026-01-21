@@ -570,10 +570,12 @@ async def trigger_retouche(
     try:
         from src.passepartout.note_manager import get_note_manager
         from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_scheduler import NoteScheduler
         from src.passepartout.retouche_reviewer import RetoucheReviewer
 
         note_manager = get_note_manager()
         metadata_store = NoteMetadataStore()
+        scheduler = NoteScheduler(metadata_store)
 
         # Get quality before
         metadata = metadata_store.get(note_id)
@@ -583,6 +585,7 @@ async def trigger_retouche(
         reviewer = RetoucheReviewer(
             note_manager=note_manager,
             metadata_store=metadata_store,
+            scheduler=scheduler,
         )
 
         result = await reviewer.review_note(note_id)
