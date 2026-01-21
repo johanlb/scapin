@@ -254,6 +254,10 @@ class MultiPassAnalyzer:
         "accord signé", "legal agreement", "avenant au contrat", "amendment",
         "résiliation", "termination notice", "licence commerciale",
         "business license", "permis de construire",
+        # Real estate / rental documents
+        "bail", "lease", "locataire", "tenant", "location", "rental",
+        "préavis", "notice period", "fin de bail", "end of lease",
+        "renouvellement", "renewal", "loyer", "rent", "propriétaire", "landlord",
     ])
 
     # Newsletter/digest indicators (periodic content, no lasting value)

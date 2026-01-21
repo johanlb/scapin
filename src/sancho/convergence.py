@@ -390,9 +390,9 @@ class MultiPassConfig:
 
     # Confidence thresholds
     confidence_stop_threshold: float = 0.95  # Stop if reached
-    confidence_minimum: float = 0.85  # Minimum for auto-application and stopping
-    confidence_escalate_sonnet: float = 0.80  # Escalate to Sonnet
-    confidence_escalate_opus: float = 0.75  # Escalate to Opus
+    confidence_minimum: float = 0.90  # Minimum for auto-application and stopping
+    confidence_escalate_sonnet: float = 0.85  # Escalate to Sonnet
+    confidence_escalate_opus: float = 0.80  # Escalate to Opus
 
     # Limits
     max_passes: int = 5
