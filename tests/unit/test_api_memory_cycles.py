@@ -10,6 +10,7 @@ Tests all Memory Cycles v2 endpoints:
 - POST /api/briefing/retouche/{note_id}
 """
 
+from collections.abc import Generator
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -17,17 +18,41 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.frontin.api.app import create_app
+from src.frontin.api.deps import get_metadata_store, get_scheduler
 from src.passepartout.filage_service import Filage, FilageLecture
 from src.passepartout.lecture_service import LectureResult, LectureSession
-from src.passepartout.note_metadata import NoteMetadata
+from src.passepartout.note_metadata import NoteMetadata, NoteMetadataStore
+from src.passepartout.note_scheduler import NoteScheduler
 from src.passepartout.note_types import NoteType
 from src.passepartout.retouche_reviewer import RetoucheResult
 
 
 @pytest.fixture
-def client() -> TestClient:
-    """Create test client"""
+def mock_metadata_store() -> MagicMock:
+    """Create a mock NoteMetadataStore"""
+    return MagicMock(spec=NoteMetadataStore)
+
+
+@pytest.fixture
+def mock_scheduler() -> MagicMock:
+    """Create a mock NoteScheduler"""
+    return MagicMock(spec=NoteScheduler)
+
+
+@pytest.fixture
+def client(mock_metadata_store: MagicMock, mock_scheduler: MagicMock) -> TestClient:
+    """Create test client with dependency overrides"""
     app = create_app()
+
+    def override_metadata_store() -> Generator[MagicMock, None, None]:
+        yield mock_metadata_store
+
+    def override_scheduler() -> Generator[MagicMock, None, None]:
+        yield mock_scheduler
+
+    app.dependency_overrides[get_metadata_store] = override_metadata_store
+    app.dependency_overrides[get_scheduler] = override_scheduler
+
     return TestClient(app)
 
 
@@ -118,15 +143,17 @@ class TestFilageEndpoint:
 
     def test_get_filage_success(self, client: TestClient, sample_filage: Filage) -> None:
         """Test getting filage returns success"""
-        with patch("src.passepartout.filage_service.FilageService") as MockFilageService:
+        with (
+            patch(
+                "src.passepartout.filage_service.FilageService"
+            ) as MockFilageService,
+            patch("src.passepartout.note_manager.get_note_manager"),
+        ):
             mock_service = MagicMock()
             mock_service.generate_filage = AsyncMock(return_value=sample_filage)
             MockFilageService.return_value = mock_service
 
-            with patch("src.passepartout.note_manager.get_note_manager"):
-                with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                    with patch("src.passepartout.note_scheduler.NoteScheduler"):
-                        response = client.get("/api/briefing/filage")
+            response = client.get("/api/briefing/filage")
 
             assert response.status_code == 200
             data = response.json()
@@ -137,15 +164,17 @@ class TestFilageEndpoint:
         self, client: TestClient, sample_filage: Filage
     ) -> None:
         """Test filage includes lecture data"""
-        with patch("src.passepartout.filage_service.FilageService") as MockFilageService:
+        with (
+            patch(
+                "src.passepartout.filage_service.FilageService"
+            ) as MockFilageService,
+            patch("src.passepartout.note_manager.get_note_manager"),
+        ):
             mock_service = MagicMock()
             mock_service.generate_filage = AsyncMock(return_value=sample_filage)
             MockFilageService.return_value = mock_service
 
-            with patch("src.passepartout.note_manager.get_note_manager"):
-                with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                    with patch("src.passepartout.note_scheduler.NoteScheduler"):
-                        response = client.get("/api/briefing/filage")
+            response = client.get("/api/briefing/filage")
 
             data = response.json()["data"]
             assert data["total_lectures"] == 2
@@ -161,15 +190,17 @@ class TestLectureStartEndpoint:
         self, client: TestClient, sample_lecture_session: LectureSession
     ) -> None:
         """Test starting a lecture returns session"""
-        with patch("src.passepartout.lecture_service.LectureService") as MockLectureService:
+        with (
+            patch(
+                "src.passepartout.lecture_service.LectureService"
+            ) as MockLectureService,
+            patch("src.passepartout.note_manager.get_note_manager"),
+        ):
             mock_service = MagicMock()
             mock_service.start_lecture.return_value = sample_lecture_session
             MockLectureService.return_value = mock_service
 
-            with patch("src.passepartout.note_manager.get_note_manager"):
-                with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                    with patch("src.passepartout.note_scheduler.NoteScheduler"):
-                        response = client.post("/api/briefing/lecture/note-001/start")
+            response = client.post("/api/briefing/lecture/note-001/start")
 
             assert response.status_code == 200
             data = response.json()
@@ -180,15 +211,17 @@ class TestLectureStartEndpoint:
 
     def test_start_lecture_not_found(self, client: TestClient) -> None:
         """Test starting lecture for nonexistent note returns 404"""
-        with patch("src.passepartout.lecture_service.LectureService") as MockLectureService:
+        with (
+            patch(
+                "src.passepartout.lecture_service.LectureService"
+            ) as MockLectureService,
+            patch("src.passepartout.note_manager.get_note_manager"),
+        ):
             mock_service = MagicMock()
             mock_service.start_lecture.return_value = None
             MockLectureService.return_value = mock_service
 
-            with patch("src.passepartout.note_manager.get_note_manager"):
-                with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                    with patch("src.passepartout.note_scheduler.NoteScheduler"):
-                        response = client.post("/api/briefing/lecture/nonexistent/start")
+            response = client.post("/api/briefing/lecture/nonexistent/start")
 
             assert response.status_code == 404
 
@@ -200,18 +233,20 @@ class TestLectureCompleteEndpoint:
         self, client: TestClient, sample_lecture_result: LectureResult
     ) -> None:
         """Test completing a lecture successfully"""
-        with patch("src.passepartout.lecture_service.LectureService") as MockLectureService:
+        with (
+            patch(
+                "src.passepartout.lecture_service.LectureService"
+            ) as MockLectureService,
+            patch("src.passepartout.note_manager.get_note_manager"),
+        ):
             mock_service = MagicMock()
             mock_service.complete_lecture.return_value = sample_lecture_result
             MockLectureService.return_value = mock_service
 
-            with patch("src.passepartout.note_manager.get_note_manager"):
-                with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                    with patch("src.passepartout.note_scheduler.NoteScheduler"):
-                        response = client.post(
-                            "/api/briefing/lecture/note-001/complete",
-                            json={"quality": 4},
-                        )
+            response = client.post(
+                "/api/briefing/lecture/note-001/complete",
+                json={"quality": 4},
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -223,18 +258,20 @@ class TestLectureCompleteEndpoint:
         self, client: TestClient, sample_lecture_result: LectureResult
     ) -> None:
         """Test completing lecture with answers"""
-        with patch("src.passepartout.lecture_service.LectureService") as MockLectureService:
+        with (
+            patch(
+                "src.passepartout.lecture_service.LectureService"
+            ) as MockLectureService,
+            patch("src.passepartout.note_manager.get_note_manager"),
+        ):
             mock_service = MagicMock()
             mock_service.complete_lecture.return_value = sample_lecture_result
             MockLectureService.return_value = mock_service
 
-            with patch("src.passepartout.note_manager.get_note_manager"):
-                with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                    with patch("src.passepartout.note_scheduler.NoteScheduler"):
-                        response = client.post(
-                            "/api/briefing/lecture/note-001/complete",
-                            json={"quality": 4, "answers": {"0": "Answer 1", "1": "Answer 2"}},
-                        )
+            response = client.post(
+                "/api/briefing/lecture/note-001/complete",
+                json={"quality": 4, "answers": {"0": "Answer 1", "1": "Answer 2"}},
+            )
 
             assert response.status_code == 200
 
@@ -264,15 +301,17 @@ class TestLectureStatsEndpoint:
             "questions_pending": True,
             "questions_count": 2,
         }
-        with patch("src.passepartout.lecture_service.LectureService") as MockLectureService:
+        with (
+            patch(
+                "src.passepartout.lecture_service.LectureService"
+            ) as MockLectureService,
+            patch("src.passepartout.note_manager.get_note_manager"),
+        ):
             mock_service = MagicMock()
             mock_service.get_lecture_stats.return_value = stats
             MockLectureService.return_value = mock_service
 
-            with patch("src.passepartout.note_manager.get_note_manager"):
-                with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                    with patch("src.passepartout.note_scheduler.NoteScheduler"):
-                        response = client.get("/api/briefing/lecture/note-001/stats")
+            response = client.get("/api/briefing/lecture/note-001/stats")
 
             assert response.status_code == 200
             data = response.json()
@@ -282,15 +321,17 @@ class TestLectureStatsEndpoint:
 
     def test_get_lecture_stats_not_found(self, client: TestClient) -> None:
         """Test getting stats for nonexistent note returns 404"""
-        with patch("src.passepartout.lecture_service.LectureService") as MockLectureService:
+        with (
+            patch(
+                "src.passepartout.lecture_service.LectureService"
+            ) as MockLectureService,
+            patch("src.passepartout.note_manager.get_note_manager"),
+        ):
             mock_service = MagicMock()
             mock_service.get_lecture_stats.return_value = None
             MockLectureService.return_value = mock_service
 
-            with patch("src.passepartout.note_manager.get_note_manager"):
-                with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                    with patch("src.passepartout.note_scheduler.NoteScheduler"):
-                        response = client.get("/api/briefing/lecture/nonexistent/stats")
+            response = client.get("/api/briefing/lecture/nonexistent/stats")
 
             assert response.status_code == 404
 
@@ -298,43 +339,43 @@ class TestLectureStatsEndpoint:
 class TestAddToFilageEndpoint:
     """Tests for POST /api/briefing/filage/add/{note_id} endpoint"""
 
-    def test_add_to_filage_success(self, client: TestClient) -> None:
+    def test_add_to_filage_success(
+        self, client: TestClient, mock_scheduler: MagicMock
+    ) -> None:
         """Test adding note to filage successfully"""
-        with patch("src.passepartout.note_scheduler.NoteScheduler") as MockScheduler:
-            mock_scheduler = MagicMock()
-            mock_scheduler.trigger_immediate_review.return_value = True
-            MockScheduler.return_value = mock_scheduler
+        mock_scheduler.trigger_immediate_review.return_value = True
 
-            with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                response = client.post("/api/briefing/filage/add/note-001")
+        response = client.post("/api/briefing/filage/add/note-001")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
-            assert data["data"]["success"] is True
-            assert data["data"]["note_id"] == "note-001"
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["success"] is True
+        assert data["data"]["note_id"] == "note-001"
+        mock_scheduler.trigger_immediate_review.assert_called_once_with("note-001")
 
-    def test_add_to_filage_note_not_found(self, client: TestClient) -> None:
+    def test_add_to_filage_note_not_found(
+        self, client: TestClient, mock_scheduler: MagicMock
+    ) -> None:
         """Test adding nonexistent note to filage"""
-        with patch("src.passepartout.note_scheduler.NoteScheduler") as MockScheduler:
-            mock_scheduler = MagicMock()
-            mock_scheduler.trigger_immediate_review.return_value = False
-            MockScheduler.return_value = mock_scheduler
+        mock_scheduler.trigger_immediate_review.return_value = False
 
-            with patch("src.passepartout.note_metadata.NoteMetadataStore"):
-                response = client.post("/api/briefing/filage/add/nonexistent")
+        response = client.post("/api/briefing/filage/add/nonexistent")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is False
-            assert "not found" in data["data"]["message"].lower()
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert "not found" in data["data"]["message"].lower()
 
 
 class TestRetoucheEndpoint:
     """Tests for POST /api/briefing/retouche/{note_id} endpoint"""
 
     def test_trigger_retouche_success(
-        self, client: TestClient, sample_metadata: NoteMetadata
+        self,
+        client: TestClient,
+        mock_metadata_store: MagicMock,
+        sample_metadata: NoteMetadata,
     ) -> None:
         """Test triggering retouche successfully"""
         retouche_result = RetoucheResult(
@@ -349,16 +390,15 @@ class TestRetoucheEndpoint:
             reasoning="Note quality improved",
         )
 
+        # Configure mock metadata store (injected via dependency override)
+        mock_metadata_store.get.return_value = sample_metadata
+
         with (
-            patch("src.passepartout.note_metadata.NoteMetadataStore") as MockMetadataStore,
-            patch("src.passepartout.note_scheduler.NoteScheduler"),
-            patch("src.passepartout.retouche_reviewer.RetoucheReviewer") as MockRetouche,
+            patch(
+                "src.passepartout.retouche_reviewer.RetoucheReviewer"
+            ) as MockRetouche,
             patch("src.passepartout.note_manager.get_note_manager"),
         ):
-            mock_store = MagicMock()
-            mock_store.get.return_value = sample_metadata
-            MockMetadataStore.return_value = mock_store
-
             mock_reviewer = MagicMock()
             mock_reviewer.review_note = AsyncMock(return_value=retouche_result)
             MockRetouche.return_value = mock_reviewer
@@ -371,7 +411,11 @@ class TestRetoucheEndpoint:
             assert data["data"]["success"] is True
             assert data["data"]["improvements_count"] == 0  # Empty actions list
 
-    def test_trigger_retouche_failure(self, client: TestClient) -> None:
+    def test_trigger_retouche_failure(
+        self,
+        client: TestClient,
+        mock_metadata_store: MagicMock,
+    ) -> None:
         """Test retouche failure handling"""
         retouche_result = RetoucheResult(
             note_id="note-001",
@@ -383,16 +427,15 @@ class TestRetoucheEndpoint:
             error="Note not found",
         )
 
+        # Configure mock metadata store (injected via dependency override)
+        mock_metadata_store.get.return_value = None
+
         with (
-            patch("src.passepartout.note_metadata.NoteMetadataStore") as MockMetadataStore,
-            patch("src.passepartout.note_scheduler.NoteScheduler"),
-            patch("src.passepartout.retouche_reviewer.RetoucheReviewer") as MockRetouche,
+            patch(
+                "src.passepartout.retouche_reviewer.RetoucheReviewer"
+            ) as MockRetouche,
             patch("src.passepartout.note_manager.get_note_manager"),
         ):
-            mock_store = MagicMock()
-            mock_store.get.return_value = None
-            MockMetadataStore.return_value = mock_store
-
             mock_reviewer = MagicMock()
             mock_reviewer.review_note = AsyncMock(return_value=retouche_result)
             MockRetouche.return_value = mock_reviewer
@@ -416,11 +459,13 @@ class TestMemoryCyclesIntegration:
     ) -> None:
         """Test complete lecture workflow: filage → start → complete"""
         with (
-            patch("src.passepartout.filage_service.FilageService") as MockFilageService,
-            patch("src.passepartout.lecture_service.LectureService") as MockLectureService,
+            patch(
+                "src.passepartout.filage_service.FilageService"
+            ) as MockFilageService,
+            patch(
+                "src.passepartout.lecture_service.LectureService"
+            ) as MockLectureService,
             patch("src.passepartout.note_manager.get_note_manager"),
-            patch("src.passepartout.note_metadata.NoteMetadataStore"),
-            patch("src.passepartout.note_scheduler.NoteScheduler"),
         ):
             # Mock FilageService
             mock_filage_service = MagicMock()

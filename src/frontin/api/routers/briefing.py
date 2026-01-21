@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from src.core.events import PerceivedEvent
-from src.frontin.api.deps import get_briefing_service
+from src.frontin.api.deps import get_briefing_service, get_metadata_store, get_scheduler
 from src.frontin.api.models.calendar import CalendarConflict
 from src.frontin.api.models.responses import (
     APIResponse,
@@ -278,6 +278,8 @@ class LectureStatsResponse(BaseModel):
 @router.get("/filage", response_model=APIResponse[FilageResponse])
 async def get_filage(
     max_lectures: int = Query(20, ge=1, le=50, description="Maximum lectures to include"),
+    metadata_store=Depends(get_metadata_store),
+    scheduler=Depends(get_scheduler),
 ) -> APIResponse[FilageResponse]:
     """
     Get the Filage (morning briefing with notes to review).
@@ -292,13 +294,9 @@ async def get_filage(
         # Import here to avoid circular imports
         from src.passepartout.filage_service import FilageService
         from src.passepartout.note_manager import get_note_manager
-        from src.passepartout.note_metadata import NoteMetadataStore
-        from src.passepartout.note_scheduler import NoteScheduler
 
         # Get singleton instances
         note_manager = get_note_manager()
-        metadata_store = NoteMetadataStore()
-        scheduler = NoteScheduler(metadata_store)
 
         filage_service = FilageService(
             note_manager=note_manager,
@@ -344,6 +342,8 @@ async def get_filage(
 @router.post("/lecture/{note_id}/start", response_model=APIResponse[LectureSessionResponse])
 async def start_lecture(
     note_id: str,
+    metadata_store=Depends(get_metadata_store),
+    scheduler=Depends(get_scheduler),
 ) -> APIResponse[LectureSessionResponse]:
     """
     Start a Lecture session for a note.
@@ -354,13 +354,9 @@ async def start_lecture(
         # Import here to avoid circular imports
         from src.passepartout.lecture_service import LectureService
         from src.passepartout.note_manager import get_note_manager
-        from src.passepartout.note_metadata import NoteMetadataStore
-        from src.passepartout.note_scheduler import NoteScheduler
 
         # Get singleton instances
         note_manager = get_note_manager()
-        metadata_store = NoteMetadataStore()
-        scheduler = NoteScheduler(metadata_store)
 
         lecture_service = LectureService(
             note_manager=note_manager,
@@ -398,6 +394,8 @@ async def start_lecture(
 async def complete_lecture(
     note_id: str,
     request: LectureCompleteRequest,
+    metadata_store=Depends(get_metadata_store),
+    scheduler=Depends(get_scheduler),
 ) -> APIResponse[LectureResultResponse]:
     """
     Complete a Lecture session and update SM-2 scheduling.
@@ -410,13 +408,9 @@ async def complete_lecture(
         # Import here to avoid circular imports
         from src.passepartout.lecture_service import LectureService
         from src.passepartout.note_manager import get_note_manager
-        from src.passepartout.note_metadata import NoteMetadataStore
-        from src.passepartout.note_scheduler import NoteScheduler
 
         # Get singleton instances
         note_manager = get_note_manager()
-        metadata_store = NoteMetadataStore()
-        scheduler = NoteScheduler(metadata_store)
 
         lecture_service = LectureService(
             note_manager=note_manager,
@@ -453,19 +447,17 @@ async def complete_lecture(
 @router.get("/lecture/{note_id}/stats", response_model=APIResponse[LectureStatsResponse])
 async def get_lecture_stats(
     note_id: str,
+    metadata_store=Depends(get_metadata_store),
+    scheduler=Depends(get_scheduler),
 ) -> APIResponse[LectureStatsResponse]:
     """Get Lecture statistics for a note."""
     try:
         # Import here to avoid circular imports
         from src.passepartout.lecture_service import LectureService
         from src.passepartout.note_manager import get_note_manager
-        from src.passepartout.note_metadata import NoteMetadataStore
-        from src.passepartout.note_scheduler import NoteScheduler
 
         # Get singleton instances
         note_manager = get_note_manager()
-        metadata_store = NoteMetadataStore()
-        scheduler = NoteScheduler(metadata_store)
 
         lecture_service = LectureService(
             note_manager=note_manager,
@@ -512,6 +504,7 @@ class RetoucheResponse(BaseModel):
 @router.post("/filage/add/{note_id}", response_model=APIResponse[AddToFilageResponse])
 async def add_to_filage(
     note_id: str,
+    scheduler=Depends(get_scheduler),
 ) -> APIResponse[AddToFilageResponse]:
     """
     Add a note to today's Filage (force immediate review).
@@ -519,12 +512,6 @@ async def add_to_filage(
     This sets the note's next_review to now, ensuring it appears in the Filage.
     """
     try:
-        from src.passepartout.note_metadata import NoteMetadataStore
-        from src.passepartout.note_scheduler import NoteScheduler
-
-        metadata_store = NoteMetadataStore()
-        scheduler = NoteScheduler(metadata_store)
-
         success = scheduler.trigger_immediate_review(note_id)
 
         if not success:
@@ -556,6 +543,8 @@ async def add_to_filage(
 @router.post("/retouche/{note_id}", response_model=APIResponse[RetoucheResponse])
 async def trigger_retouche(
     note_id: str,
+    metadata_store=Depends(get_metadata_store),
+    scheduler=Depends(get_scheduler),
 ) -> APIResponse[RetoucheResponse]:
     """
     Trigger an AI Retouche (review) for a note.
@@ -569,13 +558,9 @@ async def trigger_retouche(
     """
     try:
         from src.passepartout.note_manager import get_note_manager
-        from src.passepartout.note_metadata import NoteMetadataStore
-        from src.passepartout.note_scheduler import NoteScheduler
         from src.passepartout.retouche_reviewer import RetoucheReviewer
 
         note_manager = get_note_manager()
-        metadata_store = NoteMetadataStore()
-        scheduler = NoteScheduler(metadata_store)
 
         # Get quality before
         metadata = metadata_store.get(note_id)

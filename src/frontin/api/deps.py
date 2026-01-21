@@ -20,6 +20,8 @@ from src.frontin.api.services.email_service import EmailService
 from src.frontin.api.services.notes_review_service import NotesReviewService
 from src.frontin.api.services.notes_service import NotesService
 from src.frontin.api.services.queue_service import QueueService
+from src.passepartout.note_metadata import NoteMetadataStore
+from src.passepartout.note_scheduler import NoteScheduler
 
 # HTTP Bearer security scheme
 security = HTTPBearer(auto_error=False)
@@ -132,3 +134,33 @@ def get_discussion_service() -> Generator[DiscussionService, None, None]:
     config = get_cached_config()
     service = DiscussionService(config=config)
     yield service
+
+
+# Cached NoteMetadataStore singleton to avoid creating new SQLite connections on every request
+_metadata_store_instance: NoteMetadataStore | None = None
+
+
+def get_metadata_store() -> Generator[NoteMetadataStore, None, None]:
+    """Get metadata store instance (cached singleton to avoid connection pool exhaustion)"""
+    global _metadata_store_instance
+    if _metadata_store_instance is None:
+        config = get_cached_config()
+        # Use database directory for notes metadata
+        data_dir = config.storage.database_path.parent
+        db_path = data_dir / "notes_meta.db"
+        _metadata_store_instance = NoteMetadataStore(db_path)
+    yield _metadata_store_instance
+
+
+# Cached NoteScheduler singleton (depends on metadata store)
+_scheduler_instance: NoteScheduler | None = None
+
+
+def get_scheduler() -> Generator[NoteScheduler, None, None]:
+    """Get scheduler instance (cached singleton)"""
+    global _scheduler_instance
+    if _scheduler_instance is None:
+        # Get the metadata store singleton
+        store = next(get_metadata_store())
+        _scheduler_instance = NoteScheduler(store)
+    yield _scheduler_instance
