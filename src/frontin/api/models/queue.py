@@ -147,6 +147,7 @@ class ContextNoteResponse(BaseModel):
     summary: str = Field("", description="Brief excerpt from the note")
     relevance: float = Field(..., description="Relevance score 0-1")
     tags: list[str] = Field(default_factory=list, description="Note tags")
+    path: str = Field("", description="Folder path for navigation")
 
 
 class ContextCalendarResponse(BaseModel):
