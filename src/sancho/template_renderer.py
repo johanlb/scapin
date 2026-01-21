@@ -211,6 +211,7 @@ class TemplateRenderer:
         grimaud_result: dict,
         bazin_result: dict,
         context: Any,
+        max_content_chars: int = 8000,
     ) -> str:
         """
         Render Planchet (Pass 3) template - Critique et validation.
@@ -223,6 +224,7 @@ class TemplateRenderer:
             grimaud_result: Result from Grimaud pass
             bazin_result: Result from Bazin pass
             context: StructuredContext with notes, calendar, etc.
+            max_content_chars: Maximum characters of content to include
 
         Returns:
             Rendered prompt string
@@ -232,6 +234,7 @@ class TemplateRenderer:
             event=event,
             previous_passes=[grimaud_result, bazin_result],  # Template expects previous_passes
             context=context,
+            max_content_chars=max_content_chars,
             briefing=self._get_briefing(),
         )
 

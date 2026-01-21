@@ -1793,6 +1793,7 @@ class MultiPassAnalyzer:
             grimaud_result=grimaud.to_dict(),
             bazin_result=bazin.to_dict(),
             context=context,
+            max_content_chars=getattr(self.config.four_valets, "planchet_max_chars", 8000),
         )
         model_tier = self._get_valet_model("planchet")
 
