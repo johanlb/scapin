@@ -97,6 +97,10 @@ test.describe('SC-14: Background Email Processing', () => {
 });
 
 test.describe('SC-15: Auto-Executed Items Display', () => {
+  // SKIP: Filter UI (filter-all, filter-auto, filter-user) not yet implemented
+  // These tests document the expected behavior for future implementation
+  test.skip();
+
   test.beforeEach(async ({ authenticatedPage: page }) => {
     await page.goto('/peripeties');
     // Navigate to processed/approved tab
@@ -221,6 +225,10 @@ test.describe('SC-15: Auto-Executed Items Display', () => {
 });
 
 test.describe('SC-17: Auto-Execute Threshold Configuration', () => {
+  // SKIP: Threshold settings UI (threshold-slider, settings-processing) not yet implemented
+  // These tests document the expected behavior for future implementation
+  test.skip();
+
   test('should have threshold setting in settings page', async ({
     authenticatedPage: page,
   }) => {

@@ -8,7 +8,7 @@
 		QuickActionsMenu
 	} from '$lib/components/ui';
 	import {
-		showCommandPalette,
+		uiState,
 		openCommandPalette,
 		closeCommandPalette,
 		authStore,
@@ -27,22 +27,11 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 
-	// Reactive state for help visibility
-	let helpVisible = $state(false);
+	// Keyboard shortcuts help visibility (reactive through Svelte 5)
+	const helpVisible = $derived(isHelpVisible());
 
 	// Reactive quick actions based on current page
 	const quickActions = $derived(browser ? getQuickActions() : []);
-
-	// Update help visibility reactively
-	$effect(() => {
-		if (browser) {
-			const checkHelp = () => {
-				helpVisible = isHelpVisible();
-			};
-			const interval = setInterval(checkHelp, 100);
-			return () => clearInterval(interval);
-		}
-	});
 
 	let { children } = $props();
 
@@ -150,13 +139,8 @@
 		};
 	});
 
-	function handleKeydown(event: KeyboardEvent) {
-		// Cmd+K (Mac) or Ctrl+K (Windows/Linux)
-		if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-			event.preventDefault();
-			openCommandPalette();
-		}
-	}
+	// Global keydown handler moved to library, but we can keep specific layout overrides if needed.
+	// We'll remove the manual Cmd+K handler as it's now handled by the library.
 
 	function handleSearchSelect(result: { id: string; type: string; title: string }) {
 		// Navigate based on result type
@@ -173,7 +157,7 @@
 	}
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<!-- Global keydown listener is already in initializeShortcuts, but we can add window listeners for svelte-specific logic here if needed -->
 
 <svelte:head>
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -241,7 +225,7 @@
 		</div>
 
 		<!-- Global Command Palette (Cmd+K) -->
-		{#if $showCommandPalette}
+		{#if uiState.showCommandPalette}
 			<CommandPalette onclose={closeCommandPalette} onselect={handleSearchSelect} />
 		{/if}
 

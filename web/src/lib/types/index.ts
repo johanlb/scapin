@@ -99,3 +99,12 @@ export interface ApiResponse<T> {
 		request_id?: string;
 	};
 }
+// Search types
+export interface SearchResult {
+	id: string;
+	type: 'note' | 'email' | 'event' | 'task' | 'discussion';
+	title: string;
+	subtitle?: string;
+	path?: string;
+	icon: string;
+}

@@ -24,11 +24,12 @@
 	let alerts = $state<AlertsResponse | null>(null);
 	let showAlerts = $state(true);
 
-	onMount(async () => {
-		await Promise.all([
-			valetsStore.initialize(),
-			fetchEnhancedData()
-		]);
+	onMount(() => {
+		const init = async () => {
+			await Promise.all([valetsStore.initialize(), fetchEnhancedData()]);
+		};
+
+		init();
 
 		// Auto-refresh every 30 seconds
 		refreshInterval = window.setInterval(() => {
@@ -215,11 +216,10 @@
 			{/each}
 		{:else}
 			{#each valetsStore.valets as valet (valet.name)}
-				<button
-					class="text-left w-full"
-					onclick={() => handleValetClick(valet.name)}
-				>
-					<Card class="p-4 hover:shadow-lg hover:border-[var(--color-accent)]/30 transition-all cursor-pointer">
+				<button class="text-left w-full" onclick={() => handleValetClick(valet.name)}>
+					<Card
+						class="p-4 hover:shadow-lg hover:border-[var(--color-accent)]/30 transition-all cursor-pointer"
+					>
 						<!-- Header -->
 						<div class="flex items-start justify-between mb-3">
 							<div class="flex items-center gap-2">

@@ -32,11 +32,11 @@ interface ShortcutsState {
 	helpVisible: boolean;
 }
 
-const state: ShortcutsState = {
-	shortcuts: new Map(),
+const state = $state({
+	shortcuts: new Map<string, KeyboardShortcut>(),
 	enabled: true,
 	helpVisible: false
-};
+});
 
 /**
  * Check if an element is an input-like element
@@ -207,7 +207,7 @@ export function formatShortcut(shortcut: Pick<KeyboardShortcut, 'key' | 'ctrl' |
  * Initialize the keyboard shortcuts system
  */
 export function initializeShortcuts(): () => void {
-	if (!browser) return () => {};
+	if (!browser) return () => { };
 
 	// Add event listener
 	window.addEventListener('keydown', handleKeydown, { capture: true });

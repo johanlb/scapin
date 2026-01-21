@@ -35,7 +35,7 @@
 			case 'info':
 				return 'INFO';
 			default:
-				return severity.toUpperCase();
+				return (severity as string).toUpperCase();
 		}
 	}
 
@@ -77,29 +77,43 @@
 		<button class="alerts-header" onclick={toggleExpanded}>
 			<div class="alerts-summary">
 				{#if totalCritical > 0}
-					<span class="summary-badge critical">{@html '&#128308;'} {totalCritical} critique{totalCritical > 1 ? 's' : ''}</span>
+					<span class="summary-badge critical"
+						>{@html '&#128308;'} {totalCritical} critique{totalCritical > 1 ? 's' : ''}</span
+					>
 				{/if}
 				{#if totalWarning > 0}
-					<span class="summary-badge warning">{@html '&#128993;'} {totalWarning} avertissement{totalWarning > 1 ? 's' : ''}</span>
+					<span class="summary-badge warning"
+						>{@html '&#128993;'} {totalWarning} avertissement{totalWarning > 1 ? 's' : ''}</span
+					>
 				{/if}
 				{#if totalInfo > 0}
-					<span class="summary-badge info">{@html '&#128309;'} {totalInfo} info{totalInfo > 1 ? 's' : ''}</span>
+					<span class="summary-badge info"
+						>{@html '&#128309;'} {totalInfo} info{totalInfo > 1 ? 's' : ''}</span
+					>
 				{/if}
 			</div>
 
 			<div class="header-actions">
 				<span class="expand-icon">{expanded ? '&#9650;' : '&#9660;'}</span>
 				{#if onDismiss}
-					<button
+					<span
+						role="button"
+						tabindex="0"
 						class="dismiss-btn"
 						onclick={(e) => {
 							e.stopPropagation();
 							onDismiss?.();
 						}}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.stopPropagation();
+								onDismiss?.();
+							}
+						}}
 						aria-label="Fermer"
 					>
 						&#10005;
-					</button>
+					</span>
 				{/if}
 			</div>
 		</button>

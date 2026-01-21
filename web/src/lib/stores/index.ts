@@ -1,4 +1,4 @@
-export { showCommandPalette, openCommandPalette, closeCommandPalette } from './ui';
+export { uiState, openCommandPalette, closeCommandPalette } from './ui';
 export { briefingStore } from './briefing.svelte';
 export { authStore } from './auth.svelte';
 export { wsStore } from './websocket.svelte';

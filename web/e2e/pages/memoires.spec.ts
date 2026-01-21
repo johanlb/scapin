@@ -261,6 +261,7 @@ test.describe('Notes Page - Note Display', () => {
 
 // =============================================================================
 // ACTION BUTTONS TESTS
+// Note: These tests require the 3-column layout which is only available on desktop
 // =============================================================================
 
 test.describe('Notes Page - Action Buttons', () => {
@@ -270,7 +271,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should display edit button for selected note', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();
@@ -284,7 +291,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should activate edit mode when clicking edit button', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();
@@ -308,7 +321,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should display move button for selected note', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();
@@ -322,7 +341,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should open move modal when clicking move button', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();
@@ -354,7 +379,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should display delete button for selected note', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();
@@ -368,7 +399,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should show confirmation when clicking delete button', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();
@@ -402,6 +439,7 @@ test.describe('Notes Page - Action Buttons', () => {
   test('should display open in new window button', async ({
     authenticatedPage: page,
   }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
     if (testInfo.project.name.includes('mobile')) {
       test.skip();
       return;
@@ -420,7 +458,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should display AI retouche button', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();
@@ -434,7 +478,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should display hygiene analysis button', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();
@@ -448,7 +498,13 @@ test.describe('Notes Page - Action Buttons', () => {
 
   test('should display trigger review button', async ({
     authenticatedPage: page,
-  }) => {
+  }, testInfo) => {
+    // Skip on mobile - action buttons are in 3-column layout only
+    if (testInfo.project.name.includes('mobile')) {
+      test.skip();
+      return;
+    }
+
     const hasNotes = await waitForNotesPageLoad(page);
     if (!hasNotes) {
       test.skip();

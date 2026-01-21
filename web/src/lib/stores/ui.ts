@@ -1,12 +1,12 @@
-import { writable } from 'svelte/store';
-
-// Global UI state store
-export const showCommandPalette = writable(false);
+// Global UI state using Svelte 5 runes
+export const uiState = $state({
+	showCommandPalette: false
+});
 
 export function openCommandPalette() {
-	showCommandPalette.set(true);
+	uiState.showCommandPalette = true;
 }
 
 export function closeCommandPalette() {
-	showCommandPalette.set(false);
+	uiState.showCommandPalette = false;
 }

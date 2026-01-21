@@ -2,15 +2,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { globalSearch, type GlobalSearchResponse } from '$lib/api/client';
-
-	interface SearchResult {
-		id: string;
-		type: 'note' | 'email' | 'event' | 'task' | 'discussion';
-		title: string;
-		subtitle?: string;
-		path?: string;
-		icon: string;
-	}
+	import type { SearchResult } from '$lib/types';
+	import SearchResultItem from './SearchResultItem.svelte';
 
 	let {
 		onclose = () => {},
@@ -28,10 +21,22 @@
 	let searchResults = $state<SearchResult[]>([]);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-	// Recent items shown when no query (mock for now, could be from API)
+	// Recent items shown when no query
 	const recentItems: SearchResult[] = [
-		{ id: 'recent-1', type: 'note', title: 'Dernière note consultée', subtitle: 'Notes récentes', icon: '📝' },
-		{ id: 'recent-2', type: 'email', title: 'Dernier email traité', subtitle: 'Péripétie récente', icon: '📧' }
+		{
+			id: 'recent-1',
+			type: 'note',
+			title: 'Dernière note consultée',
+			subtitle: 'Notes récentes',
+			icon: '📝'
+		},
+		{
+			id: 'recent-2',
+			type: 'email',
+			title: 'Dernier email traité',
+			subtitle: 'Péripétie récente',
+			icon: '📧'
+		}
 	];
 
 	// Transform API response to SearchResult format
@@ -85,11 +90,13 @@
 		}
 
 		// Sort by score (highest first)
-		return results.sort((a, b) => {
-			const scoreA = getScoreFromResponse(response, a.id);
-			const scoreB = getScoreFromResponse(response, b.id);
-			return scoreB - scoreA;
-		}).slice(0, 8);
+		return results
+			.sort((a, b) => {
+				const scoreA = getScoreFromResponse(response, a.id);
+				const scoreB = getScoreFromResponse(response, b.id);
+				return scoreB - scoreA;
+			})
+			.slice(0, 8);
 	}
 
 	function getScoreFromResponse(response: GlobalSearchResponse, id: string): number {
@@ -156,11 +163,7 @@
 	});
 
 	// Results to display
-	const results = $derived(
-		query.trim() === ''
-			? recentItems
-			: searchResults
-	);
+	const results = $derived(query.trim() === '' ? recentItems : searchResults);
 
 	// Reset selection when results change
 	$effect(() => {
@@ -200,11 +203,7 @@
 		// Navigate based on result type
 		switch (result.type) {
 			case 'note':
-				// Build full path: folder/note_id or just note_id if no folder
-				// The [...path] route extracts noteId from the last segment
-				const notePath = result.path
-					? `${result.path}/${result.id}`
-					: result.id;
+				const notePath = result.path ? `${result.path}/${result.id}` : result.id;
 				goto(`/memoires/${notePath}`);
 				break;
 			case 'email':
@@ -226,43 +225,22 @@
 		}
 	}
 
-	function getTypeLabel(type: SearchResult['type']): string {
-		const labels: Record<SearchResult['type'], string> = {
-			note: 'Carnet',
-			email: 'Email',
-			event: 'Événement',
-			task: 'Tâche',
-			discussion: 'Conversation'
-		};
-		return labels[type];
-	}
-
-	function getTypeColor(type: SearchResult['type']): string {
-		const colors: Record<SearchResult['type'], string> = {
-			note: 'var(--color-event-omnifocus)',
-			email: 'var(--color-event-email)',
-			event: 'var(--color-event-calendar)',
-			task: 'var(--color-event-omnifocus)',
-			discussion: 'var(--color-event-teams)'
-		};
-		return colors[type];
-	}
-
 	onMount(() => {
 		inputRef?.focus();
 	});
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 <!-- Backdrop -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
 	class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center pt-[15vh]"
 	role="button"
 	tabindex="-1"
 	aria-label="Fermer la recherche"
 	onclick={onclose}
-	onkeydown={(e) => e.key === 'Enter' && onclose()}
 >
 	<!-- Modal -->
 	<div
@@ -274,12 +252,6 @@
 		aria-label="Recherche globale"
 		data-testid="command-palette"
 		onclick={(e) => e.stopPropagation()}
-		onkeydown={(e) => {
-			// Allow Escape to propagate to close the palette
-			if (e.key !== 'Escape') {
-				e.stopPropagation();
-			}
-		}}
 	>
 		<!-- Search Input -->
 		<div class="flex items-center gap-3 p-4 border-b border-[var(--glass-border-subtle)]">
@@ -292,7 +264,9 @@
 				class="flex-1 bg-transparent text-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] outline-none"
 				data-testid="search-input"
 			/>
-			<kbd class="hidden md:inline-flex px-2 py-1 text-xs text-[var(--color-text-tertiary)] glass-subtle rounded-lg">
+			<kbd
+				class="hidden md:inline-flex px-2 py-1 text-xs text-[var(--color-text-tertiary)] glass-subtle rounded-lg"
+			>
 				ESC
 			</kbd>
 		</div>
@@ -301,83 +275,68 @@
 		<div class="max-h-[50vh] overflow-y-auto" data-testid="search-results">
 			{#if loading}
 				<div class="flex justify-center py-8">
-					<div class="w-6 h-6 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"></div>
+					<div
+						class="w-6 h-6 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin"
+					></div>
 				</div>
 			{:else if error}
 				<div class="p-8 text-center">
-					<p class="text-[var(--color-error)]">{error}</p>
+					<p class="text-[var(--color-error)] font-medium">{error}</p>
 				</div>
 			{:else if query.trim().length >= 2 && results.length === 0}
 				<div class="p-8 text-center">
-					<p class="text-[var(--color-text-tertiary)]">Je ne trouve rien de tel dans vos papiers, Monsieur</p>
+					<p class="text-[var(--color-text-tertiary)]">
+						Je ne trouve rien de tel dans vos papiers, Monsieur
+					</p>
 				</div>
 			{:else if query.trim().length > 0 && query.trim().length < 2}
-				<div class="p-8 text-center">
-					<p class="text-[var(--color-text-tertiary)]">Tapez au moins 2 caractères pour rechercher</p>
+				<div class="p-8 text-center text-sm">
+					<p class="text-[var(--color-text-tertiary)]">
+						Tapez au moins 2 caractères pour rechercher
+					</p>
 				</div>
 			{:else if results.length === 0}
-				<div class="p-8 text-center">
+				<div class="p-8 text-center text-sm">
 					<p class="text-[var(--color-text-tertiary)]">Commencez à taper pour rechercher</p>
 				</div>
 			{:else}
-				<div class="p-2">
+				<div class="p-2 space-y-1">
 					{#if query.trim() === ''}
-						<p class="px-3 py-2 text-xs font-medium text-[var(--color-text-tertiary)] uppercase tracking-wide">
+						<p
+							class="px-3 py-2 text-[10px] font-bold text-[var(--color-text-tertiary)] uppercase tracking-widest font-mono"
+						>
 							Récents
 						</p>
 					{/if}
 					{#each results as result, index (result.id)}
-						<button
-							type="button"
-							class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left
-								transition-all duration-[var(--transition-fast)] ease-[var(--spring-responsive)]
-								liquid-press
-								{index === selectedIndex
-								? 'glass-subtle shadow-[inset_0_0_0_1px_var(--color-accent)]/20'
-								: 'hover:bg-[var(--glass-tint)]'}"
+						<SearchResultItem
+							{result}
+							active={index === selectedIndex}
 							onclick={() => navigateToResult(result)}
-							onmouseenter={() => selectedIndex = index}
-						>
-							<span class="text-xl">{result.icon}</span>
-							<div class="flex-1 min-w-0">
-								<p class="text-[var(--color-text-primary)] font-medium truncate">
-									{result.title}
-								</p>
-								{#if result.subtitle}
-									<p class="text-sm text-[var(--color-text-tertiary)] truncate">
-										{result.subtitle}
-									</p>
-								{/if}
-							</div>
-							<span
-								class="px-2 py-0.5 text-xs rounded-md"
-								style="background-color: {getTypeColor(result.type)}20; color: {getTypeColor(result.type)}"
-							>
-								{getTypeLabel(result.type)}
-							</span>
-						</button>
+							onmouseenter={() => (selectedIndex = index)}
+						/>
 					{/each}
 				</div>
 			{/if}
 		</div>
 
 		<!-- Footer -->
-		<div class="flex items-center justify-between px-4 py-3 border-t border-[var(--glass-border-subtle)] text-xs text-[var(--color-text-tertiary)]">
+		<div
+			class="flex items-center justify-between px-4 py-3 border-t border-[var(--glass-border-subtle)] text-[10px] text-[var(--color-text-tertiary)] uppercase font-mono tracking-widest"
+		>
 			<div class="flex items-center gap-4">
 				<span class="flex items-center gap-1">
-					<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">↑</kbd>
-					<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">↓</kbd>
+					<kbd class="px-1.5 py-0.5 glass-subtle rounded-md text-[9px]">↑↓</kbd>
 					naviguer
 				</span>
 				<span class="flex items-center gap-1">
-					<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">↵</kbd>
+					<kbd class="px-1.5 py-0.5 glass-subtle rounded-md text-[9px]">↵</kbd>
 					ouvrir
 				</span>
 			</div>
 			<span class="hidden md:block">
-				<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">⌘</kbd>
-				<kbd class="px-1.5 py-0.5 glass-subtle rounded-md">K</kbd>
-				pour ouvrir
+				<kbd class="px-1.5 py-0.5 glass-subtle rounded-md text-[9px]">⌘K</kbd>
+				RECHERCHE
 			</span>
 		</div>
 	</div>
