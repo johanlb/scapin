@@ -132,6 +132,10 @@ class MultiPassResult:
     context_influence: Optional[dict[str, Any]] = None
 
     # Four Valets v3.0 fields
+    critique: Optional[dict[str, Any]] = None
+    arbitrage: Optional[dict[str, Any]] = None
+    memory_hint: Optional[dict[str, Any]] = None
+    confidence_assessment: Optional[dict[str, Any]] = None
     stopped_at: Optional[str] = None  # "grimaud", "planchet", "mousqueton"
 
     @property
@@ -195,13 +199,13 @@ class MultiPassResult:
 
 class MultiPassAnalyzer:
     """
-    Multi-pass event analyzer with intelligent model escalation.
+    Multi-pass event analyzer with Four Valets architecture (v3.0).
 
-    Implements the v2.2 multi-pass architecture:
-    - Pass 1: Blind extraction (no context)
-    - Pass 2-3: Contextual refinement
-    - Pass 4: Sonnet escalation
-    - Pass 5: Opus expert analysis
+    Implements the Four Valets pipeline:
+    1. Grimaud: Silent extraction (raw facts)
+    2. Bazin: Context enrichment (PKM knowledge)
+    3. Planchet: Critique and validation
+    4. Mousqueton: Final arbitration
 
     Attributes:
         ai_router: Router for Claude API calls
@@ -789,6 +793,8 @@ class MultiPassAnalyzer:
             arbitrage = data.get("arbitrage")
             memory_hint = data.get("memory_hint")
 
+            confidence_assessment = data.get("confidence_assessment")
+
             return PassResult(
                 pass_number=pass_number,
                 pass_type=pass_type,
@@ -814,6 +820,7 @@ class MultiPassAnalyzer:
                 critique=critique,
                 arbitrage=arbitrage,
                 memory_hint=memory_hint,
+                confidence_assessment=confidence_assessment,
             )
 
         except json.JSONDecodeError as e:
@@ -2005,6 +2012,10 @@ class MultiPassAnalyzer:
             context_influence=last_context_influence,
             # Four Valets v3.0 specific
             stopped_at=stopped_at,
+            critique=last_pass.critique,
+            arbitrage=last_pass.arbitrage,
+            memory_hint=last_pass.memory_hint,
+            confidence_assessment=last_pass.confidence_assessment,
         )
 
 

@@ -279,6 +279,7 @@ class PassResult:
     critique: Optional[dict[str, Any]] = None
     arbitrage: Optional[dict[str, Any]] = None
     memory_hint: Optional[dict[str, Any]] = None
+    confidence_assessment: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -328,6 +329,7 @@ class PassResult:
             "critique": self.critique,
             "arbitrage": self.arbitrage,
             "memory_hint": self.memory_hint,
+            "confidence_assessment": self.confidence_assessment,
         }
 
 

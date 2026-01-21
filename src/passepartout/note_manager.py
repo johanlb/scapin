@@ -1817,12 +1817,30 @@ class NoteManager:
             try:
                 frontmatter = yaml.safe_load(frontmatter_str) or {}
             except yaml.YAMLError as yaml_err:
-                # Fallback: create minimal frontmatter from filename
-                logger.warning(
-                    "YAML parsing failed, using filename as title",
-                    extra={"file_path": str(file_path), "error": str(yaml_err)},
-                )
-                frontmatter = {}
+                # Fallback: try to recover title from raw frontmatter using regex
+                # This handles cases like "title: Corde Band : 22,2" where unquoted colons break YAML
+                import re
+
+                title_match = re.search(r"^title:\s*(.+)$", frontmatter_str, re.MULTILINE)
+                recovered_title = title_match.group(1).strip() if title_match else None
+
+                if recovered_title:
+                    frontmatter = {"title": recovered_title}
+                    logger.warning(
+                        "YAML parsing failed but recovered title",
+                        extra={
+                            "file_path": str(file_path),
+                            "recovered_title": recovered_title,
+                            "error": str(yaml_err),
+                        },
+                    )
+                else:
+                    # Final fallback: empty frontmatter, will use filename as title
+                    logger.warning(
+                        "YAML parsing failed, using filename as title",
+                        extra={"file_path": str(file_path), "error": str(yaml_err)},
+                    )
+                    frontmatter = {}
 
             # Extract note ID from filename
             note_id = file_path.stem
