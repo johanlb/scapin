@@ -6,63 +6,61 @@
 	import NoteHistory from '$lib/components/notes/NoteHistory.svelte';
 	import { noteChatStore, detectNoteType, type NoteContext } from '$lib/stores/note-chat.svelte';
 	import { extractWikilinks } from '$lib/utils/markdown';
+	import { getNote, updateNote } from '$lib/api/client';
 
 	// Get the note path from route params
 	const notePath = $derived($page.params.path);
 	const pathParts = $derived(notePath ? notePath.split('/') : []);
+	// Extract note_id from the last part of the path
+	const noteId = $derived(pathParts.length > 0 ? pathParts[pathParts.length - 1] : '');
 
-	// ==========================================================================
-	// KNOWN LIMITATION: This page currently uses mock data for the MVP.
-	// The Notes API endpoints exist (GET/POST/PATCH /api/notes) but this
-	// frontend page has not yet been connected to them.
-	//
-	// TODO [Sprint 3 - HIGH Priority]:
-	// 1. Load note from API: GET /api/notes/{noteId}
-	// 2. Save edits via API: PATCH /api/notes/{noteId}
-	// 3. Handle loading states and errors
-	// 4. Parse noteId from route params (currently path-based)
-	//
-	// See: src/frontin/api/routers/notes.py for available endpoints
-	// ==========================================================================
-	let note = $state({
-		id: 'reunion-projet-alpha-abc123', // Mock ID for history
-		title: 'Réunion Projet Alpha',
-		path: '',
-		content: `# Réunion Projet Alpha
+	// Note state - loaded from API
+	let note = $state<{
+		id: string;
+		title: string;
+		path: string;
+		content: string;
+		created_at: string;
+		updated_at: string;
+		tags: string[];
+		pinned: boolean;
+	} | null>(null);
 
-## Participants
-- Jean-Pierre (Chef de projet)
-- Marie (Designer)
-- Thomas (Développeur)
-
-## Points discutés
-
-### 1. Avancement du sprint
-Le sprint actuel avance bien. 80% des tâches sont terminées.
-
-### 2. Blocages identifiés
-- Attente de validation du design
-- Dépendance sur l'API externe
-
-### 3. Prochaines étapes
-1. Finaliser les maquettes
-2. Intégrer le module de paiement
-3. Tests utilisateurs
-
-## Actions à suivre
-- [ ] Marie: Livrer les maquettes finales (vendredi)
-- [ ] Thomas: Documenter l'API (lundi)
-- [ ] Jean-Pierre: Planifier les tests utilisateurs`,
-		folder: 'Projets/Alpha',
-		created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-		updated_at: new Date().toISOString(),
-		tags: ['projet', 'réunion', 'alpha'],
-		pinned: true
-	});
-
-	let loading = $state(false);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
 	let editing = $state(false);
 	let showHistory = $state(false);
+
+	// Load note when noteId changes
+	$effect(() => {
+		if (noteId) {
+			loadNote(noteId);
+		}
+	});
+
+	async function loadNote(id: string) {
+		loading = true;
+		error = null;
+		try {
+			const apiNote = await getNote(id);
+			note = {
+				id: apiNote.note_id,
+				title: apiNote.title,
+				path: apiNote.path,
+				content: apiNote.content,
+				created_at: apiNote.created_at,
+				updated_at: apiNote.updated_at,
+				tags: apiNote.tags,
+				pinned: apiNote.pinned
+			};
+		} catch (e) {
+			console.error('Failed to load note:', e);
+			error = e instanceof Error ? e.message : 'Failed to load note';
+			note = null;
+		} finally {
+			loading = false;
+		}
+	}
 
 	function goBack() {
 		history.back();
@@ -83,19 +81,25 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 	}
 
 	async function handleSave(content: string): Promise<void> {
-		// [MVP] Simulates save - see TODO at top of file for API integration
-		console.log('[MVP Mock] Saving note:', content.slice(0, 50) + '...');
-		note.updated_at = new Date().toISOString();
-		// Simulate API delay
-		await new Promise((resolve) => setTimeout(resolve, 300));
+		if (!note) return;
+		try {
+			await updateNote(note.id, { content });
+			note.content = content;
+			note.updated_at = new Date().toISOString();
+		} catch (e) {
+			console.error('Failed to save note:', e);
+		}
 	}
 
 	function handleRestore() {
-		// [MVP] Would reload note content from API after version restore
-		console.log('[MVP Mock] Note restored, would reload from API');
+		// Reload note after version restore
+		if (noteId) {
+			loadNote(noteId);
+		}
 	}
 
 	function handleOpenChat() {
+		if (!note) return;
 		// Build note context for chat
 		const noteType = detectNoteType({ title: note.title, tags: note.tags });
 		const linkedNotes = extractWikilinks(note.content);
@@ -241,10 +245,22 @@ Le sprint actuel avance bien. 80% des tâches sont terminées.
 		</main>
 	{:else}
 		<div class="p-8 text-center">
-			<p class="text-[var(--color-text-tertiary)]">Note introuvable</p>
+			{#if error}
+				<p class="text-red-400 mb-2">Erreur: {error}</p>
+				<button
+					onclick={() => noteId && loadNote(noteId)}
+					class="text-[var(--color-accent)] hover:underline"
+				>
+					Réessayer
+				</button>
+			{:else}
+				<p class="text-[var(--color-text-tertiary)]">Note introuvable</p>
+			{/if}
 		</div>
 	{/if}
 </div>
 
 <!-- Version history modal -->
-<NoteHistory noteId={note.id} bind:open={showHistory} onRestore={handleRestore} />
+{#if note}
+	<NoteHistory noteId={note.id} bind:open={showHistory} onRestore={handleRestore} />
+{/if}
