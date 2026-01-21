@@ -393,3 +393,43 @@ class TestServicesDirectly:
         assert result is not None
         assert result.success is False
         print(f"Retouche error for nonexistent: {result.error}")
+
+    @pytest.mark.asyncio
+    async def test_retouche_records_enrichment_history(
+        self, temp_data_dir: Path, note_manager: NoteManager, sample_note_file: Path
+    ) -> None:
+        """Test that RetoucheReviewer records actions in enrichment_history."""
+        from src.passepartout.note_scheduler import NoteScheduler
+        from src.passepartout.retouche_reviewer import RetoucheReviewer
+
+        db_path = temp_data_dir / "test_meta.db"
+        store = NoteMetadataStore(db_path)
+        scheduler = NoteScheduler(store)
+
+        reviewer = RetoucheReviewer(
+            note_manager=note_manager,
+            metadata_store=store,
+            scheduler=scheduler,
+        )
+
+        # Review existing note
+        result = await reviewer.review_note("test-person")
+
+        assert result is not None
+        assert result.success is True
+        assert result.quality_after > 0
+
+        # Check that enrichment history was recorded
+        metadata = store.get("test-person")
+        assert metadata is not None
+        assert len(metadata.enrichment_history) > 0
+
+        # Verify record structure
+        record = metadata.enrichment_history[0]
+        assert record.timestamp is not None
+        assert record.action_type in ["enrich", "structure", "summarize", "score", "inject_questions"]
+        assert record.confidence > 0
+        assert record.applied is True
+        print(f"Enrichment history: {len(metadata.enrichment_history)} records")
+        for r in metadata.enrichment_history:
+            print(f"  - {r.action_type}: {r.reasoning}")

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from src.monitoring.logger import get_logger
 from src.passepartout.note_manager import Note, NoteManager
 from src.passepartout.note_metadata import (
+    EnrichmentRecord,
     NoteMetadata,
     NoteMetadataStore,
 )
@@ -208,6 +209,20 @@ class RetoucheReviewer:
         if questions_added > 0:
             metadata.questions_pending = True
             metadata.questions_count += questions_added
+
+        # Record actions in enrichment_history
+        now = datetime.now(timezone.utc)
+        for action in actions:
+            record = EnrichmentRecord(
+                timestamp=now,
+                action_type=action.action_type.value,
+                target=action.target,
+                content=action.content,
+                confidence=action.confidence,
+                applied=action.applied,
+                reasoning=f"[{action.model_used}] {action.reasoning}",
+            )
+            metadata.enrichment_history.append(record)
 
         # Schedule Lecture after first successful Retouche
         if metadata.lecture_next is None and quality_after >= 50:
