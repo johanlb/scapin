@@ -93,7 +93,8 @@ const wikilinkExtension: TokenizerExtension & RendererExtension = {
 		const noteId = encodeURIComponent(wikilinkToken.text);
 		// Escape HTML to prevent XSS attacks via wikilink text
 		const safeText = escapeHtml(wikilinkToken.text);
-		return `<a href="/notes/${noteId}" class="wikilink">${safeText}</a>`;
+		// Navigate to /memoires/{noteId} - the [...path] route extracts noteId from the last segment
+		return `<a href="/memoires/${noteId}" class="wikilink">${safeText}</a>`;
 	}
 };
 

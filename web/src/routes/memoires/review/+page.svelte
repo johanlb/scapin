@@ -117,7 +117,8 @@
 	function handleViewNote() {
 		const note = notesReviewStore.currentNote;
 		if (note) {
-			goto(`/notes/${encodeURIComponent(note.note_id)}`);
+			// Navigate to /memoires/{note_id} - the [...path] route extracts noteId from the last segment
+			goto(`/memoires/${encodeURIComponent(note.note_id)}`);
 		}
 	}
 

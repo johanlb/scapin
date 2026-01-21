@@ -200,11 +200,12 @@
 		// Navigate based on result type
 		switch (result.type) {
 			case 'note':
-				if (result.path) {
-					goto(`/notes/${result.path}`);
-				} else {
-					goto(`/notes?id=${result.id}`);
-				}
+				// Build full path: folder/note_id or just note_id if no folder
+				// The [...path] route extracts noteId from the last segment
+				const notePath = result.path
+					? `${result.path}/${result.id}`
+					: result.id;
+				goto(`/memoires/${notePath}`);
 				break;
 			case 'email':
 				goto(`/peripeties/${result.id}`);
