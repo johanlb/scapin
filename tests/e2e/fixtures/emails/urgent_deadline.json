@@ -1,0 +1,23 @@
+{
+  "id": "e2e-deadline-001",
+  "scenario": "Urgent deadline - requires Mousqueton for high stakes",
+  "expected": {
+    "stopped_at": "mousqueton",
+    "action": "archive",
+    "early_stop": false,
+    "min_extractions": 2,
+    "expected_types": ["deadline", "engagement"],
+    "omnifocus": true,
+    "high_stakes": true
+  },
+  "event": {
+    "event_id": "e2e-deadline-001",
+    "title": "URGENT: Contrat à signer avant vendredi",
+    "content": "Johan,\n\nLe contrat avec Nexus Inc doit être signé avant vendredi 24 janvier 17h.\n\nMontant: 45 000€\nDurée: 12 mois\nPénalités de retard: 5% par semaine\n\nJ'ai besoin de ta validation sur les clauses suivantes:\n- Article 4.2: Conditions de résiliation\n- Article 7.1: Propriété intellectuelle\n\nMerci de me rappeler dès que possible.\n\nMarc Dupont\nDirecteur Commercial",
+    "from_person": "marc.dupont@acme.com",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "action_required",
+    "urgency": "high"
+  }
+}

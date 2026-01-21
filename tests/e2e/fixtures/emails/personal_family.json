@@ -1,0 +1,22 @@
+{
+  "id": "e2e-personal-001",
+  "scenario": "Personal family email - context from existing notes",
+  "expected": {
+    "stopped_at": "planchet",
+    "action": "archive",
+    "early_stop": false,
+    "min_extractions": 1,
+    "expected_types": ["evenement", "relation"],
+    "context_notes_used": ["Marie (mère)", "Famille"]
+  },
+  "event": {
+    "event_id": "e2e-personal-001",
+    "title": "Re: Anniversaire Papa",
+    "content": "Mon chéri,\n\nPour l'anniversaire de Papa le 15 février, j'ai réservé le restaurant La Belle Époque à 19h30.\n\nOn sera 8: toi, moi, Papa, Maman, Claire et Thomas avec les enfants.\n\nTu peux t'occuper du cadeau? Il voudrait un livre sur l'histoire de Lyon.\n\nBisous,\nMaman",
+    "from_person": "marie.durand@gmail.com",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "information",
+    "urgency": "medium"
+  }
+}

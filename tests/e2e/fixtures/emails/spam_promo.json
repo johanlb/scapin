@@ -1,0 +1,20 @@
+{
+  "id": "e2e-spam-001",
+  "scenario": "Spam promotional email - early stop delete",
+  "expected": {
+    "stopped_at": "grimaud",
+    "action": "delete",
+    "early_stop": true,
+    "extractions_count": 0
+  },
+  "event": {
+    "event_id": "e2e-spam-001",
+    "title": "🎉 MEGA PROMO -80% sur tout le site !",
+    "content": "⚡ VENTE FLASH ⚡\n\n-80% SUR TOUT LE SITE !\n\nProfitez de nos offres incroyables:\n• iPhone 15 Pro à 199€\n• MacBook Pro à 299€\n• AirPods Pro à 29€\n\nOffre limitée ! Cliquez ICI maintenant !\n\nhttp://totally-not-spam.xyz/promo?id=12345\n\nSe désinscrire",
+    "from_person": "promo@marketing-spam.xyz",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "information",
+    "urgency": "low"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "e2e-project-001",
+  "scenario": "Project status update - multiple facts",
+  "expected": {
+    "stopped_at": "planchet",
+    "action": "archive",
+    "early_stop": false,
+    "min_extractions": 3,
+    "expected_types": ["fait", "decision", "deadline"],
+    "context_notes_used": ["Projet Alpha"]
+  },
+  "event": {
+    "event_id": "e2e-project-001",
+    "title": "Re: [Projet Alpha] Point d'avancement semaine 3",
+    "content": "Équipe,\n\nVoici le point d'avancement du Projet Alpha:\n\n✅ Terminé:\n- Module authentification (100%)\n- API REST v1 (100%)\n- Tests unitaires (85%)\n\n🔄 En cours:\n- Intégration paiement Stripe (60%)\n- Documentation API (40%)\n\n⚠️ Bloqué:\n- Certificat SSL production - en attente validation DSI\n\nProchain jalon: 31 janvier - Livraison MVP\nBudget restant: 12 500€\n\nLa réunion de suivi est maintenue vendredi 17h.\n\nThomas Leclerc\nChef de projet",
+    "from_person": "thomas.leclerc@acme.com",
+    "to_people": ["johan@example.com", "equipe-alpha@acme.com"],
+    "source": "email",
+    "event_type": "information",
+    "urgency": "medium"
+  }
+}

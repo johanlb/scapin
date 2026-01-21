@@ -1,0 +1,20 @@
+{
+  "id": "e2e-reminder-001",
+  "scenario": "Calendar reminder - ephemeral notification",
+  "expected": {
+    "stopped_at": "grimaud",
+    "action": "delete",
+    "early_stop": true,
+    "extractions_count": 0
+  },
+  "event": {
+    "event_id": "e2e-reminder-001",
+    "title": "Rappel: Réunion dans 15 minutes",
+    "content": "Rappel automatique\n\nVotre réunion commence dans 15 minutes:\n\n📅 Sync équipe développement\n🕐 14:00 - 14:30\n📍 Salle Zoom\n🔗 https://zoom.us/j/123456789\n\n---\nGoogle Calendar",
+    "from_person": "calendar-notification@google.com",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "information",
+    "urgency": "low"
+  }
+}

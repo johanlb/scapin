@@ -1,0 +1,20 @@
+{
+  "id": "e2e-otp-001",
+  "scenario": "OTP code - ephemeral content for early stop",
+  "expected": {
+    "stopped_at": "grimaud",
+    "action": "delete",
+    "early_stop": true,
+    "extractions_count": 0
+  },
+  "event": {
+    "event_id": "e2e-otp-001",
+    "title": "Votre code de vérification Boursorama",
+    "content": "Bonjour,\n\nVotre code de vérification est : 847291\n\nCe code est valable 5 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nBoursorama Banque",
+    "from_person": "noreply@boursorama.fr",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "information",
+    "urgency": "low"
+  }
+}

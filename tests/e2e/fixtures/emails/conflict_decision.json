@@ -1,0 +1,22 @@
+{
+  "id": "e2e-conflict-001",
+  "scenario": "Conflicting information - requires Mousqueton arbitrage",
+  "expected": {
+    "stopped_at": "mousqueton",
+    "action": "archive",
+    "early_stop": false,
+    "needs_mousqueton": true,
+    "min_extractions": 2,
+    "expected_types": ["decision", "fait"]
+  },
+  "event": {
+    "event_id": "e2e-conflict-001",
+    "title": "Re: Re: Date de livraison Projet Beta",
+    "content": "Johan,\n\nIl y a une confusion sur les dates.\n\nMarie dit que la livraison est prévue le 28 janvier.\nMais Thomas m'a confirmé hier que c'était le 4 février suite au retard fournisseur.\n\nDe plus, le budget initial de 25k€ mentionné par Sophie ne correspond pas aux 32k€ validés en comité.\n\nPeux-tu trancher? Le client attend une réponse pour demain.\n\nMarc",
+    "from_person": "marc.dupont@acme.com",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "action_required",
+    "urgency": "high"
+  }
+}

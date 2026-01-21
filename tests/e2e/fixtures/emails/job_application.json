@@ -1,0 +1,22 @@
+{
+  "id": "e2e-job-001",
+  "scenario": "Job application received - create new note",
+  "expected": {
+    "stopped_at": "planchet",
+    "action": "archive",
+    "early_stop": false,
+    "min_extractions": 2,
+    "expected_types": ["relation", "fait"],
+    "note_action": "creer"
+  },
+  "event": {
+    "event_id": "e2e-job-001",
+    "title": "Candidature - Développeur Senior Python",
+    "content": "Bonjour,\n\nJe me permets de vous adresser ma candidature pour le poste de Développeur Senior Python.\n\nProfil:\n- 8 ans d'expérience Python/Django\n- Expert FastAPI, SQLAlchemy\n- Background Machine Learning (TensorFlow, PyTorch)\n\nActuellement: Lead Developer chez DataTech\nDisponibilité: Immédiate (préavis 1 mois)\nPrétentions: 65-75k€\n\nCV et portfolio en pièces jointes.\n\nCordialement,\nAlexandre Petit\n06 12 34 56 78\nalexandre.petit@gmail.com",
+    "from_person": "alexandre.petit@gmail.com",
+    "to_people": ["recrutement@acme.com"],
+    "source": "email",
+    "event_type": "action_required",
+    "urgency": "medium"
+  }
+}

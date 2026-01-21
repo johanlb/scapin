@@ -1,0 +1,20 @@
+{
+  "id": "e2e-newsletter-001",
+  "scenario": "Newsletter - low value content for early stop",
+  "expected": {
+    "stopped_at": "grimaud",
+    "action": "archive",
+    "early_stop": true,
+    "extractions_count": 0
+  },
+  "event": {
+    "event_id": "e2e-newsletter-001",
+    "title": "TechCrunch Weekly - AI Startups Raise $5B This Week",
+    "content": "This week in tech:\n\n• OpenAI announces GPT-5 preview\n• Stripe launches new payment API\n• Tesla reports Q4 earnings\n• Meta pivots VR strategy again\n\nRead more at techcrunch.com\n\nUnsubscribe | Privacy Policy | Contact Us\n\n© 2026 TechCrunch. All rights reserved.",
+    "from_person": "newsletter@techcrunch.com",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "information",
+    "urgency": "low"
+  }
+}

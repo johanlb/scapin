@@ -1,0 +1,20 @@
+{
+  "id": "e2e-shipping-001",
+  "scenario": "Shipping notification - simple tracking",
+  "expected": {
+    "stopped_at": "grimaud",
+    "action": "archive",
+    "early_stop": true,
+    "extractions_count": 0
+  },
+  "event": {
+    "event_id": "e2e-shipping-001",
+    "title": "Votre colis est en cours de livraison",
+    "content": "Bonjour Johan,\n\nVotre colis est en cours de livraison.\n\nN° de suivi: LP123456789FR\nTransporteur: La Poste\nLivraison prévue: Demain avant 18h\n\nSuivre mon colis: https://laposte.fr/suivi/LP123456789FR\n\nCordialement,\nAmazon.fr",
+    "from_person": "shipping@amazon.fr",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "information",
+    "urgency": "low"
+  }
+}

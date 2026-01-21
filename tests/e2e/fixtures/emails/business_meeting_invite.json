@@ -1,0 +1,22 @@
+{
+  "id": "e2e-meeting-001",
+  "scenario": "Business meeting invitation - requires full pipeline",
+  "expected": {
+    "stopped_at": "planchet",
+    "action": "archive",
+    "early_stop": false,
+    "min_extractions": 2,
+    "expected_types": ["evenement", "deadline"],
+    "calendar": true
+  },
+  "event": {
+    "event_id": "e2e-meeting-001",
+    "title": "Invitation: Review Budget Q1 - 25 janvier 14h",
+    "content": "Bonjour Johan,\n\nJe vous invite à une réunion de revue du budget Q1 avec l'équipe direction.\n\nDate: 25 janvier 2026\nHeure: 14h00 - 15h30\nLieu: Salle Confluence, 3ème étage\n\nOrdre du jour:\n1. Bilan Q4 2025\n2. Projections Q1 2026\n3. Allocation des ressources Projet Alpha\n\nMerci de confirmer votre présence.\n\nCordialement,\nSophie Martin\nDirectrice Financière - Acme Corp",
+    "from_person": "sophie.martin@acme.com",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "action_required",
+    "urgency": "medium"
+  }
+}

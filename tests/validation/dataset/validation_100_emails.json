@@ -1,0 +1,2595 @@
+[
+  {
+    "id": "val-2e049b2e",
+    "category": "ephemeral",
+    "subcategory": "shipping",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "shipping-004",
+      "title": "Votre colis a été livré",
+      "content": "Bonjour,\n\nVotre colis a été livré\n\nN° de suivi: LP575153676FR\n\nSuivre mon colis sur laposte.fr\n\nCordialement,\nAmazon.fr",
+      "from_person": "shipping@amazon.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 1
+  },
+  {
+    "id": "val-45eb4b37",
+    "category": "personal",
+    "subcategory": "social",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "social-005",
+      "title": "Running Club: Prochaine sortie dimanche",
+      "content": "Bonjour,\n\nProchaine sortie dimanche\n\nPlus d'infos sur notre site.\n\nCordialement,\nRunning Club",
+      "from_person": "club@running.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 2
+  },
+  {
+    "id": "val-890114b2",
+    "category": "complex",
+    "subcategory": "multi_topic",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 3
+    },
+    "event": {
+      "event_id": "multi-003",
+      "title": "Synthèse hebdo + actions",
+      "content": "Bonjour,\n\nCette semaine:\n✅ Sprint terminé\n✅ Demo client réussie\n\nActions:\n- Préparer le budget 2027\n- Contacter nouveau fournisseur\n- Former l'équipe sur le nouvel outil\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 3
+  },
+  {
+    "id": "val-4c795c74",
+    "category": "financial",
+    "subcategory": "payment",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "payment-001",
+      "title": "PayPal: Paiement de 89.99€ effectué",
+      "content": "Confirmation de paiement\n\nPaiement de 89.99€ effectué\n\nMerci pour votre achat.\n\nPayPal",
+      "from_person": "receipt@paypal.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 4
+  },
+  {
+    "id": "val-495278dd",
+    "category": "ephemeral",
+    "subcategory": "reminder",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "reminder-002",
+      "title": "Rappel: Appel prévu dans 30 minutes",
+      "content": "Rappel automatique de votre calendrier.\n\nRappel: Appel prévu dans 30 minutes\n\n---\nGoogle Calendar",
+      "from_person": "calendar-notification@google.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 5
+  },
+  {
+    "id": "val-6d026377",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-004",
+      "title": "Invitation: Sync équipe Marketing - 30 January 2026 17h30",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Sync équipe Marketing\nDate: 30 January 2026\nHeure: 17h30\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nMarie Lambert\nResponsable Marketing - Acme Corp",
+      "from_person": "marie.lambert@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 6
+  },
+  {
+    "id": "val-6b258f8d",
+    "category": "personal",
+    "subcategory": "family",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "relation",
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "family-005",
+      "title": "Re: Cadeau pour Maman",
+      "content": "Mon chéri,\n\nTu as des idées pour l'anniversaire de Maman?\n\nBisous,\nMamie",
+      "from_person": "mamie@orange.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 7
+  },
+  {
+    "id": "val-59469d0d",
+    "category": "personal",
+    "subcategory": "friend",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1
+    },
+    "event": {
+      "event_id": "friend-005",
+      "title": "Vacances cet été",
+      "content": "Salut!\n\nTu as prévu quoi cet été? On pourrait partir ensemble.\n\nA+\nLucas",
+      "from_person": "lucas.music@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 8
+  },
+  {
+    "id": "val-57a16c88",
+    "category": "business",
+    "subcategory": "deadline",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "deadline-006",
+      "title": "[Action requise] Présentation client",
+      "content": "Bonjour,\n\nRappel: Présentation client\n\nDélai: lundi prochain\n\nMerci de traiter ce point en priorité.\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 9
+  },
+  {
+    "id": "val-aff6d19f",
+    "category": "newsletter",
+    "subcategory": "newsletter",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "newsletter-004",
+      "title": "LinkedIn: Your weekly digest",
+      "content": "This week's top stories:\n\n• Story 1\n• Story 2\n• Story 3\n\nRead more at linkedin.com\n\nUnsubscribe | Privacy Policy",
+      "from_person": "updates@linkedin.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 10
+  },
+  {
+    "id": "val-88b9e94d",
+    "category": "business",
+    "subcategory": "contract",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "engagement"
+      ],
+      "high_stakes": true
+    },
+    "event": {
+      "event_id": "contract-005",
+      "title": "NDA à signer - StartupXYZ",
+      "content": "Bonjour,\n\nVeuillez trouver ci-joint le nda à signer avec StartupXYZ.\n\nMontant: 0€\nDurée: 12 mois\n\nMerci de nous retourner le document signé.\n\nCordialement,\nService Juridique",
+      "from_person": "legal@startupxyz.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 11
+  },
+  {
+    "id": "val-ca2325b1",
+    "category": "personal",
+    "subcategory": "family",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "relation",
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "family-001",
+      "title": "Re: Anniversaire Papa",
+      "content": "Mon chéri,\n\nOn organise l'anniversaire de Papa le 15 février. Tu peux venir?\n\nBisous,\nMarie",
+      "from_person": "marie.durand@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 12
+  },
+  {
+    "id": "val-4ecdbdec",
+    "category": "business",
+    "subcategory": "deadline",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "deadline-001",
+      "title": "[Action requise] Rapport mensuel à soumettre",
+      "content": "Bonjour,\n\nRappel: Rapport mensuel à soumettre\n\nDélai: 3 jours\n\nMerci de traiter ce point en priorité.\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 13
+  },
+  {
+    "id": "val-2b7c64f0",
+    "category": "newsletter",
+    "subcategory": "newsletter",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "newsletter-005",
+      "title": "WIRED: This Week in Tech",
+      "content": "This week's top stories:\n\n• Story 1\n• Story 2\n• Story 3\n\nRead more at wired.com\n\nUnsubscribe | Privacy Policy",
+      "from_person": "newsletter@wired.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 14
+  },
+  {
+    "id": "val-3e9664e3",
+    "category": "personal",
+    "subcategory": "social",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "social-001",
+      "title": "Meetup Python Lyon: Nouveau meetup mardi prochain",
+      "content": "Bonjour,\n\nNouveau meetup mardi prochain\n\nPlus d'infos sur notre site.\n\nCordialement,\nMeetup Python Lyon",
+      "from_person": "events@meetup.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 15
+  },
+  {
+    "id": "val-a07f5ce2",
+    "category": "complex",
+    "subcategory": "multi_topic",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 3
+    },
+    "event": {
+      "event_id": "multi-002",
+      "title": "Update projet + admin",
+      "content": "Bonjour,\n\nProjet Alpha avance bien (80%).\n\nPar ailleurs:\n- Valider mes congés du 15-20 février\n- Signer la note de frais\n- RDV entretien annuel à fixer\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 16
+  },
+  {
+    "id": "val-bb0871d7",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-007",
+      "title": "Invitation: Demo client Nexus - 22 January 2026 17h15",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Demo client Nexus\nDate: 22 January 2026\nHeure: 17h15\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nMarc Dupont\nCommercial - Acme Corp",
+      "from_person": "marc.dupont@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 17
+  },
+  {
+    "id": "val-61fd6153",
+    "category": "personal",
+    "subcategory": "social",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "social-004",
+      "title": "Alumni Network: Soirée networking le 20 janvier",
+      "content": "Bonjour,\n\nSoirée networking le 20 janvier\n\nPlus d'infos sur notre site.\n\nCordialement,\nAlumni Network",
+      "from_person": "alumni@ecole.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 18
+  },
+  {
+    "id": "val-84d07cc7",
+    "category": "personal",
+    "subcategory": "social",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "social-002",
+      "title": "EventBrite: Confirmation de votre inscription",
+      "content": "Bonjour,\n\nConfirmation de votre inscription\n\nPlus d'infos sur notre site.\n\nCordialement,\nEventBrite",
+      "from_person": "no-reply@eventbrite.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 19
+  },
+  {
+    "id": "val-df4eee11",
+    "category": "business",
+    "subcategory": "deadline",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "deadline-007",
+      "title": "[Action requise] Mise à jour du backlog",
+      "content": "Bonjour,\n\nRappel: Mise à jour du backlog\n\nDélai: cette semaine\n\nMerci de traiter ce point en priorité.\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 20
+  },
+  {
+    "id": "val-4f134972",
+    "category": "newsletter",
+    "subcategory": "newsletter",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "newsletter-008",
+      "title": "Substack Reads: Weekly Roundup",
+      "content": "This week's top stories:\n\n• Story 1\n• Story 2\n• Story 3\n\nRead more at substackreads.com\n\nUnsubscribe | Privacy Policy",
+      "from_person": "digest@substack.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 21
+  },
+  {
+    "id": "val-030d0e07",
+    "category": "ephemeral",
+    "subcategory": "otp",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "otp-007",
+      "title": "Votre code de vérification Stripe",
+      "content": "Bonjour,\n\nVotre code de vérification est : 226407\n\nCe code expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nStripe",
+      "from_person": "security@stripe.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 22
+  },
+  {
+    "id": "val-17f58779",
+    "category": "ephemeral",
+    "subcategory": "reminder",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "reminder-001",
+      "title": "Rappel: Réunion dans 15 minutes",
+      "content": "Rappel automatique de votre calendrier.\n\nRappel: Réunion dans 15 minutes\n\n---\nGoogle Calendar",
+      "from_person": "calendar-notification@google.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 23
+  },
+  {
+    "id": "val-e8bf52ee",
+    "category": "newsletter",
+    "subcategory": "spam",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "spam-006",
+      "title": "Dernière chance: -90%",
+      "content": "⚡ OFFRE LIMITÉE ⚡\n\nCliquez ICI maintenant!\n\nhttp://suspicious-link.xyz/offer\n\nSe désinscrire",
+      "from_person": "promo@sales-now.xyz",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 24
+  },
+  {
+    "id": "val-bcfe3f50",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-003",
+      "title": "Invitation: Review technique - 27 January 2026 15h30",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Review technique\nDate: 27 January 2026\nHeure: 15h30\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nPierre Durand\nLead Developer - Acme Corp",
+      "from_person": "pierre.durand@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 25
+  },
+  {
+    "id": "val-1fe6212a",
+    "category": "newsletter",
+    "subcategory": "newsletter",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "newsletter-007",
+      "title": "Product Hunt: New Products",
+      "content": "This week's top stories:\n\n• Story 1\n• Story 2\n• Story 3\n\nRead more at producthunt.com\n\nUnsubscribe | Privacy Policy",
+      "from_person": "newsletter@producthunt.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 26
+  },
+  {
+    "id": "val-817baa52",
+    "category": "financial",
+    "subcategory": "payment",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "payment-004",
+      "title": "Apple: Reçu de votre achat: 0.99€",
+      "content": "Confirmation de paiement\n\nReçu de votre achat: 0.99€\n\nMerci pour votre achat.\n\nApple",
+      "from_person": "orders@apple.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 27
+  },
+  {
+    "id": "val-0c074647",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-002",
+      "title": "Invitation: Point projet Alpha - 23 January 2026 09h15",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Point projet Alpha\nDate: 23 January 2026\nHeure: 09h15\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nThomas Leclerc\nChef de projet - Acme Corp",
+      "from_person": "thomas.leclerc@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 28
+  },
+  {
+    "id": "val-c241150e",
+    "category": "newsletter",
+    "subcategory": "scam",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "spam-007",
+      "title": "Réclamez votre prix",
+      "content": "⚡ OFFRE LIMITÉE ⚡\n\nCliquez ICI maintenant!\n\nhttp://suspicious-link.xyz/offer\n\nSe désinscrire",
+      "from_person": "winner@prize.xyz",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 29
+  },
+  {
+    "id": "val-79ef2b22",
+    "category": "ephemeral",
+    "subcategory": "shipping",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "shipping-003",
+      "title": "Livraison prévue demain",
+      "content": "Bonjour,\n\nLivraison prévue demain\n\nN° de suivi: LP772343990FR\n\nSuivre mon colis sur laposte.fr\n\nCordialement,\nAmazon.fr",
+      "from_person": "shipping@amazon.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 30
+  },
+  {
+    "id": "val-514a4146",
+    "category": "ephemeral",
+    "subcategory": "otp",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "otp-006",
+      "title": "Votre code de vérification Microsoft",
+      "content": "Bonjour,\n\nVotre code de vérification est : 226978\n\nCe code expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nMicrosoft",
+      "from_person": "noreply@microsoft.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 31
+  },
+  {
+    "id": "val-657cbc86",
+    "category": "ephemeral",
+    "subcategory": "reminder",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "reminder-005",
+      "title": "Rappel quotidien: Standup 9h",
+      "content": "Rappel automatique de votre calendrier.\n\nRappel quotidien: Standup 9h\n\n---\nGoogle Calendar",
+      "from_person": "calendar-notification@google.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 32
+  },
+  {
+    "id": "val-ae33f4d3",
+    "category": "newsletter",
+    "subcategory": "newsletter",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "newsletter-006",
+      "title": "Hacker News: Top Stories",
+      "content": "This week's top stories:\n\n• Story 1\n• Story 2\n• Story 3\n\nRead more at hackernews.com\n\nUnsubscribe | Privacy Policy",
+      "from_person": "daily@hackernews.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 33
+  },
+  {
+    "id": "val-9fc92b16",
+    "category": "newsletter",
+    "subcategory": "spam",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "spam-001",
+      "title": "MEGA PROMO -80% SUR TOUT",
+      "content": "⚡ OFFRE LIMITÉE ⚡\n\nCliquez ICI maintenant!\n\nhttp://suspicious-link.xyz/offer\n\nSe désinscrire",
+      "from_person": "promo@marketing-xyz.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 34
+  },
+  {
+    "id": "val-fe69da02",
+    "category": "business",
+    "subcategory": "deadline",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "deadline-005",
+      "title": "[Action requise] Budget prévisionnel",
+      "content": "Bonjour,\n\nRappel: Budget prévisionnel\n\nDélai: vendredi\n\nMerci de traiter ce point en priorité.\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 35
+  },
+  {
+    "id": "val-779fad70",
+    "category": "ephemeral",
+    "subcategory": "otp",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "otp-001",
+      "title": "Votre code de vérification Boursorama Banque",
+      "content": "Bonjour,\n\nVotre code de vérification est : 690111\n\nCe code expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nBoursorama Banque",
+      "from_person": "noreply@boursorama.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 36
+  },
+  {
+    "id": "val-4189fa3f",
+    "category": "business",
+    "subcategory": "contract",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "engagement",
+        "montant"
+      ],
+      "high_stakes": true
+    },
+    "event": {
+      "event_id": "contract-001",
+      "title": "Contrat de prestation - Nexus Inc",
+      "content": "Bonjour,\n\nVeuillez trouver ci-joint le contrat de prestation avec Nexus Inc.\n\nMontant: 45000€\nDurée: 12 mois\n\nMerci de nous retourner le document signé.\n\nCordialement,\nService Juridique",
+      "from_person": "legal@nexusinc.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 37
+  },
+  {
+    "id": "val-95b2328c",
+    "category": "financial",
+    "subcategory": "payment",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "payment-003",
+      "title": "Amazon: Commande confirmée: 67.50€",
+      "content": "Confirmation de paiement\n\nCommande confirmée: 67.50€\n\nMerci pour votre achat.\n\nAmazon",
+      "from_person": "confirmation@amazon.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 38
+  },
+  {
+    "id": "val-cf29c844",
+    "category": "complex",
+    "subcategory": "multi_topic",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 3
+    },
+    "event": {
+      "event_id": "multi-005",
+      "title": "Point perso et pro",
+      "content": "Bonjour,\n\nPour le boulot: deadline rapport vendredi.\n\nSinon, on fait un resto samedi? Ma mère vient aussi.\n\nEt n'oublie pas l'anniversaire de Paul dimanche!\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 39
+  },
+  {
+    "id": "val-79d07573",
+    "category": "ephemeral",
+    "subcategory": "shipping",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "shipping-006",
+      "title": "Votre retour a été reçu",
+      "content": "Bonjour,\n\nVotre retour a été reçu\n\nN° de suivi: LP964508125FR\n\nSuivre mon colis sur laposte.fr\n\nCordialement,\nAmazon.fr",
+      "from_person": "shipping@amazon.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 40
+  },
+  {
+    "id": "val-540f9b94",
+    "category": "ephemeral",
+    "subcategory": "reminder",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "reminder-004",
+      "title": "Notification: Événement modifié",
+      "content": "Rappel automatique de votre calendrier.\n\nNotification: Événement modifié\n\n---\nGoogle Calendar",
+      "from_person": "calendar-notification@google.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 41
+  },
+  {
+    "id": "val-c5250595",
+    "category": "newsletter",
+    "subcategory": "newsletter",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "newsletter-001",
+      "title": "TechCrunch Weekly: AI Startups Raise $5B",
+      "content": "This week's top stories:\n\n• Story 1\n• Story 2\n• Story 3\n\nRead more at techcrunchweekly.com\n\nUnsubscribe | Privacy Policy",
+      "from_person": "newsletter@techcrunch.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 42
+  },
+  {
+    "id": "val-7a29476b",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-008",
+      "title": "Invitation: Brainstorm produit - 03 February 2026 16h15",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Brainstorm produit\nDate: 03 February 2026\nHeure: 16h15\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nJulie Martin\nProduct Manager - Acme Corp",
+      "from_person": "julie.martin@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 43
+  },
+  {
+    "id": "val-0bf94793",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-010",
+      "title": "Invitation: Kick-off projet Beta - 03 February 2026 08h00",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Kick-off projet Beta\nDate: 03 February 2026\nHeure: 08h00\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nAnne Rousseau\nDirectrice Projets - Acme Corp",
+      "from_person": "anne.rousseau@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 44
+  },
+  {
+    "id": "val-ffafda2a",
+    "category": "financial",
+    "subcategory": "bank",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "montant"
+      ]
+    },
+    "event": {
+      "event_id": "bank-002",
+      "title": "Boursorama: Paiement carte de 45.90€",
+      "content": "Notification de votre compte:\n\nPaiement carte de 45.90€\n\nConsultez votre compte sur l'app Boursorama.\n\nCordialement,\nBoursorama",
+      "from_person": "notifications@boursorama.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 45
+  },
+  {
+    "id": "val-6548ecd4",
+    "category": "personal",
+    "subcategory": "friend",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1
+    },
+    "event": {
+      "event_id": "friend-001",
+      "title": "Soirée samedi",
+      "content": "Salut!\n\nOn fait une soirée chez moi samedi. Tu viens?\n\nA+\nAlex",
+      "from_person": "alex.martin@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 46
+  },
+  {
+    "id": "val-3127ff11",
+    "category": "ephemeral",
+    "subcategory": "otp",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "otp-004",
+      "title": "Votre code de vérification Apple",
+      "content": "Bonjour,\n\nVotre code de vérification est : 241657\n\nCe code expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nApple",
+      "from_person": "noreply@apple.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 47
+  },
+  {
+    "id": "val-f9af2502",
+    "category": "complex",
+    "subcategory": "multi_topic",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 3
+    },
+    "event": {
+      "event_id": "multi-004",
+      "title": "Infos diverses importantes",
+      "content": "Bonjour,\n\nEn vrac:\n\n1. Changement de bureau le 1er février\n2. Nouvelle politique de télétravail\n3. Augmentation prévue pour l'équipe\n4. Objectifs Q2 à définir\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 48
+  },
+  {
+    "id": "val-33ce0821",
+    "category": "ephemeral",
+    "subcategory": "otp",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "otp-002",
+      "title": "Votre code de vérification PayPal",
+      "content": "Bonjour,\n\nVotre code de vérification est : 325681\n\nCe code expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nPayPal",
+      "from_person": "security@paypal.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 49
+  },
+  {
+    "id": "val-cfed7771",
+    "category": "newsletter",
+    "subcategory": "scam",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "spam-003",
+      "title": "Vous avez gagné 1 000 000€",
+      "content": "⚡ OFFRE LIMITÉE ⚡\n\nCliquez ICI maintenant!\n\nhttp://suspicious-link.xyz/offer\n\nSe désinscrire",
+      "from_person": "lottery@winner.xyz",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 50
+  },
+  {
+    "id": "val-9df61dd5",
+    "category": "ephemeral",
+    "subcategory": "shipping",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "shipping-001",
+      "title": "Votre colis est en cours de livraison",
+      "content": "Bonjour,\n\nVotre colis est en cours de livraison\n\nN° de suivi: LP850070384FR\n\nSuivre mon colis sur laposte.fr\n\nCordialement,\nAmazon.fr",
+      "from_person": "shipping@amazon.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 51
+  },
+  {
+    "id": "val-b882a339",
+    "category": "personal",
+    "subcategory": "family",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "relation",
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "family-002",
+      "title": "Re: Repas de Noël",
+      "content": "Mon chéri,\n\nCette année, c'est chez nous pour Noël. Confirme ta venue.\n\nBisous,\nPierre",
+      "from_person": "papa.durand@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 52
+  },
+  {
+    "id": "val-eac27765",
+    "category": "ephemeral",
+    "subcategory": "shipping",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "shipping-005",
+      "title": "Mise à jour de livraison",
+      "content": "Bonjour,\n\nMise à jour de livraison\n\nN° de suivi: LP794225101FR\n\nSuivre mon colis sur laposte.fr\n\nCordialement,\nAmazon.fr",
+      "from_person": "shipping@amazon.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 53
+  },
+  {
+    "id": "val-28e5a064",
+    "category": "ephemeral",
+    "subcategory": "reminder",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "reminder-006",
+      "title": "Notification: Réunion annulée",
+      "content": "Rappel automatique de votre calendrier.\n\nNotification: Réunion annulée\n\n---\nGoogle Calendar",
+      "from_person": "calendar-notification@google.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 54
+  },
+  {
+    "id": "val-d7cc031c",
+    "category": "ephemeral",
+    "subcategory": "reminder",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "reminder-003",
+      "title": "Rappel: Meeting demain à 14h",
+      "content": "Rappel automatique de votre calendrier.\n\nRappel: Meeting demain à 14h\n\n---\nGoogle Calendar",
+      "from_person": "calendar-notification@google.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 55
+  },
+  {
+    "id": "val-66da741a",
+    "category": "financial",
+    "subcategory": "bank",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "montant"
+      ]
+    },
+    "event": {
+      "event_id": "bank-004",
+      "title": "Revolut: Paiement à l'étranger de 120€",
+      "content": "Notification de votre compte:\n\nPaiement à l'étranger de 120€\n\nConsultez votre compte sur l'app Revolut.\n\nCordialement,\nRevolut",
+      "from_person": "info@revolut.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 56
+  },
+  {
+    "id": "val-f335e1cd",
+    "category": "financial",
+    "subcategory": "bank",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "montant"
+      ]
+    },
+    "event": {
+      "event_id": "bank-001",
+      "title": "Ma Banque: Virement reçu de 2 500€",
+      "content": "Notification de votre compte:\n\nVirement reçu de 2 500€\n\nConsultez votre compte sur l'app Ma Banque.\n\nCordialement,\nMa Banque",
+      "from_person": "alertes@banque.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 57
+  },
+  {
+    "id": "val-c2ac5a13",
+    "category": "financial",
+    "subcategory": "invoice",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "montant",
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "invoice-006",
+      "title": "Facture N°2026-4281 - Notion",
+      "content": "Bonjour,\n\nVeuillez trouver votre facture mensuelle:\n\nFacture N°: 2026-4281\nDescription: Workspace\nMontant: 8€\nÉchéance: dans 30 jours\n\nMerci de régler par virement.\n\nCordialement,\nNotion",
+      "from_person": "billing@notion.so",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 58
+  },
+  {
+    "id": "val-a334e939",
+    "category": "financial",
+    "subcategory": "invoice",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "montant",
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "invoice-002",
+      "title": "Facture N°2026-2804 - AWS",
+      "content": "Bonjour,\n\nVeuillez trouver votre facture mensuelle:\n\nFacture N°: 2026-2804\nDescription: Services cloud\nMontant: 234.56€\nÉchéance: dans 30 jours\n\nMerci de régler par virement.\n\nCordialement,\nAWS",
+      "from_person": "billing@aws.amazon.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 59
+  },
+  {
+    "id": "val-8b38df73",
+    "category": "personal",
+    "subcategory": "friend",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1
+    },
+    "event": {
+      "event_id": "friend-002",
+      "title": "Concert prévu",
+      "content": "Salut!\n\nJ'ai trouvé des places pour le concert. Ça te dit?\n\nA+\nJulie",
+      "from_person": "julie.b@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 60
+  },
+  {
+    "id": "val-2799434a",
+    "category": "complex",
+    "subcategory": "conflict",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "needs_mousqueton": true
+    },
+    "event": {
+      "event_id": "conflict-002",
+      "title": "Désaccord sur le scope",
+      "content": "Johan,\n\nL'équipe dev et le client ne sont pas d'accord sur le périmètre.\n\nDev: MVP sans feature X\nClient: Feature X indispensable\n\nBesoin d'arbitrage.\n\nMerci,\nMarc",
+      "from_person": "marc.dupont@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 61
+  },
+  {
+    "id": "val-f7ca1775",
+    "category": "business",
+    "subcategory": "deadline",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "deadline-008",
+      "title": "[Action requise] Tests de recette",
+      "content": "Bonjour,\n\nRappel: Tests de recette\n\nDélai: avant déploiement\n\nMerci de traiter ce point en priorité.\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 62
+  },
+  {
+    "id": "val-e3b0781a",
+    "category": "ephemeral",
+    "subcategory": "otp",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "otp-003",
+      "title": "Votre code de vérification Google",
+      "content": "Bonjour,\n\nVotre code de vérification est : 835815\n\nCe code expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nGoogle",
+      "from_person": "noreply@google.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 63
+  },
+  {
+    "id": "val-74734966",
+    "category": "ephemeral",
+    "subcategory": "shipping",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "shipping-002",
+      "title": "Votre commande a été expédiée",
+      "content": "Bonjour,\n\nVotre commande a été expédiée\n\nN° de suivi: LP652319748FR\n\nSuivre mon colis sur laposte.fr\n\nCordialement,\nAmazon.fr",
+      "from_person": "shipping@amazon.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 64
+  },
+  {
+    "id": "val-40fa9c2a",
+    "category": "complex",
+    "subcategory": "conflict",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "needs_mousqueton": true
+    },
+    "event": {
+      "event_id": "conflict-003",
+      "title": "Conflit de ressources",
+      "content": "Johan,\n\nSophie demande Pierre sur son projet.\nThomas a aussi besoin de Pierre.\n\nLes deux projets sont critiques.\n\nQui a priorité?\n\nMerci,\nMarc",
+      "from_person": "marc.dupont@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 65
+  },
+  {
+    "id": "val-205a3f27",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-006",
+      "title": "Invitation: Entretien annuel - 30 January 2026 08h15",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Entretien annuel\nDate: 30 January 2026\nHeure: 08h15\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nClaire Petit\nRH - Acme Corp",
+      "from_person": "claire.petit@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 66
+  },
+  {
+    "id": "val-20fd9e79",
+    "category": "business",
+    "subcategory": "deadline",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "deadline-004",
+      "title": "[Action requise] Revue de code PR #456",
+      "content": "Bonjour,\n\nRappel: Revue de code PR #456\n\nDélai: 2 jours\n\nMerci de traiter ce point en priorité.\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 67
+  },
+  {
+    "id": "val-b4a6c762",
+    "category": "newsletter",
+    "subcategory": "newsletter",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "newsletter-003",
+      "title": "The Verge: Latest Tech News",
+      "content": "This week's top stories:\n\n• Story 1\n• Story 2\n• Story 3\n\nRead more at theverge.com\n\nUnsubscribe | Privacy Policy",
+      "from_person": "news@theverge.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 68
+  },
+  {
+    "id": "val-365a9381",
+    "category": "business",
+    "subcategory": "contract",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "engagement",
+        "montant"
+      ],
+      "high_stakes": true
+    },
+    "event": {
+      "event_id": "contract-006",
+      "title": "Contrat de maintenance - TechSupport",
+      "content": "Bonjour,\n\nVeuillez trouver ci-joint le contrat de maintenance avec TechSupport.\n\nMontant: 3600€\nDurée: 12 mois\n\nMerci de nous retourner le document signé.\n\nCordialement,\nService Juridique",
+      "from_person": "legal@techsupport.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 69
+  },
+  {
+    "id": "val-505a91a4",
+    "category": "business",
+    "subcategory": "deadline",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "deadline-003",
+      "title": "[Action requise] Documentation technique",
+      "content": "Bonjour,\n\nRappel: Documentation technique\n\nDélai: fin de semaine\n\nMerci de traiter ce point en priorité.\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 70
+  },
+  {
+    "id": "val-6ccfd751",
+    "category": "personal",
+    "subcategory": "family",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "relation",
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "family-004",
+      "title": "Re: Nouvelle adresse",
+      "content": "Mon chéri,\n\nJe t'envoie ma nouvelle adresse. On a déménagé le mois dernier.\n\nBisous,\nThomas",
+      "from_person": "thomas.d@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 71
+  },
+  {
+    "id": "val-28f823ea",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-009",
+      "title": "Invitation: Rétrospective sprint - 01 February 2026 09h00",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Rétrospective sprint\nDate: 01 February 2026\nHeure: 09h00\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nPaul Bernard\nScrum Master - Acme Corp",
+      "from_person": "paul.bernard@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 72
+  },
+  {
+    "id": "val-3493bc63",
+    "category": "complex",
+    "subcategory": "conflict",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "needs_mousqueton": true
+    },
+    "event": {
+      "event_id": "conflict-004",
+      "title": "Versions contradictoires",
+      "content": "Johan,\n\nJ'ai reçu deux versions du contrat.\n\nVersion A: 50k€ sur 6 mois\nVersion B: 45k€ sur 8 mois\n\nLaquelle est la bonne?\n\nMerci,\nMarc",
+      "from_person": "marc.dupont@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 73
+  },
+  {
+    "id": "val-42ae861c",
+    "category": "financial",
+    "subcategory": "payment",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "payment-002",
+      "title": "Stripe: Paiement reçu: 150€",
+      "content": "Confirmation de paiement\n\nPaiement reçu: 150€\n\nMerci pour votre achat.\n\nStripe",
+      "from_person": "no-reply@stripe.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 74
+  },
+  {
+    "id": "val-b1b91b29",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-005",
+      "title": "Invitation: Comité de direction - 25 January 2026 19h15",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Comité de direction\nDate: 25 January 2026\nHeure: 19h15\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nJean Dubois\nDG - Acme Corp",
+      "from_person": "jean.dubois@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 75
+  },
+  {
+    "id": "val-feca7ede",
+    "category": "personal",
+    "subcategory": "friend",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1
+    },
+    "event": {
+      "event_id": "friend-003",
+      "title": "Resto ce week-end",
+      "content": "Salut!\n\nÇa fait longtemps qu'on s'est pas vu. On se fait un resto?\n\nA+\nNicolas",
+      "from_person": "nico.dev@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 76
+  },
+  {
+    "id": "val-9be9d16f",
+    "category": "financial",
+    "subcategory": "invoice",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "montant",
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "invoice-005",
+      "title": "Facture N°2026-3119 - OVH",
+      "content": "Bonjour,\n\nVeuillez trouver votre facture mensuelle:\n\nFacture N°: 2026-3119\nDescription: Domaines et DNS\nMontant: 89.99€\nÉchéance: dans 30 jours\n\nMerci de régler par virement.\n\nCordialement,\nOVH",
+      "from_person": "facturation@ovh.net",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 77
+  },
+  {
+    "id": "val-9b749b37",
+    "category": "newsletter",
+    "subcategory": "scam",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "spam-005",
+      "title": "Make $10k/day with crypto",
+      "content": "⚡ OFFRE LIMITÉE ⚡\n\nCliquez ICI maintenant!\n\nhttp://suspicious-link.xyz/offer\n\nSe désinscrire",
+      "from_person": "crypto@moon.xyz",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 78
+  },
+  {
+    "id": "val-024a0586",
+    "category": "newsletter",
+    "subcategory": "spam",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "spam-002",
+      "title": "iPhone 15 Pro à 99€ !!!",
+      "content": "⚡ OFFRE LIMITÉE ⚡\n\nCliquez ICI maintenant!\n\nhttp://suspicious-link.xyz/offer\n\nSe désinscrire",
+      "from_person": "deals@unknown-store.xyz",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 79
+  },
+  {
+    "id": "val-35380c0d",
+    "category": "business",
+    "subcategory": "contract",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "engagement",
+        "montant"
+      ],
+      "high_stakes": true
+    },
+    "event": {
+      "event_id": "contract-003",
+      "title": "Avenant contrat - CloudHost",
+      "content": "Bonjour,\n\nVeuillez trouver ci-joint le avenant contrat avec CloudHost.\n\nMontant: 599€\nDurée: 12 mois\n\nMerci de nous retourner le document signé.\n\nCordialement,\nService Juridique",
+      "from_person": "legal@cloudhost.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 80
+  },
+  {
+    "id": "val-73ad6175",
+    "category": "business",
+    "subcategory": "contract",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "engagement",
+        "montant"
+      ],
+      "high_stakes": true
+    },
+    "event": {
+      "event_id": "contract-004",
+      "title": "Proposition commerciale - DataTech",
+      "content": "Bonjour,\n\nVeuillez trouver ci-joint le proposition commerciale avec DataTech.\n\nMontant: 15000€\nDurée: 12 mois\n\nMerci de nous retourner le document signé.\n\nCordialement,\nService Juridique",
+      "from_person": "legal@datatech.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 81
+  },
+  {
+    "id": "val-b7bbe9da",
+    "category": "personal",
+    "subcategory": "family",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "relation",
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "family-003",
+      "title": "Re: Photos vacances",
+      "content": "Mon chéri,\n\nVoici les photos des vacances. Super moments en famille!\n\nBisous,\nClaire",
+      "from_person": "claire.durand@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 82
+  },
+  {
+    "id": "val-86f85ac2",
+    "category": "newsletter",
+    "subcategory": "newsletter",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "newsletter-002",
+      "title": "Medium Daily Digest: Top Stories for You",
+      "content": "This week's top stories:\n\n• Story 1\n• Story 2\n• Story 3\n\nRead more at mediumdailydigest.com\n\nUnsubscribe | Privacy Policy",
+      "from_person": "digest@medium.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 83
+  },
+  {
+    "id": "val-f811c53d",
+    "category": "complex",
+    "subcategory": "conflict",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "needs_mousqueton": true
+    },
+    "event": {
+      "event_id": "conflict-001",
+      "title": "Re: Date de livraison Projet Beta",
+      "content": "Johan,\n\nIl y a confusion sur les dates.\n\nMarie dit 28 janvier.\nThomas confirme 4 février.\n\nLe budget aussi: 25k€ vs 32k€.\n\nPeux-tu trancher?\n\nMerci,\nMarc",
+      "from_person": "marc.dupont@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 84
+  },
+  {
+    "id": "val-646bb0a4",
+    "category": "financial",
+    "subcategory": "invoice",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "montant",
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "invoice-004",
+      "title": "Facture N°2026-8738 - GitHub",
+      "content": "Bonjour,\n\nVeuillez trouver votre facture mensuelle:\n\nFacture N°: 2026-8738\nDescription: GitHub Pro\nMontant: 21€\nÉchéance: dans 30 jours\n\nMerci de régler par virement.\n\nCordialement,\nGitHub",
+      "from_person": "billing@github.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 85
+  },
+  {
+    "id": "val-76dfb459",
+    "category": "ephemeral",
+    "subcategory": "otp",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "otp-005",
+      "title": "Votre code de vérification Amazon",
+      "content": "Bonjour,\n\nVotre code de vérification est : 963233\n\nCe code expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nAmazon",
+      "from_person": "no-reply@amazon.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 86
+  },
+  {
+    "id": "val-6e484e3b",
+    "category": "complex",
+    "subcategory": "conflict",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "needs_mousqueton": true
+    },
+    "event": {
+      "event_id": "conflict-005",
+      "title": "Priorités incompatibles",
+      "content": "Johan,\n\nMarketing veut lancer la campagne le 15.\nProduit dit que la feature sera prête le 20.\n\nComment on gère?\n\nMerci,\nMarc",
+      "from_person": "marc.dupont@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 87
+  },
+  {
+    "id": "val-27a63e24",
+    "category": "newsletter",
+    "subcategory": "scam",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "spam-004",
+      "title": "Urgent business proposal",
+      "content": "⚡ OFFRE LIMITÉE ⚡\n\nCliquez ICI maintenant!\n\nhttp://suspicious-link.xyz/offer\n\nSe désinscrire",
+      "from_person": "prince@nigeria.xyz",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 88
+  },
+  {
+    "id": "val-412ed18d",
+    "category": "financial",
+    "subcategory": "invoice",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "montant",
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "invoice-001",
+      "title": "Facture N°2026-1402 - CloudHost Pro",
+      "content": "Bonjour,\n\nVeuillez trouver votre facture mensuelle:\n\nFacture N°: 2026-1402\nDescription: Hébergement serveur\nMontant: 531.60€\nÉchéance: dans 30 jours\n\nMerci de régler par virement.\n\nCordialement,\nCloudHost Pro",
+      "from_person": "facturation@cloudhost.pro",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 89
+  },
+  {
+    "id": "val-0ae5c7d9",
+    "category": "business",
+    "subcategory": "contract",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "engagement",
+        "montant"
+      ],
+      "high_stakes": true
+    },
+    "event": {
+      "event_id": "contract-007",
+      "title": "Accord de partenariat - Partner Corp",
+      "content": "Bonjour,\n\nVeuillez trouver ci-joint le accord de partenariat avec Partner Corp.\n\nMontant: 10000€\nDurée: 12 mois\n\nMerci de nous retourner le document signé.\n\nCordialement,\nService Juridique",
+      "from_person": "legal@partnercorp.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 90
+  },
+  {
+    "id": "val-67317295",
+    "category": "business",
+    "subcategory": "contract",
+    "expected": {
+      "stopped_at": "mousqueton",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "engagement",
+        "montant"
+      ],
+      "high_stakes": true
+    },
+    "event": {
+      "event_id": "contract-002",
+      "title": "Renouvellement licence - Adobe",
+      "content": "Bonjour,\n\nVeuillez trouver ci-joint le renouvellement licence avec Adobe.\n\nMontant: 2400€\nDurée: 12 mois\n\nMerci de nous retourner le document signé.\n\nCordialement,\nService Juridique",
+      "from_person": "legal@adobe.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 91
+  },
+  {
+    "id": "val-93cfa17f",
+    "category": "business",
+    "subcategory": "meeting",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ],
+      "calendar": true
+    },
+    "event": {
+      "event_id": "meeting-001",
+      "title": "Invitation: Réunion budget Q1 - 29 January 2026 08h45",
+      "content": "Bonjour Johan,\n\nJe vous invite à une réunion.\n\nSujet: Réunion budget Q1\nDate: 29 January 2026\nHeure: 08h45\nLieu: Salle Confluence\n\nMerci de confirmer votre présence.\n\nCordialement,\nSophie Martin\nDirectrice Financière - Acme Corp",
+      "from_person": "sophie.martin@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 92
+  },
+  {
+    "id": "val-596432b9",
+    "category": "personal",
+    "subcategory": "friend",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1
+    },
+    "event": {
+      "event_id": "friend-004",
+      "title": "Projet perso",
+      "content": "Salut!\n\nJe voulais te parler de mon nouveau projet. On se cale un call?\n\nA+\nEmma",
+      "from_person": "emma.photo@gmail.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 93
+  },
+  {
+    "id": "val-08036b22",
+    "category": "financial",
+    "subcategory": "invoice",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "montant",
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "invoice-007",
+      "title": "Facture N°2026-5895 - Vercel",
+      "content": "Bonjour,\n\nVeuillez trouver votre facture mensuelle:\n\nFacture N°: 2026-5895\nDescription: Hosting Pro\nMontant: 20€\nÉchéance: dans 30 jours\n\nMerci de régler par virement.\n\nCordialement,\nVercel",
+      "from_person": "invoice@vercel.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 94
+  },
+  {
+    "id": "val-4113e794",
+    "category": "business",
+    "subcategory": "deadline",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "deadline-002",
+      "title": "[Action requise] Validation contrat urgent",
+      "content": "Bonjour,\n\nRappel: Validation contrat urgent\n\nDélai: demain 17h\n\nMerci de traiter ce point en priorité.\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "high"
+    },
+    "index": 95
+  },
+  {
+    "id": "val-1438c089",
+    "category": "ephemeral",
+    "subcategory": "otp",
+    "expected": {
+      "stopped_at": "grimaud",
+      "action": "delete",
+      "early_stop": true,
+      "extractions_count": 0
+    },
+    "event": {
+      "event_id": "otp-008",
+      "title": "Votre code de vérification GitHub",
+      "content": "Bonjour,\n\nVotre code de vérification est : 196338\n\nCe code expire dans 10 minutes.\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n\nCordialement,\nGitHub",
+      "from_person": "noreply@github.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 96
+  },
+  {
+    "id": "val-1690b834",
+    "category": "personal",
+    "subcategory": "social",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "evenement"
+      ]
+    },
+    "event": {
+      "event_id": "social-003",
+      "title": "TechConf 2026: Votre badge est prêt",
+      "content": "Bonjour,\n\nVotre badge est prêt\n\nPlus d'infos sur notre site.\n\nCordialement,\nTechConf 2026",
+      "from_person": "invitation@conference.tech",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "low"
+    },
+    "index": 97
+  },
+  {
+    "id": "val-fc9f8856",
+    "category": "complex",
+    "subcategory": "multi_topic",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 3
+    },
+    "event": {
+      "event_id": "multi-001",
+      "title": "Plusieurs points à traiter",
+      "content": "Bonjour,\n\n1. Budget Q2: validé à 80k€\n2. Réunion vendredi 14h\n3. Contrat Nexus à signer\n4. Facture CloudHost reçue\n\nCordialement,\nL'équipe",
+      "from_person": "team@acme.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 98
+  },
+  {
+    "id": "val-73388e06",
+    "category": "financial",
+    "subcategory": "bank",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 1,
+      "expected_types": [
+        "montant"
+      ]
+    },
+    "event": {
+      "event_id": "bank-003",
+      "title": "BNP Paribas: Prélèvement automatique EDF",
+      "content": "Notification de votre compte:\n\nPrélèvement automatique EDF\n\nConsultez votre compte sur l'app BNP Paribas.\n\nCordialement,\nBNP Paribas",
+      "from_person": "secure@bnp.fr",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "information",
+      "urgency": "medium"
+    },
+    "index": 99
+  },
+  {
+    "id": "val-e99add3a",
+    "category": "financial",
+    "subcategory": "invoice",
+    "expected": {
+      "stopped_at": "planchet",
+      "action": "archive",
+      "early_stop": false,
+      "min_extractions": 2,
+      "expected_types": [
+        "montant",
+        "deadline"
+      ],
+      "omnifocus": true
+    },
+    "event": {
+      "event_id": "invoice-003",
+      "title": "Facture N°2026-1764 - Figma",
+      "content": "Bonjour,\n\nVeuillez trouver votre facture mensuelle:\n\nFacture N°: 2026-1764\nDescription: Licence mensuelle\nMontant: 15€\nÉchéance: dans 30 jours\n\nMerci de régler par virement.\n\nCordialement,\nFigma",
+      "from_person": "invoice@figma.com",
+      "to_people": [
+        "johan@example.com"
+      ],
+      "source": "email",
+      "event_type": "action_required",
+      "urgency": "medium"
+    },
+    "index": 100
+  }
+]

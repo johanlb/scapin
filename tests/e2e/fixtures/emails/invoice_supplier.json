@@ -1,0 +1,22 @@
+{
+  "id": "e2e-invoice-001",
+  "scenario": "Invoice from supplier - financial extraction",
+  "expected": {
+    "stopped_at": "planchet",
+    "action": "archive",
+    "early_stop": false,
+    "min_extractions": 2,
+    "expected_types": ["montant", "deadline"],
+    "omnifocus": true
+  },
+  "event": {
+    "event_id": "e2e-invoice-001",
+    "title": "Facture N°2026-0142 - CloudHost Pro",
+    "content": "Bonjour,\n\nVeuillez trouver ci-joint votre facture mensuelle:\n\nFacture N°: 2026-0142\nDate: 15 janvier 2026\nÉchéance: 15 février 2026\n\nDétail:\n- Hébergement serveur dédié: 299€ HT\n- Bande passante supplémentaire: 45€ HT\n- Support premium: 99€ HT\n\nTotal HT: 443€\nTVA 20%: 88,60€\nTotal TTC: 531,60€\n\nMerci de régler par virement avant l'échéance.\nIBAN: FR76 3000 4000 0300 0123 4567 890\n\nCordialement,\nService Facturation - CloudHost Pro",
+    "from_person": "facturation@cloudhost.pro",
+    "to_people": ["johan@example.com"],
+    "source": "email",
+    "event_type": "action_required",
+    "urgency": "medium"
+  }
+}
