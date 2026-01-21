@@ -582,7 +582,7 @@
 	function openInNewWindow() {
 		if (!selectedNote) return;
 		// Open the note in a new window/tab
-		const url = `/notes/${encodeURIComponent(selectedNote.note_id)}`;
+		const url = `/memoires/${encodeURIComponent(selectedNote.path)}`;
 		window.open(url, '_blank', 'width=800,height=600');
 	}
 

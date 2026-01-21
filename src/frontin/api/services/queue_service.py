@@ -1854,7 +1854,6 @@ class _EmailEventAdapter:
 
         # Timing - parse the date for age calculations
         date_str = metadata.get("date", now_utc().isoformat())
-        self.timestamp = date_str
 
         # Parse date for age-aware analysis (MultiPassAnalyzer expects datetime)
         try:
@@ -1865,6 +1864,9 @@ class _EmailEventAdapter:
                 self.received_at = date_str
         except (ValueError, TypeError):
             self.received_at = now_utc()
+
+        # timestamp must be datetime for Jinja2 template age calculations (now - event.timestamp)
+        self.timestamp = self.received_at
 
         # occurred_at alias for event-style access
         self.occurred_at = self.received_at

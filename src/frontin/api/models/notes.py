@@ -367,3 +367,29 @@ class NoteMoveResponse(BaseModel):
     old_path: str = Field(..., description="Previous folder path")
     new_path: str = Field(..., description="New folder path")
     moved: bool = Field(..., description="Whether the note was moved")
+
+
+class EnrichmentRecordResponse(BaseModel):
+    """Record of a single enrichment/retouche action"""
+
+    timestamp: datetime = Field(..., description="When the action occurred")
+    action_type: str = Field(
+        ..., description="Action type (enrich, structure, summarize, score, inject_questions)"
+    )
+    target: str = Field(..., description="Target section or content")
+    content: str | None = Field(None, description="Content added/modified")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
+    applied: bool = Field(..., description="Whether the action was applied")
+    reasoning: str = Field("", description="Reasoning (includes model used)")
+
+
+class EnrichmentHistoryResponse(BaseModel):
+    """Enrichment history for a note"""
+
+    note_id: str = Field(..., description="Note identifier")
+    records: list[EnrichmentRecordResponse] = Field(
+        default_factory=list, description="Enrichment records (newest first)"
+    )
+    total_records: int = Field(0, description="Total number of records")
+    quality_score: int | None = Field(None, description="Current quality score (0-100)")
+    retouche_count: int = Field(0, description="Total retouche cycles")

@@ -4,6 +4,7 @@
 	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
 	import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
 	import NoteHistory from '$lib/components/notes/NoteHistory.svelte';
+	import RetoucheHistory from '$lib/components/notes/RetoucheHistory.svelte';
 	import { noteChatStore, detectNoteType, type NoteContext } from '$lib/stores/note-chat.svelte';
 	import { extractWikilinks } from '$lib/utils/markdown';
 	import { getNote, updateNote } from '$lib/api/client';
@@ -30,6 +31,7 @@
 	let error = $state<string | null>(null);
 	let editing = $state(false);
 	let showHistory = $state(false);
+	let showRetoucheHistory = $state(false);
 
 	// Load note when noteId changes
 	$effect(() => {
@@ -149,6 +151,13 @@
 				<span class="text-xl">💬</span>
 			</button>
 			<button
+				onclick={() => (showRetoucheHistory = true)}
+				class="p-2 rounded-full hover:bg-[var(--glass-tint)] transition-colors"
+				title="Historique des retouches IA"
+			>
+				<span class="text-xl">📜</span>
+			</button>
+			<button
 				onclick={() => (showHistory = true)}
 				class="p-2 rounded-full hover:bg-[var(--glass-tint)] transition-colors"
 				title="Historique des versions"
@@ -263,4 +272,5 @@
 <!-- Version history modal -->
 {#if note}
 	<NoteHistory noteId={note.id} bind:open={showHistory} onRestore={handleRestore} />
+	<RetoucheHistory noteId={note.id} bind:open={showRetoucheHistory} />
 {/if}

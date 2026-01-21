@@ -13,6 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.frontin.api.auth import TokenData
 from src.frontin.api.deps import get_current_user, get_notes_review_service, get_notes_service
 from src.frontin.api.models.notes import (
+    EnrichmentHistoryResponse,
+    EnrichmentRecordResponse,
     FolderCreateRequest,
     FolderCreateResponse,
     FolderListResponse,
@@ -857,6 +859,74 @@ async def get_note_metadata(
         logger.error(f"Failed to get metadata for note {note_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to retrieve note metadata"
+        ) from e
+
+
+@router.get(
+    "/{note_id}/enrichment-history", response_model=APIResponse[EnrichmentHistoryResponse]
+)
+async def get_enrichment_history(
+    note_id: str,
+    limit: int = Query(50, ge=1, le=200, description="Maximum records to return"),
+    service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[EnrichmentHistoryResponse]:
+    """
+    Get enrichment/retouche history for a note
+
+    Returns the history of AI-powered improvements (Retouche cycles)
+    including actions taken, confidence scores, and reasoning.
+    """
+    try:
+        metadata = await service.get_note_metadata(note_id)
+
+        if metadata is None:
+            return APIResponse(
+                success=True,
+                data=EnrichmentHistoryResponse(
+                    note_id=note_id,
+                    records=[],
+                    total_records=0,
+                    quality_score=None,
+                    retouche_count=0,
+                ),
+                timestamp=datetime.now(timezone.utc),
+            )
+
+        # Convert enrichment history to response format
+        records = [
+            EnrichmentRecordResponse(
+                timestamp=record.timestamp,
+                action_type=record.action_type,
+                target=record.target,
+                content=record.content,
+                confidence=record.confidence,
+                applied=record.applied,
+                reasoning=record.reasoning,
+            )
+            for record in (metadata.enrichment_history or [])[:limit]
+        ]
+
+        # Sort by timestamp descending (newest first)
+        records.sort(key=lambda r: r.timestamp, reverse=True)
+
+        return APIResponse(
+            success=True,
+            data=EnrichmentHistoryResponse(
+                note_id=note_id,
+                records=records,
+                total_records=len(metadata.enrichment_history or []),
+                quality_score=metadata.quality_score,
+                retouche_count=metadata.retouche_count,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to get enrichment history for note {note_id}: {e}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve enrichment history"
         ) from e
 
 

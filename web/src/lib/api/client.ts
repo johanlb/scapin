@@ -1982,6 +1982,37 @@ export async function triggerReview(noteId: string): Promise<TriggerReviewRespon
 }
 
 // ============================================================================
+// ENRICHMENT HISTORY TYPES
+// ============================================================================
+
+export interface EnrichmentRecord {
+	timestamp: string;
+	action_type: string;
+	target: string;
+	content: string | null;
+	confidence: number;
+	applied: boolean;
+	reasoning: string;
+}
+
+export interface EnrichmentHistory {
+	note_id: string;
+	records: EnrichmentRecord[];
+	total_records: number;
+	quality_score: number | null;
+	retouche_count: number;
+}
+
+export async function getEnrichmentHistory(
+	noteId: string,
+	limit = 50
+): Promise<EnrichmentHistory> {
+	return fetchApi<EnrichmentHistory>(
+		`/notes/${encodeURIComponent(noteId)}/enrichment-history?limit=${limit}`
+	);
+}
+
+// ============================================================================
 // DRAFTS TYPES
 // ============================================================================
 
