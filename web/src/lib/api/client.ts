@@ -2989,6 +2989,39 @@ export async function answerPendingQuestion(
 	});
 }
 
+/**
+ * Add a note to today's Filage (force immediate review)
+ */
+export interface AddToFilageResponse {
+	note_id: string;
+	success: boolean;
+	message: string;
+}
+
+export async function addToFilage(noteId: string): Promise<AddToFilageResponse> {
+	return fetchApi<AddToFilageResponse>(`/briefing/filage/add/${encodeURIComponent(noteId)}`, {
+		method: 'POST'
+	});
+}
+
+/**
+ * Trigger AI Retouche (review) for a note
+ */
+export interface RetoucheResponse {
+	note_id: string;
+	success: boolean;
+	quality_before: number | null;
+	quality_after: number | null;
+	improvements_count: number;
+	message: string;
+}
+
+export async function triggerRetouche(noteId: string): Promise<RetoucheResponse> {
+	return fetchApi<RetoucheResponse>(`/briefing/retouche/${encodeURIComponent(noteId)}`, {
+		method: 'POST'
+	});
+}
+
 export { ApiError };
 
 export type {

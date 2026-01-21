@@ -488,3 +488,122 @@ async def get_lecture_stats(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class AddToFilageResponse(BaseModel):
+    """Response model for adding a note to Filage"""
+
+    note_id: str
+    success: bool
+    message: str
+
+
+class RetoucheResponse(BaseModel):
+    """Response model for Retouche request"""
+
+    note_id: str
+    success: bool
+    quality_before: Optional[int] = None
+    quality_after: Optional[int] = None
+    improvements_count: int = 0
+    message: str
+
+
+@router.post("/filage/add/{note_id}", response_model=APIResponse[AddToFilageResponse])
+async def add_to_filage(
+    note_id: str,
+) -> APIResponse[AddToFilageResponse]:
+    """
+    Add a note to today's Filage (force immediate review).
+
+    This sets the note's next_review to now, ensuring it appears in the Filage.
+    """
+    try:
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_scheduler import NoteScheduler
+
+        metadata_store = NoteMetadataStore()
+        scheduler = NoteScheduler(metadata_store)
+
+        success = scheduler.trigger_immediate_review(note_id)
+
+        if not success:
+            return APIResponse(
+                success=False,
+                data=AddToFilageResponse(
+                    note_id=note_id,
+                    success=False,
+                    message=f"Note not found: {note_id}",
+                ),
+                timestamp=datetime.now(timezone.utc),
+                error=f"Note not found: {note_id}",
+            )
+
+        return APIResponse(
+            success=True,
+            data=AddToFilageResponse(
+                note_id=note_id,
+                success=True,
+                message="Note ajoutée au filage du jour",
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/retouche/{note_id}", response_model=APIResponse[RetoucheResponse])
+async def trigger_retouche(
+    note_id: str,
+) -> APIResponse[RetoucheResponse]:
+    """
+    Trigger an AI Retouche (review) for a note.
+
+    The Retouche process:
+    1. Analyzes the note content for potential improvements
+    2. Suggests and applies corrections (links, formatting, etc.)
+    3. Updates quality score
+
+    Uses escalation Haiku -> Sonnet -> Opus based on confidence.
+    """
+    try:
+        from src.passepartout.note_manager import get_note_manager
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.retouche_reviewer import RetoucheReviewer
+
+        note_manager = get_note_manager()
+        metadata_store = NoteMetadataStore()
+
+        # Get quality before
+        metadata = metadata_store.get(note_id)
+        quality_before = metadata.quality_score if metadata else None
+
+        # Create reviewer and execute retouche
+        reviewer = RetoucheReviewer(
+            note_manager=note_manager,
+            metadata_store=metadata_store,
+        )
+
+        result = await reviewer.review_note(note_id)
+
+        # Get quality after
+        metadata_after = metadata_store.get(note_id)
+        quality_after = metadata_after.quality_score if metadata_after else None
+
+        return APIResponse(
+            success=result.success,
+            data=RetoucheResponse(
+                note_id=note_id,
+                success=result.success,
+                quality_before=quality_before,
+                quality_after=quality_after,
+                improvements_count=len(result.improvements) if result.improvements else 0,
+                message=result.error if result.error else "Retouche terminée avec succès",
+            ),
+            timestamp=datetime.now(timezone.utc),
+            error=result.error,
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e

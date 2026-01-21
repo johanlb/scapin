@@ -18,6 +18,8 @@
 		getNotesDue,
 		getDeletedNotes,
 		searchNotes,
+		addToFilage,
+		triggerRetouche,
 		type Note,
 		type FolderNode,
 		type NotesTree,
@@ -25,6 +27,7 @@
 		type NoteReviewMetadata,
 		type NoteSearchResult
 	} from '$lib/api/client';
+	import { memoryCyclesStore } from '$lib/stores/memory-cycles.svelte';
 	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
 	import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
 	import { Modal } from '$lib/components/ui';
@@ -54,6 +57,8 @@
 	let noteReviewMetadata = $state<NoteReviewMetadata | null>(null);
 	let isLoadingReviewMetadata = $state(false);
 	let isTriggering = $state(false);
+	let isAddingToFilage = $state(false);
+	let isRunningRetouche = $state(false);
 
 	// Notes due for review (for indicators)
 	let notesDueForReview = $state<Set<string>>(new Set());
@@ -414,6 +419,52 @@
 		}
 	}
 
+	async function handleAddToFilage() {
+		if (!selectedNote || isAddingToFilage) return;
+
+		isAddingToFilage = true;
+		try {
+			const result = await addToFilage(selectedNote.note_id);
+			if (result.success) {
+				toastStore.success(`"${selectedNote.title}" ajoutée au filage du jour`);
+				// Add to due set for visual indicator
+				notesDueForReview = new Set([...notesDueForReview, selectedNote.note_id]);
+			} else {
+				toastStore.error(result.message);
+			}
+		} catch (error) {
+			console.error('Failed to add to filage:', error);
+			toastStore.error('Échec de l\'ajout au filage');
+		} finally {
+			isAddingToFilage = false;
+		}
+	}
+
+	async function handleTriggerRetouche() {
+		if (!selectedNote || isRunningRetouche) return;
+
+		isRunningRetouche = true;
+		toastStore.info('Lancement de la retouche IA...');
+		try {
+			const result = await triggerRetouche(selectedNote.note_id);
+			if (result.success) {
+				const message = result.improvements_count > 0
+					? `Retouche terminée : ${result.improvements_count} amélioration(s)`
+					: 'Retouche terminée : aucune amélioration nécessaire';
+				toastStore.success(message);
+				// Reload the note to see improvements
+				await selectNote(selectedNote);
+			} else {
+				toastStore.error(result.message);
+			}
+		} catch (error) {
+			console.error('Failed to trigger retouche:', error);
+			toastStore.error('Échec de la retouche IA');
+		} finally {
+			isRunningRetouche = false;
+		}
+	}
+
 	async function runHygieneReview() {
 		if (!selectedNote || isRunningHygiene) return;
 
@@ -672,6 +723,10 @@
 	onMount(() => {
 		loadTree();
 
+		// Load Memory Cycles data for navigation badges
+		memoryCyclesStore.fetchFilage(20).catch(() => {/* ignore */});
+		memoryCyclesStore.fetchPendingQuestions(100).catch(() => {/* ignore */});
+
 		// Global keyboard listener
 		window.addEventListener('keydown', handleGlobalKeydown);
 		return () => {
@@ -719,6 +774,36 @@
 					Dernière sync: {formatNoteDate(syncStatus.last_sync)}
 				</p>
 			{/if}
+		</div>
+
+		<!-- Memory Cycles Quick Access -->
+		<div class="p-2 border-b border-[var(--color-border)]">
+			<div class="flex gap-1">
+				<button
+					type="button"
+					onclick={() => goto('/memoires/filage')}
+					class="flex-1 px-2 py-1.5 text-xs rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-colors flex items-center justify-center gap-1"
+					title="Filage du jour"
+				>
+					<span>📋</span>
+					<span>Filage</span>
+					{#if memoryCyclesStore.totalLectures > 0}
+						<span class="px-1 py-0.5 text-[10px] bg-amber-500/20 rounded-full">{memoryCyclesStore.totalLectures}</span>
+					{/if}
+				</button>
+				<button
+					type="button"
+					onclick={() => goto('/memoires/questions')}
+					class="flex-1 px-2 py-1.5 text-xs rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition-colors flex items-center justify-center gap-1"
+					title="Questions en attente"
+				>
+					<span>❓</span>
+					<span>Questions</span>
+					{#if memoryCyclesStore.pendingQuestionsCount > 0}
+						<span class="px-1 py-0.5 text-[10px] bg-purple-500/20 rounded-full">{memoryCyclesStore.pendingQuestionsCount}</span>
+					{/if}
+				</button>
+			</div>
 		</div>
 
 		<!-- Folders -->
@@ -1019,6 +1104,34 @@
 								<span class="inline-block animate-spin">⟳</span>
 							{:else}
 								🔄
+							{/if}
+						</button>
+						<!-- Add to Filage Button -->
+						<button
+							type="button"
+							onclick={handleAddToFilage}
+							disabled={isAddingToFilage}
+							class="p-2 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-[var(--color-text-secondary)] hover:text-amber-600"
+							title="Ajouter au filage du jour"
+						>
+							{#if isAddingToFilage}
+								<span class="inline-block animate-spin">⟳</span>
+							{:else}
+								📋
+							{/if}
+						</button>
+						<!-- AI Retouche Button -->
+						<button
+							type="button"
+							onclick={handleTriggerRetouche}
+							disabled={isRunningRetouche}
+							class="p-2 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-[var(--color-text-secondary)] hover:text-purple-600"
+							title="Demander une revue IA (retouche)"
+						>
+							{#if isRunningRetouche}
+								<span class="inline-block animate-spin">⟳</span>
+							{:else}
+								🤖
 							{/if}
 						</button>
 						<!-- Open in New Window Button -->
