@@ -21,7 +21,7 @@
 		initializeShortcuts,
 		isHelpVisible,
 		registerShortcut
-	} from '$lib/utils/keyboard-shortcuts';
+	} from '$lib/utils/keyboard-shortcuts.svelte';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';

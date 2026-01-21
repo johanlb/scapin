@@ -4,7 +4,7 @@
 		formatShortcut,
 		hideHelp,
 		type KeyboardShortcut
-	} from '$lib/utils/keyboard-shortcuts';
+	} from '$lib/utils/keyboard-shortcuts.svelte';
 	import { haptic } from '$lib/utils/haptics';
 
 	interface Props {
