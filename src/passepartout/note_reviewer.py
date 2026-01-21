@@ -184,7 +184,7 @@ class NoteReviewer:
         # Initialize NoteJanitor for hygiene validation
         if note_janitor is None:
             try:
-                from src.passepartout.note_janitor import NoteJanitor
+                from src.passepartout.janitor import NoteJanitor
 
                 self.janitor = NoteJanitor(note_manager.notes_dir)
             except Exception as e:
