@@ -1109,6 +1109,9 @@ interface ProcessInboxResult {
 	queued: number;
 	skipped: number;
 	emails: ProcessedEmail[];
+	// v2.5: Async analysis flow
+	in_progress?: number;
+	status?: 'no_new_emails' | 'analyzing' | 'complete';
 }
 
 // ============================================================================

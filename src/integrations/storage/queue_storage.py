@@ -270,6 +270,255 @@ class QueueStorage:
 
         return item_id
 
+    def create_analyzing_item(
+        self,
+        metadata: EmailMetadata,
+        content_preview: str,
+        account_id: Optional[str] = None,
+        html_body: Optional[str] = None,
+        full_text: Optional[str] = None,
+    ) -> str | None:
+        """
+        Create a queue item in ANALYZING state (before analysis is complete).
+
+        This is used when fetching emails to show them in the "En cours" tab
+        immediately, before the AI analysis completes.
+
+        Args:
+            metadata: Email metadata (from, subject, date, etc.)
+            content_preview: Plain text preview (first 200 chars)
+            account_id: Account identifier (for multi-account support)
+            html_body: Full HTML body of the email (optional)
+            full_text: Full plain text body of the email (optional)
+
+        Returns:
+            item_id: Unique identifier for queued item, or None if duplicate
+        """
+        # Bug #60 fix: Check for duplicates before saving
+        if metadata.message_id and self.is_email_known(metadata.message_id):
+            logger.info(
+                f"Skipping duplicate email: {metadata.subject[:50]}",
+                extra={"message_id": metadata.message_id}
+            )
+            return None
+
+        item_id = str(uuid.uuid4())
+        now = now_utc()
+
+        # Build queue item with ANALYZING state
+        item = {
+            "id": item_id,
+            "account_id": account_id,
+            # v2.4: State is ANALYZING (not yet analyzed)
+            "state": PeripetieState.ANALYZING.value,
+            "resolution": None,
+            "snooze": None,
+            "error": None,
+            # v2.4: Explicit timestamps
+            "timestamps": {
+                "queued_at": now.isoformat(),
+                "analysis_started_at": now.isoformat(),
+                "analysis_completed_at": None,  # Not yet complete
+                "reviewed_at": None,
+            },
+            # Legacy field for backwards compatibility
+            "queued_at": now.isoformat(),
+            "metadata": {
+                "id": metadata.id,
+                "subject": metadata.subject,
+                "from_address": metadata.from_address,
+                "from_name": metadata.from_name or "",
+                "date": metadata.date.isoformat() if metadata.date else None,
+                "has_attachments": metadata.has_attachments,
+                "attachments": [
+                    {
+                        "filename": att.filename,
+                        "size_bytes": att.size_bytes,
+                        "content_type": att.content_type,
+                    }
+                    for att in metadata.attachments
+                ] if metadata.attachments else [],
+                "folder": metadata.folder,
+                "message_id": metadata.message_id,
+            },
+            "analysis": None,  # Will be filled after analysis
+            "content": {
+                "preview": content_preview[:200],
+                "html_body": html_body,
+                "full_text": full_text,
+            },
+            # Legacy fields for backwards compatibility
+            "status": "in_progress",  # Maps to ANALYZING in v2.4
+            "reviewed_at": None,
+            "review_decision": None,
+        }
+
+        # Write to file (thread-safe)
+        file_path = self.queue_dir / f"{item_id}.json"
+
+        with self._lock, open(file_path, "w", encoding="utf-8") as f:
+            json.dump(item, f, indent=2, ensure_ascii=False)
+
+        logger.info(
+            "Email queued for analysis",
+            extra={
+                "item_id": item_id,
+                "subject": metadata.subject,
+                "state": "analyzing",
+                "account_id": account_id,
+            },
+        )
+
+        return item_id
+
+    def complete_analysis(
+        self,
+        item_id: str,
+        analysis: EmailAnalysis,
+        multi_pass_data: Optional[dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Update item with analysis results and transition to AWAITING_REVIEW.
+
+        Called after AI analysis completes for an item created with create_analyzing_item().
+
+        Args:
+            item_id: Queue item ID
+            analysis: AI analysis results
+            multi_pass_data: Multi-pass analysis transparency data (v2.3)
+
+        Returns:
+            True if successful, False if item not found
+        """
+        file_path = self.queue_dir / f"{item_id}.json"
+
+        with self._lock:
+            if not file_path.exists():
+                logger.warning(f"Item not found for analysis completion: {item_id}")
+                return False
+
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    item = json.load(f)
+
+                now = now_utc()
+
+                # Update analysis data
+                item["analysis"] = {
+                    "action": analysis.action.value,
+                    "confidence": analysis.confidence,
+                    "category": analysis.category.value if analysis.category else None,
+                    "reasoning": analysis.reasoning or "",
+                    "summary": analysis.summary,
+                    "proposed_notes": [
+                        {
+                            "note_type": note.note_type.value if hasattr(note.note_type, 'value') else note.note_type,
+                            "title": note.title,
+                            "content_to_add": note.content_to_add,
+                            "action": note.action.value if hasattr(note.action, 'value') else note.action,
+                            "confidence": note.confidence,
+                            "reasoning": note.reasoning,
+                            "content_summary": getattr(note, 'content_summary', None),
+                            "required": getattr(note, 'required', False),
+                            "manually_approved": None,
+                        }
+                        for note in (analysis.proposed_notes or [])
+                    ],
+                    "proposed_tasks": [
+                        {
+                            "title": task.title,
+                            "project": task.project,
+                            "due_date": task.due_date.isoformat() if task.due_date else None,
+                            "note": task.note,
+                            "confidence": task.confidence,
+                            "manually_approved": None,
+                        }
+                        for task in (analysis.proposed_tasks or [])
+                    ],
+                    "options": [
+                        {"label": opt.label, "action": opt.action.value}
+                        for opt in analysis.options
+                    ] if analysis.options else [],
+                    "multi_pass": multi_pass_data,
+                }
+
+                # Update state to AWAITING_REVIEW
+                item["state"] = PeripetieState.AWAITING_REVIEW.value
+                item["status"] = "pending"  # Legacy compatibility
+
+                # Update timestamps
+                if "timestamps" not in item:
+                    item["timestamps"] = {}
+                item["timestamps"]["analysis_completed_at"] = now.isoformat()
+
+                # Write back
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(item, f, indent=2, ensure_ascii=False)
+
+                logger.info(
+                    "Analysis completed for item",
+                    extra={
+                        "item_id": item_id,
+                        "confidence": analysis.confidence,
+                        "action": analysis.action.value,
+                    },
+                )
+
+                return True
+
+            except Exception as e:
+                logger.error(f"Failed to complete analysis for {item_id}: {e}")
+                return False
+
+    def mark_analysis_error(
+        self,
+        item_id: str,
+        error_message: str,
+    ) -> bool:
+        """
+        Mark an item as failed during analysis.
+
+        Args:
+            item_id: Queue item ID
+            error_message: Error description
+
+        Returns:
+            True if successful, False if item not found
+        """
+        file_path = self.queue_dir / f"{item_id}.json"
+
+        with self._lock:
+            if not file_path.exists():
+                return False
+
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    item = json.load(f)
+
+                now = now_utc()
+
+                # Update state to ERROR
+                item["state"] = PeripetieState.ERROR.value
+                item["error"] = {
+                    "message": error_message,
+                    "occurred_at": now.isoformat(),
+                }
+
+                # Write back
+                with open(file_path, "w", encoding="utf-8") as f:
+                    json.dump(item, f, indent=2, ensure_ascii=False)
+
+                logger.warning(
+                    "Analysis failed for item",
+                    extra={"item_id": item_id, "error": error_message},
+                )
+
+                return True
+
+            except Exception as e:
+                logger.error(f"Failed to mark error for {item_id}: {e}")
+                return False
+
     def load_queue(
         self, account_id: Optional[str] = None, status: str = "pending"
     ) -> list[dict[str, Any]]:

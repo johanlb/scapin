@@ -1805,6 +1805,149 @@ class QueueService:
 
         return item_id
 
+    async def create_analyzing_item(
+        self,
+        metadata: EmailMetadata,
+        content_preview: str,
+        account_id: str = "default",
+        html_body: str | None = None,
+        full_text: str | None = None,
+    ) -> str | None:
+        """
+        Create a queue item in ANALYZING state (before analysis is complete).
+
+        This enables showing emails in the "En cours" tab immediately during fetch.
+
+        Args:
+            metadata: Email metadata
+            content_preview: Text preview
+            account_id: Account ID
+            html_body: HTML body (optional)
+            full_text: Full text (optional)
+
+        Returns:
+            Item ID if created, None if duplicate
+        """
+        item_id = await asyncio.to_thread(
+            self._storage.create_analyzing_item,
+            metadata=metadata,
+            content_preview=content_preview,
+            account_id=account_id,
+            html_body=html_body,
+            full_text=full_text,
+        )
+
+        if item_id:
+            # Mark as processed to prevent re-fetching
+            if metadata.message_id:
+                try:
+                    tracker = get_processed_tracker()
+                    tracker.mark_processed(
+                        message_id=metadata.message_id,
+                        account_id=account_id,
+                        subject=metadata.subject,
+                        from_address=metadata.from_address,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to mark email as processed in tracker: {e}")
+
+            # Emit WebSocket events
+            new_item = self._storage.get_item(item_id)
+            if new_item:
+                await self._event_emitter.emit_item_added(new_item)
+
+            # Emit stats update
+            try:
+                stats = self._storage.get_stats()
+                await self._event_emitter.emit_stats_updated(stats)
+            except Exception as e:
+                logger.warning(f"Failed to emit stats update: {e}")
+
+        return item_id
+
+    async def complete_analysis(
+        self,
+        item_id: str,
+        analysis: EmailAnalysis,
+        multi_pass_data: dict[str, Any] | None = None,
+    ) -> bool:
+        """
+        Update item with analysis results and transition to AWAITING_REVIEW.
+
+        Args:
+            item_id: Queue item ID
+            analysis: AI analysis results
+            multi_pass_data: Multi-pass transparency data
+
+        Returns:
+            True if successful
+        """
+        success = await asyncio.to_thread(
+            self._storage.complete_analysis,
+            item_id=item_id,
+            analysis=analysis,
+            multi_pass_data=multi_pass_data,
+        )
+
+        if success:
+            # Emit WebSocket events
+            updated_item = self._storage.get_item(item_id)
+            if updated_item:
+                await self._event_emitter.emit_item_updated(
+                    updated_item,
+                    changes=["analysis", "state", "status"],
+                    previous_state="analyzing",
+                )
+
+            # Emit stats update
+            try:
+                stats = self._storage.get_stats()
+                await self._event_emitter.emit_stats_updated(stats)
+            except Exception as e:
+                logger.warning(f"Failed to emit stats update: {e}")
+
+        return success
+
+    async def mark_analysis_error(
+        self,
+        item_id: str,
+        error_message: str,
+    ) -> bool:
+        """
+        Mark an item as failed during analysis.
+
+        Args:
+            item_id: Queue item ID
+            error_message: Error description
+
+        Returns:
+            True if successful
+        """
+        success = await asyncio.to_thread(
+            self._storage.mark_analysis_error,
+            item_id=item_id,
+            error_message=error_message,
+        )
+
+        if success:
+            # Emit WebSocket events
+            updated_item = self._storage.get_item(item_id)
+            if updated_item:
+                await self._event_emitter.emit_item_updated(
+                    updated_item,
+                    changes=["state", "error"],
+                    previous_state="analyzing",
+                )
+
+            # Emit stats update
+            try:
+                stats = self._storage.get_stats()
+                await self._event_emitter.emit_stats_updated(stats)
+            except Exception as e:
+                logger.warning(f"Failed to emit stats update: {e}")
+
+        return success
+
     async def _emit_item_event(
         self,
         item: dict[str, Any],

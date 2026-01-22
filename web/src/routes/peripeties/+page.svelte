@@ -356,9 +356,11 @@
 
 		// Bug #50 fix: Use a longer-duration toast that stays visible during processing
 		const processingToastId = toastStore.info(
-			'Récupération et analyse des emails en cours...',
+			'Récupération des emails en cours...',
 			{ title: 'Traitement', duration: 120000 } // 2 minutes max
 		);
+
+		let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 		try {
 			// Note: unreadOnly=false to process all emails, not just unread ones
@@ -368,30 +370,67 @@
 			toastStore.dismiss(processingToastId);
 
 			// Bug #50 fix: Refresh queue FIRST before showing success toast
-			// This ensures UI updates immediately
 			await queueStore.fetchQueueByTab('to_process');
 			await queueStore.fetchStats();
 
-			// Show success toast with results
+			// v2.5: Handle new async analysis flow
+			const inProgressCount = result.in_progress || 0;
+
 			if (result.total_processed > 0) {
-				const queuedCount = result.queued || 0;
-				toastStore.success(
-					`${result.total_processed} email${result.total_processed > 1 ? 's' : ''} analysé${result.total_processed > 1 ? 's' : ''} et ${queuedCount} ajouté${queuedCount > 1 ? 's' : ''} à la file`,
-					{ title: 'Péripéties récupérées' }
-				);
+				if (inProgressCount > 0) {
+					// Items are being analyzed in background - start polling
+					const analyzeToastId = toastStore.info(
+						`Analyse de ${inProgressCount} email${inProgressCount > 1 ? 's' : ''} en cours...`,
+						{ title: 'Analyse', duration: 300000 }
+					);
+
+					pollInterval = setInterval(async () => {
+						await queueStore.fetchStats();
+
+						const currentInProgress = queueStore.stats?.by_tab?.in_progress ?? 0;
+						if (currentInProgress === 0 && pollInterval) {
+							clearInterval(pollInterval);
+							pollInterval = null;
+							isFetchingEmails = false;
+							toastStore.dismiss(analyzeToastId);
+
+							// Refresh to show completed items
+							await queueStore.fetchQueueByTab('to_process');
+							const toProcessCount = queueStore.stats?.by_tab?.to_process ?? 0;
+							toastStore.success(
+								`Analyse terminée. ${toProcessCount} élément${toProcessCount > 1 ? 's' : ''} à traiter.`,
+								{ title: 'Analyse terminée' }
+							);
+						}
+					}, 2000);
+
+					// Don't set isFetchingEmails = false yet, wait for analysis to complete
+					return;
+				} else {
+					// Immediate completion (backwards compatibility)
+					const queuedCount = result.queued || 0;
+					toastStore.success(
+						`${result.total_processed} email${result.total_processed > 1 ? 's' : ''} analysé${result.total_processed > 1 ? 's' : ''} et ${queuedCount} ajouté${queuedCount > 1 ? 's' : ''} à la file`,
+						{ title: 'Péripéties récupérées' }
+					);
+				}
 			} else {
 				toastStore.info('Aucun nouvel email à traiter', { title: 'Boîte de réception à jour' });
 			}
 		} catch (err) {
 			// Dismiss the processing toast
 			toastStore.dismiss(processingToastId);
+			if (pollInterval) clearInterval(pollInterval);
 
 			fetchError = err instanceof Error ? err.message : 'Erreur de connexion';
 			toastStore.error('Impossible de récupérer les péripéties. Vérifiez la connexion au serveur.', {
 				title: 'Erreur'
 			});
 		} finally {
-			isFetchingEmails = false;
+			// Only reset if not waiting for analysis
+			if (!pollInterval) {
+				isFetchingEmails = false;
+			}
 		}
 	}
 
