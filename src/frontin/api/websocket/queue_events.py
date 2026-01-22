@@ -402,11 +402,11 @@ def _sanitize_item(item: dict[str, Any]) -> dict[str, Any]:
             "date": item.get("metadata", {}).get("date"),
             "has_attachments": item.get("metadata", {}).get("has_attachments"),
         },
-        # Include minimal analysis for UI display
+        # Include minimal analysis for UI display (may be None for "analyzing" state)
         "analysis": {
-            "action": item.get("analysis", {}).get("action"),
-            "confidence": item.get("analysis", {}).get("confidence"),
-            "summary": item.get("analysis", {}).get("summary"),
+            "action": (item.get("analysis") or {}).get("action"),
+            "confidence": (item.get("analysis") or {}).get("confidence"),
+            "summary": (item.get("analysis") or {}).get("summary"),
         },
     }
 
