@@ -155,6 +155,17 @@ async def test_live_reanalysis(search_term: str = None, status: str = "pending")
             print("\n🧐 Planchet Details:")
             print(f"Critique: {json.dumps(result.critique, indent=2, ensure_ascii=False)}")
 
+        # Display strategic questions (v3.1)
+        if result.strategic_questions:
+            print(f"\n❓ Strategic Questions ({len(result.strategic_questions)}):")
+            for i, sq in enumerate(result.strategic_questions, 1):
+                print(f"\n  [{i}] {sq.get('question', 'N/A')}")
+                print(f"      Target note: {sq.get('target_note', 'N/A')}")
+                print(f"      Category: {sq.get('category', 'N/A')}")
+                print(f"      Source: {sq.get('source', 'N/A')}")
+                if sq.get('context'):
+                    print(f"      Context: {sq.get('context')}")
+
         print("-" * 50)
 
     except Exception as e:

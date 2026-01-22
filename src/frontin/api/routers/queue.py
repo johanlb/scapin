@@ -43,6 +43,7 @@ from src.frontin.api.models.queue import (
     RetrievedContextResponse,
     SnoozeRequest,
     SnoozeResponse,
+    StrategicQuestionResponse,
 )
 from src.frontin.api.models.responses import APIResponse, PaginatedResponse
 from src.frontin.api.services.queue_service import EnrichmentFailedError, QueueService
@@ -294,6 +295,8 @@ def _convert_item_to_response(item: dict) -> QueueItemResponse:
             context_influence=_convert_context_influence(analysis.get("context_influence")),
             # v2.3: Analysis transparency
             multi_pass=_convert_multi_pass_metadata(analysis.get("multi_pass")),
+            # v3.1: Strategic questions
+            strategic_questions=_convert_strategic_questions(analysis.get("strategic_questions")),
         ),
         content=QueueItemContent(
             preview=content.get("preview", ""),
@@ -864,6 +867,8 @@ def _convert_analysis_to_response(analysis: dict | None) -> QueueItemAnalysis | 
         context_influence=_convert_context_influence(analysis.get("context_influence")),
         # v2.3: Analysis transparency
         multi_pass=_convert_multi_pass_metadata(analysis.get("multi_pass")),
+        # v3.1: Strategic questions
+        strategic_questions=_convert_strategic_questions(analysis.get("strategic_questions")),
     )
 
 
@@ -904,6 +909,26 @@ def _convert_multi_pass_metadata(
         total_duration_ms=multi_pass.get("total_duration_ms", 0.0),
         pass_history=pass_history,
     )
+
+
+def _convert_strategic_questions(
+    strategic_questions: list[dict] | None,
+) -> list[StrategicQuestionResponse]:
+    """Convert raw strategic_questions list to response models (v3.1)"""
+    if not strategic_questions:
+        return []
+
+    return [
+        StrategicQuestionResponse(
+            question=sq.get("question", ""),
+            target_note=sq.get("target_note"),
+            category=sq.get("category", "decision"),
+            context=sq.get("context", ""),
+            source=sq.get("source", "mousqueton"),
+        )
+        for sq in strategic_questions
+        if sq.get("question")  # Skip empty questions
+    ]
 
 
 def _convert_retrieved_context(

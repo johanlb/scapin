@@ -1520,6 +1520,8 @@ class QueueService:
             # v2.2.2: Context transparency
             "retrieved_context": result.retrieved_context,
             "context_influence": result.context_influence,
+            # v3.1: Strategic questions
+            "strategic_questions": result.strategic_questions,
         }
 
         # Debug: Log the multi_pass result
