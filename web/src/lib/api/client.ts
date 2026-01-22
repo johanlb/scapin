@@ -862,6 +862,20 @@ export interface MultiPassMetadata {
 	pass_history: PassHistoryEntry[];
 }
 
+// v3.1: Strategic questions requiring human decision
+export interface StrategicQuestion {
+	/** The strategic question for the user */
+	question: string;
+	/** Note where this question should be stored (thematic note) */
+	target_note: string | null;
+	/** Question category: organisation, processus, structure_pkm, decision */
+	category: string;
+	/** Why this question is being asked */
+	context: string;
+	/** Valet who identified this question: grimaud, bazin, planchet, mousqueton */
+	source: string;
+}
+
 export interface QueueItemAnalysis {
 	action: string;
 	confidence: number;
@@ -881,6 +895,8 @@ export interface QueueItemAnalysis {
 	context_influence: ContextInfluence | null;
 	// v2.3: Analysis transparency
 	multi_pass: MultiPassMetadata | null;
+	// v3.1: Strategic questions requiring human decision
+	strategic_questions?: StrategicQuestion[];
 }
 
 // v2.4: Timestamps for péripétie lifecycle

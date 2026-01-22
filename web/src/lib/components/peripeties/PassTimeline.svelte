@@ -16,17 +16,29 @@
 	};
 
 	const passTypeLabels: Record<string, string> = {
+		// Legacy v2.2
 		blind: 'Extraction aveugle',
 		refine: 'Raffinement contextuel',
 		deep: 'Analyse approfondie',
-		expert: 'Expertise maximale'
+		expert: 'Expertise maximale',
+		// Four Valets v3.0
+		grimaud: 'grimaud',
+		bazin: 'bazin',
+		planchet: 'planchet',
+		mousqueton: 'mousqueton'
 	};
 
 	const passTypeTooltips: Record<string, string> = {
+		// Legacy v2.2
 		blind: 'Première analyse sans contexte pour extraire les informations de base',
 		refine: 'Enrichissement avec le contexte personnel (notes, calendrier)',
 		deep: 'Analyse en profondeur pour cas complexes ou à enjeux',
-		expert: 'Utilisation du modèle le plus puissant pour décision finale'
+		expert: 'Utilisation du modèle le plus puissant pour décision finale',
+		// Four Valets v3.0
+		grimaud: 'Extraction silencieuse - Athos: extraction rapide des faits',
+		bazin: 'Critique rigoureuse - Aramis: vérification et enrichissement',
+		planchet: 'Action résolue - d\'Artagnan: décision finale confiante',
+		mousqueton: 'Sagesse profonde - Porthos: arbitrage des cas complexes'
 	};
 
 	function formatDuration(ms: number): string {

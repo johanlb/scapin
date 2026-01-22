@@ -403,14 +403,11 @@ class QueueStorage:
 
                 now = now_utc()
 
-                # Update analysis data
-                item["analysis"] = {
-                    "action": analysis.action.value,
-                    "confidence": analysis.confidence,
-                    "category": analysis.category.value if analysis.category else None,
-                    "reasoning": analysis.reasoning or "",
-                    "summary": analysis.summary,
-                    "proposed_notes": [
+                # Build proposed_notes - prefer multi_pass_data if available, else use analysis
+                if multi_pass_data and multi_pass_data.get("proposed_notes"):
+                    proposed_notes = multi_pass_data.get("proposed_notes", [])
+                else:
+                    proposed_notes = [
                         {
                             "note_type": note.note_type.value if hasattr(note.note_type, 'value') else note.note_type,
                             "title": note.title,
@@ -423,8 +420,13 @@ class QueueStorage:
                             "manually_approved": None,
                         }
                         for note in (analysis.proposed_notes or [])
-                    ],
-                    "proposed_tasks": [
+                    ]
+
+                # Build proposed_tasks - prefer multi_pass_data if available, else use analysis
+                if multi_pass_data and multi_pass_data.get("proposed_tasks"):
+                    proposed_tasks = multi_pass_data.get("proposed_tasks", [])
+                else:
+                    proposed_tasks = [
                         {
                             "title": task.title,
                             "project": task.project,
@@ -434,12 +436,27 @@ class QueueStorage:
                             "manually_approved": None,
                         }
                         for task in (analysis.proposed_tasks or [])
-                    ],
+                    ]
+
+                # Update analysis data
+                item["analysis"] = {
+                    "action": analysis.action.value,
+                    "confidence": analysis.confidence,
+                    "category": analysis.category.value if analysis.category else None,
+                    "reasoning": analysis.reasoning or "",
+                    "summary": analysis.summary,
+                    "proposed_notes": proposed_notes,
+                    "proposed_tasks": proposed_tasks,
                     "options": [
                         {"label": opt.label, "action": opt.action.value}
                         for opt in analysis.options
                     ] if analysis.options else [],
                     "multi_pass": multi_pass_data,
+                    # v2.2.2: Context transparency (extract from multi_pass_data if available)
+                    "retrieved_context": multi_pass_data.get("retrieved_context") if multi_pass_data else None,
+                    "context_influence": multi_pass_data.get("context_influence") if multi_pass_data else None,
+                    # v3.1: Strategic questions
+                    "strategic_questions": multi_pass_data.get("strategic_questions", []) if multi_pass_data else [],
                 }
 
                 # Update state to AWAITING_REVIEW

@@ -1133,6 +1133,83 @@
 		return "Scapin manque d'éléments pour décider seul";
 	}
 
+	// v2.4: Analysis progress helpers for "En cours" tab
+	interface AnalysisProgress {
+		stage: 'grimaud' | 'bazin' | 'planchet' | 'mousqueton' | 'finalizing';
+		stageLabel: string;
+		stageDescription: string;
+		progress: number; // 0-100
+		elapsedSeconds: number;
+	}
+
+	function getAnalysisProgress(analysisStartedAt: string | null | undefined): AnalysisProgress {
+		if (!analysisStartedAt) {
+			return {
+				stage: 'grimaud',
+				stageLabel: 'Démarrage...',
+				stageDescription: 'Préparation de l\'analyse',
+				progress: 0,
+				elapsedSeconds: 0
+			};
+		}
+
+		const started = new Date(analysisStartedAt);
+		const now = new Date();
+		const elapsedMs = now.getTime() - started.getTime();
+		const elapsedSeconds = Math.floor(elapsedMs / 1000);
+
+		// Estimated timing for each valet (based on typical analysis times)
+		// grimaud: 0-8s, bazin: 8-25s, planchet: 25-40s, mousqueton: 40-60s
+		if (elapsedSeconds < 8) {
+			return {
+				stage: 'grimaud',
+				stageLabel: 'grimaud',
+				stageDescription: 'Extraction silencieuse des faits',
+				progress: Math.min(25, (elapsedSeconds / 8) * 25),
+				elapsedSeconds
+			};
+		} else if (elapsedSeconds < 25) {
+			return {
+				stage: 'bazin',
+				stageLabel: 'bazin',
+				stageDescription: 'Critique et enrichissement contextuel',
+				progress: 25 + ((elapsedSeconds - 8) / 17) * 25,
+				elapsedSeconds
+			};
+		} else if (elapsedSeconds < 40) {
+			return {
+				stage: 'planchet',
+				stageLabel: 'planchet',
+				stageDescription: 'Décision et action résolue',
+				progress: 50 + ((elapsedSeconds - 25) / 15) * 25,
+				elapsedSeconds
+			};
+		} else if (elapsedSeconds < 60) {
+			return {
+				stage: 'mousqueton',
+				stageLabel: 'mousqueton',
+				stageDescription: 'Arbitrage des cas complexes',
+				progress: 75 + ((elapsedSeconds - 40) / 20) * 20,
+				elapsedSeconds
+			};
+		} else {
+			return {
+				stage: 'finalizing',
+				stageLabel: 'Finalisation',
+				stageDescription: 'Consolidation de l\'analyse',
+				progress: 95,
+				elapsedSeconds
+			};
+		}
+	}
+
+	function formatElapsedTime(seconds: number): string {
+		if (seconds < 60) return `${seconds}s`;
+		const mins = Math.floor(seconds / 60);
+		const secs = seconds % 60;
+		return `${mins}m${secs}s`;
+	}
+
 	// Mobile context menu items
 	const getMobileMenuItems = $derived((item: QueueItem): MenuItem[] => {
 		const options = item.analysis.options || [];
@@ -1694,6 +1771,36 @@
 			{/if}
 		{/snippet}
 
+		<!-- v3.1: Strategic questions section -->
+		{#snippet strategicQuestionsSection()}
+			{@const questions = currentItem.analysis.strategic_questions || []}
+			{#if questions.length > 0}
+				<div class="space-y-2">
+					<div class="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
+						<span>❓</span>
+						<span>Questions stratégiques ({questions.length})</span>
+					</div>
+					{#each questions as q}
+						<div class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-3">
+							<p class="text-sm text-[var(--color-text-primary)] font-medium">{q.question}</p>
+							{#if q.context}
+								<p class="mt-1 text-xs text-[var(--color-text-secondary)]">{q.context}</p>
+							{/if}
+							<div class="mt-2 flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+								<span class="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-800/40 text-amber-700 dark:text-amber-300">
+									{q.category}
+								</span>
+								{#if q.target_note}
+									<span>→ {q.target_note}</span>
+								{/if}
+								<span class="ml-auto opacity-60">via {q.source}</span>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		{/snippet}
+
 		<!-- Mobile swipe hint -->
 		<div class="text-xs text-center text-[var(--color-text-tertiary)] py-1 mb-2 md:hidden">
 			← Opus • Appui long = menu • Approuver →
@@ -2056,6 +2163,9 @@
 								</div>
 							{/if}
 						{/if}
+
+						<!-- SECTION 4.2: STRATEGIC QUESTIONS (v3.1) -->
+						{@render strategicQuestionsSection()}
 
 						<!-- SECTION 4.5: CONTEXT INFLUENCE (visible by default - like history page) -->
 						{#if currentItem.analysis.context_influence}
@@ -2487,46 +2597,6 @@
 							</div>
 						{/if}
 
-						<!-- SECTION 9: Custom instruction (Details mode) -->
-						{#if showLevel3}
-							<div
-								class="p-3 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-bg-secondary)]/50"
-							>
-								<div class="flex items-center gap-2 mb-2">
-									<span>✏️</span>
-									<span class="text-sm font-medium text-[var(--color-text-secondary)]"
-										>Instruction personnalisée</span
-									>
-								</div>
-								<Input
-									placeholder="Votre instruction..."
-									bind:value={customInstruction}
-									disabled={isProcessing || isReanalyzing}
-								/>
-								<div class="flex gap-2 mt-2">
-									<Button
-										variant="primary"
-										size="sm"
-										onclick={() => handleCustomInstruction(currentItem)}
-										disabled={isProcessing || isReanalyzing || !customInstruction.trim()}
-									>
-										{isReanalyzing ? '⏳' : '🔄'} Analyser
-									</Button>
-									<Button
-										variant="secondary"
-										size="sm"
-										onclick={() => handleDeferCustomInstruction(currentItem)}
-										disabled={isProcessing ||
-											isSnoozing ||
-											isReanalyzing ||
-											!customInstruction.trim()}
-									>
-										⏰ Plus tard
-									</Button>
-								</div>
-							</div>
-						{/if}
-
 						<!-- SECTION 10: EMAIL (at bottom, larger height) -->
 						<div class="rounded-lg border border-[var(--color-border)] overflow-hidden">
 							<div
@@ -2646,6 +2716,69 @@
 			>
 				{#snippet item(item, _index)}
 					<div class="pb-3" data-testid="peripeties-item-{item.id}">
+						<!-- Special view for items in progress (analyzing) -->
+						{#if activeTab === 'in_progress'}
+							{@const progress = getAnalysisProgress(item.timestamps?.analysis_started_at)}
+							<Card padding="md" class="border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5">
+								<div class="space-y-3">
+									<!-- Progress header -->
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<div class="w-6 h-6 rounded-full bg-[var(--color-accent)]/20 flex items-center justify-center">
+												<span class="animate-spin text-sm">⏳</span>
+											</div>
+											<span class="text-sm font-medium text-[var(--color-accent)]">
+												{progress.stageLabel}
+											</span>
+											<span class="text-xs text-[var(--color-text-tertiary)]">
+												{progress.stageDescription}
+											</span>
+										</div>
+										<span class="text-xs font-mono text-[var(--color-text-secondary)]">
+											{formatElapsedTime(progress.elapsedSeconds)}
+										</span>
+									</div>
+
+									<!-- Progress bar with valet stages -->
+									<div class="space-y-1">
+										<div class="flex items-center gap-1 text-[10px] text-[var(--color-text-tertiary)]">
+											<span class:text-[var(--color-accent)]={progress.stage === 'grimaud'} class:font-medium={progress.stage === 'grimaud'}>grimaud</span>
+											<span>→</span>
+											<span class:text-[var(--color-accent)]={progress.stage === 'bazin'} class:font-medium={progress.stage === 'bazin'}>bazin</span>
+											<span>→</span>
+											<span class:text-[var(--color-accent)]={progress.stage === 'planchet'} class:font-medium={progress.stage === 'planchet'}>planchet</span>
+											<span>→</span>
+											<span class:text-[var(--color-accent)]={progress.stage === 'mousqueton' || progress.stage === 'finalizing'} class:font-medium={progress.stage === 'mousqueton' || progress.stage === 'finalizing'}>mousqueton</span>
+										</div>
+										<div class="h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+											<div
+												class="h-full bg-[var(--color-accent)] rounded-full transition-all duration-500"
+												style="width: {progress.progress}%"
+											></div>
+										</div>
+									</div>
+
+									<!-- Email info -->
+									<div class="pt-2 border-t border-[var(--color-border)]">
+										<h3 class="font-medium text-[var(--color-text-primary)] truncate">
+											{item.metadata.subject || 'Sans sujet'}
+										</h3>
+										<p class="text-xs text-[var(--color-text-secondary)] mt-0.5">
+											{item.metadata.from_name || item.metadata.from_address || 'Expéditeur inconnu'}
+											<span class="text-[var(--color-text-tertiary)]">
+												• {item.metadata.date
+													? formatRelativeTime(item.metadata.date)
+													: formatRelativeTime(item.queued_at)}
+											</span>
+											{#if item.metadata.has_attachments}
+												<span class="ml-1" title="Contient des pièces jointes">📎</span>
+											{/if}
+										</p>
+									</div>
+								</div>
+							</Card>
+						{:else}
+						<!-- Standard view for other tabs -->
 						<Card padding="md" class="hover:border-[var(--color-accent)] transition-colors">
 							<div class="flex items-start gap-3">
 								<a
@@ -2656,10 +2789,10 @@
 									<div
 										class="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-lg"
 										style="background-color: color-mix(in srgb, {getActionColor(
-											item.analysis.action
+											item.analysis?.action || 'pending'
 										)} 20%, transparent)"
 									>
-										{getActionIcon(item.analysis.action)}
+										{getActionIcon(item.analysis?.action || 'pending')}
 									</div>
 
 									<div class="flex-1 min-w-0">
@@ -2796,6 +2929,7 @@
 								</div>
 							</div>
 						</Card>
+						{/if}
 					</div>
 				{/snippet}
 

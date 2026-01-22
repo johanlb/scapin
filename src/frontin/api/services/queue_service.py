@@ -71,28 +71,40 @@ class QueueService:
 
     def _recover_orphaned_items(self) -> None:
         """
-        Recover orphaned items that were left in 'in_progress' status.
+        Recover orphaned items that were left in 'in_progress' status or 'analyzing' state.
 
         This can happen if the server restarts during bulk reanalysis.
-        Items stuck in 'in_progress' are reset to 'pending' so they can
-        be processed again.
+        Items stuck in 'in_progress'/'analyzing' are reset to 'pending'/'awaiting_review'
+        so they can be processed again.
         """
         try:
+            recovered_count = 0
+
+            # v2.4: Recover items with state 'analyzing' (new system)
+            analyzing_items = self._storage.load_queue_by_state(state="analyzing")
+            for item in analyzing_items:
+                item_id = item.get("id")
+                if item_id:
+                    self._storage.update_item(item_id, {
+                        "state": "awaiting_review",
+                        "status": "pending",
+                    })
+                    recovered_count += 1
+                    logger.info(f"Recovered orphaned analyzing item {item_id} to awaiting_review")
+
+            # Legacy: Recover items with status 'in_progress' (old system)
             orphaned_items = self._storage.load_queue(status="in_progress")
-
-            if not orphaned_items:
-                return
-
-            logger.warning(
-                f"Found {len(orphaned_items)} orphaned items in 'in_progress' status, "
-                "recovering to 'pending'"
-            )
-
             for item in orphaned_items:
                 item_id = item.get("id")
                 if item_id:
                     self._storage.update_item(item_id, {"status": "pending"})
-                    logger.info(f"Recovered orphaned item {item_id} to pending")
+                    recovered_count += 1
+                    logger.info(f"Recovered orphaned in_progress item {item_id} to pending")
+
+            if recovered_count > 0:
+                logger.warning(
+                    f"Recovered {recovered_count} orphaned items to pending/awaiting_review"
+                )
 
         except Exception as e:
             logger.error(f"Failed to recover orphaned items: {e}")

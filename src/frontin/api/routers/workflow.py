@@ -80,21 +80,52 @@ def _build_multi_pass_data(multi_pass_result: Any) -> dict[str, Any] | None:
                 prev_model == "sonnet" and model == "opus"
             )
 
+        # Determine if context was searched (bazin and later valets search context)
+        context_searched = pass_type_value in ["refine", "deep", "bazin", "planchet", "mousqueton"]
+
         pass_history.append(
             {
                 "pass_number": i + 1,
-                "model_used": model,
+                "model": model,  # API expects "model", not "model_used"
                 "pass_type": pass_type_value,
                 "duration_ms": getattr(pass_result, "duration_ms", 0),
-                "tokens_used": getattr(pass_result, "tokens_used", 0),
+                "tokens": getattr(pass_result, "tokens_used", 0),  # API expects "tokens", not "tokens_used"
                 "confidence_before": prev_confidence,
                 "confidence_after": confidence_after,
+                "context_searched": context_searched,
+                "notes_found": 0,  # Will be populated from retrieved_context if available
                 "escalation_triggered": escalation_triggered,
-                "reasoning": getattr(pass_result, "reasoning", ""),
-                "thinking_bubbles": getattr(pass_result, "thinking_bubbles", []),
+                "questions": getattr(pass_result, "next_pass_questions", []),
             }
         )
         prev_confidence = confidence_after
+
+    # Build proposed_notes from extractions
+    proposed_notes = []
+    proposed_tasks = []
+    extractions = getattr(multi_pass_result, "extractions", []) or []
+    for ext in extractions:
+        if ext.note_cible:
+            proposed_notes.append({
+                "action": ext.note_action,
+                "note_type": ext.type,
+                "title": ext.note_cible,
+                "content_summary": ext.info,
+                "confidence": ext.confidence.to_dict() if hasattr(ext.confidence, "to_dict") else ext.confidence,
+                "reasoning": f"Extraction de type '{ext.type}' (importance: {ext.importance})",
+                "target_note_id": None,
+                "required": ext.required,
+                "importance": ext.importance,
+                "manually_approved": None,
+            })
+        if ext.omnifocus:
+            proposed_tasks.append({
+                "title": ext.info,
+                "due_date": ext.date.isoformat() if ext.date else None,
+                "project": ext.note_cible,
+                "confidence": ext.confidence.to_dict() if hasattr(ext.confidence, "to_dict") else ext.confidence,
+                "manually_approved": None,
+            })
 
     return {
         "passes_count": multi_pass_result.passes_count,
@@ -106,6 +137,14 @@ def _build_multi_pass_data(multi_pass_result: Any) -> dict[str, Any] | None:
         "total_tokens": multi_pass_result.total_tokens,
         "total_duration_ms": multi_pass_result.total_duration_ms,
         "pass_history": pass_history,
+        # v2.2.2: Context transparency
+        "retrieved_context": getattr(multi_pass_result, "retrieved_context", None),
+        "context_influence": getattr(multi_pass_result, "context_influence", None),
+        # v3.1: Strategic questions
+        "strategic_questions": getattr(multi_pass_result, "strategic_questions", []),
+        # Extractions converted to proposed notes/tasks
+        "proposed_notes": proposed_notes,
+        "proposed_tasks": proposed_tasks,
     }
 
 
