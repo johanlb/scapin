@@ -497,9 +497,12 @@
 			return; // Still in cooldown period
 		}
 
-		// Check if queue is below threshold
-		const pendingCount = queueStore.stats?.by_tab?.to_process ?? queueStore.items.length;
-		if (pendingCount < AUTO_FETCH_THRESHOLD) {
+		// Check if queue is below threshold (to_process + in_progress)
+		const toProcessCount = queueStore.stats?.by_tab?.to_process ?? 0;
+		const inProgressCount = queueStore.stats?.by_tab?.in_progress ?? 0;
+		const totalActiveCount = toProcessCount + inProgressCount;
+
+		if (totalActiveCount < AUTO_FETCH_THRESHOLD) {
 			// Update cooldown timestamp
 			lastAutoFetchTime = now;
 			// Show subtle notification
