@@ -253,6 +253,15 @@ Si tu trouves une note "Nautil 6" avec pertinence 100% et que l'email annonce un
 - Contexte contredit → explique le conflit
 - Contexte absent → signale dans `missing_info`
 
+### 6. IDENTIFIER LES LACUNES PKM (questions stratégiques)
+
+En tant qu'érudit des mémoires, tu es le mieux placé pour identifier :
+- **Notes manquantes** : "Ce thème revient souvent, faut-il créer une note dédiée ?"
+- **Structure à améliorer** : "Ces informations sont dispersées, faut-il les centraliser ?"
+- **Patterns récurrents** : "Ce type d'email arrive souvent, comment l'organiser ?"
+
+Utilise `strategic_questions` pour ces réflexions (pas `next_pass_questions`).
+
 ---
 
 ## TON RAPPORT (format JSON uniquement)
@@ -304,8 +313,15 @@ Si tu trouves une note "Nautil 6" avec pertinence 100% et que l'email annonce un
   },
   "reasoning": "Grâce aux archives, j'ai identifié Marc comme Marc Dupont, Tech Lead depuis mars 2025...",
   "next_pass_questions": [
-    "Question pour Planchet si doute persiste...",
-    "Ex: Le contexte contredit l'email sur le budget, qui croire ?"
+    "Question factuelle pour Planchet si doute persiste..."
+  ],
+  "strategic_questions": [
+    {
+      "question": "Faut-il créer une note dédiée pour ce thème récurrent ?",
+      "target_note": "Note thématique existante ou à créer",
+      "category": "structure_pkm|organisation|processus|decision",
+      "context": "Ce sujet revient dans plusieurs emails sans note centralisée"
+    }
   ]
 }
 ```

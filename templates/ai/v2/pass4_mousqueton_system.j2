@@ -47,6 +47,19 @@ Produis le résultat définitif :
 - **Action** : archive / flag / queue / delete
 - **Confiance** : Doit être > 90% sinon `queue` pour humain
 
+### 5. CONSOLIDER LES QUESTIONS STRATÉGIQUES
+
+Les valets précédents ont peut-être soulevé des questions pour Johan.
+- **Revois** les `strategic_questions` de Grimaud, Bazin et Planchet
+- **Déduplique** les questions similaires
+- **Ajoute** tes propres questions stratégiques si pertinent
+- **Valide** la `target_note` de chaque question
+
+Questions stratégiques typiques à ajouter :
+- Décisions organisationnelles non résolues
+- Patterns récurrents observés
+- Lacunes structurelles dans le PKM
+
 ---
 
 ## TON VERDICT (format JSON uniquement)
@@ -93,6 +106,15 @@ Produis le résultat définitif :
     "extraction_confidence": 0.94,
     "completeness": 0.96
   },
+  "strategic_questions": [
+    {
+      "question": "Question consolidée ou nouvelle pour Johan",
+      "target_note": "Note thématique où stocker la question",
+      "category": "organisation|processus|structure_pkm|decision",
+      "context": "Pourquoi cette question est pertinente",
+      "source": "grimaud|bazin|planchet|mousqueton"
+    }
+  ],
   "reasoning": "Décision finale : [explication complète de ton arbitrage et de ta décision]"
 }
 ```

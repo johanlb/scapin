@@ -253,6 +253,28 @@ class MultiPassMetadataResponse(BaseModel):
     )
 
 
+class StrategicQuestionResponse(BaseModel):
+    """Strategic question requiring human decision (v3.1)
+
+    Strategic questions are identified by the Four Valets pipeline and represent
+    decisions that require human reflection, not just factual lookups.
+    """
+
+    question: str = Field(..., description="The strategic question for the user")
+    target_note: str | None = Field(
+        None, description="Note where this question should be stored (thematic note)"
+    )
+    category: str = Field(
+        "decision",
+        description="Question category: organisation, processus, structure_pkm, decision"
+    )
+    context: str = Field("", description="Why this question is being asked")
+    source: str = Field(
+        "mousqueton",
+        description="Valet who identified this question: grimaud, bazin, planchet, mousqueton"
+    )
+
+
 class QueueItemAnalysis(BaseModel):
     """AI analysis in queue item"""
 
@@ -300,6 +322,11 @@ class QueueItemAnalysis(BaseModel):
     multi_pass: MultiPassMetadataResponse | None = Field(
         None,
         description="Multi-pass analysis metadata (passes count, models, timing)"
+    )
+    # v3.1: Strategic questions for human decision
+    strategic_questions: list[StrategicQuestionResponse] = Field(
+        default_factory=list,
+        description="Questions requiring human decision, accumulated from all valets"
     )
 
 

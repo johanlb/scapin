@@ -269,6 +269,10 @@ class PassResult:
     # Explicit questions for the next pass (Cooperation v2.3)
     next_pass_questions: list[str] = field(default_factory=list)
 
+    # Strategic questions for the user (v3.1 - accumulated across valets)
+    # These are questions that require human decision/reflection, not factual lookups
+    strategic_questions: list[dict[str, Any]] = field(default_factory=list)
+
     # Four Valets v3.0 fields
     valet: Optional["ValetType"] = None
     early_stop: bool = False
@@ -319,6 +323,7 @@ class PassResult:
             "duration_ms": self.duration_ms,
             "context_influence": self.context_influence,
             "next_pass_questions": self.next_pass_questions,
+            "strategic_questions": self.strategic_questions,
             # Four Valets v3.0 fields
             "valet": self.valet.value if self.valet else None,
             "early_stop": self.early_stop,

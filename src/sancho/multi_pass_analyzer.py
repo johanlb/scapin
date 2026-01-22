@@ -61,6 +61,28 @@ VERY_OLD_EMAIL_THRESHOLD_DAYS = 365  # 1 year
 # Types d'extraction avec valeur historique intrinsèque (ne jamais réduire la confiance)
 HISTORICAL_VALUE_TYPES = {"reference", "montant", "relation"}
 
+# Patterns de noms propres à exclure de la détection de contenu critique
+# Ces patterns correspondent à des noms de famille ou entités qui contiennent
+# des mots-clés juridiques mais ne sont pas des documents légaux
+PROPER_NAME_EXCLUSIONS = {
+    "le bail",  # Nom de famille (Johan Le Bail)
+    "bail web",  # Site de généalogie Le Bail
+}
+
+# Patterns de disclaimers automatiques à ignorer dans la détection de contenu sensible
+# Ces patterns apparaissent dans les footers d'emails et ne sont pas du contenu sensible réel
+EMAIL_DISCLAIMER_PATTERNS = {
+    "this email is confidential",
+    "this message is confidential",
+    "confidential and may be privileged",
+    "confidential information",
+    "cet email est confidentiel",
+    "ce message est confidentiel",
+    "information confidentielle",
+    "strictly confidential",
+    "private and confidential",
+}
+
 # Mots-clés indiquant une valeur contractuelle/historique dans le contenu
 HISTORICAL_KEYWORDS = {
     # Contractuel
@@ -156,6 +178,10 @@ class MultiPassResult:
     confidence_assessment: Optional[dict[str, Any]] = None
     stopped_at: Optional[str] = None  # "grimaud", "planchet", "mousqueton"
 
+    # Strategic questions accumulated from all valets (v3.1)
+    # Questions requiring human decision, organized by source valet and target note
+    strategic_questions: list[dict[str, Any]] = field(default_factory=list)
+
     @property
     def four_valets_mode(self) -> bool:
         """True si analysé avec Four Valets v3.0."""
@@ -212,6 +238,8 @@ class MultiPassResult:
             # Four Valets v3.0 fields
             "stopped_at": self.stopped_at,
             "four_valets_mode": self.four_valets_mode,
+            # Strategic questions v3.1
+            "strategic_questions": self.strategic_questions,
         }
 
 
@@ -956,6 +984,9 @@ class MultiPassAnalyzer:
             # Get explicit questions for next pass (v2.3)
             next_pass_questions = data.get("next_pass_questions", [])
 
+            # Get strategic questions for human (v3.1)
+            strategic_questions = data.get("strategic_questions", [])
+
             # Four Valets v3.0 fields
             early_stop = bool(data.get("early_stop", False))
             early_stop_reason = data.get("early_stop_reason")
@@ -984,6 +1015,7 @@ class MultiPassAnalyzer:
                 thinking=thinking,
                 context_influence=context_influence,
                 next_pass_questions=next_pass_questions,
+                strategic_questions=strategic_questions,
                 # Four Valets v3.0 fields
                 early_stop=early_stop,
                 early_stop_reason=early_stop_reason,
@@ -1381,6 +1413,72 @@ class MultiPassAnalyzer:
         )
         return adjusted, False, f"old_date_{age_days}d"
 
+    def _collect_strategic_questions(
+        self, passes: list[PassResult]
+    ) -> list[dict[str, Any]]:
+        """
+        Collect and deduplicate strategic questions from all valets (v3.1).
+
+        Strategic questions are questions that require human decision/reflection,
+        not factual lookups. They are accumulated from all valets and deduplicated
+        based on the question text.
+
+        Args:
+            passes: List of PassResult from the Four Valets pipeline
+
+        Returns:
+            Deduplicated list of strategic questions with source attribution
+        """
+        # Map valet names by pass number
+        valet_names = {1: "grimaud", 2: "bazin", 3: "planchet", 4: "mousqueton"}
+
+        all_questions: list[dict[str, Any]] = []
+        seen_questions: set[str] = set()
+
+        for p in passes:
+            valet_name = valet_names.get(p.pass_number, f"pass_{p.pass_number}")
+
+            for sq in p.strategic_questions:
+                # Handle both dict and raw string formats
+                if isinstance(sq, dict):
+                    question_text = sq.get("question", "")
+                    # Skip if empty or already seen
+                    if not question_text or question_text.lower() in seen_questions:
+                        continue
+
+                    seen_questions.add(question_text.lower())
+
+                    # Normalize the question structure
+                    normalized = {
+                        "question": question_text,
+                        "target_note": sq.get("target_note"),
+                        "category": sq.get("category", "decision"),
+                        "context": sq.get("context", ""),
+                        "source": sq.get("source", valet_name),
+                    }
+                    all_questions.append(normalized)
+                elif isinstance(sq, str) and sq.strip():
+                    # Handle raw string questions (legacy or simplified format)
+                    if sq.lower() in seen_questions:
+                        continue
+
+                    seen_questions.add(sq.lower())
+                    all_questions.append({
+                        "question": sq,
+                        "target_note": None,
+                        "category": "decision",
+                        "context": "",
+                        "source": valet_name,
+                    })
+
+        if all_questions:
+            logger.info(
+                f"Collected {len(all_questions)} strategic questions from "
+                f"{len([p for p in passes if p.strategic_questions])} valets"
+            )
+
+        return all_questions
+
     def _calculate_event_age_days(self, event: PerceivedEvent) -> int:
         """
         Calculate the age of an event in days.
@@ -1441,12 +1539,19 @@ class MultiPassAnalyzer:
         content = (getattr(event, "content", "") or "").lower()
         full_text = f"{title} {content}"
 
-        # Check 1: Legal/contractual content
-        is_legal = any(ind in full_text for ind in self.LEGAL_INDICATORS)
-        if is_legal:
-            matched = next((ind for ind in self.LEGAL_INDICATORS if ind in full_text), "unknown")
-            logger.info(f"Critical content detected: legal/contractual (matched: '{matched}')")
-            return True, f"legal_contractual:{matched}"
+        # Check for proper name exclusions (e.g., "Le Bail" = family name, not legal document)
+        has_exclusion = any(excl in full_text for excl in PROPER_NAME_EXCLUSIONS)
+
+        # Check 1: Legal/contractual content (skip if matches a proper name exclusion)
+        if not has_exclusion:
+            is_legal = any(ind in full_text for ind in self.LEGAL_INDICATORS)
+            if is_legal:
+                matched = next((ind for ind in self.LEGAL_INDICATORS if ind in full_text), "unknown")
+                logger.info(f"Critical content detected: legal/contractual (matched: '{matched}')")
+                return True, f"legal_contractual:{matched}"
+        else:
+            # Log that we skipped due to proper name
+            logger.debug(f"Skipped legal/contractual check due to proper name exclusion in: {title[:50]}")
 
         # Check 2: Financial documents
         is_financial = any(ind in full_text for ind in self.FINANCIAL_INDICATORS)
@@ -1456,11 +1561,17 @@ class MultiPassAnalyzer:
             return True, f"financial_document:{matched}"
 
         # Check 3: Sensitive content (conflicts, HR, negotiations, confidential)
+        # First, check if the sensitive word is just part of a standard email disclaimer
+        has_disclaimer = any(pattern in full_text for pattern in EMAIL_DISCLAIMER_PATTERNS)
         is_sensitive = any(ind in full_text for ind in self.SENSITIVE_INDICATORS)
         if is_sensitive:
             matched = next((ind for ind in self.SENSITIVE_INDICATORS if ind in full_text), "unknown")
-            logger.info(f"Critical content detected: sensitive (matched: '{matched}')")
-            return True, f"sensitive:{matched}"
+            # Skip if the match is likely from an email footer disclaimer
+            if has_disclaimer and matched in ("confidential", "confidentiel"):
+                logger.debug(f"Skipped sensitive content detection - '{matched}' appears in email disclaimer")
+            else:
+                logger.info(f"Critical content detected: sensitive (matched: '{matched}')")
+                return True, f"sensitive:{matched}"
 
         # Check 4: High amounts (> 1000€)
         amount = self._extract_highest_amount(full_text)
@@ -2409,6 +2520,9 @@ class MultiPassAnalyzer:
         for p in passes:
             all_entities.update(p.entities_discovered)
 
+        # Collect and deduplicate strategic questions from all valets (v3.1)
+        all_strategic_questions = self._collect_strategic_questions(passes)
+
         # Apply age-based adjustments
         age_days = self._calculate_event_age_days(event)
         adjusted_action, adjusted_extractions, age_adjustment = self._apply_age_adjustments(
@@ -2506,6 +2620,8 @@ class MultiPassAnalyzer:
             arbitrage=last_pass.arbitrage,
             memory_hint=last_pass.memory_hint,
             confidence_assessment=last_pass.confidence_assessment,
+            # Strategic questions v3.1
+            strategic_questions=all_strategic_questions,
         )
 
 

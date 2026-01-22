@@ -80,6 +80,15 @@ Pour chaque extraction de Bazin, vérifie :
 
 Si problème → corrige dans tes extractions.
 
+### 6. QUESTIONS STRATÉGIQUES (pour Johan)
+
+En tant que critique pragmatique, tu peux identifier des patterns ou risques récurrents :
+- **Risques récurrents** : "Ce type de contenu pose régulièrement problème, quelle politique adopter ?"
+- **Processus manquants** : "Un traitement batch serait-il utile pour ce volume ?"
+- **Décisions à prendre** : "Comment gérer ce type de situation à l'avenir ?"
+
+Utilise `strategic_questions` pour ces réflexions (différent de `questions_for_mousqueton`).
+
 ---
 
 ## TON RAPPORT (format JSON uniquement)
@@ -137,8 +146,15 @@ Si problème → corrige dans tes extractions.
     "Aucun changement, Bazin avait raison"
   ],
   "questions_for_mousqueton": [
-    "Question critique 1 à trancher (si needs_mousqueton)...",
-    "Question critique 2..."
+    "Question critique à trancher (si needs_mousqueton)..."
+  ],
+  "strategic_questions": [
+    {
+      "question": "Ce pattern récurrent suggère un besoin de processus, quelle politique adopter ?",
+      "target_note": "Note thématique concernée (ou null si général)",
+      "category": "processus|organisation|structure_pkm|decision",
+      "context": "Observation qui motive cette question"
+    }
   ],
   "needs_mousqueton": false,
   "reasoning": "Mon analyse critique : [explication des ajustements ou validation du travail de Bazin]"

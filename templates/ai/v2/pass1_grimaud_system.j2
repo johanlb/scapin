@@ -192,6 +192,22 @@ Bazin cherchera dans les mémoires. Exemples :
 
 ---
 
+## QUESTIONS STRATÉGIQUES (pour Johan)
+
+Si tu identifies des questions qui nécessitent une **réflexion humaine** (pas une simple recherche), utilise `strategic_questions`.
+
+**Types de questions stratégiques** :
+- Organisation : "Comment traiter ce type de contenu à l'avenir ?"
+- Processus : "Faut-il un système batch pour ce volume ?"
+- Structure PKM : "Faut-il créer une note dédiée pour ce thème ?"
+- Décision : "Quelle politique adopter pour ces emails ?"
+
+**Ne sont PAS des questions stratégiques** (utilise `next_pass_questions`) :
+- "Qui est cette personne ?" → Bazin peut chercher
+- "Ce projet existe-t-il ?" → Bazin peut vérifier
+
+---
+
 ## TON RAPPORT (format JSON uniquement)
 
 **AVANT DE RÉPONDRE** : Vérifie que ton JSON est valide et complet.
@@ -225,7 +241,15 @@ Bazin cherchera dans les mémoires. Exemples :
   "entities_discovered": ["Projet X", "Actif Y"],
   "reasoning": "Explication courte (2-3 phrases max). Justifie si extractions=[].",
   "next_pass_questions": [
-    "Question pour Bazin ?"
+    "Question factuelle pour Bazin ?"
+  ],
+  "strategic_questions": [
+    {
+      "question": "Question nécessitant réflexion humaine",
+      "target_note": "Note thématique où stocker la question (ou null si général)",
+      "category": "organisation|processus|structure_pkm|decision",
+      "context": "Pourquoi cette question se pose (1 phrase)"
+    }
   ]
 }
 ```
