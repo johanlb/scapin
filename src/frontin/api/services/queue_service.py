@@ -1579,10 +1579,11 @@ class QueueService:
             model = getattr(pass_result, "model_used", "unknown")
             models_used.append(model)
 
-            # Determine if context was searched (refine passes search context)
+            # Determine if context was searched (refine passes and Four Valets search context)
             pass_type = getattr(pass_result, "pass_type", None)
             pass_type_value = pass_type.value if hasattr(pass_type, "value") else str(pass_type)
-            context_searched = pass_type_value in ["refine", "deep"]
+            # Four Valets: bazin, planchet, mousqueton use context (grimaud extracts entities first)
+            context_searched = pass_type_value in ["refine", "deep", "bazin", "planchet", "mousqueton"]
 
             # Count notes found from retrieved_context if available
             notes_found = 0
