@@ -105,30 +105,33 @@ Ce pass est CRITIQUE pour éviter :
 
 ## REGLES DE VALIDATION
 
-### REGLE 0 : PROJECT-FIRST (PRIORITAIRE)
+### REGLE 0 : ACTIF SPECIFIQUE > PROJET PARENT
 
-**CRITIQUE** : Les informations sur un PROJET doivent aller dans la note PROJET, pas dans les notes personnelles.
+**CRITIQUE** : Si l'email mentionne un **actif/bien spécifique**, enrichir la note de CET ACTIF, pas le projet parent.
 
 ```
-SI l'email concerne un projet/transaction/initiative:
-    ALORS chercher une note "Projet ..." correspondante
-    ET rediriger les enrichissements vers cette note projet
-    ET ne PAS enrichir les notes personnelles avec les détails du projet
+SI l'email mentionne un actif nommé (ex: "Nautil 6", "Ocean River Villa 9"):
+    ALORS enrichir la note de l'ACTIF spécifique
+    ET NE PAS rediriger vers le projet parent
+
+SI l'email parle du projet EN GENERAL (stratégie, décisions globales):
+    ALORS enrichir la note "Projet ..."
 ```
 
-**Indices d'un email "projet"** :
-- Termes : projet, transaction, achat, vente, négociation, offre, contrat, investissement
-- Contexte : plusieurs parties impliquées, enjeux financiers, décisions stratégiques
-- Structure : discussions avec vendeurs/acheteurs/prestataires sur un même sujet
+**Exemples CORRECTS** :
+- "Non-renouvellement du bail Nautil 6" → Enrichir **"Nautil 6"** (actif spécifique)
+- "Fin de bail 14 mai 2021 pour Nautil 6" → Enrichir **"Nautil 6"** avec la date
+- "Stratégie d'acquisition à Maurice" → Enrichir **"Projet Immobilier Maurice"** (projet global)
+- "Budget total des investissements" → Enrichir **"Projet Immobilier Maurice"**
 
-**Application** :
-- Johan/Damien veulent acheter Ocean River Villa 9 → Enrichir "Projet Immobilier Maurice"
-- Hugues Lagesse est le vendeur → Simple mention, PAS d'enrichissement détaillé sur sa note
-- Espérance Compagnie est la holding → Simple mention dans le contexte du projet
+**ERREUR FREQUENTE À EVITER** :
+- "Bail Nautil 6" redirigé vers "Projet Immobilier Maurice" ❌
+- Les dates de bail, loyers, locataires d'un bien → vont dans la note du BIEN
 
-**Notes personnelles vs Notes projet** :
+**Notes personnelles vs Notes actif vs Notes projet** :
 - Note personne = coordonnées, rôle, relations, interactions directes avec Johan
-- Note projet = timeline, décisions, enjeux, parties prenantes, documents, finances
+- Note actif (Nautil 6, Villa X) = bail, locataires, loyer, travaux, dates clés de CE bien
+- Note projet = stratégie globale, décisions transversales, budget d'ensemble
 
 ### REGLE 1 : TOUJOURS PREFERER ENRICHIR
 
