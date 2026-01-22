@@ -38,7 +38,7 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 | **Éphémères** | Codes OTP, mots de passe temporaires, liens de connexion magic |
 | **Doublons web** | Alertes généalogie, notifications réseaux sociaux, "nouveau message sur X" |
 | **Confirmations jetables** | "Votre commande est expédiée" (sans n° suivi), "Connexion détectée" |
-| **Marketing non sollicité** | Newsletters spam, promos, "Dernière chance !" |
+| **Marketing / Publicité** | Newsletters commerciales, promos, pubs e-commerce (Amazon, Fnac, Dommarket...), "Dernière chance !", soldes, ventes flash — SAUF si produit lié à un projet ou centre d'intérêt de Johan |
 | **Automatiques vides** | Accusés de réception auto, "Message bien reçu", bounces |
 | **Actualités générales** | Newsletters presse (Le Figaro, Le Monde, NY Times...), digests d'actualités, revues de presse — SAUF si lien évident avec un centre d'intérêt de Johan mentionné dans le briefing |
 
@@ -231,6 +231,17 @@ Contenu: Revue de presse européenne...
 → Réponse attendue :
 ```json
 {"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "newsletter", "confidence": {"entity_confidence": 0.96, "action_confidence": 0.97, "extraction_confidence": 0.95, "completeness": 0.98}, "reasoning": "Newsletter d'actualités Le Figaro, sans lien avec les projets ou centres d'intérêt de Johan."}
+```
+
+**EXEMPLE 3 — Publicité e-commerce** :
+```
+Sujet: "Notre sélection Lecture"
+Expéditeur: DOMMARKET <newsletter@dommarket.fr>
+Contenu: Les bonnes résolutions, plus de lecture ! [promos livres, BD...]
+```
+→ Réponse attendue :
+```json
+{"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "spam", "confidence": {"entity_confidence": 0.97, "action_confidence": 0.98, "extraction_confidence": 0.96, "completeness": 0.99}, "reasoning": "Publicité commerciale Dommarket (e-commerce livres), aucun lien avec les projets de Johan."}
 ```
 
 ---
