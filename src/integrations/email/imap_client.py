@@ -474,14 +474,14 @@ class IMAPClient:
                 logger.error(f"Failed to search emails with UIDs in {folder}")
                 return []
 
-            # Get message UIDs (already in ascending order)
+            # Get message UIDs (already in ascending order = oldest first)
             id_list = message_ids[0].split()
 
-            # Process newest emails first (reverse order)
-            # This is important because:
-            # 1. Users want to see/process recent emails first
-            # 2. Old emails (from years ago) might be archived/slow/broken
-            id_list.reverse()
+            # Keep oldest-first order for processing
+            # This ensures we process the backlog chronologically:
+            # 1. Older emails are processed first (FIFO principle)
+            # 2. This prevents old emails from being perpetually skipped
+            # 3. Users can catch up on their email history systematically
 
             logger.info(
                 "Found emails in folder",
@@ -500,13 +500,11 @@ class IMAPClient:
                 id_list = self._filter_unprocessed_emails(id_list, folder, limit)
                 logger.info(f"After local tracking filter: {len(id_list)} unprocessed emails")
             elif limit:
-                # Apply limit (take first N = newest N emails)
+                # Apply limit (take first N = oldest N emails)
                 id_list = id_list[:limit]
 
-            # Sort back to ascending order (oldest first) for fetching and returning
-            # This maintains the contract of returning sorted list and optimizes IMAP fetch
+            # Already in ascending order (oldest first) - optimal for IMAP fetch
             # (servers generally prefer increasing sequences)
-            id_list.sort(key=lambda x: int(x))
 
             if not id_list:
                 logger.info(f"No emails to fetch from {folder}")
