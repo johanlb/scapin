@@ -1671,52 +1671,59 @@ class QueueService:
         }
 
     async def _reanalyze_items_background(self, items: list[dict[str, Any]]) -> None:
-        """Background task to reanalyze items one by one."""
+        """Background task to reanalyze items in parallel with concurrency limit."""
         total = len(items)
-        started = 0
-        failed = 0
 
-        for item in items:
+        # Semaphore to limit concurrent analyses (avoid API rate limits)
+        semaphore = asyncio.Semaphore(3)
+
+        async def reanalyze_single(item: dict[str, Any]) -> bool:
+            """Reanalyze a single item with semaphore control."""
             item_id = item.get("id")
             if not item_id:
-                failed += 1
-                continue
+                return False
 
-            try:
-                metadata = item.get("metadata", {})
-                content = item.get("content", {})
+            async with semaphore:
+                try:
+                    metadata = item.get("metadata", {})
+                    content = item.get("content", {})
 
-                # Run reanalysis without user instruction
-                new_analysis = await self._reanalyze_sync(
-                    metadata=metadata,
-                    content=content,
-                    user_instruction="",  # No specific instruction
-                )
-
-                if new_analysis:
-                    # Use unified method to update item
-                    success = self._update_item_with_analysis(
-                        item_id=item_id,
-                        item=item,
-                        new_analysis=new_analysis,
+                    # Run reanalysis without user instruction
+                    new_analysis = await self._reanalyze_sync(
+                        metadata=metadata,
+                        content=content,
+                        user_instruction="",  # No specific instruction
                     )
-                    if success:
-                        started += 1
-                        logger.debug(f"Reanalyzed item {item_id}")
-                    else:
-                        failed += 1
-                        logger.warning(f"Failed to update item {item_id} after reanalysis")
-                else:
-                    # Restore to pending status on failure
-                    self._storage.update_item(item_id, {"status": "pending"})
-                    failed += 1
-                    logger.warning(f"Failed to reanalyze item {item_id}")
 
-            except Exception as e:
-                # Restore to pending status on error
-                self._storage.update_item(item_id, {"status": "pending"})
-                failed += 1
-                logger.error(f"Error reanalyzing item {item_id}: {e}")
+                    if new_analysis:
+                        # Use unified method to update item
+                        success = self._update_item_with_analysis(
+                            item_id=item_id,
+                            item=item,
+                            new_analysis=new_analysis,
+                        )
+                        if success:
+                            logger.debug(f"Reanalyzed item {item_id}")
+                            return True
+                        else:
+                            logger.warning(f"Failed to update item {item_id} after reanalysis")
+                            return False
+                    else:
+                        # Restore to pending status on failure
+                        self._storage.update_item(item_id, {"status": "pending"})
+                        logger.warning(f"Failed to reanalyze item {item_id}")
+                        return False
+
+                except Exception as e:
+                    # Restore to pending status on error
+                    self._storage.update_item(item_id, {"status": "pending"})
+                    logger.error(f"Error reanalyzing item {item_id}: {e}")
+                    return False
+
+        # Run all analyses in parallel with semaphore-controlled concurrency
+        results = await asyncio.gather(*[reanalyze_single(item) for item in items])
+        started = sum(1 for r in results if r)
+        failed = total - started
 
         logger.info(f"Bulk reanalysis complete: {started}/{total} succeeded, {failed} failed")
 
