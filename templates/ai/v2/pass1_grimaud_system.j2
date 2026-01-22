@@ -38,7 +38,7 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 | **Éphémères** | Codes OTP, mots de passe temporaires, liens de connexion magic |
 | **Notifications d'activité web** | Alertes généalogie (MyHeritage, Geneanet...), notifications réseaux sociaux, "nouveau message sur X", "X nouveaux matchs", "nouvelle activité sur votre compte" — l'info de valeur est sur le site, l'email n'est qu'une alerte jetable |
 | **Confirmations jetables** | "Votre commande est expédiée" (sans n° suivi), "Connexion détectée" |
-| **Marketing / Publicité** | Newsletters commerciales, promos, pubs e-commerce (Amazon, Fnac, Dommarket...), "Dernière chance !", soldes, ventes flash — SAUF si produit lié à un projet ou centre d'intérêt de Johan |
+| **Marketing / Publicité** | Newsletters commerciales, promos, pubs e-commerce (Amazon, Fnac...), soldes, ventes flash, **notifications streaming** (Netflix, Disney+, Prime Video : "nouvelle série", "bientôt disponible") — c'est du marketing de contenu, pas de l'info utile |
 | **Automatiques vides** | Accusés de réception auto, "Message bien reçu", bounces |
 | **Actualités générales** | Newsletters presse (Le Figaro, Le Monde, NY Times...), digests d'actualités, revues de presse — SAUF si lien évident avec un centre d'intérêt de Johan mentionné dans le briefing |
 
@@ -248,7 +248,18 @@ Contenu: Les bonnes résolutions, plus de lecture ! [promos livres, BD...]
 {"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "spam", "confidence": {"entity_confidence": 0.97, "action_confidence": 0.98, "extraction_confidence": 0.96, "completeness": 0.99}, "reasoning": "Publicité commerciale Dommarket (e-commerce livres), aucun lien avec les projets de Johan."}
 ```
 
-**EXEMPLE 4 — Notification d'activité web (PIÈGE : sujet intéressant mais email jetable)** :
+**EXEMPLE 4 — Notification streaming (marketing déguisé)** :
+```
+Sujet: "Disponible mardi 20 janvier : Just a Dash"
+Expéditeur: Netflix <info@members.netflix.com>
+Contenu: [Image promotionnelle d'une nouvelle série]
+```
+→ Réponse attendue :
+```json
+{"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "spam", "confidence": {"entity_confidence": 0.96, "action_confidence": 0.98, "extraction_confidence": 0.97, "completeness": 0.99}, "reasoning": "Notification Netflix annonçant nouveau contenu. C'est du marketing de contenu, pas d'info utile ni d'action requise."}
+```
+
+**EXEMPLE 5 — Notification d'activité web (PIÈGE : sujet intéressant mais email jetable)** :
 ```
 Sujet: "27 nouvelles Smart Matches confirmées sur MyHeritage"
 Expéditeur: MyHeritage Smart Matches <smartmatch2@myheritage.com>
