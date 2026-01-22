@@ -17,11 +17,31 @@ Key responsibilities:
 
 import asyncio
 import functools
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from src.monitoring.logger import get_logger
+
+
+def _l2_distance_to_relevance(distance: float, temperature: float = 2.0) -> float:
+    """
+    Convert FAISS L2 distance to relevance score (0-1).
+
+    L2 distance: 0 = exact match, higher = worse match
+    Relevance: 1 = perfect match, 0 = no match
+
+    Uses exponential decay: relevance = exp(-distance² / temperature)
+
+    Args:
+        distance: L2 distance from FAISS
+        temperature: Controls decay rate (default 2.0)
+
+    Returns:
+        Relevance score between 0 and 1
+    """
+    return math.exp(-(distance ** 2) / temperature)
 
 if TYPE_CHECKING:
     from src.passepartout.cross_source.engine import CrossSourceEngine
@@ -499,10 +519,13 @@ class ContextSearcher:
                         return_scores=True,
                     )
 
-                    for note, score in results:
+                    for note, l2_distance in results:
                         if note.note_id in seen_ids:
                             continue
-                        if score < min_relevance:
+
+                        # Convert L2 distance to relevance (0-1, higher = better)
+                        relevance = _l2_distance_to_relevance(l2_distance)
+                        if relevance < min_relevance:
                             continue
 
                         seen_ids.add(note.note_id)
@@ -514,7 +537,7 @@ class ContextSearcher:
                             title=note.title,
                             note_type=getattr(note, "type", None) or "note",
                             summary=(note.content[:200] if note.content else ""),
-                            relevance=min(1.0, score),
+                            relevance=relevance,
                             last_modified=getattr(note, "modified_at", None),
                             tags=note.tags or [],
                             path=note_path,
@@ -524,7 +547,7 @@ class ContextSearcher:
                         # Build entity profile if note is about a person/project
                         note_type = getattr(note, "type", None)
                         if note_type in ["personne", "projet", "entreprise"]:
-                            profile = self._build_profile_from_note(entity, note, score)
+                            profile = self._build_profile_from_note(entity, note, relevance)
                             if profile and entity not in profiles:
                                 profiles[entity] = profile
 
