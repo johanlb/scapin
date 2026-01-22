@@ -639,8 +639,14 @@ class EmailProcessor:
             elif analysis.action == EmailAction.DELETE:
                 return self._delete_email(metadata)
 
-            elif analysis.action == EmailAction.TASK:
-                return self._create_task(metadata, analysis)
+            elif analysis.action == EmailAction.FLAG:
+                # FLAG = mark for follow-up, archive for now
+                return self._archive_email(metadata, analysis)
+
+            elif analysis.action == EmailAction.KEEP:
+                # KEEP = leave in inbox
+                logger.debug(f"KEEP action - leaving email {metadata.id} in inbox")
+                return True
 
             elif analysis.action == EmailAction.REPLY:
                 logger.info(f"REPLY action not yet implemented for email {metadata.id}")

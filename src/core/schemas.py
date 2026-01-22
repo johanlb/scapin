@@ -21,16 +21,20 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 
 class EmailAction(str, Enum):
-    """Email processing actions"""
+    """
+    Email processing actions.
 
-    DELETE = "delete"
-    ARCHIVE = "archive"
-    REFERENCE = "reference"
-    KEEP = "keep"
-    TASK = "task"
-    REPLY = "reply"
-    DEFER = "defer"
-    QUEUE = "queue"
+    These represent the fate of the email itself, not derived actions
+    (extractions, tasks) which are handled separately by the pipeline.
+    """
+
+    DELETE = "delete"    # Supprimer
+    ARCHIVE = "archive"  # Archiver (hors inbox)
+    KEEP = "keep"        # Garder en inbox (rien à faire)
+    QUEUE = "queue"      # File d'attente review
+    FLAG = "flag"        # Marquer pour suivi
+    DEFER = "defer"      # Snooze/Reporter
+    REPLY = "reply"      # Réponse nécessaire (futur: brouillon IA)
 
 
 class EmailCategory(str, Enum):

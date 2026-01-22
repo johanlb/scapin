@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from src.core.schemas import EmailAction, EmailAnalysis, EmailMetadata
 from src.figaro.actions.base import Action
-from src.figaro.actions.email import ArchiveEmailAction, DeleteEmailAction, MoveEmailAction
+from src.figaro.actions.email import ArchiveEmailAction, DeleteEmailAction
 from src.monitoring.logger import get_logger
 
 if TYPE_CHECKING:
@@ -100,25 +100,16 @@ class ActionFactory:
                 )
             )
 
-        elif analysis.action == EmailAction.REFERENCE:
-            actions.append(
-                MoveEmailAction(
-                    email_id=email_id,
-                    account_email=account_email,
-                    imap_config=self.imap_config,
-                    current_folder="INBOX",
-                    target_folder=self.imap_config.reference_folder,
-                )
-            )
-
-        elif analysis.action == EmailAction.TASK:
-            # For TASK, we would create a task and then archive
-            # Task action not yet implemented - log warning
-            logger.warning(
-                "TASK action not yet implemented in ActionFactory",
+        elif analysis.action in (EmailAction.KEEP, EmailAction.QUEUE):
+            # KEEP/QUEUE = no auto-action, needs manual handling
+            logger.debug(
+                f"{analysis.action.value} action - no actions created",
                 extra={"email_id": email_id}
             )
-            # Still archive the email for now
+
+        elif analysis.action == EmailAction.FLAG:
+            # FLAG = mark for follow-up, archive for now
+            # TODO: Implement IMAP flag setting
             actions.append(
                 ArchiveEmailAction(
                     email_id=email_id,
@@ -129,17 +120,17 @@ class ActionFactory:
                 )
             )
 
-        elif analysis.action == EmailAction.REVIEW:
-            # REVIEW means no auto-action, needs manual handling
+        elif analysis.action == EmailAction.DEFER:
+            # DEFER = snooze, not yet implemented
             logger.debug(
-                "REVIEW action - no actions created",
+                "DEFER action - snooze not implemented, keeping in inbox",
                 extra={"email_id": email_id}
             )
 
-        elif analysis.action == EmailAction.SNOOZE:
-            # SNOOZE not yet implemented
-            logger.warning(
-                "SNOOZE action not yet implemented",
+        elif analysis.action == EmailAction.REPLY:
+            # REPLY = response needed, keep in inbox for now
+            logger.debug(
+                "REPLY action - keeping in inbox for response",
                 extra={"email_id": email_id}
             )
 

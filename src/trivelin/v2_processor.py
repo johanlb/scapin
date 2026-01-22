@@ -74,7 +74,7 @@ class V2ProcessingResult:
     event_id: str
     analysis: Optional[AnalysisResult] = None
     enrichment: Optional[EnrichmentResult] = None
-    email_action: EmailAction = EmailAction.RIEN
+    email_action: EmailAction = EmailAction.KEEP
     error: Optional[str] = None
     duration_ms: float = 0.0
     auto_applied: bool = False
@@ -751,7 +751,7 @@ class V2EmailProcessor:
         try:
             action = EmailAction(multi_pass_result.action)
         except ValueError:
-            action = EmailAction.RIEN
+            action = EmailAction.KEEP  # Default: keep in inbox
 
         # Build AnalysisResult
         return AnalysisResult(

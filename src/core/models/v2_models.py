@@ -17,6 +17,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+# Import unified EmailAction from schemas (single source of truth)
+from src.core.schemas import EmailAction
+
 
 class ExtractionType(str, Enum):
     """Types d'informations extractibles"""
@@ -55,14 +58,8 @@ class NoteAction(str, Enum):
     CREER = "creer"
 
 
-class EmailAction(str, Enum):
-    """Actions possibles sur l'email après analyse"""
-
-    ARCHIVE = "archive"
-    FLAG = "flag"
-    QUEUE = "queue"
-    DELETE = "delete"
-    RIEN = "rien"
+# EmailAction is imported from src.core.schemas (unified enum)
+# Available actions: DELETE, ARCHIVE, KEEP, QUEUE, FLAG, DEFER, REPLY
 
 
 @dataclass
