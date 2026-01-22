@@ -318,6 +318,95 @@ Quand l'IA a des doutes ou questions pendant l'analyse, elle les note pour la pa
 
 > **Philosophie** : Montrer les doutes de l'IA renforce la confiance plus que le silence face à l'incertitude.
 
+---
+
+### Questions Stratégiques (v3.1)
+
+Scapin identifie maintenant des **questions stratégiques** — des réflexions qui nécessitent votre décision humaine, pas une simple recherche de données.
+
+#### Distinction Important
+
+| Type | Exemple | Traitement |
+|------|---------|------------|
+| **Question factuelle** | "Qui est Marie ?" | L'IA cherche dans vos notes |
+| **Question stratégique** | "Faut-il créer une note Généalogie ?" | Requiert votre réflexion |
+
+#### Sources des Questions
+
+Chaque valet peut identifier des questions stratégiques selon sa perspective :
+
+| Valet | Type de questions |
+|-------|-------------------|
+| **Grimaud** | Organisation : "Comment traiter ce type de contenu à l'avenir ?" |
+| **Bazin** | Structure PKM : "Faut-il créer une note dédiée pour ce thème récurrent ?" |
+| **Planchet** | Processus : "Un système batch serait-il utile pour ce volume ?" |
+| **Mousqueton** | Décisions : Consolidation et arbitrages non résolus |
+
+#### Affichage
+
+Les questions stratégiques s'affichent dans une section dédiée avec :
+
+```
+❓ Questions Stratégiques (2)
+
+[1] Comment intégrer systématiquement les recommandations culturelles locales ?
+    📁 Note cible : Musique
+    🏷️ Catégorie : processus
+    👤 Source : grimaud
+    💡 Contexte : Identifier un moyen de ne pas manquer les opportunités
+
+[2] Faut-il créer une note dédiée 'Généalogie' dans le PKM ?
+    📁 Note cible : null (question générale)
+    🏷️ Catégorie : structure_pkm
+    👤 Source : bazin
+```
+
+#### Catégories
+
+| Catégorie | Description |
+|-----------|-------------|
+| **organisation** | Comment organiser un flux ou un type de contenu |
+| **processus** | Besoin d'un traitement automatisé ou batch |
+| **structure_pkm** | Création ou restructuration de notes |
+| **decision** | Choix stratégique à faire |
+
+#### Intégration avec les Notes
+
+Les questions stratégiques sont liées à une **note thématique** (`target_note`) :
+
+1. La question sera ajoutée à la section `## Questions ouvertes` de la note
+2. Elle remontera naturellement lors de vos sessions de **Lecture** (Filage)
+3. Vous pourrez y répondre ou la marquer comme résolue
+
+> **Conseil** : Les questions sans `target_note` (générales) apparaissent dans votre briefing matinal.
+
+#### Exemple Pratique
+
+Email reçu de MyHeritage avec 9229 Smart Matches en attente :
+
+```
+❓ Questions Stratégiques (3)
+
+[1] Quelle stratégie pour traiter ces 9229 Smart Matches ?
+    📁 Note cible : Généalogie
+    🏷️ Catégorie : organisation
+    👤 Source : mousqueton
+
+[2] Un système de traitement batch peut-il être mis en place ?
+    📁 Note cible : null
+    🏷️ Catégorie : processus
+    👤 Source : planchet
+
+[3] Faut-il créer une note dédiée 'Généalogie' dans le PKM ?
+    📁 Note cible : null
+    🏷️ Catégorie : structure_pkm
+    👤 Source : bazin
+```
+
+Ces questions vous aident à prendre du recul sur vos processus au lieu de simplement traiter l'email du jour.
+
+---
+
 #### Pourquoi Pas les Autres Options ? (v2.3.1)
 
 Quand plusieurs actions sont proposées, Scapin explique maintenant pourquoi les alternatives n'ont pas été recommandées :

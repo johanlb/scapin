@@ -124,6 +124,108 @@ Le processus s'arrête quand :
 
 ---
 
+## Architecture Four Valets (v3.0)
+
+À partir de la version 3.0, Sancho utilise une architecture en 4 passes spécialisées, inspirée des valets de Dumas.
+
+### Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         GRIMAUD                                  │
+│                    Observation silencieuse                       │
+│  • Extraction brute SANS contexte (évite les biais)             │
+│  • Identifie entités, dates, montants, références               │
+│  • Questions pour les passes suivantes                          │
+│  • Génère les premières questions stratégiques                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                          BAZIN                                   │
+│                   Enrichissement contextuel                      │
+│  • Consulte Passepartout (base de connaissances)                │
+│  • Enrichit avec l'historique des personnes/projets             │
+│  • Corrige les extractions avec le contexte                     │
+│  • Identifie des questions stratégiques liées aux notes         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         PLANCHET                                 │
+│                    Critique et validation                        │
+│  • Valide la cohérence des extractions                          │
+│  • Critique les propositions de Bazin                           │
+│  • Suggère des corrections si nécessaire                        │
+│  • Soulève des questions sur les processus/organisation         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        MOUSQUETON                                │
+│                      Arbitrage final                             │
+│  • Synthèse des passes précédentes                              │
+│  • Décision finale (approve/archive/needs_human)                │
+│  • Score de confiance consolidé                                  │
+│  • Déduplique et compile les questions stratégiques             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Caractéristiques
+
+| Aspect | Description |
+|--------|-------------|
+| **Escalade** | Haiku → Sonnet → Opus selon complexité |
+| **Early Stop** | Arrêt dès confiance ≥ 95% |
+| **Context Influence** | Transparence sur l'impact du contexte |
+| **Questions** | Accumulation multi-valets |
+
+---
+
+## Questions Stratégiques (v3.1)
+
+Les Questions Stratégiques sont des questions qui émergent de l'analyse et nécessitent une réflexion humaine.
+
+### Principe
+
+Chaque valet peut identifier des questions qui ne concernent pas juste l'email analysé mais touchent à l'organisation, aux processus ou à la structure PKM :
+
+| Valet | Type de questions |
+|-------|-------------------|
+| **Grimaud** | Questions factuelles, données manquantes |
+| **Bazin** | Questions liées aux notes et à l'historique |
+| **Planchet** | Questions sur les processus et la cohérence |
+| **Mousqueton** | Synthèse et questions stratégiques globales |
+
+### Catégories
+
+```
+organisation   → Comment structurer les relations, projets
+processus      → Comment améliorer les workflows
+structure_pkm  → Comment organiser les notes
+decision       → Choix nécessitant réflexion
+```
+
+### Intégration
+
+Les questions sont :
+1. **Accumulées** par tous les valets
+2. **Dédupliquées** par Mousqueton
+3. **Liées** à une note thématique quand pertinent
+4. **Visibles** dans la vue élément unique
+
+### Exemple
+
+Un email annonçant 9229 "Smart Matches" génère :
+> ❓ *"Quelle stratégie pour traiter ces 9229 Smart Matches ?"*
+> → Note cible : `MyHeritage.md`
+> → Catégorie : `organisation`
+> → Source : `grimaud`
+
+Cette question peut ensuite être traitée lors d'une session de **Lecture** ou de **Retouche**.
+
+---
+
 ## Flux de Données
 
 ### Email

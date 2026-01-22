@@ -1,7 +1,29 @@
 # Guide Utilisateur Scapin
 
-**Version** : 2.6
+**Version** : 3.1
 **Dernière mise à jour** : Janvier 2026
+
+---
+
+## Nouveautés v3.1 — Questions Stratégiques
+
+- **Questions Stratégiques** : Les valets identifient maintenant des questions nécessitant votre réflexion
+- **Accumulation multi-valets** : Chaque valet contribue ses observations (Grimaud, Bazin, Planchet, Mousqueton)
+- **Intégration PKM** : Les questions sont liées à une note thématique pour un suivi naturel
+
+Voir [3. Péripéties](03-peripeties.md#questions-stratégiques-v31) pour les détails.
+
+---
+
+## Nouveautés v3.0 — Four Valets
+
+- **Architecture Four Valets** : Nouveau pipeline Grimaud → Bazin → Planchet → Mousqueton
+- **Grimaud** : Observation silencieuse et extraction brute
+- **Bazin** : Enrichissement contextuel avec les mémoires
+- **Planchet** : Critique et validation
+- **Mousqueton** : Arbitrage final
+
+Voir [6. Architecture](06-architecture.md#architecture-four-valets-v30) pour les détails.
 
 ---
 
