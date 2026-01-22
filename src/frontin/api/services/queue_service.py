@@ -348,8 +348,14 @@ class QueueService:
 
         updates: dict[str, Any] = {
             "status": "approved",
+            "state": "processed",  # v2.4: Update state for proper tab filtering
             "reviewed_at": now_utc().isoformat(),
             "review_decision": "approve",
+            "resolution": {
+                "type": "manual_approved",
+                "resolved_by": "user",
+                "resolved_at": now_utc().isoformat(),
+            },
         }
 
         if modified_action:
@@ -786,9 +792,15 @@ class QueueService:
 
         updates: dict[str, Any] = {
             "status": "approved",  # Modified items are approved with new action
+            "state": "processed",  # v2.4: Update state for proper tab filtering
             "reviewed_at": now_utc().isoformat(),
             "review_decision": "modify",
             "modified_action": action,
+            "resolution": {
+                "type": "manual_modified",
+                "resolved_by": "user",
+                "resolved_at": now_utc().isoformat(),
+            },
         }
 
         if category:
@@ -855,8 +867,15 @@ class QueueService:
 
         updates: dict[str, Any] = {
             "status": "rejected",
+            "state": "processed",  # v2.4: Update state for proper tab filtering
             "reviewed_at": now_utc().isoformat(),
             "review_decision": "reject",
+            "resolution": {
+                "type": "manual_rejected",
+                "resolved_by": "user",
+                "resolved_at": now_utc().isoformat(),
+                "reason": reason,
+            },
         }
 
         if reason:

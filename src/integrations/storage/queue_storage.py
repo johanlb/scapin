@@ -38,6 +38,8 @@ Usage:
 import json
 import threading
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -54,6 +56,53 @@ from src.monitoring.logger import get_logger
 from src.utils import get_data_dir, now_utc
 
 logger = get_logger("queue_storage")
+
+
+class ReadWriteLock:
+    """
+    A lock that allows multiple concurrent readers OR one exclusive writer.
+
+    This improves concurrency for read-heavy workloads like loading queue items
+    while still ensuring write safety.
+    """
+
+    def __init__(self) -> None:
+        self._read_ready = threading.Condition(threading.Lock())
+        self._readers = 0
+        self._writers_waiting = 0
+        self._writer_active = False
+
+    @contextmanager
+    def read_lock(self) -> Generator[None, None, None]:
+        """Acquire a read lock. Multiple readers can hold this simultaneously."""
+        with self._read_ready:
+            # Wait if a writer is active or waiting (writer priority to avoid starvation)
+            while self._writer_active or self._writers_waiting > 0:
+                self._read_ready.wait()
+            self._readers += 1
+        try:
+            yield
+        finally:
+            with self._read_ready:
+                self._readers -= 1
+                if self._readers == 0:
+                    self._read_ready.notify_all()
+
+    @contextmanager
+    def write_lock(self) -> Generator[None, None, None]:
+        """Acquire a write lock. Only one writer at a time, no concurrent readers."""
+        with self._read_ready:
+            self._writers_waiting += 1
+            while self._readers > 0 or self._writer_active:
+                self._read_ready.wait()
+            self._writers_waiting -= 1
+            self._writer_active = True
+        try:
+            yield
+        finally:
+            with self._read_ready:
+                self._writer_active = False
+                self._read_ready.notify_all()
 
 
 class QueueStorage:
@@ -78,8 +127,8 @@ class QueueStorage:
         self._processed_ids_file = self.queue_dir / ".processed_message_ids.json"
         self._processed_message_ids: set[str] = self._load_processed_ids()
 
-        # Thread lock for file operations
-        self._lock = threading.Lock()
+        # ReadWriteLock for concurrent reads, exclusive writes
+        self._rwlock = ReadWriteLock()
 
         logger.info("QueueStorage initialized", extra={"queue_dir": str(self.queue_dir)})
 
@@ -119,7 +168,7 @@ class QueueStorage:
         """Mark a message_id as processed (Bug #60 fix)"""
         if message_id:
             normalized = self._normalize_message_id(message_id)
-            with self._lock:
+            with self._rwlock.write_lock():
                 self._processed_message_ids.add(normalized)
                 self._save_processed_ids()
             logger.debug(f"Marked message as processed: {normalized}")
@@ -152,7 +201,7 @@ class QueueStorage:
             return True
 
         # Check if in current queue (any status)
-        with self._lock:
+        with self._rwlock.read_lock():
             for file_path in self.queue_dir.glob("*.json"):
                 if file_path.name.startswith("."):
                     continue
@@ -278,7 +327,7 @@ class QueueStorage:
         # Write to file (thread-safe)
         file_path = self.queue_dir / f"{item_id}.json"
 
-        with self._lock, open(file_path, "w", encoding="utf-8") as f:
+        with self._rwlock.write_lock(), open(file_path, "w", encoding="utf-8") as f:
             json.dump(item, f, indent=2, ensure_ascii=False)
 
         logger.info(
@@ -379,7 +428,7 @@ class QueueStorage:
         # Write to file (thread-safe)
         file_path = self.queue_dir / f"{item_id}.json"
 
-        with self._lock, open(file_path, "w", encoding="utf-8") as f:
+        with self._rwlock.write_lock(), open(file_path, "w", encoding="utf-8") as f:
             json.dump(item, f, indent=2, ensure_ascii=False)
 
         logger.info(
@@ -415,7 +464,7 @@ class QueueStorage:
         """
         file_path = self.queue_dir / f"{item_id}.json"
 
-        with self._lock:
+        with self._rwlock.write_lock():
             if not file_path.exists():
                 logger.warning(f"Item not found for analysis completion: {item_id}")
                 return False
@@ -527,7 +576,7 @@ class QueueStorage:
         """
         file_path = self.queue_dir / f"{item_id}.json"
 
-        with self._lock:
+        with self._rwlock.write_lock():
             if not file_path.exists():
                 return False
 
@@ -581,7 +630,7 @@ class QueueStorage:
         """
         items = []
 
-        with self._lock:
+        with self._rwlock.read_lock():
             for file_path in self.queue_dir.glob("*.json"):
                 try:
                     with open(file_path, encoding="utf-8") as f:
@@ -628,7 +677,7 @@ class QueueStorage:
             return None
 
         try:
-            with self._lock, open(file_path, encoding="utf-8") as f:
+            with self._rwlock.read_lock(), open(file_path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Failed to load queue item {item_id}: {e}")
@@ -660,7 +709,7 @@ class QueueStorage:
             return False
 
         try:
-            with self._lock:
+            with self._rwlock.write_lock():
                 # Load existing item
                 with open(file_path, encoding="utf-8") as f:
                     item = json.load(f)
@@ -700,7 +749,7 @@ class QueueStorage:
             return False
 
         try:
-            with self._lock:
+            with self._rwlock.write_lock():
                 file_path.unlink()
 
             logger.info("Queue item removed", extra={"item_id": item_id})
@@ -740,7 +789,7 @@ class QueueStorage:
         """
         deleted_count = 0
 
-        with self._lock:
+        with self._rwlock.write_lock():
             for file_path in list(self.queue_dir.glob("*.json")):
                 try:
                     # Read item to check filters
@@ -794,7 +843,7 @@ class QueueStorage:
         """
         all_items = []
 
-        with self._lock:
+        with self._rwlock.read_lock():
             for file_path in self.queue_dir.glob("*.json"):
                 if file_path.name.startswith("."):
                     continue
@@ -891,9 +940,10 @@ class QueueStorage:
         Returns:
             State value (from PeripetieState enum)
         """
-        # Check for v2.4 state field first
-        if "state" in item:
-            return item["state"]
+        # Check for v2.4 state field first (must be non-None)
+        state_value = item.get("state")
+        if state_value is not None:
+            return state_value
 
         # Fall back to legacy status mapping
         legacy_status = item.get("status", "pending")
@@ -928,7 +978,8 @@ class QueueStorage:
         """
         items = []
 
-        with self._lock:
+        # Use read lock for concurrent reads (doesn't block other readers)
+        with self._rwlock.read_lock():
             for file_path in self.queue_dir.glob("*.json"):
                 if file_path.name.startswith("."):
                     continue
@@ -1103,7 +1154,7 @@ class QueueStorage:
         """
         items = []
 
-        with self._lock:
+        with self._rwlock.read_lock():
             for file_path in self.queue_dir.glob("*.json"):
                 if file_path.name.startswith("."):
                     continue
@@ -1139,7 +1190,7 @@ class QueueStorage:
         now = now_utc().isoformat()
         items = []
 
-        with self._lock:
+        with self._rwlock.read_lock():
             for file_path in self.queue_dir.glob("*.json"):
                 if file_path.name.startswith("."):
                     continue
