@@ -2,32 +2,40 @@
 	/**
 	 * ReviewCard Component
 	 * Displays a note for review with SM-2 metadata
+	 *
+	 * v3.1: Updated with Liquid Glass design and QualityScoreDisplay
 	 */
 	import type { NoteReviewMetadata } from '$lib/api';
+	import { Card, Badge } from '$lib/components/ui';
+	import QualityScoreDisplay from '$lib/components/memory/QualityScoreDisplay.svelte';
 
 	interface Props {
 		note: NoteReviewMetadata;
+		recentlyImproved?: boolean;
+		questionsCount?: number;
 		onViewNote?: () => void;
 	}
 
-	let { note, onViewNote }: Props = $props();
+	let { note, recentlyImproved = false, questionsCount = 0, onViewNote }: Props = $props();
 
 	// Note type icons
 	const typeIcons: Record<string, string> = {
 		personne: '👤',
-		projet: '📋',
+		projet: '📁',
 		concept: '💡',
 		lieu: '📍',
 		organisation: '🏢',
+		evenement: '📅',
+		produit: '📦',
 		souvenir: '🎯',
 		autre: '📝'
 	};
 
 	// Importance badges
 	const importanceBadges: Record<string, { bg: string; text: string }> = {
-		high: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400' },
-		normal: { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-400' },
-		low: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400' }
+		high: { bg: 'bg-red-500/10', text: 'text-red-500' },
+		normal: { bg: 'bg-[var(--glass-subtle)]', text: 'text-[var(--color-text-secondary)]' },
+		low: { bg: 'bg-green-500/10', text: 'text-green-500' }
 	};
 
 	// Quality labels
@@ -59,69 +67,115 @@
 		}
 	}
 
+	function getNextReviewClass(dateStr: string | null): string {
+		if (!dateStr) return 'text-[var(--color-text-tertiary)]';
+		const date = new Date(dateStr);
+		const now = new Date();
+		const diffMs = date.getTime() - now.getTime();
+		const diffHours = diffMs / (1000 * 60 * 60);
+
+		if (diffHours < 0) {
+			return 'text-red-500';
+		} else if (diffHours < 24) {
+			return 'text-[var(--color-warning)]';
+		}
+		return 'text-[var(--color-accent)]';
+	}
+
 	const icon = $derived(typeIcons[note.note_type] ?? '📝');
 	const badge = $derived(importanceBadges[note.importance] ?? importanceBadges.normal);
+
+	// Convert quality_score from note if available (assuming it might be added to the type)
+	const qualityScore = $derived((note as any).quality_score ?? null);
 </script>
 
-<div
-	class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm"
->
+<Card variant="glass">
 	<!-- Header -->
 	<div class="flex items-start justify-between gap-3 mb-4">
 		<div class="flex items-center gap-3">
-			<span class="text-3xl">{icon}</span>
+			<div class="w-12 h-12 rounded-xl bg-[var(--glass-subtle)] flex items-center justify-center text-2xl">
+				{icon}
+			</div>
 			<div>
-				<h3 class="font-semibold text-gray-900 dark:text-white text-lg">
+				<h3 class="font-semibold text-[var(--color-text-primary)] text-lg">
 					{note.note_id}
 				</h3>
-				<p class="text-sm text-gray-500 dark:text-gray-400 capitalize">{note.note_type}</p>
+				<div class="flex items-center gap-2 mt-1">
+					<span class="text-sm text-[var(--color-text-secondary)] capitalize">{note.note_type}</span>
+					{#if recentlyImproved}
+						<Badge class="bg-purple-500/10 text-purple-500">
+							<span class="flex items-center gap-1">
+								<span>✨</span>
+								<span>Améliorée</span>
+							</span>
+						</Badge>
+					{/if}
+					{#if questionsCount > 0}
+						<Badge class="bg-[var(--color-warning)]/10 text-[var(--color-warning)]">
+							<span class="flex items-center gap-1">
+								<span>❓</span>
+								<span>{questionsCount}</span>
+							</span>
+						</Badge>
+					{/if}
+				</div>
 			</div>
 		</div>
-		<span class="px-2 py-1 rounded text-xs font-medium {badge.bg} {badge.text}">
-			{note.importance}
-		</span>
+
+		<!-- Quality score or importance badge -->
+		{#if qualityScore !== null}
+			<QualityScoreDisplay score={qualityScore} size={56} />
+		{:else}
+			<span class="px-2 py-1 rounded-lg text-xs font-medium {badge.bg} {badge.text}">
+				{note.importance}
+			</span>
+		{/if}
 	</div>
 
-	<!-- SM-2 Metadata -->
-	<div class="grid grid-cols-2 gap-3 mb-4 text-sm">
-		<div class="flex items-center gap-2">
-			<span class="text-gray-500 dark:text-gray-400">EF:</span>
-			<span class="font-medium text-gray-900 dark:text-white">
-				{(note.easiness_factor ?? 2.5).toFixed(2)}
-			</span>
-		</div>
-		<div class="flex items-center gap-2">
-			<span class="text-gray-500 dark:text-gray-400">Rep:</span>
-			<span class="font-medium text-gray-900 dark:text-white">{note.repetition_number ?? 0}</span>
-		</div>
-		<div class="flex items-center gap-2">
-			<span class="text-gray-500 dark:text-gray-400">Intervalle:</span>
-			<span class="font-medium text-gray-900 dark:text-white">
-				{formatInterval(note.interval_hours ?? 0)}
-			</span>
-		</div>
-		<div class="flex items-center gap-2">
-			<span class="text-gray-500 dark:text-gray-400">Revisions:</span>
-			<span class="font-medium text-gray-900 dark:text-white">{note.review_count ?? 0}</span>
+	<!-- SM-2 Metadata - Compact grid -->
+	<div class="p-3 bg-[var(--glass-subtle)] rounded-xl mb-4">
+		<div class="grid grid-cols-4 gap-2 text-center">
+			<div>
+				<p class="text-xs text-[var(--color-text-tertiary)]">EF</p>
+				<p class="font-medium text-[var(--color-text-primary)]">
+					{(note.easiness_factor ?? 2.5).toFixed(1)}
+				</p>
+			</div>
+			<div>
+				<p class="text-xs text-[var(--color-text-tertiary)]">Rep</p>
+				<p class="font-medium text-[var(--color-text-primary)]">{note.repetition_number ?? 0}</p>
+			</div>
+			<div>
+				<p class="text-xs text-[var(--color-text-tertiary)]">Intervalle</p>
+				<p class="font-medium text-[var(--color-text-primary)]">
+					{formatInterval(note.interval_hours ?? 0)}
+				</p>
+			</div>
+			<div>
+				<p class="text-xs text-[var(--color-text-tertiary)]">Revisions</p>
+				<p class="font-medium text-[var(--color-text-primary)]">{note.review_count ?? 0}</p>
+			</div>
 		</div>
 	</div>
 
-	<!-- Last Quality -->
-	{#if note.last_quality != null && note.last_quality >= 0 && note.last_quality <= 5}
-		<div class="flex items-center gap-2 mb-4 text-sm">
-			<span class="text-gray-500 dark:text-gray-400">Dernière note:</span>
-			<span class="font-medium text-gray-900 dark:text-white">
-				{note.last_quality} ({qualityLabels[note.last_quality] ?? 'Inconnu'})
+	<!-- Last Quality & Next Review -->
+	<div class="flex items-center justify-between text-sm mb-4">
+		{#if note.last_quality != null && note.last_quality >= 0 && note.last_quality <= 5}
+			<div class="flex items-center gap-2">
+				<span class="text-[var(--color-text-tertiary)]">Dernière:</span>
+				<span class="font-medium text-[var(--color-text-primary)]">
+					{note.last_quality} ({qualityLabels[note.last_quality] ?? 'Inconnu'})
+				</span>
+			</div>
+		{:else}
+			<div></div>
+		{/if}
+		<div class="flex items-center gap-2">
+			<span class="text-[var(--color-text-tertiary)]">Prochaine:</span>
+			<span class="font-medium {getNextReviewClass(note.next_review)}">
+				{formatNextReview(note.next_review)}
 			</span>
 		</div>
-	{/if}
-
-	<!-- Next Review -->
-	<div class="flex items-center gap-2 mb-4 text-sm">
-		<span class="text-gray-500 dark:text-gray-400">Prochaine révision:</span>
-		<span class="font-medium text-blue-600 dark:text-blue-400">
-			{formatNextReview(note.next_review)}
-		</span>
 	</div>
 
 	<!-- Action Button -->
@@ -129,12 +183,12 @@
 		<button
 			type="button"
 			onclick={onViewNote}
-			class="w-full mt-2 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400
-				bg-blue-50 dark:bg-blue-900/20 rounded-lg
-				hover:bg-blue-100 dark:hover:bg-blue-900/30
-				transition-colors"
+			class="w-full px-4 py-2 text-sm font-medium text-[var(--color-accent)]
+				bg-[var(--color-accent)]/10 rounded-xl
+				hover:bg-[var(--color-accent)]/20
+				transition-colors liquid-press"
 		>
-			Voir la note
+			Voir la note complète →
 		</button>
 	{/if}
-</div>
+</Card>

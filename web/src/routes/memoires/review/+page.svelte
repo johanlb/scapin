@@ -1,4 +1,8 @@
 <script lang="ts">
+	/**
+	 * Notes Review Page
+	 * v3.1: Harmonized with Memory Cycles - Liquid Glass design
+	 */
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { notesReviewStore } from '$lib/stores/notes-review.svelte';
@@ -7,7 +11,8 @@
 	import QualityRating from '$lib/components/notes/QualityRating.svelte';
 	import ProgressRing from '$lib/components/ui/ProgressRing.svelte';
 	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
-	import { Modal } from '$lib/components/ui';
+	import { Card, Modal, PullToRefresh } from '$lib/components/ui';
+	import FilageProgressHeader from '$lib/components/memory/FilageProgressHeader.svelte';
 
 	let reviewComplete = $state(false);
 	let lastReviewResult = $state<{ quality: number; assessment: string } | null>(null);
@@ -45,7 +50,7 @@
 					if (isEditing) {
 						handleCancelEdit();
 					} else {
-						goto('/');
+						goto('/memoires');
 					}
 					break;
 				case 'ArrowRight':
@@ -117,7 +122,6 @@
 	function handleViewNote() {
 		const note = notesReviewStore.currentNote;
 		if (note) {
-			// Navigate to /memoires/{note_id} - the [...path] route extracts noteId from the last segment
 			goto(`/memoires/${encodeURIComponent(note.note_id)}`);
 		}
 	}
@@ -133,7 +137,6 @@
 		if (!note) return;
 
 		try {
-			// Load full note content
 			fullNote = await getNote(note.note_id);
 			editContent = fullNote.content;
 			isEditing = true;
@@ -178,7 +181,6 @@
 			notesReviewStore.removeNote(note.note_id);
 			showDeleteModal = false;
 
-			// Check if all done
 			if (notesReviewStore.isEmpty) {
 				reviewComplete = true;
 			}
@@ -188,242 +190,232 @@
 			isDeleting = false;
 		}
 	}
+
+	function handleBack() {
+		goto('/memoires');
+	}
+
+	async function handleRefresh() {
+		await notesReviewStore.fetchAll();
+	}
 </script>
 
 <svelte:head>
 	<title>Revision des notes - Scapin</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50 dark:bg-gray-950">
+<div class="min-h-screen bg-[var(--color-bg-primary)]">
 	<!-- Header -->
-	<header
-		class="sticky top-0 z-10 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800"
-	>
-		<div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-			<button
-				type="button"
-				onclick={() => goto('/')}
-				class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-			>
-				<span>←</span>
-				<span class="text-sm">Retour</span>
-			</button>
+	<FilageProgressHeader
+		title="Révision SM-2"
+		current={notesReviewStore.reviewedThisSession}
+		total={notesReviewStore.totalDue + notesReviewStore.reviewedThisSession}
+		onBack={handleBack}
+		onRefresh={handleRefresh}
+		loading={notesReviewStore.loading}
+	/>
 
-			{#if !notesReviewStore.isEmpty && !reviewComplete}
-				<div class="flex items-center gap-3">
-					<span class="text-sm text-gray-600 dark:text-gray-400">
-						{notesReviewStore.progress.current}/{notesReviewStore.progress.total}
-					</span>
-					<ProgressRing
-						percent={notesReviewStore.progress.percent}
-						size={32}
-						strokeWidth={3}
-						showLabel={false}
-						color="primary"
-					/>
+	<PullToRefresh onrefresh={handleRefresh}>
+		<main class="max-w-2xl mx-auto px-4 py-6">
+			<!-- Loading State -->
+			{#if notesReviewStore.loading && notesReviewStore.dueNotes.length === 0}
+				<div class="flex flex-col items-center justify-center py-20">
+					<div
+						class="w-10 h-10 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin mb-4"
+					></div>
+					<p class="text-[var(--color-text-secondary)]">Chargement des notes...</p>
 				</div>
-			{/if}
-		</div>
-	</header>
 
-	<main class="max-w-2xl mx-auto px-4 py-6">
-		<!-- Loading State -->
-		{#if notesReviewStore.loading && notesReviewStore.dueNotes.length === 0}
-			<div class="flex flex-col items-center justify-center py-20">
-				<div
-					class="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"
-				></div>
-				<p class="text-gray-600 dark:text-gray-400">Chargement des notes...</p>
-			</div>
-
-			<!-- Empty State (no notes due) -->
-		{:else if notesReviewStore.isEmpty && !reviewComplete}
-			<div class="flex flex-col items-center justify-center py-20 text-center">
-				<p class="text-5xl mb-4">🎉</p>
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-					Aucune note à réviser
-				</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-6">
-					Toutes vos notes sont à jour. Revenez plus tard !
-				</p>
-				<button
-					type="button"
-					onclick={() => goto('/')}
-					class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-				>
-					Retour au tableau de bord
-				</button>
-			</div>
+			<!-- Empty State -->
+			{:else if notesReviewStore.isEmpty && !reviewComplete}
+				<div class="flex flex-col items-center justify-center py-20 text-center">
+					<p class="text-5xl mb-4">🎉</p>
+					<h2 class="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
+						Aucune note à réviser
+					</h2>
+					<p class="text-[var(--color-text-secondary)] mb-6">
+						Toutes vos notes sont à jour. Revenez plus tard !
+					</p>
+					<button
+						type="button"
+						onclick={() => goto('/memoires')}
+						class="px-4 py-2 bg-[var(--color-accent)] text-white rounded-xl hover:bg-[var(--color-accent)]/90 transition-colors liquid-press"
+					>
+						Retour aux mémoires
+					</button>
+				</div>
 
 			<!-- Review Complete State -->
-		{:else if reviewComplete}
-			<div class="flex flex-col items-center justify-center py-20 text-center">
-				<p class="text-5xl mb-4">✨</p>
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-					Session terminée !
-				</h2>
-				<p class="text-gray-600 dark:text-gray-400 mb-2">
-					Vous avez révisé {notesReviewStore.reviewedThisSession} notes
-				</p>
-				{#if notesReviewStore.stats}
-					<p class="text-sm text-gray-500 dark:text-gray-500 mb-6">
-						Total aujourd'hui : {notesReviewStore.stats.reviewed_today} notes
+			{:else if reviewComplete}
+				<div class="flex flex-col items-center justify-center py-20 text-center">
+					<p class="text-5xl mb-4">✨</p>
+					<h2 class="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
+						Session terminée !
+					</h2>
+					<p class="text-[var(--color-text-secondary)] mb-2">
+						Vous avez révisé {notesReviewStore.reviewedThisSession} notes
 					</p>
-				{/if}
-				<div class="flex gap-3">
-					<button
-						type="button"
-						onclick={handleStartNew}
-						class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-					>
-						Continuer
-					</button>
-					<button
-						type="button"
-						onclick={() => goto('/')}
-						class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-					>
-						Terminer
-					</button>
+					{#if notesReviewStore.stats}
+						<p class="text-sm text-[var(--color-text-tertiary)] mb-6">
+							Total aujourd'hui : {notesReviewStore.stats.reviewed_today} notes
+						</p>
+					{/if}
+					<div class="flex gap-3">
+						<button
+							type="button"
+							onclick={handleStartNew}
+							class="px-4 py-2 bg-[var(--color-accent)] text-white rounded-xl hover:bg-[var(--color-accent)]/90 transition-colors liquid-press"
+						>
+							Continuer
+						</button>
+						<button
+							type="button"
+							onclick={() => goto('/memoires')}
+							class="px-4 py-2 border border-[var(--glass-border-subtle)] text-[var(--color-text-secondary)] rounded-xl hover:bg-[var(--glass-subtle)] transition-colors liquid-press"
+						>
+							Terminer
+						</button>
+					</div>
 				</div>
-			</div>
 
 			<!-- Review Mode -->
-		{:else if notesReviewStore.currentNote}
-			<div class="space-y-6">
-				<!-- Edit Mode -->
-				{#if isEditing && fullNote}
-					<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-						<div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-							<h2 class="font-medium text-gray-900 dark:text-white">
-								Modifier la note
-							</h2>
-							<div class="flex gap-2">
-								<button
-									type="button"
-									onclick={handleCancelEdit}
-									class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-								>
-									Annuler
-								</button>
-								<button
-									type="button"
-									onclick={handleSaveEdit}
-									disabled={isSaving}
-									class="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
-								>
-									{#if isSaving}
-										Enregistrement...
-									{:else}
-										Enregistrer
-									{/if}
-								</button>
+			{:else if notesReviewStore.currentNote}
+				<div class="space-y-6">
+					<!-- Edit Mode -->
+					{#if isEditing && fullNote}
+						<Card variant="glass">
+							<div class="flex items-center justify-between mb-4">
+								<h2 class="font-medium text-[var(--color-text-primary)]">
+									Modifier la note
+								</h2>
+								<div class="flex gap-2">
+									<button
+										type="button"
+										onclick={handleCancelEdit}
+										class="px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+									>
+										Annuler
+									</button>
+									<button
+										type="button"
+										onclick={handleSaveEdit}
+										disabled={isSaving}
+										class="px-3 py-1.5 text-sm bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-accent)]/90 transition-colors disabled:opacity-50"
+									>
+										{#if isSaving}
+											Enregistrement...
+										{:else}
+											Enregistrer
+										{/if}
+									</button>
+								</div>
 							</div>
-						</div>
-						<div class="p-4">
 							<MarkdownEditor
 								bind:content={editContent}
 								onSave={handleSaveEdit}
 							/>
-						</div>
-					</div>
-				{:else}
-					<!-- Review Card -->
-					<ReviewCard note={notesReviewStore.currentNote} onViewNote={handleViewNote} />
-				{/if}
+						</Card>
+					{:else}
+						<!-- Review Card with enrichments -->
+						<ReviewCard
+							note={notesReviewStore.currentNote}
+							onViewNote={handleViewNote}
+						/>
+					{/if}
 
-				<!-- Success feedback -->
-				{#if lastReviewResult}
-					<div
-						class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 text-center"
-					>
-						<p class="text-sm text-green-700 dark:text-green-400">
-							Note enregistrée : {lastReviewResult.assessment}
+					<!-- Success feedback -->
+					{#if lastReviewResult}
+						<div
+							class="p-3 bg-green-500/10 rounded-xl border border-green-500/30 text-center animate-fade-in"
+						>
+							<p class="text-sm text-green-600 dark:text-green-400">
+								Note enregistrée : {lastReviewResult.assessment}
+							</p>
+						</div>
+					{/if}
+
+					<!-- Quality Rating -->
+					<Card variant="glass">
+						<QualityRating onRate={handleRate} disabled={notesReviewStore.loading} />
+					</Card>
+
+					<!-- Action Buttons -->
+					{#if !isEditing}
+						<div class="flex items-center justify-between">
+							<div class="flex gap-2">
+								<button
+									type="button"
+									onclick={handlePostpone}
+									disabled={notesReviewStore.loading}
+									class="px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors disabled:opacity-50 liquid-press"
+								>
+									Reporter +24h
+								</button>
+								<button
+									type="button"
+									onclick={handleEdit}
+									disabled={notesReviewStore.loading}
+									class="px-3 py-2 text-sm text-[var(--color-accent)] hover:text-[var(--color-accent)]/80 transition-colors disabled:opacity-50 liquid-press"
+									title="Modifier (e)"
+								>
+									✏️ Modifier
+								</button>
+								<button
+									type="button"
+									onclick={handleDeleteClick}
+									disabled={notesReviewStore.loading}
+									class="px-3 py-2 text-sm text-red-500 hover:text-red-400 transition-colors disabled:opacity-50 liquid-press"
+									title="Supprimer (d)"
+								>
+									🗑️ Supprimer
+								</button>
+							</div>
+
+							<div class="flex gap-2">
+								{#if notesReviewStore.hasPrevious}
+									<button
+										type="button"
+										onclick={() => notesReviewStore.previousNote()}
+										class="px-3 py-2 text-sm border border-[var(--glass-border-subtle)] rounded-xl hover:bg-[var(--glass-subtle)] transition-colors liquid-press"
+									>
+										← Précédent
+									</button>
+								{/if}
+								{#if notesReviewStore.hasNext}
+									<button
+										type="button"
+										onclick={() => notesReviewStore.skipNote()}
+										class="px-3 py-2 text-sm border border-[var(--glass-border-subtle)] rounded-xl hover:bg-[var(--glass-subtle)] transition-colors liquid-press"
+									>
+										Passer →
+									</button>
+								{/if}
+							</div>
+						</div>
+
+						<!-- Keyboard shortcuts hint -->
+						<p class="text-xs text-[var(--color-text-tertiary)] text-center">
+							Raccourcis : 1-6 noter | ← → naviguer | s reporter | e modifier | d supprimer | Esc quitter
 						</p>
-					</div>
-				{/if}
-
-				<!-- Quality Rating -->
-				<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-					<QualityRating onRate={handleRate} disabled={notesReviewStore.loading} />
+					{/if}
 				</div>
+			{/if}
 
-				<!-- Action Buttons -->
-				{#if !isEditing}
-					<div class="flex items-center justify-between">
-						<div class="flex gap-2">
-							<button
-								type="button"
-								onclick={handlePostpone}
-								disabled={notesReviewStore.loading}
-								class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-50"
-							>
-								Reporter +24h (s)
-							</button>
-							<button
-								type="button"
-								onclick={handleEdit}
-								disabled={notesReviewStore.loading}
-								class="px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors disabled:opacity-50"
-								title="Modifier (e)"
-							>
-								✏️ Modifier
-							</button>
-							<button
-								type="button"
-								onclick={handleDeleteClick}
-								disabled={notesReviewStore.loading}
-								class="px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors disabled:opacity-50"
-								title="Supprimer (d)"
-							>
-								🗑️ Supprimer
-							</button>
-						</div>
-
-						<div class="flex gap-2">
-							{#if notesReviewStore.hasPrevious}
-								<button
-									type="button"
-									onclick={() => notesReviewStore.previousNote()}
-									class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-								>
-									← Précédent
-								</button>
-							{/if}
-							{#if notesReviewStore.hasNext}
-								<button
-									type="button"
-									onclick={() => notesReviewStore.skipNote()}
-									class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-								>
-									Passer →
-								</button>
-							{/if}
-						</div>
-					</div>
-
-					<!-- Keyboard shortcuts hint -->
-					<p class="text-xs text-gray-500 dark:text-gray-500 text-center">
-						Raccourcis : 1-6 noter | ← → naviguer | s reporter | e modifier | d supprimer | Esc quitter
-					</p>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- Error State -->
-		{#if notesReviewStore.error}
-			<div class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-				<p class="text-sm text-red-700 dark:text-red-400">{notesReviewStore.error}</p>
-				<button
-					type="button"
-					onclick={() => notesReviewStore.clearError()}
-					class="mt-2 text-xs text-red-600 dark:text-red-500 underline"
-				>
-					Fermer
-				</button>
-			</div>
-		{/if}
-	</main>
+			<!-- Error State -->
+			{#if notesReviewStore.error}
+				<div class="mt-4 p-4 bg-red-500/10 rounded-xl border border-red-500/30">
+					<p class="text-sm text-red-600 dark:text-red-400">{notesReviewStore.error}</p>
+					<button
+						type="button"
+						onclick={() => notesReviewStore.clearError()}
+						class="mt-2 text-xs text-red-500 underline"
+					>
+						Fermer
+					</button>
+				</div>
+			{/if}
+		</main>
+	</PullToRefresh>
 
 	<!-- Delete Confirmation Modal -->
 	<Modal
@@ -432,15 +424,15 @@
 		onClose={() => showDeleteModal = false}
 	>
 		<div class="space-y-4">
-			<p class="text-gray-600 dark:text-gray-400">
+			<p class="text-[var(--color-text-secondary)]">
 				Êtes-vous sûr de vouloir supprimer cette note ? Cette action est irréversible.
 			</p>
 			{#if notesReviewStore.currentNote}
-				<div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-					<p class="font-medium text-gray-900 dark:text-white text-sm truncate">
+				<div class="p-3 bg-[var(--glass-subtle)] rounded-xl">
+					<p class="font-medium text-[var(--color-text-primary)] text-sm truncate">
 						{notesReviewStore.currentNote.note_id}
 					</p>
-					<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+					<p class="text-xs text-[var(--color-text-tertiary)] mt-1">
 						Type: {notesReviewStore.currentNote.note_type}
 					</p>
 				</div>
@@ -449,7 +441,7 @@
 				<button
 					type="button"
 					onclick={() => showDeleteModal = false}
-					class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+					class="px-4 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
 				>
 					Annuler
 				</button>
@@ -457,7 +449,7 @@
 					type="button"
 					onclick={handleConfirmDelete}
 					disabled={isDeleting}
-					class="px-4 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+					class="px-4 py-2 text-sm bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50"
 				>
 					{#if isDeleting}
 						Suppression...
@@ -469,3 +461,20 @@
 		</div>
 	</Modal>
 </div>
+
+<style>
+	@keyframes fade-in {
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.animate-fade-in {
+		animation: fade-in 0.2s ease-out;
+	}
+</style>
