@@ -261,7 +261,7 @@ class ContextSearchConfig:
     max_calendar_events: int = 10
     max_tasks: int = 5
     max_emails: int = 5
-    min_relevance: float = 0.3
+    min_relevance: float = 0.5
     include_calendar: bool = True
     include_tasks: bool = True
     include_emails: bool = True
@@ -467,6 +467,10 @@ class ContextSearcher:
 
                 for result in entity_results:
                     if result.note.note_id in seen_ids:
+                        continue
+
+                    # Apply min_relevance filter to entity search too
+                    if result.match_score < min_relevance:
                         continue
 
                     note = result.note
