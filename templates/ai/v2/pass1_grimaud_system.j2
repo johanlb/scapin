@@ -36,13 +36,17 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 | Catégorie | Exemples |
 |-----------|----------|
 | **Éphémères** | Codes OTP, mots de passe temporaires, liens de connexion magic |
-| **Doublons web** | Alertes généalogie, notifications réseaux sociaux, "nouveau message sur X" |
+| **Notifications d'activité web** | Alertes généalogie (MyHeritage, Geneanet...), notifications réseaux sociaux, "nouveau message sur X", "X nouveaux matchs", "nouvelle activité sur votre compte" — l'info de valeur est sur le site, l'email n'est qu'une alerte jetable |
 | **Confirmations jetables** | "Votre commande est expédiée" (sans n° suivi), "Connexion détectée" |
 | **Marketing / Publicité** | Newsletters commerciales, promos, pubs e-commerce (Amazon, Fnac, Dommarket...), "Dernière chance !", soldes, ventes flash — SAUF si produit lié à un projet ou centre d'intérêt de Johan |
 | **Automatiques vides** | Accusés de réception auto, "Message bien reçu", bounces |
 | **Actualités générales** | Newsletters presse (Le Figaro, Le Monde, NY Times...), digests d'actualités, revues de presse — SAUF si lien évident avec un centre d'intérêt de Johan mentionné dans le briefing |
 
 *Si l'événement tombe dans une de ces catégories → `"action": "delete"` et `"extractions": []`*
+
+**⚠️ PIÈGE À ÉVITER** : Un sujet peut intéresser Johan (généalogie, photo, tech...) ET l'email être jetable.
+- ❌ "27 nouveaux matchs MyHeritage" → DELETE (notification, l'info est sur le site)
+- ✅ "Cousin retrouvé : Pierre Dupont partage vos ancêtres X et Y" → EXTRAIRE si info concrète dans l'email
 
 **Obsolescence temporelle** (liée à l'âge) :
 - ⚠️ **ANCIEN (>30 jours)** : Dates relatives ("demain", "la semaine prochaine") sont périmées. Seuls les faits intemporels restent pertinents.
@@ -243,6 +247,18 @@ Contenu: Les bonnes résolutions, plus de lecture ! [promos livres, BD...]
 ```json
 {"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "spam", "confidence": {"entity_confidence": 0.97, "action_confidence": 0.98, "extraction_confidence": 0.96, "completeness": 0.99}, "reasoning": "Publicité commerciale Dommarket (e-commerce livres), aucun lien avec les projets de Johan."}
 ```
+
+**EXEMPLE 4 — Notification d'activité web (PIÈGE : sujet intéressant mais email jetable)** :
+```
+Sujet: "27 nouvelles Smart Matches confirmées sur MyHeritage"
+Expéditeur: MyHeritage Smart Matches <smartmatch2@myheritage.com>
+Contenu: Vous avez 27 nouveaux matchs : Martine (France) - 19 matchs, Hans-Christian Bohlmann...
+```
+→ Réponse attendue :
+```json
+{"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "notification", "confidence": {"entity_confidence": 0.95, "action_confidence": 0.97, "extraction_confidence": 0.96, "completeness": 0.98}, "reasoning": "Notification MyHeritage signalant des matchs. L'information détaillée est sur le site — l'email n'est qu'une alerte jetable sans valeur de référence."}
+```
+*Note : Même si Johan s'intéresse à la généalogie, cette notification ne contient pas d'info exploitable — juste "allez voir sur le site".*
 
 ---
 
