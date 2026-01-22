@@ -2161,7 +2161,7 @@ class MultiPassAnalyzer:
         passes: list[PassResult] = []
         context: Optional[StructuredContext] = None
 
-        logger.info(f"Starting Four Valets analysis for event {event.event_id}")
+        logger.info(f"[PERF] Starting Four Valets analysis for event {event.event_id}")
 
         # === DETECT CRITICAL CONTENT (triggers Opus escalation) ===
         # Critical content: legal/contractual, financial documents, high amounts (> 1000€)
@@ -2170,9 +2170,11 @@ class MultiPassAnalyzer:
             logger.info(f"Critical content detected: {critical_reason} → Opus escalation enabled")
 
         # === GRIMAUD (Pass 1) — Extraction silencieuse ===
+        grimaud_start = time.time()
         grimaud = await self._run_grimaud(event)
         passes.append(grimaud)
         total_tokens += grimaud.tokens_used
+        logger.info(f"[PERF] Grimaud: {(time.time() - grimaud_start)*1000:.0f}ms ({grimaud.model_used})")
 
         # Check if Grimaud flagged the content as critical/sensitive
         # This allows the AI to signal critical content even if not auto-detected
@@ -2187,6 +2189,8 @@ class MultiPassAnalyzer:
 
         # Check for early stop (ephemeral content at 95%+ confidence)
         if self._should_early_stop(grimaud):
+            total_ms = (time.time() - start_time) * 1000
+            logger.info(f"[PERF] Total (early stop Grimaud): {total_ms:.0f}ms, {total_tokens} tokens")
             logger.info(f"Grimaud early stop: {grimaud.early_stop_reason}")
             return await self._finalize_four_valets(
                 passes=passes,
@@ -2201,24 +2205,32 @@ class MultiPassAnalyzer:
 
         # Get context for Bazin
         if self.context_searcher and grimaud.entities_discovered:
+            context_start = time.time()
             logger.debug(f"Searching context for entities: {grimaud.entities_discovered}")
             context = await self.context_searcher.search_for_entities(
                 list(grimaud.entities_discovered),
                 sender_email=getattr(event, "from_person", None),
             )
+            logger.info(f"[PERF] Context search: {(time.time() - context_start)*1000:.0f}ms ({len(context.notes) if context else 0} notes)")
 
         # === BAZIN (Pass 2) — Enrichissement contextuel ===
+        bazin_start = time.time()
         bazin = await self._run_bazin(event, grimaud, context, is_critical)
         passes.append(bazin)
         total_tokens += bazin.tokens_used
+        logger.info(f"[PERF] Bazin: {(time.time() - bazin_start)*1000:.0f}ms ({bazin.model_used})")
 
         # === PLANCHET (Pass 3) — Critique et validation ===
+        planchet_start = time.time()
         planchet = await self._run_planchet(event, passes, context, is_critical)
         passes.append(planchet)
         total_tokens += planchet.tokens_used
+        logger.info(f"[PERF] Planchet: {(time.time() - planchet_start)*1000:.0f}ms ({planchet.model_used})")
 
         # Check if Planchet can conclude without Mousqueton
         if self._planchet_can_conclude(planchet):
+            total_ms = (time.time() - start_time) * 1000
+            logger.info(f"[PERF] Total (stopped at Planchet): {total_ms:.0f}ms, {total_tokens} tokens")
             logger.info(f"Planchet concludes at {planchet.confidence.overall:.0%} confidence")
             return await self._finalize_four_valets(
                 passes=passes,
@@ -2232,9 +2244,14 @@ class MultiPassAnalyzer:
             )
 
         # === MOUSQUETON (Pass 4) — Arbitrage final ===
+        mousqueton_start = time.time()
         mousqueton = await self._run_mousqueton(event, passes, context, is_critical)
         passes.append(mousqueton)
         total_tokens += mousqueton.tokens_used
+        logger.info(f"[PERF] Mousqueton: {(time.time() - mousqueton_start)*1000:.0f}ms ({mousqueton.model_used})")
+
+        total_ms = (time.time() - start_time) * 1000
+        logger.info(f"[PERF] Total Four Valets: {total_ms:.0f}ms, {total_tokens} tokens")
 
         return await self._finalize_four_valets(
             passes=passes,
