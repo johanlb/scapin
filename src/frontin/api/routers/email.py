@@ -244,6 +244,31 @@ async def execute_action(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.head("/attachment/{email_id}/{filename}")
+async def check_attachment(
+    email_id: str,
+    filename: str,
+    folder: str = "INBOX",
+    service: EmailService = Depends(get_email_service),
+) -> Response:
+    """
+    Check if an email attachment is available (HEAD request).
+
+    Returns 200 if available, 404 if not found.
+    """
+    try:
+        result = await service.get_attachment(int(email_id), filename, folder)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Attachment not found")
+        return Response(status_code=200)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid email ID: {e}") from e
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=404, detail="Attachment not found") from None
+
+
 @router.get("/attachment/{email_id}/{filename}")
 async def get_attachment(
     email_id: str,

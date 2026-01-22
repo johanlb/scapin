@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { Attachment } from '$lib/api/client';
 	import { getAttachmentUrl } from '$lib/api/client';
 
@@ -12,6 +13,10 @@
 	// State for image preview modal
 	let showPreview = $state(false);
 	let imageError = $state(false);
+
+	// State for attachment availability
+	let isAvailable = $state<boolean | null>(null); // null = checking, true = available, false = unavailable
+	let checkError = $state<string | null>(null);
 
 	// Format file size for display
 	function formatSize(bytes: number): string {
@@ -92,7 +97,7 @@
 	}
 
 	function handleDownload() {
-		if (attachmentUrl) {
+		if (attachmentUrl && isAvailable) {
 			// Create a link and trigger download
 			const a = document.createElement('a');
 			a.href = attachmentUrl;
@@ -102,11 +107,32 @@
 			document.body.removeChild(a);
 		}
 	}
+
+	// Check if attachment is available on mount
+	onMount(() => {
+		if (!attachmentUrl) {
+			isAvailable = false;
+			return;
+		}
+
+		// Use HEAD request to check availability without downloading
+		fetch(attachmentUrl, { method: 'HEAD' })
+			.then((response) => {
+				isAvailable = response.ok;
+				if (!response.ok) {
+					checkError = 'Email supprimé du serveur';
+				}
+			})
+			.catch(() => {
+				isAvailable = false;
+				checkError = 'Erreur de connexion';
+			});
+	});
 </script>
 
-<div class="attachment-container">
+<div class="attachment-container" class:unavailable={isAvailable === false}>
 	<!-- Image preview -->
-	{#if category === 'image' && canPreview && attachmentUrl && !imageError}
+	{#if category === 'image' && canPreview && attachmentUrl && !imageError && isAvailable}
 		<div class="image-preview" role="button" tabindex="0" onclick={openPreview} onkeydown={(e) => e.key === 'Enter' && openPreview()}>
 			<img
 				src={attachmentUrl}
@@ -117,7 +143,7 @@
 	{/if}
 
 	<!-- Audio player -->
-	{#if category === 'audio' && canPlayAudio && attachmentUrl}
+	{#if category === 'audio' && canPlayAudio && attachmentUrl && isAvailable}
 		<div class="audio-player">
 			<audio controls preload="metadata">
 				<source src={attachmentUrl} type={attachment.content_type} />
@@ -128,7 +154,7 @@
 
 	<!-- File info row -->
 	<div class="attachment">
-		<div class="attachment-icon" data-category={category}>
+		<div class="attachment-icon" data-category={category} class:icon-unavailable={isAvailable === false}>
 			<span class="icon">{icon}</span>
 			{#if extension}
 				<span class="extension">{extension}</span>
@@ -136,20 +162,26 @@
 		</div>
 
 		<div class="attachment-info">
-			<span class="filename" title={attachment.filename}>
+			<span class="filename" title={attachment.filename} class:filename-unavailable={isAvailable === false}>
 				{attachment.filename}
 			</span>
 			<span class="meta">
-				{size}
-				{#if attachment.content_type !== 'application/octet-stream'}
-					<span class="separator">-</span>
-					<span class="type">{attachment.content_type}</span>
+				{#if isAvailable === false}
+					<span class="unavailable-text">{checkError || 'Non disponible'}</span>
+				{:else if isAvailable === null}
+					<span class="checking-text">Vérification...</span>
+				{:else}
+					{size}
+					{#if attachment.content_type !== 'application/octet-stream'}
+						<span class="separator">-</span>
+						<span class="type">{attachment.content_type}</span>
+					{/if}
 				{/if}
 			</span>
 		</div>
 
-		<!-- Action buttons -->
-		{#if attachmentUrl}
+		<!-- Action buttons (only show when available) -->
+		{#if attachmentUrl && isAvailable}
 			<div class="attachment-actions">
 				{#if category === 'pdf'}
 					<a href={attachmentUrl} target="_blank" rel="noopener noreferrer" class="action-btn" title="Ouvrir le PDF">
@@ -399,5 +431,29 @@
 		color: white;
 		font-size: 0.875rem;
 		text-align: center;
+	}
+
+	/* Unavailable state */
+	.attachment-container.unavailable {
+		opacity: 0.6;
+	}
+
+	.icon-unavailable {
+		background: rgba(156, 163, 175, 0.1) !important;
+	}
+
+	.filename-unavailable {
+		text-decoration: line-through;
+		color: var(--color-text-tertiary);
+	}
+
+	.unavailable-text {
+		color: var(--color-text-tertiary);
+		font-style: italic;
+	}
+
+	.checking-text {
+		color: var(--color-text-tertiary);
+		font-style: italic;
 	}
 </style>
