@@ -189,11 +189,9 @@ class ActionExecutor:
         Returns:
             True if task should be created
         """
-        # Create task if action is TASK or if omnifocus_task is specified
-        return (
-            analysis.action == EmailAction.TASK or
-            (hasattr(analysis, 'omnifocus_task') and analysis.omnifocus_task is not None)
-        )
+        # Create task only if omnifocus_task is specified in extractions
+        # (TASK action removed - tasks are now created via extractions)
+        return hasattr(analysis, 'omnifocus_task') and analysis.omnifocus_task is not None
 
     def _execute_task_creation(
         self,

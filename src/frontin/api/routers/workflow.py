@@ -4,10 +4,15 @@ Workflow v2.1 Router
 API endpoints for knowledge extraction workflow.
 """
 
+import asyncio
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+
+if TYPE_CHECKING:
+    from src.frontin.api.services.queue_service import QueueService
+    from src.integrations.email.models import EmailContent, EmailMetadata
 
 from src.core.config_manager import get_config
 from src.core.schemas import EmailAnalysis, EmailCategory
@@ -342,34 +347,30 @@ async def process_inbox_v2(
     """
     Process inbox emails using V2 workflow (context-aware)
 
-    Fetches emails from IMAP and processes each through V2EmailProcessor:
-    1. Retrieves context notes from knowledge base
-    2. Analyzes with multi-pass AI (Haiku → Sonnet if needed)
-    3. Auto-applies high-confidence enrichments
-    4. Returns results compatible with legacy format
+    New flow (v2.5):
+    1. Fetch emails from IMAP
+    2. Create queue items in ANALYZING state immediately (shown in "En cours")
+    3. Return response quickly with count of items being analyzed
+    4. Run analysis in background, updating each item when complete
 
     Args:
         request: Processing options (limit, auto_execute, etc.)
 
     Returns:
-        Processing results with emails, analysis, and enrichments
+        Processing results with count of items queued for analysis
     """
     try:
-        from src.core.events.universal_event import (
-            EventSource,
-            EventType,
-            PerceivedEvent,
-            UrgencyLevel,
-        )
         from src.integrations.email.imap_client import IMAPClient
 
-        processor = _get_v2_processor()
         config = get_config()
+        queue_service = get_queue_service()
 
         # Initialize IMAP client
         imap_client = IMAPClient(config.email)
 
-        # Fetch emails from IMAP
+        # Phase 1: Fetch emails and create ANALYZING items immediately
+        items_to_analyze: list[tuple[str, EmailMetadata, EmailContent]] = []
+
         with imap_client.connect():
             emails = imap_client.fetch_emails(
                 folder=config.email.get_default_account().inbox_folder,
@@ -378,11 +379,112 @@ async def process_inbox_v2(
                 unprocessed_only=True,
             )
 
-            results = []
-
-            # Process each email through V2 pipeline
             for metadata, content in emails:
-                # Convert to PerceivedEvent
+                # Create item in ANALYZING state immediately
+                item_id = await queue_service.create_analyzing_item(
+                    metadata=metadata,
+                    content_preview=content.preview or "",
+                    account_id="default",
+                    html_body=content.html,
+                    full_text=content.plain_text,
+                )
+
+                if item_id:
+                    items_to_analyze.append((item_id, metadata, content))
+                    logger.debug(f"Created analyzing item {item_id} for {metadata.subject}")
+
+        if not items_to_analyze:
+            return {
+                "total_processed": 0,
+                "in_progress": 0,
+                "queued": 0,
+                "skipped": 0,
+                "emails": [],
+                "status": "no_new_emails",
+            }
+
+        # Phase 2: Start background analysis task
+        asyncio.create_task(
+            _analyze_items_background(
+                items_to_analyze,
+                queue_service,
+                auto_execute=request.auto_execute,
+            )
+        )
+
+        logger.info(
+            f"Started background analysis for {len(items_to_analyze)} emails",
+            extra={"count": len(items_to_analyze)},
+        )
+
+        # Return immediately with items in progress
+        return {
+            "total_processed": len(items_to_analyze),
+            "in_progress": len(items_to_analyze),
+            "queued": 0,  # Will be updated as analysis completes
+            "skipped": 0,
+            "emails": [
+                {
+                    "metadata": {
+                        "id": item_id,
+                        "subject": metadata.subject,
+                        "confidence": 0,  # Not yet analyzed
+                    },
+                    "analysis": {
+                        "action": "analyzing",
+                        "confidence": 0,
+                        "extractions": 0,
+                        "notes_affected": 0,
+                        "context_notes_used": 0,
+                    },
+                    "enrichment": {
+                        "auto_applied": False,
+                        "needs_clarification": True,
+                        "pattern_matches": 0,
+                    },
+                    "executed": False,
+                }
+                for item_id, metadata, content in items_to_analyze
+            ],
+            "status": "analyzing",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"V2 inbox processing failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+async def _analyze_items_background(
+    items: list[tuple[str, "EmailMetadata", "EmailContent"]],
+    queue_service: "QueueService",
+    auto_execute: bool = False,
+) -> None:
+    """
+    Background task to analyze items and update their state.
+
+    Args:
+        items: List of (item_id, metadata, content) tuples
+        queue_service: Queue service instance
+        auto_execute: Whether to auto-apply high-confidence enrichments
+    """
+    from src.core.events.universal_event import (
+        EventSource,
+        EventType,
+        PerceivedEvent,
+        UrgencyLevel,
+    )
+
+    processor = _get_v2_processor()
+
+    # Use semaphore to limit concurrent analysis
+    semaphore = asyncio.Semaphore(3)
+
+    async def analyze_single(item_id: str, metadata: "EmailMetadata", content: "EmailContent") -> bool:
+        """Analyze a single item with semaphore control."""
+        async with semaphore:
+            try:
                 # Convert to PerceivedEvent
                 event = PerceivedEvent(
                     event_id=str(metadata.id),
@@ -420,99 +522,64 @@ async def process_inbox_v2(
                     clarification_questions=[],
                 )
 
-                # Process with V2 pipeline (context-aware)
+                # Process with V2 pipeline
                 result = await processor.process_event(
                     event=event,
-                    context_notes=None,  # Will be fetched automatically
-                    auto_apply=request.auto_execute,
+                    context_notes=None,
+                    auto_apply=auto_execute,
                 )
 
-                # Persist to queue logic
-                if result.success:
-                    try:
-                        queue_service = get_queue_service()
+                if result.success and result.analysis:
+                    # Build EmailAnalysis from result
+                    email_analysis = EmailAnalysis(
+                        action=result.analysis.action,
+                        category=EmailCategory.OTHER,
+                        confidence=int(result.analysis.effective_confidence * 100),
+                        reasoning=result.analysis.raisonnement or "Analyzed by V2 Pipeline",
+                        summary=f"Analyzed by {result.analysis.model_used}",
+                        options=[],
+                    )
 
-                        # Default values
-                        email_category = EmailCategory.OTHER
-                        email_reasoning = "Analyzed by V2 Pipeline"
+                    # Build multi_pass data
+                    multi_pass_data = _build_multi_pass_data(result.multi_pass_result)
 
-                        if result.analysis:
-                            # Convert confidence to 0-100 int
-                            confidence_int = int(result.analysis.effective_confidence * 100)
-                            email_reasoning = result.analysis.raisonnement or email_reasoning
+                    # Update item with analysis results
+                    await queue_service.complete_analysis(
+                        item_id=item_id,
+                        analysis=email_analysis,
+                        multi_pass_data=multi_pass_data,
+                    )
 
-                            email_analysis = EmailAnalysis(
-                                action=result.analysis.action,
-                                category=email_category,  # V2 doesn't use categories yet
-                                confidence=confidence_int,
-                                reasoning=email_reasoning,
-                                summary=f"Analyzed by {result.analysis.model_used}",
-                                options=[],
-                            )
+                    logger.debug(
+                        f"Analysis completed for item {item_id}",
+                        extra={"confidence": email_analysis.confidence},
+                    )
+                    return True
+                else:
+                    # Mark as error
+                    error_msg = "Analysis failed or returned no results"
+                    await queue_service.mark_analysis_error(item_id, error_msg)
+                    logger.warning(f"Analysis failed for item {item_id}: {error_msg}")
+                    return False
 
-                            # v2.3: Build multi_pass transparency data
-                            multi_pass_data = _build_multi_pass_data(result.multi_pass_result)
+            except Exception as e:
+                error_msg = str(e)
+                await queue_service.mark_analysis_error(item_id, error_msg)
+                logger.error(f"Error analyzing item {item_id}: {e}", exc_info=True)
+                return False
 
-                            await queue_service.enqueue_email(
-                                metadata=metadata,
-                                analysis=email_analysis,
-                                content_preview=content.preview or "",
-                                html_body=content.html,
-                                full_text=content.plain_text,
-                                multi_pass_data=multi_pass_data,
-                            )
-                            logger.debug(
-                                f"Enqueued email {event.event_id}",
-                                extra={"has_multi_pass": multi_pass_data is not None},
-                            )
+    # Run all analyses in parallel with semaphore control
+    results = await asyncio.gather(
+        *[analyze_single(item_id, metadata, content) for item_id, metadata, content in items],
+        return_exceptions=True,
+    )
 
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to enqueue email {event.event_id}: {e}", exc_info=True
-                        )
+    succeeded = sum(1 for r in results if r is True)
+    failed = len(items) - succeeded
 
-                results.append(result)
-
-        # Convert to legacy format for frontend compatibility
-        return {
-            "total_processed": len(results),
-            "auto_executed": sum(1 for r in results if r.auto_applied),
-            "queued": sum(1 for r in results if r.needs_clarification),
-            "skipped": 0,
-            "emails": [
-                {
-                    "metadata": {
-                        "id": r.event_id,
-                        "subject": r.analysis.summary
-                        if r.analysis and hasattr(r.analysis, "summary")
-                        else "N/A",
-                        "confidence": r.analysis.confidence if r.analysis else 0,
-                    },
-                    "analysis": {
-                        "action": r.email_action.value,
-                        "confidence": r.analysis.confidence if r.analysis else 0,
-                        "extractions": r.extraction_count,
-                        "notes_affected": r.notes_affected,
-                        "context_notes_used": len(r.working_memory.context_notes)
-                        if r.working_memory
-                        else 0,
-                    },
-                    "enrichment": {
-                        "auto_applied": r.auto_applied,
-                        "needs_clarification": r.needs_clarification,
-                        "pattern_matches": len(r.pattern_matches),
-                    },
-                    "executed": r.auto_applied,
-                }
-                for r in results
-            ],
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"V2 inbox processing failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    logger.info(
+        f"Background analysis complete: {succeeded}/{len(items)} succeeded, {failed} failed"
+    )
 
 
 @router.post("/apply", response_model=APIResponse[EnrichmentResultResponse])
@@ -566,7 +633,7 @@ async def apply_extractions(
         # Create a minimal analysis result for enrichment
         analysis = AnalysisResult(
             extractions=extractions,
-            action=EmailAction.RIEN,
+            action=EmailAction.KEEP,  # Manual application keeps email
             confidence=1.0,  # Manual application
             raisonnement="Manual application via API",
             model_used="manual",

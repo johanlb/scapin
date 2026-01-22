@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from src.core.config_manager import ScapinConfig
 from src.frontin.api.models.notes import (
@@ -309,7 +309,8 @@ class NotesService:
         manager = self._get_manager()
 
         # OPTIMIZATION: Use lightweight summaries for everything (no file reads!)
-        summaries = manager.get_notes_summary()
+        # Run in thread pool to avoid blocking event loop (iCloud I/O can be slow)
+        summaries = await asyncio.to_thread(manager.get_notes_summary)
         total_notes = len(summaries)
 
         # Build folder tree from summaries (very fast)
@@ -376,7 +377,8 @@ class NotesService:
         manager = self._get_manager()
 
         # OPTIMIZATION: Use lightweight summaries for filtering
-        summaries = manager.get_notes_summary()
+        # Run in thread pool to avoid blocking event loop
+        summaries = await asyncio.to_thread(manager.get_notes_summary)
 
         # Apply filters on summaries
         filtered = summaries
@@ -424,7 +426,8 @@ class NotesService:
         logger.info(f"Getting note: {note_id}")
         manager = self._get_manager()
 
-        note = manager.get_note(note_id)
+        # Run in thread pool to avoid blocking event loop (iCloud I/O can be slow)
+        note = await asyncio.to_thread(manager.get_note, note_id)
         if note is None:
             return None
 
@@ -454,9 +457,10 @@ class NotesService:
         logger.info(f"Creating note: {title} (path={path})")
         manager = self._get_manager()
 
-        # Create with metadata
+        # Create with metadata - run in thread pool for iCloud I/O
         metadata = {"path": path, "pinned": pinned}
-        note_id = manager.create_note(
+        note_id = await asyncio.to_thread(
+            manager.create_note,
             title=title,
             content=content,
             tags=tags or [],
@@ -464,7 +468,7 @@ class NotesService:
         )
 
         # Fetch and return
-        note = manager.get_note(note_id)
+        note = await asyncio.to_thread(manager.get_note, note_id)
         if note is None:
             raise RuntimeError(f"Failed to retrieve created note: {note_id}")
 
@@ -497,8 +501,8 @@ class NotesService:
         logger.info(f"Updating note: {note_id}")
         manager = self._get_manager()
 
-        # Get existing note
-        note = manager.get_note(note_id)
+        # Get existing note - run in thread pool for iCloud I/O
+        note = await asyncio.to_thread(manager.get_note, note_id)
         if note is None:
             return None
 
@@ -509,8 +513,9 @@ class NotesService:
         if pinned is not None:
             metadata_updates["pinned"] = pinned
 
-        # Update
-        success = manager.update_note(
+        # Update - run in thread pool for iCloud I/O
+        success = await asyncio.to_thread(
+            manager.update_note,
             note_id=note_id,
             title=title,
             content=content,
@@ -521,8 +526,8 @@ class NotesService:
         if not success:
             return None
 
-        # Fetch updated note
-        updated = manager.get_note(note_id)
+        # Fetch updated note - run in thread pool for iCloud I/O
+        updated = await asyncio.to_thread(manager.get_note, note_id)
         if updated is None:
             return None
 
@@ -542,7 +547,8 @@ class NotesService:
         logger.info(f"Deleting note: {note_id}")
         manager = self._get_manager()
 
-        result = manager.delete_note(note_id)
+        # Run in thread pool for iCloud I/O
+        result = await asyncio.to_thread(manager.delete_note, note_id)
         if result:
             logger.info(f"Note deleted: {note_id}")
         return result
@@ -561,14 +567,15 @@ class NotesService:
         logger.info(f"Moving note: {note_id} to folder: {target_folder}")
         manager = self._get_manager()
 
-        # Get current path before moving
-        note = manager.get_note(note_id)
+        # Get current path before moving - run in thread pool for iCloud I/O
+        note = await asyncio.to_thread(manager.get_note, note_id)
         if not note:
             return None
 
         old_path = note.metadata.get("path", "")
 
-        result = manager.move_note(note_id, target_folder)
+        # Run in thread pool for iCloud I/O
+        result = await asyncio.to_thread(manager.move_note, note_id, target_folder)
         if not result:
             return None
 
@@ -600,8 +607,9 @@ class NotesService:
         logger.info(f"Searching notes: '{query}' (tags={tags})")
         manager = self._get_manager()
 
-        # Search with scores
-        results = manager.search_notes(
+        # Search with scores - run in thread pool for FAISS + iCloud I/O
+        results = await asyncio.to_thread(
+            manager.search_notes,
             query=query,
             top_k=limit,
             tags=tags,
@@ -643,13 +651,15 @@ class NotesService:
         logger.info(f"Getting links for note: {note_id}")
         manager = self._get_manager()
 
-        note = manager.get_note(note_id)
+        # Run in thread pool for iCloud I/O
+        note = await asyncio.to_thread(manager.get_note, note_id)
         if note is None:
             return None
 
         # Optimization: Use metadata summaries and aliases index instead of reading all files
-        summaries = manager.get_notes_summary()
-        aliases = manager.get_aliases_index()
+        # Run in thread pool for iCloud I/O
+        summaries = await asyncio.to_thread(manager.get_notes_summary)
+        aliases = await asyncio.to_thread(manager.get_aliases_index)
 
         # Build ID-to-summary map for fast lookup
         id_to_meta = {s["note_id"]: s for s in summaries}
@@ -710,7 +720,8 @@ class NotesService:
             Updated NoteResponse or None if not found
         """
         manager = self._get_manager()
-        note = manager.get_note(note_id)
+        # Run in thread pool for iCloud I/O
+        note = await asyncio.to_thread(manager.get_note, note_id)
         if note is None:
             return None
 
@@ -739,14 +750,15 @@ class NotesService:
         logger.info(f"Listing versions for note: {note_id}")
         manager = self._get_manager()
 
-        # Verify note exists
-        note = manager.get_note(note_id)
+        # Verify note exists - run in thread pool for iCloud I/O
+        note = await asyncio.to_thread(manager.get_note, note_id)
         if note is None:
             return None
 
         git_manager = self._get_git_manager()
-        filename = manager.get_relative_path(note_id) or f"{note_id}.md"
-        versions = git_manager.list_versions(filename, limit=limit)
+        filename = await asyncio.to_thread(manager.get_relative_path, note_id) or f"{note_id}.md"
+        # Run in thread pool for git I/O
+        versions = await asyncio.to_thread(git_manager.list_versions, filename, limit)
 
         return NoteVersionsResponse(
             note_id=note_id,
@@ -788,14 +800,15 @@ class NotesService:
         git_manager = self._get_git_manager()
         manager = self._get_manager()
 
-        filename = manager.get_relative_path(note_id) or f"{note_id}.md"
-        content = git_manager.get_version(filename, version_id)
+        # Run in thread pool for iCloud/git I/O
+        filename = await asyncio.to_thread(manager.get_relative_path, note_id) or f"{note_id}.md"
+        content = await asyncio.to_thread(git_manager.get_version, filename, version_id)
 
         if content is None:
             return None
 
-        # Get version metadata
-        versions = git_manager.list_versions(filename, limit=100)
+        # Get version metadata - run in thread pool for git I/O
+        versions = await asyncio.to_thread(git_manager.list_versions, filename, 100)
         version_info = next(
             (v for v in versions if v.version_id == version_id[:7]),
             None,
@@ -844,8 +857,9 @@ class NotesService:
         git_manager = self._get_git_manager()
         manager = self._get_manager()
 
-        filename = manager.get_relative_path(note_id) or f"{note_id}.md"
-        diff = git_manager.diff(filename, from_version, to_version)
+        # Run in thread pool for iCloud/git I/O
+        filename = await asyncio.to_thread(manager.get_relative_path, note_id) or f"{note_id}.md"
+        diff = await asyncio.to_thread(git_manager.diff, filename, from_version, to_version)
 
         if diff is None:
             return None
@@ -891,14 +905,16 @@ class NotesService:
         manager = self._get_manager()
         git_manager = self._get_git_manager()
 
-        filename = manager.get_relative_path(note_id) or f"{note_id}.md"
+        # Run in thread pool for iCloud/git I/O
+        filename = await asyncio.to_thread(manager.get_relative_path, note_id) or f"{note_id}.md"
 
-        # Verify note exists
-        note = manager.get_note(note_id)
+        # Verify note exists - run in thread pool for iCloud I/O
+        note = await asyncio.to_thread(manager.get_note, note_id)
         if note is None:
             return None
 
-        success = git_manager.restore(filename, version_id)
+        # Run in thread pool for git I/O
+        success = await asyncio.to_thread(git_manager.restore, filename, version_id)
 
         if not success:
             return None
@@ -907,13 +923,14 @@ class NotesService:
         if note_id in manager._note_cache:
             del manager._note_cache[note_id]
 
-        # Re-index in vector store (content changed)
-        updated_note = manager.get_note(note_id)
+        # Re-index in vector store (content changed) - run in thread pool for iCloud I/O
+        updated_note = await asyncio.to_thread(manager.get_note, note_id)
         if updated_note:
-            # Update vector store
-            manager.vector_store.remove(note_id)
+            # Update vector store - run in thread pool for FAISS I/O
+            await asyncio.to_thread(manager.vector_store.remove, note_id)
             search_text = f"{updated_note.title}\n\n{updated_note.content}"
-            manager.vector_store.add(
+            await asyncio.to_thread(
+                manager.vector_store.add,
                 doc_id=note_id,
                 text=search_text,
                 metadata={
@@ -1132,8 +1149,8 @@ class NotesService:
         # Check if folder already exists
         existed = folder_path.exists()
 
-        # Create folder (will succeed even if exists)
-        absolute_path = manager.create_folder(path)
+        # Create folder (will succeed even if exists) - run in thread pool for file I/O
+        absolute_path = await asyncio.to_thread(manager.create_folder, path)
 
         logger.info(f"Folder {'already existed' if existed else 'created'}: {clean_path}")
         return FolderCreateResponse(
@@ -1152,7 +1169,8 @@ class NotesService:
         logger.info("Listing folders")
         manager = self._get_manager()
 
-        folders = manager.list_folders()
+        # Run in thread pool to avoid blocking event loop
+        folders = await asyncio.to_thread(manager.list_folders)
         return FolderListResponse(
             folders=folders,
             total=len(folders),
