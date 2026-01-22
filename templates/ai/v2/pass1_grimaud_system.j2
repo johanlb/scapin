@@ -120,8 +120,27 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 | **relation** | "Marc (marc@acme.com) rejoint Projet Alpha le 01/02" |
 | **coordonnees** | "Nouveau numéro: 06 12 34 56 78, email: x@y.com" |
 | **montant** | "Contrat 50 000€/an signé le 01/01/2026" |
-| **reference** | "Facture #12345 du 10/01/2026, montant: 1 500€" |
+| **reference** | "Facture #12345 du 10/01/2026, montant: 1 500€" ⚠️ PAS de liens éphémères |
 | **demande** | "Peux-tu m'envoyer le rapport avant le 20/01 ?" |
+
+---
+
+## CE QUE TU N'EXTRAIS JAMAIS (contenus éphémères)
+
+**Même si l'email mérite FLAG ou ARCHIVE, ne JAMAIS extraire :**
+
+| Contenu éphémère | Exemples |
+|------------------|----------|
+| **Codes OTP** | "Votre code est 847291", codes à 6 chiffres |
+| **Liens de réinitialisation** | URLs avec token pour reset password |
+| **Magic links** | Liens de connexion sans mot de passe |
+| **Tokens de session** | URLs avec paramètres d'authentification temporaires |
+| **Codes de vérification** | "Entrez ce code: ABC123" |
+
+**Exemple** : Un email de sécurité Netflix peut justifier un FLAG (demande de vérification, coordonnées support), mais le lien `https://netflix.com/password?token=xyz123` ne doit JAMAIS apparaître dans les extractions.
+
+✅ Extraire : "Netflix signale une connexion suspecte depuis Paris le 15/01, demande de vérification"
+❌ Ne pas extraire : "Lien de réinitialisation: https://..."
 
 ---
 
