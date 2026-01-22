@@ -106,6 +106,7 @@ def get_notes_service() -> Generator[NotesService, None, None]:
 
 # Cached NotesReviewService singleton to avoid creating new SQLite connections on every request
 _notes_review_service_instance: NotesReviewService | None = None
+_queue_service_instance: QueueService | None = None
 
 
 def get_notes_review_service() -> Generator[NotesReviewService, None, None]:
@@ -118,9 +119,11 @@ def get_notes_review_service() -> Generator[NotesReviewService, None, None]:
 
 
 def get_queue_service() -> Generator[QueueService, None, None]:
-    """Get queue service instance"""
-    service = QueueService()
-    yield service
+    """Get queue service instance (cached singleton to preserve in_progress state)"""
+    global _queue_service_instance
+    if _queue_service_instance is None:
+        _queue_service_instance = QueueService()
+    yield _queue_service_instance
 
 
 def get_email_service() -> Generator[EmailService, None, None]:
