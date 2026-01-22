@@ -41,6 +41,9 @@ let state = $state<QueueState>({
 	tabFilter: 'to_process'
 });
 
+// Request counter to handle race conditions when switching tabs quickly
+let fetchRequestId = 0;
+
 // Computed values
 const pendingItems = $derived(state.items.filter((item) => item.status === 'pending'));
 
@@ -91,6 +94,9 @@ async function fetchQueue(status = 'pending', page = 1): Promise<void> {
 
 // v2.4: Fetch queue by tab (new method)
 async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
+	// Increment request ID to track this specific request
+	const thisRequestId = ++fetchRequestId;
+
 	state.loading = true;
 	state.error = null;
 	state.tabFilter = tab;
@@ -101,10 +107,19 @@ async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
 			getQueueStats()
 		]);
 
+		// Check if a newer request was made while we were waiting
+		// If so, discard this response to avoid race conditions
+		if (thisRequestId !== fetchRequestId) {
+			console.log(`[QueueStore] Discarding stale response for tab ${tab} (request ${thisRequestId}, current ${fetchRequestId})`);
+			return;
+		}
+
 		if (page === 1) {
 			state.items = response.data;
+			console.log(`[QueueStore] Loaded ${response.data.length} items for tab ${tab} (total: ${response.total})`);
 		} else {
 			state.items = [...state.items, ...response.data];
+			console.log(`[QueueStore] Loaded ${response.data.length} more items for tab ${tab}, now ${state.items.length} total`);
 		}
 
 		state.stats = stats;
@@ -113,6 +128,11 @@ async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
 		state.total = response.total;
 		state.lastFetch = new Date();
 	} catch (err) {
+		// Only update error state if this is still the current request
+		if (thisRequestId !== fetchRequestId) {
+			return;
+		}
+
 		if (err instanceof ApiError) {
 			if (err.status === 0) {
 				state.error = 'Impossible de contacter le serveur.';
@@ -124,7 +144,10 @@ async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
 		}
 		console.error('Failed to fetch queue by tab:', err);
 	} finally {
-		state.loading = false;
+		// Only clear loading if this is still the current request
+		if (thisRequestId === fetchRequestId) {
+			state.loading = false;
+		}
 	}
 }
 
