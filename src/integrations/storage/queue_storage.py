@@ -102,13 +102,27 @@ class QueueStorage:
         except Exception as e:
             logger.warning(f"Failed to save processed IDs: {e}")
 
+    def _normalize_message_id(self, message_id: str) -> str:
+        """
+        Normalize message_id for consistent deduplication.
+
+        Removes angle brackets and converts to lowercase to handle
+        variations like '<id@domain>' vs 'id@domain'.
+        """
+        if not message_id:
+            return ""
+        # Remove leading/trailing whitespace and angle brackets
+        normalized = message_id.strip().strip("<>").lower()
+        return normalized
+
     def mark_message_processed(self, message_id: str) -> None:
         """Mark a message_id as processed (Bug #60 fix)"""
         if message_id:
+            normalized = self._normalize_message_id(message_id)
             with self._lock:
-                self._processed_message_ids.add(message_id)
+                self._processed_message_ids.add(normalized)
                 self._save_processed_ids()
-            logger.debug(f"Marked message as processed: {message_id}")
+            logger.debug(f"Marked message as processed: {normalized}")
 
     def is_email_known(self, message_id: str) -> bool:
         """
@@ -125,9 +139,16 @@ class QueueStorage:
         if not message_id:
             return False
 
-        # Check if already processed
+        normalized = self._normalize_message_id(message_id)
+
+        # Check if already processed (normalized comparison)
+        if normalized in self._processed_message_ids:
+            logger.debug(f"Email already processed: {normalized}")
+            return True
+
+        # Also check non-normalized for backwards compatibility
         if message_id in self._processed_message_ids:
-            logger.debug(f"Email already processed: {message_id}")
+            logger.debug(f"Email already processed (exact match): {message_id}")
             return True
 
         # Check if in current queue (any status)
@@ -139,9 +160,11 @@ class QueueStorage:
                     with open(file_path) as f:
                         item = json.load(f)
                         item_message_id = item.get("metadata", {}).get("message_id")
-                        if item_message_id == message_id:
-                            logger.debug(f"Email already in queue: {message_id}")
-                            return True
+                        if item_message_id:
+                            item_normalized = self._normalize_message_id(item_message_id)
+                            if item_normalized == normalized:
+                                logger.debug(f"Email already in queue: {normalized}")
+                                return True
                 except Exception:
                     continue
 
