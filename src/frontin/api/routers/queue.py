@@ -98,9 +98,11 @@ def _parse_extraction_confidence(
 
 def _convert_item_to_response(item: dict) -> QueueItemResponse:
     """Convert raw queue item to response model"""
-    metadata = item.get("metadata", {})
-    analysis = item.get("analysis", {})
-    content = item.get("content", {})
+    # Use 'or {}' to handle both missing keys AND explicit None values
+    # (items in "analyzing" state have analysis: None)
+    metadata = item.get("metadata") or {}
+    analysis = item.get("analysis") or {}
+    content = item.get("content") or {}
 
     # Convert entities to response format
     # Handle two formats:
