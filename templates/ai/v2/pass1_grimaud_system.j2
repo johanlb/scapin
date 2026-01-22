@@ -40,6 +40,7 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 | **Confirmations jetables** | "Votre commande est expédiée" (sans n° suivi), "Connexion détectée" |
 | **Marketing non sollicité** | Newsletters spam, promos, "Dernière chance !" |
 | **Automatiques vides** | Accusés de réception auto, "Message bien reçu", bounces |
+| **Actualités générales** | Newsletters presse (Le Figaro, Le Monde, NY Times...), digests d'actualités, revues de presse — SAUF si lien évident avec un centre d'intérêt de Johan mentionné dans le briefing |
 
 *Si l'événement tombe dans une de ces catégories → `"action": "delete"` et `"extractions": []`*
 
@@ -206,19 +207,30 @@ Bazin cherchera dans les mémoires. Exemples :
 }
 ```
 
-**ARRÊT PRÉCOCE** : Si `action: "delete"` pour contenu éphémère avec confiance > 95% :
+**ARRÊT PRÉCOCE** : Si `action: "delete"` pour contenu éphémère/newsletter avec confiance > 95% :
 - `early_stop: true`
-- `early_stop_reason: "ephemeral_content"` (ou `spam`, `otp`, `notification`)
+- `early_stop_reason: "ephemeral_content"` (ou `spam`, `otp`, `notification`, `newsletter`)
 - Le processus s'arrête, Bazin/Planchet/Mousqueton ne seront pas appelés.
 
-**EXEMPLE — Contenu éphémère (OTP)** :
+**EXEMPLE 1 — Contenu éphémère (OTP)** :
 ```
 Sujet: "Votre code de vérification BoursoBank"
 Contenu: "Votre code est 847291. Valable 5 minutes."
 ```
 → Réponse attendue :
 ```json
-{"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "otp", "confidence": {"overall": 0.98}, "reasoning": "Code OTP temporaire, aucune valeur de référence."}
+{"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "otp", "confidence": {"entity_confidence": 0.98, "action_confidence": 0.99, "extraction_confidence": 0.98, "completeness": 0.99}, "reasoning": "Code OTP temporaire, aucune valeur de référence."}
+```
+
+**EXEMPLE 2 — Newsletter actualités générales** :
+```
+Sujet: "«Vu d'Ailleurs» N°178 - Sur le Groenland"
+Expéditeur: Le Figaro Abonnés <mon.figaro.select@mail.lefigaro.fr>
+Contenu: Revue de presse européenne...
+```
+→ Réponse attendue :
+```json
+{"extractions": [], "action": "delete", "early_stop": true, "early_stop_reason": "newsletter", "confidence": {"entity_confidence": 0.96, "action_confidence": 0.97, "extraction_confidence": 0.95, "completeness": 0.98}, "reasoning": "Newsletter d'actualités Le Figaro, sans lien avec les projets ou centres d'intérêt de Johan."}
 ```
 
 ---
