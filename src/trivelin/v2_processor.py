@@ -786,10 +786,9 @@ class V2EmailProcessor:
             raise RuntimeError("MultiPassAnalyzer not initialized (use_multi_pass=False)")
 
         # Get sender importance from event
+        # Note: from_person is a string (email address), not an object
+        # VIP detection could be enhanced by checking against known contacts
         sender_importance = "normal"
-        if event.sender:
-            # Could be enhanced with VIP detection from notes
-            sender_importance = getattr(event.sender, "importance", "normal") or "normal"
 
         # Run multi-pass analysis
         multi_pass_result = await self.multi_pass_analyzer.analyze(
