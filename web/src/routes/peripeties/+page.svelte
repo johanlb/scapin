@@ -111,6 +111,26 @@
 	}
 
 	/**
+	 * Filter proposed notes to show only ones that will NOT be applied (skipped/rejected).
+	 */
+	function filterSkippedNotes(notes: ProposedNote[] | undefined): ProposedNote[] {
+		if (!notes) return [];
+		return notes.filter((note) => {
+			const hasValidTitle =
+				note.title && note.title.toLowerCase() !== 'general' && note.title.trim() !== '';
+			return hasValidTitle && !willNoteBeAutoApplied(note);
+		});
+	}
+
+	/**
+	 * Filter proposed tasks to show only ones that will NOT be applied (skipped/rejected).
+	 */
+	function filterSkippedTasks(tasks: ProposedTask[] | undefined): ProposedTask[] {
+		if (!tasks) return [];
+		return tasks.filter((task) => !willTaskBeAutoApplied(task));
+	}
+
+	/**
 	 * Check if a date is in the past.
 	 */
 	function isDatePast(dateStr: string | null | undefined): boolean {
@@ -1525,9 +1545,17 @@
 										onchange={() => queueStore.toggleNoteApproval(currentItem.id, noteIndex)}
 									/>
 									<span class="text-xs px-1.5 py-0.5 rounded {noteActionClass}">
-										{note.action === 'create' ? '+' : '~'}
-										{note.note_type}
+										{#if note.action === 'create'}
+											✨ {note.note_type}
+										{:else}
+											~ {note.note_type}
+										{/if}
 									</span>
+									{#if note.action === 'create'}
+										<span class="text-[10px] px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 font-medium">
+											NOUVELLE
+										</span>
+									{/if}
 									{#if note.required}
 										<span
 											class="text-xs px-1 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
@@ -1923,6 +1951,68 @@
 								</div>
 								{@render enrichmentsSection()}
 							</div>
+						{/if}
+
+						<!-- SECTION 4.1: SKIPPED ENRICHMENTS (Details mode only) -->
+						{#if showLevel3}
+							{@const skippedNotes = filterSkippedNotes(currentItem.analysis.proposed_notes)}
+							{@const skippedTasks = filterSkippedTasks(currentItem.analysis.proposed_tasks)}
+							{#if skippedNotes.length > 0 || skippedTasks.length > 0}
+								<div class="space-y-2">
+									<div class="flex items-center gap-2">
+										<span class="text-sm font-medium text-[var(--color-text-tertiary)]">
+											🚫 {skippedNotes.length + skippedTasks.length} enrichissement{skippedNotes.length + skippedTasks.length > 1 ? 's' : ''} non appliqué{skippedNotes.length + skippedTasks.length > 1 ? 's' : ''}
+										</span>
+									</div>
+									<div class="space-y-2 opacity-60">
+										{#each skippedNotes as note}
+											{@const reason = note.manually_approved === false
+												? 'Rejeté manuellement'
+												: `Confiance insuffisante (${Math.round(note.confidence * 100)}% < ${note.required ? '80' : '85'}%)`}
+											<div class="rounded-lg border border-dashed border-[var(--color-border)] p-2 bg-[var(--color-bg-secondary)]/50">
+												<div class="flex items-center justify-between text-sm">
+													<span class="flex items-center gap-2">
+														<span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400">
+															{note.action === 'create' ? '✨' : '~'} {note.note_type}
+														</span>
+														<span class="text-[var(--color-text-secondary)] line-through">{note.title || 'Sans titre'}</span>
+													</span>
+													<span class="text-xs text-[var(--color-text-tertiary)]" title={reason}>
+														{note.manually_approved === false ? '✗ rejeté' : `${Math.round(note.confidence * 100)}%`}
+													</span>
+												</div>
+												{#if note.content_summary}
+													<p class="mt-1.5 text-xs text-[var(--color-text-tertiary)] pl-6 border-l-2 border-[var(--color-border)] ml-2 italic">
+														{note.content_summary}
+													</p>
+												{/if}
+												<p class="mt-1 text-[10px] text-[var(--color-text-tertiary)]">
+													💡 {reason}
+												</p>
+											</div>
+										{/each}
+										{#each skippedTasks as task}
+											{@const reason = `Confiance insuffisante (${Math.round(task.confidence * 100)}% < 85%)`}
+											<div class="rounded-lg border border-dashed border-[var(--color-border)] p-2 bg-[var(--color-bg-secondary)]/50">
+												<div class="flex items-center justify-between text-sm">
+													<span class="flex items-center gap-2">
+														<span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400">
+															📋 OmniFocus
+														</span>
+														<span class="text-[var(--color-text-secondary)] line-through">{task.title}</span>
+													</span>
+													<span class="text-xs text-[var(--color-text-tertiary)]">
+														{Math.round(task.confidence * 100)}%
+													</span>
+												</div>
+												<p class="mt-1 text-[10px] text-[var(--color-text-tertiary)]">
+													💡 {reason}
+												</p>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
 						{/if}
 
 						<!-- SECTION 4.5: CONTEXT INFLUENCE (visible by default - like history page) -->

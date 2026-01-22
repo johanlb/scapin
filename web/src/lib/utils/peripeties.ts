@@ -34,6 +34,26 @@ export function filterNotes(notes: ProposedNote[] | undefined, showAll: boolean)
 }
 
 /**
+ * Filter proposed notes to show only ones that will NOT be applied (skipped/rejected).
+ */
+export function filterSkippedNotes(notes: ProposedNote[] | undefined): ProposedNote[] {
+    if (!notes) return [];
+    return notes.filter((note) => {
+        const hasValidTitle =
+            note.title && note.title.toLowerCase() !== 'general' && note.title.trim() !== '';
+        return hasValidTitle && !willNoteBeAutoApplied(note);
+    });
+}
+
+/**
+ * Filter proposed tasks to show only ones that will NOT be applied (skipped/rejected).
+ */
+export function filterSkippedTasks(tasks: ProposedTask[] | undefined): ProposedTask[] {
+    if (!tasks) return [];
+    return tasks.filter((task) => !willTaskBeAutoApplied(task));
+}
+
+/**
  * Filter proposed tasks to only show ones that will be auto-applied.
  */
 export function filterTasks(tasks: ProposedTask[] | undefined, showAll: boolean): ProposedTask[] {

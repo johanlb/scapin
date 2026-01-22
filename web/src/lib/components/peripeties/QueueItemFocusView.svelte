@@ -451,13 +451,20 @@
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 						{#each notes as note}
 							<div
-								class="flex items-start gap-3 p-4 rounded-2xl glass-subtle border border-white/5 hover:border-[var(--color-accent)]/30 transition-colors group"
+								class="flex items-start gap-3 p-4 rounded-2xl glass-subtle border border-white/5 hover:border-[var(--color-accent)]/30 transition-colors group {note.action === 'create' ? 'ring-1 ring-emerald-500/30' : ''}"
 							>
-								<span class="text-2xl mt-1 group-hover:scale-110 transition-transform">📝</span>
+								<span class="text-2xl mt-1 group-hover:scale-110 transition-transform">{note.action === 'create' ? '✨' : '📝'}</span>
 								<div class="flex-1 min-w-0">
-									<p class="text-sm font-bold text-[var(--color-text-primary)] mb-1 truncate">
-										{note.title}
-									</p>
+									<div class="flex items-center gap-2 mb-1">
+										<p class="text-sm font-bold text-[var(--color-text-primary)] truncate">
+											{note.title}
+										</p>
+										{#if note.action === 'create'}
+											<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 font-medium shrink-0">
+												NOUVELLE
+											</span>
+										{/if}
+									</div>
 									<p class="text-xs text-[var(--color-text-tertiary)] line-clamp-2">
 										{note.content_summary}
 									</p>
