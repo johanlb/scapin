@@ -1,8 +1,17 @@
 /**
  * Memory Cycles Store
  * Manages Filage (daily briefing) and Lecture (review sessions) state
+ *
+ * v3.1: Refactored to use centralized API client
  */
-import { ApiError } from '$lib/api';
+import {
+	ApiError,
+	getFilage as apiGetFilage,
+	startLecture as apiStartLecture,
+	completeLecture as apiCompleteLecture,
+	getPendingQuestions as apiGetPendingQuestions,
+	answerPendingQuestion as apiAnswerQuestion
+} from '$lib/api/client';
 import type {
 	Filage,
 	FilageLecture,
@@ -11,76 +20,6 @@ import type {
 	PendingQuestion,
 	QuestionsListResponse
 } from '$lib/api/types/memory-cycles';
-
-// ============================================================================
-// API FUNCTIONS (will be imported from client.ts once added)
-// ============================================================================
-
-const API_BASE = '/api';
-
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-	const url = `${API_BASE}${endpoint}`;
-	const headers: HeadersInit = {
-		'Content-Type': 'application/json',
-		...options?.headers
-	};
-
-	// Get auth token from localStorage
-	const token = typeof localStorage !== 'undefined' ? localStorage.getItem('scapin_token') : null;
-	if (token) {
-		(headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-	}
-
-	const response = await fetch(url, { ...options, headers });
-
-	if (!response.ok) {
-		const errorData = await response.json().catch(() => ({}));
-		throw new ApiError(response.status, errorData.detail || `HTTP ${response.status}`);
-	}
-
-	const data = await response.json();
-	if (!data.success) {
-		throw new ApiError(500, data.error || 'Unknown error');
-	}
-
-	return data.data as T;
-}
-
-// API functions for Memory Cycles
-async function apiGetFilage(maxLectures = 20): Promise<Filage> {
-	return fetchApi<Filage>(`/briefing/filage?max_lectures=${maxLectures}`);
-}
-
-async function apiStartLecture(noteId: string): Promise<LectureSession> {
-	return fetchApi<LectureSession>(`/briefing/lecture/${encodeURIComponent(noteId)}/start`, {
-		method: 'POST'
-	});
-}
-
-async function apiCompleteLecture(
-	noteId: string,
-	quality: number,
-	answers?: Record<string, string>
-): Promise<LectureResult> {
-	return fetchApi<LectureResult>(`/briefing/lecture/${encodeURIComponent(noteId)}/complete`, {
-		method: 'POST',
-		body: JSON.stringify({ quality, answers })
-	});
-}
-
-async function apiGetPendingQuestions(limit = 50): Promise<QuestionsListResponse> {
-	return fetchApi<QuestionsListResponse>(`/notes/questions/pending?limit=${limit}`);
-}
-
-async function apiAnswerQuestion(
-	questionId: string,
-	answer: string
-): Promise<{ success: boolean }> {
-	return fetchApi<{ success: boolean }>(`/notes/questions/${encodeURIComponent(questionId)}/answer`, {
-		method: 'POST',
-		body: JSON.stringify({ answer })
-	});
-}
 
 // ============================================================================
 // STORE STATE
