@@ -759,10 +759,13 @@
 	}
 
 	// Reanalyze panel state (v2.5: full panel with model selection)
-	let isReanalyzingItem = $state(false);
+	// v3.2: Track which specific item is being reanalyzed (null = none)
+	let reanalyzingItemId = $state<string | null>(null);
+	let isReanalyzingItem = $derived(reanalyzingItemId !== null);
 	let showReanalyzePanel = $state(false);
 	let reanalyzeInstruction = $state('');
 	let reanalyzeModel = $state<'standard' | 'haiku' | 'sonnet' | 'opus'>('standard');
+	let reanalyzeProgress = $state(0); // 0-100 for progress bar
 
 	function toggleReanalyzePanel() {
 		showReanalyzePanel = !showReanalyzePanel;
@@ -770,6 +773,11 @@
 			reanalyzeInstruction = '';
 			reanalyzeModel = 'standard';
 		}
+	}
+
+	// Check if a specific item is being reanalyzed
+	function isItemReanalyzing(itemId: string): boolean {
+		return reanalyzingItemId === itemId;
 	}
 
 	// Legacy aliases for backwards compatibility
@@ -782,8 +790,11 @@
 		item: QueueItem,
 		mode: 'immediate' | 'background' = 'immediate'
 	) {
-		if (isReanalyzingItem || isProcessing) return;
-		isReanalyzingItem = true;
+		// v3.2: Only block if THIS item is already being reanalyzed
+		if (reanalyzingItemId === item.id || isProcessing) return;
+
+		reanalyzingItemId = item.id;
+		reanalyzeProgress = 0;
 		showReanalyzePanel = false;
 
 		const instruction = reanalyzeInstruction.trim();
@@ -812,13 +823,26 @@
 			currentIndex = Math.max(0, queueStore.items.length - 1);
 		}
 
-		// Refresh stats after a short delay to show "analysis in progress" indicator
-		// (backend marks item as in_progress before starting analysis)
-		setTimeout(() => queueStore.fetchStats(), 500);
+		// v3.2: Refresh stats immediately to show item in "En cours" tab
+		await queueStore.fetchStats();
+
+		// v3.2: Simulate progress for immediate mode (actual progress would need SSE/WebSocket)
+		let progressInterval: ReturnType<typeof setInterval> | null = null;
+		if (mode === 'immediate') {
+			progressInterval = setInterval(() => {
+				// Slow down as we approach 90% (never reach 100 until complete)
+				if (reanalyzeProgress < 90) {
+					reanalyzeProgress += Math.random() * 5;
+					if (reanalyzeProgress > 90) reanalyzeProgress = 90;
+				}
+			}, 500);
+		}
 
 		try {
 			const result = await reanalyzeQueueItem(item.id, instruction, mode, forceModel);
 
+			if (progressInterval) clearInterval(progressInterval);
+			reanalyzeProgress = 100;
 			toastStore.dismiss(processingToastId);
 
 			if (mode === 'background') {
@@ -842,13 +866,15 @@
 				});
 			}
 		} catch (e) {
+			if (progressInterval) clearInterval(progressInterval);
 			toastStore.dismiss(processingToastId);
 			console.error('Reanalysis failed:', e);
 			// Restore item to list on error
 			queueStore.restoreItem(savedItem);
 			toastStore.error('Échec de la réanalyse. Veuillez réessayer.', { title: 'Erreur' });
 		} finally {
-			isReanalyzingItem = false;
+			reanalyzingItemId = null;
+			reanalyzeProgress = 0;
 		}
 	}
 
@@ -1841,10 +1867,10 @@
 								variant={showReanalyzePanel ? 'primary' : 'secondary'}
 								size="sm"
 								onclick={toggleReanalyzePanel}
-								disabled={isProcessing || isReanalyzingItem}
+								disabled={isProcessing || isItemReanalyzing(currentItem.id)}
 								data-testid="reanalyze-button"
 							>
-								{#if isReanalyzingItem}
+								{#if isItemReanalyzing(currentItem.id)}
 									⏳
 								{:else}
 									🔄 <span class="opacity-60 font-mono text-xs">R</span>
@@ -1912,6 +1938,23 @@
 								{showLevel3 ? '📖' : '📋'}
 							</Button>
 						</div>
+
+						<!-- v3.2: Reanalysis progress bar -->
+						{#if isItemReanalyzing(currentItem.id)}
+							<div class="py-2">
+								<div class="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+									<span class="animate-spin">⏳</span>
+									<span>Réanalyse en cours...</span>
+									<span class="text-xs text-[var(--color-text-tertiary)]">{Math.round(reanalyzeProgress)}%</span>
+								</div>
+								<div class="mt-1 h-1.5 bg-[var(--color-bg-tertiary)] rounded-full overflow-hidden">
+									<div
+										class="h-full bg-[var(--color-accent)] rounded-full transition-all duration-300"
+										style="width: {reanalyzeProgress}%"
+									></div>
+								</div>
+							</div>
+						{/if}
 
 						<!-- SECTION 2: EMAIL HEADER (modèle historique) -->
 						<!-- v2.5: Enhanced dates section (like history page) -->
