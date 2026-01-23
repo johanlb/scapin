@@ -408,10 +408,11 @@ Les questions stratégiques sont liées à une **note thématique** (`target_not
 │     └─ Notes avec questions_pending=true sont en PRIORITÉ 1             │
 │     └─ Apparaissent avant les événements du jour et le SM-2             │
 │                                                                         │
-│  5. RÉSOLUTION (Lecture de la note)                                     │
-│     └─ Utilisateur supprime/répond à la question dans la note           │
-│     └─ Système détecte la disparition : questions_count--               │
-│     └─ Si questions_count == 0 : questions_pending = false              │
+│  5. RÉSOLUTION (Lecture de la note ou API)                              │
+│     └─ Via l'interface : bouton "Résoudre" sur une question             │
+│     └─ Via API : POST /api/briefing/questions/{note_id}/resolve         │
+│     └─ La question passe de ❓ à ✅ avec date de résolution              │
+│     └─ Métadonnées : questions_count--, si 0 → questions_pending=false  │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -434,6 +435,14 @@ Les questions sont ajoutées avec leur contexte :
 - **Source** : planchet
 - **Contexte** : Propriété en vente avec potentiels impayés non suivis
 - **Ajoutée le** : 2026-01-23
+
+### ✅ Faut-il contacter le syndic avant la vente ?
+- **Catégorie** : decision
+- **Source** : grimaud (via email "Paiement frais de Syndic")
+- **Contexte** : Vérification de l'état des comptes
+- **Ajoutée le** : 2026-01-20
+- **Résolue le** : 2026-01-23
+- **Résolution** : Oui, email envoyé au syndic pour obtenir l'état des comptes
 ```
 
 ##### Priorité dans le Filage

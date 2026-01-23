@@ -18,6 +18,7 @@ from src.frontin.briefing.models import (
     AttendeeContext,
     BriefingItem,
     MorningBriefing,
+    OrphanQuestionItem,
     PreMeetingBriefing,
 )
 from src.monitoring.logger import get_logger
@@ -234,6 +235,9 @@ class BriefingGenerator:
             if e.metadata.get("attendee_count", 0) > 1
         )
 
+        # Load orphan strategic questions (v3.2)
+        orphan_question_items = self._load_orphan_questions()
+
         # Build briefing
         briefing = MorningBriefing(
             date=target_date,
@@ -248,9 +252,11 @@ class BriefingGenerator:
             teams_unread=self._to_briefing_items(
                 teams_events[:self.config.max_standard_items]
             ),
+            orphan_questions=orphan_question_items,
             total_items=len(all_events),
             urgent_count=len(urgent_items),
             meetings_today=meetings_count,
+            orphan_questions_count=len(orphan_question_items),
         )
 
         # Generate AI summary if enabled
@@ -405,6 +411,45 @@ class BriefingGenerator:
             return events
         except Exception as e:
             logger.warning(f"Failed to fetch Teams messages: {e}")
+            return []
+
+    def _load_orphan_questions(self) -> list[OrphanQuestionItem]:
+        """
+        Load pending orphan strategic questions for the briefing.
+
+        Orphan questions are strategic questions generated during email analysis
+        that don't have a target note to attach to.
+
+        Returns:
+            List of OrphanQuestionItem for display in the briefing
+        """
+        try:
+            from src.integrations.storage.orphan_questions_storage import (
+                get_orphan_questions_storage,
+            )
+
+            storage = get_orphan_questions_storage()
+            pending = storage.get_pending_questions()
+
+            items = [
+                OrphanQuestionItem(
+                    question_id=q.question_id,
+                    question=q.question,
+                    category=q.category,
+                    context=q.context,
+                    source_valet=q.source_valet,
+                    source_email_subject=q.source_email_subject,
+                    created_at=q.created_at,
+                    intended_target=q.intended_target,
+                )
+                for q in pending
+            ]
+
+            logger.debug(f"Loaded {len(items)} orphan questions for briefing")
+            return items
+
+        except Exception as e:
+            logger.warning(f"Failed to load orphan questions: {e}")
             return []
 
     def _extract_urgent(

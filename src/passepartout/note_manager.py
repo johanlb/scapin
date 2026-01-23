@@ -1059,6 +1059,155 @@ class NoteManager:
         except Exception as e:
             logger.warning(f"Failed to update questions metadata for {note_id}: {e}")
 
+    def resolve_strategic_question(
+        self,
+        note_id: str,
+        question_text: str,
+        resolution: str = "",
+    ) -> bool:
+        """
+        Mark a strategic question as resolved in a note.
+
+        Transforms:
+        ### ❓ Question text
+        - **Catégorie** : ...
+        - **Ajoutée le** : 2024-01-15
+
+        Into:
+        ### ✅ Question text
+        - **Catégorie** : ...
+        - **Ajoutée le** : 2024-01-15
+        - **Résolue le** : 2024-01-20
+        - **Résolution** : {resolution}
+
+        Args:
+            note_id: Note identifier
+            question_text: The question text to find and resolve
+            resolution: Optional resolution text explaining the answer
+
+        Returns:
+            True if question was found and resolved, False otherwise
+        """
+        note = self.get_note(note_id)
+        if not note:
+            logger.warning(
+                "Note not found for resolve_strategic_question",
+                extra={"note_id": note_id},
+            )
+            return False
+
+        content = note.content
+
+        # Find the question block (### ❓ {question_text})
+        # The question_text might be a substring, so we search for it
+        question_pattern = re.compile(
+            r"(### ❓ " + re.escape(question_text[:50]) + r".*?\n(?:- \*\*.*?\n)*)",
+            re.DOTALL,
+        )
+
+        match = question_pattern.search(content)
+        if not match:
+            logger.warning(
+                "Strategic question not found in note",
+                extra={"note_id": note_id, "question": question_text[:50]},
+            )
+            return False
+
+        # Get the matched block
+        original_block = match.group(0)
+
+        # Transform ❓ to ✅
+        resolved_block = original_block.replace("### ❓", "### ✅", 1)
+
+        # Add resolution date
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        resolution_line = f"- **Résolue le** : {date_str}\n"
+
+        # Insert before the last newline
+        if resolved_block.endswith("\n"):
+            resolved_block = resolved_block[:-1] + resolution_line
+
+        # Add resolution text if provided
+        if resolution:
+            resolution_text = resolution.replace("\n", " ").strip()
+            resolved_block += f"- **Résolution** : {resolution_text}\n"
+
+        # Replace in content
+        new_content = content.replace(original_block, resolved_block, 1)
+
+        # Update the note
+        success = self.update_note(note_id, content=new_content)
+
+        if success:
+            # Decrement the questions count
+            self._decrement_questions_count(note_id)
+            logger.info(
+                "Resolved strategic question",
+                extra={
+                    "note_id": note_id,
+                    "question": question_text[:50],
+                    "has_resolution": bool(resolution),
+                },
+            )
+
+        return success
+
+    def get_strategic_questions(self, note_id: str) -> list[dict[str, Any]]:
+        """
+        Extract all strategic questions from a note.
+
+        Returns both pending (❓) and resolved (✅) questions.
+
+        Args:
+            note_id: Note identifier
+
+        Returns:
+            List of question dicts with keys: question, category, context,
+            source_valet, added_date, resolved, resolved_date, resolution
+        """
+        note = self.get_note(note_id)
+        if not note:
+            return []
+
+        questions = []
+        content = note.content
+
+        # Pattern to match question blocks
+        # ### ❓ or ### ✅ followed by question text and metadata lines
+        pattern = re.compile(
+            r"### ([❓✅]) (.+?)\n"
+            r"(?:- \*\*Catégorie\*\* : (.+?)\n)?"
+            r"(?:- \*\*Source\*\* : (.+?)\n)?"
+            r"(?:- \*\*Contexte\*\* : (.+?)\n)?"
+            r"(?:- \*\*Ajoutée le\*\* : (.+?)\n)?"
+            r"(?:- \*\*Résolue le\*\* : (.+?)\n)?"
+            r"(?:- \*\*Résolution\*\* : (.+?)\n)?",
+            re.MULTILINE,
+        )
+
+        for match in pattern.finditer(content):
+            status_emoji = match.group(1)
+            question_text = match.group(2).strip()
+            category = match.group(3).strip() if match.group(3) else "decision"
+            source = match.group(4).strip() if match.group(4) else ""
+            context = match.group(5).strip() if match.group(5) else ""
+            added_date = match.group(6).strip() if match.group(6) else ""
+            resolved_date = match.group(7).strip() if match.group(7) else ""
+            resolution = match.group(8).strip() if match.group(8) else ""
+
+            questions.append({
+                "question": question_text,
+                "category": category,
+                "source": source,
+                "context": context,
+                "added_date": added_date,
+                "resolved": status_emoji == "✅",
+                "resolved_date": resolved_date,
+                "resolution": resolution,
+            })
+
+        return questions
+
     def get_note_by_title(self, title: str) -> Optional[Note]:
         """
         Get note by exact title match.

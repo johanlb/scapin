@@ -268,19 +268,26 @@ class LectureService:
         # Look for questions section
         import re
 
-        # Pattern 1: Questions section
+        # Pattern 1: Strategic questions (v3.2) - ### ❓ format
+        # Only extract pending ones (❓), not resolved (✅)
+        strategic_questions = re.findall(r"### ❓ (.+?)(?:\n|$)", content)
+        questions.extend(strategic_questions)
+
+        # Pattern 2: Questions section (legacy)
         questions_section = re.search(
-            r"##\s*Questions?\s*(?:pour Johan)?\s*\n(.*?)(?=\n##|\Z)",
+            r"##\s*Questions?\s*(?:pour Johan|ouvertes)?\s*\n(.*?)(?=\n##|\Z)",
             content,
             re.DOTALL | re.IGNORECASE,
         )
         if questions_section:
             section_content = questions_section.group(1)
-            # Extract bullet points or numbered items
+            # Extract bullet points or numbered items (but not strategic questions already captured)
             items = re.findall(r"[-*]\s*(.+\?)", section_content)
-            questions.extend(items)
+            for item in items:
+                if item not in questions:
+                    questions.extend([item])
 
-        # Pattern 2: Inline questions marked with [?]
+        # Pattern 3: Inline questions marked with [?]
         inline_questions = re.findall(r"\[?\?\]?\s*(.+\?)", content)
         for q in inline_questions:
             if q not in questions:

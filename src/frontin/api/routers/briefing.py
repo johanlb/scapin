@@ -275,6 +275,44 @@ class LectureStatsResponse(BaseModel):
     questions_count: int = 0
 
 
+class StrategicQuestionItem(BaseModel):
+    """Strategic question item in a note"""
+
+    question: str
+    category: str = "decision"
+    source: str = ""
+    context: str = ""
+    added_date: str = ""
+    resolved: bool = False
+    resolved_date: str = ""
+    resolution: str = ""
+
+
+class StrategicQuestionsResponse(BaseModel):
+    """Response model for strategic questions list"""
+
+    note_id: str
+    questions: list[StrategicQuestionItem]
+    pending_count: int
+    resolved_count: int
+
+
+class ResolveQuestionRequest(BaseModel):
+    """Request model for resolving a strategic question"""
+
+    question_text: str = Field(..., description="The question text to resolve")
+    resolution: str = Field("", description="Optional resolution text explaining the answer")
+
+
+class ResolveQuestionResponse(BaseModel):
+    """Response model for resolving a strategic question"""
+
+    note_id: str
+    question_resolved: str
+    questions_remaining: int
+    success: bool
+
+
 @router.get("/filage", response_model=APIResponse[FilageResponse])
 async def get_filage(
     max_lectures: int = Query(20, ge=1, le=50, description="Maximum lectures to include"),
@@ -593,5 +631,272 @@ async def trigger_retouche(
             error=result.error,
         )
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/questions/{note_id}",
+    response_model=APIResponse[StrategicQuestionsResponse],
+)
+async def get_strategic_questions(
+    note_id: str,
+) -> APIResponse[StrategicQuestionsResponse]:
+    """
+    Get all strategic questions for a note.
+
+    Returns both pending and resolved questions with their metadata.
+    """
+    try:
+        from src.passepartout.note_manager import get_note_manager
+
+        note_manager = get_note_manager()
+        questions = note_manager.get_strategic_questions(note_id)
+
+        if not questions and note_manager.get_note(note_id) is None:
+            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+
+        pending_count = sum(1 for q in questions if not q["resolved"])
+        resolved_count = sum(1 for q in questions if q["resolved"])
+
+        return APIResponse(
+            success=True,
+            data=StrategicQuestionsResponse(
+                note_id=note_id,
+                questions=[StrategicQuestionItem(**q) for q in questions],
+                pending_count=pending_count,
+                resolved_count=resolved_count,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post(
+    "/questions/{note_id}/resolve",
+    response_model=APIResponse[ResolveQuestionResponse],
+)
+async def resolve_strategic_question(
+    note_id: str,
+    request: ResolveQuestionRequest,
+    metadata_store=Depends(get_metadata_store),
+) -> APIResponse[ResolveQuestionResponse]:
+    """
+    Resolve a strategic question in a note.
+
+    Marks the question as resolved (❓ → ✅) and optionally records
+    the resolution text.
+    """
+    try:
+        from src.passepartout.note_manager import get_note_manager
+
+        note_manager = get_note_manager()
+
+        # Check note exists
+        note = note_manager.get_note(note_id)
+        if note is None:
+            raise HTTPException(status_code=404, detail=f"Note not found: {note_id}")
+
+        # Resolve the question
+        success = note_manager.resolve_strategic_question(
+            note_id=note_id,
+            question_text=request.question_text,
+            resolution=request.resolution,
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Question not found in note: {request.question_text[:50]}...",
+            )
+
+        # Get updated metadata for questions count
+        metadata = metadata_store.get(note_id)
+        questions_remaining = metadata.questions_count if metadata else 0
+
+        return APIResponse(
+            success=True,
+            data=ResolveQuestionResponse(
+                note_id=note_id,
+                question_resolved=request.question_text,
+                questions_remaining=questions_remaining,
+                success=True,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# ============================================================================
+# Orphan Questions Endpoints (v3.2)
+# ============================================================================
+
+
+class OrphanQuestionResponse(BaseModel):
+    """Response model for an orphan question"""
+
+    question_id: str
+    question: str
+    category: str
+    context: str
+    source_valet: str
+    source_email_subject: str
+    created_at: str
+    intended_target: Optional[str] = None
+    resolved: bool = False
+
+
+class OrphanQuestionsListResponse(BaseModel):
+    """Response model for listing orphan questions"""
+
+    questions: list[OrphanQuestionResponse]
+    pending_count: int
+    total_count: int
+
+
+class ResolveOrphanQuestionRequest(BaseModel):
+    """Request model for resolving an orphan question"""
+
+    resolution: str = Field("", description="Optional resolution text")
+
+
+@router.get(
+    "/orphan-questions",
+    response_model=APIResponse[OrphanQuestionsListResponse],
+)
+async def list_orphan_questions(
+    include_resolved: bool = Query(False, description="Include resolved questions"),
+) -> APIResponse[OrphanQuestionsListResponse]:
+    """
+    List orphan strategic questions.
+
+    Orphan questions are strategic questions generated during email analysis
+    that don't have a target note to attach to. They appear in the morning briefing.
+    """
+    try:
+        from src.integrations.storage.orphan_questions_storage import (
+            get_orphan_questions_storage,
+        )
+
+        storage = get_orphan_questions_storage()
+
+        if include_resolved:
+            questions = storage.get_all_questions()
+        else:
+            questions = storage.get_pending_questions()
+
+        all_questions = storage.get_all_questions()
+        pending_count = sum(1 for q in all_questions if not q.resolved)
+
+        return APIResponse(
+            success=True,
+            data=OrphanQuestionsListResponse(
+                questions=[
+                    OrphanQuestionResponse(
+                        question_id=q.question_id,
+                        question=q.question,
+                        category=q.category,
+                        context=q.context,
+                        source_valet=q.source_valet,
+                        source_email_subject=q.source_email_subject,
+                        created_at=q.created_at,
+                        intended_target=q.intended_target,
+                        resolved=q.resolved,
+                    )
+                    for q in questions
+                ],
+                pending_count=pending_count,
+                total_count=len(all_questions),
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post(
+    "/orphan-questions/{question_id}/resolve",
+    response_model=APIResponse[dict],
+)
+async def resolve_orphan_question(
+    question_id: str,
+    request: ResolveOrphanQuestionRequest,
+) -> APIResponse[dict]:
+    """
+    Resolve an orphan strategic question.
+
+    Marks the question as resolved and optionally records the resolution text.
+    """
+    try:
+        from src.integrations.storage.orphan_questions_storage import (
+            get_orphan_questions_storage,
+        )
+
+        storage = get_orphan_questions_storage()
+        success = storage.resolve_question(question_id, request.resolution)
+
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Orphan question not found: {question_id}",
+            )
+
+        return APIResponse(
+            success=True,
+            data={
+                "question_id": question_id,
+                "resolved": True,
+                "resolution": request.resolution,
+            },
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.delete(
+    "/orphan-questions/{question_id}",
+    response_model=APIResponse[dict],
+)
+async def delete_orphan_question(
+    question_id: str,
+) -> APIResponse[dict]:
+    """
+    Delete an orphan strategic question.
+    """
+    try:
+        from src.integrations.storage.orphan_questions_storage import (
+            get_orphan_questions_storage,
+        )
+
+        storage = get_orphan_questions_storage()
+        success = storage.delete_question(question_id)
+
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Orphan question not found: {question_id}",
+            )
+
+        return APIResponse(
+            success=True,
+            data={"question_id": question_id, "deleted": True},
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

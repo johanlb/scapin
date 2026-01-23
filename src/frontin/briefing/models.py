@@ -58,6 +58,38 @@ class BriefingItem:
 
 
 @dataclass
+class OrphanQuestionItem:
+    """
+    Orphan strategic question for briefing display.
+
+    These are questions generated during email analysis that don't have
+    a target note to attach to.
+    """
+
+    question_id: str
+    question: str
+    category: str
+    context: str
+    source_valet: str
+    source_email_subject: str
+    created_at: str
+    intended_target: Optional[str] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "question_id": self.question_id,
+            "question": self.question,
+            "category": self.category,
+            "context": self.context,
+            "source_valet": self.source_valet,
+            "source_email_subject": self.source_email_subject,
+            "created_at": self.created_at,
+            "intended_target": self.intended_target,
+        }
+
+
+@dataclass
 class MorningBriefing:
     """
     Morning briefing aggregating all sources
@@ -67,6 +99,7 @@ class MorningBriefing:
     - Today's calendar events
     - Pending emails
     - Unread Teams messages
+    - Orphan strategic questions requiring attention
 
     Designed for multi-layer display:
     - Layer 1 (5s): Quick stats overview
@@ -80,11 +113,13 @@ class MorningBriefing:
         calendar_today: Today's calendar events
         emails_pending: Pending emails requiring action
         teams_unread: Unread Teams messages
+        orphan_questions: Strategic questions without target notes
         ai_summary: AI-generated 2-3 sentence summary
         key_decisions: Key decisions to be made today
         total_items: Total count of all items
         urgent_count: Count of urgent items
         meetings_today: Number of meetings today
+        orphan_questions_count: Count of orphan questions
     """
 
     date: date
@@ -98,6 +133,9 @@ class MorningBriefing:
     emails_pending: list[BriefingItem] = field(default_factory=list)
     teams_unread: list[BriefingItem] = field(default_factory=list)
 
+    # Orphan strategic questions (v3.2)
+    orphan_questions: list[OrphanQuestionItem] = field(default_factory=list)
+
     # AI-generated insights
     ai_summary: Optional[str] = None
     key_decisions: list[str] = field(default_factory=list)
@@ -106,6 +144,7 @@ class MorningBriefing:
     total_items: int = 0
     urgent_count: int = 0
     meetings_today: int = 0
+    orphan_questions_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
@@ -116,11 +155,13 @@ class MorningBriefing:
             "calendar_today": [item.to_dict() for item in self.calendar_today],
             "emails_pending": [item.to_dict() for item in self.emails_pending],
             "teams_unread": [item.to_dict() for item in self.teams_unread],
+            "orphan_questions": [q.to_dict() for q in self.orphan_questions],
             "ai_summary": self.ai_summary,
             "key_decisions": self.key_decisions,
             "total_items": self.total_items,
             "urgent_count": self.urgent_count,
             "meetings_today": self.meetings_today,
+            "orphan_questions_count": self.orphan_questions_count,
         }
 
     def to_markdown(self) -> str:
@@ -141,6 +182,7 @@ class MorningBriefing:
             f"- **Meetings today**: {self.meetings_today}",
             f"- **Pending emails**: {len(self.emails_pending)}",
             f"- **Unread Teams**: {len(self.teams_unread)}",
+            f"- **Questions stratégiques**: {self.orphan_questions_count}",
             "",
         ]
 
@@ -200,6 +242,27 @@ class MorningBriefing:
             for item in self.teams_unread:
                 from_name = _extract_display_name(item.event.from_person)
                 lines.append(f"- [{item.time_context}] **{from_name}**: {item.event.title}")
+            lines.append("")
+
+        # Orphan strategic questions
+        if self.orphan_questions:
+            lines.extend([
+                "## Questions Stratégiques",
+                "",
+                "*Questions générées lors de l'analyse des emails, nécessitant votre attention:*",
+                "",
+            ])
+            for q in self.orphan_questions:
+                category_icon = {
+                    "decision": "🎯",
+                    "processus": "⚙️",
+                    "organisation": "📋",
+                    "structure_pkm": "🗂️",
+                }.get(q.category, "❓")
+                lines.append(f"- {category_icon} **{q.question}**")
+                if q.context:
+                    lines.append(f"  - *{q.context}*")
+                lines.append(f"  - Source: {q.source_valet} (via \"{q.source_email_subject[:40]}...\")")
             lines.append("")
 
         # Key decisions

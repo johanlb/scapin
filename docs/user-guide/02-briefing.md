@@ -74,6 +74,30 @@ Aperçu rapide :
 - Messages Teams non lus
 - Notes à réviser
 
+#### 4. Questions Stratégiques Orphelines (v3.2)
+
+Les questions générées lors de l'analyse des emails qui n'ont pas de note cible apparaissent dans une section dédiée :
+
+```
+❓ QUESTIONS STRATÉGIQUES (2)
+┌────────────────────────────────────────────────────────────────────────┐
+│ 🎯 Quelle stratégie pour traiter ces 9229 Smart Matches ?             │
+│    Catégorie: organisation • Source: mousqueton                        │
+│    Via: "MyHeritage - Nouveaux Smart Matches disponibles"              │
+│                                                          [✓ Résoudre]  │
+├────────────────────────────────────────────────────────────────────────┤
+│ ⚙️ Un système de traitement batch peut-il être mis en place ?         │
+│    Catégorie: processus • Source: planchet                             │
+│    Via: "MyHeritage - Nouveaux Smart Matches disponibles"              │
+│                                                          [✓ Résoudre]  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+Ces questions :
+- Sont générées par les valets mais n'ont pas de note thématique existante
+- Nécessitent votre réflexion pour décider de l'action (créer une note, ignorer, etc.)
+- Peuvent être résolues directement depuis le briefing
+
 ---
 
 ## Briefing Pré-Réunion
