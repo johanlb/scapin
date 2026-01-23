@@ -380,6 +380,71 @@ Les questions stratégiques sont liées à une **note thématique** (`target_not
 
 > **Conseil** : Les questions sans `target_note` (générales) apparaissent dans votre briefing matinal.
 
+#### Cycle de Vie Complet (v3.2)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    CYCLE DE VIE DES QUESTIONS STRATÉGIQUES              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. GÉNÉRATION (Analyse Multi-Pass)                                     │
+│     └─ Valets génèrent des questions selon leur perspective             │
+│        └─ grimaud, bazin, planchet, mousqueton                          │
+│                                                                         │
+│  2. AFFICHAGE (UI Péripéties)                                           │
+│     └─ Section "❓ Questions stratégiques" dans le détail de l'item     │
+│                                                                         │
+│  3. DISTRIBUTION (Traitement de l'item)                                 │
+│     └─ Quand l'item quitte "À traiter" (approve/reject/modify/delete):  │
+│        │                                                                │
+│        ├─ Questions AVEC target_note :                                  │
+│        │  └─ Ajoutées à `## Questions ouvertes` de la note cible        │
+│        │  └─ Métadonnées : questions_count++, questions_pending=true    │
+│        │                                                                │
+│        └─ Questions SANS target_note :                                  │
+│           └─ Stockées pour le briefing matinal                          │
+│                                                                         │
+│  4. REMONTÉE (Filage)                                                   │
+│     └─ Notes avec questions_pending=true sont en PRIORITÉ 1             │
+│     └─ Apparaissent avant les événements du jour et le SM-2             │
+│                                                                         │
+│  5. RÉSOLUTION (Lecture de la note)                                     │
+│     └─ Utilisateur supprime/répond à la question dans la note           │
+│     └─ Système détecte la disparition : questions_count--               │
+│     └─ Si questions_count == 0 : questions_pending = false              │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+##### Format dans la Note
+
+Les questions sont ajoutées avec leur contexte :
+
+```markdown
+## Questions ouvertes
+
+### ❓ Comment gérer les arriérés de copropriété pour un bien en vente ?
+- **Catégorie** : decision
+- **Source** : grimaud (via email "Paiement frais de Syndic")
+- **Contexte** : Bien en vente avec potentiels impayés de syndic
+- **Ajoutée le** : 2026-01-23
+
+### ❓ Un suivi centralisé des charges devrait-il être mis en place ?
+- **Catégorie** : organisation
+- **Source** : planchet
+- **Contexte** : Propriété en vente avec potentiels impayés non suivis
+- **Ajoutée le** : 2026-01-23
+```
+
+##### Priorité dans le Filage
+
+| Priorité | Type de note | Raison |
+|----------|--------------|--------|
+| **1** | Notes avec questions en attente | Décisions humaines urgentes |
+| **2** | Notes liées aux événements du jour | Contexte immédiat |
+| **3** | Notes dues pour Lecture (SM-2) | Révision planifiée |
+| **4** | Notes récemment retouchées | Suivi des modifications |
+
 #### Exemple Pratique
 
 Email reçu de MyHeritage avec 9229 Smart Matches en attente :
