@@ -1703,11 +1703,19 @@ class QueueService:
         }
 
     async def _reanalyze_items_background(self, items: list[dict[str, Any]]) -> None:
-        """Background task to reanalyze items in parallel with concurrency limit."""
-        total = len(items)
+        """Background task to reanalyze items with concurrency limit.
 
-        # Semaphore to limit concurrent analyses (avoid API rate limits)
-        semaphore = asyncio.Semaphore(3)
+        Uses a semaphore to limit concurrent API calls and processes items
+        in batches to allow the event loop to handle other requests.
+        """
+        import asyncio
+
+        total = len(items)
+        # Limit concurrent analyses to avoid overwhelming the server and API
+        max_concurrent = 5
+        semaphore = asyncio.Semaphore(max_concurrent)
+        completed = 0
+        failed = 0
 
         async def reanalyze_single(item: dict[str, Any]) -> bool:
             """Reanalyze a single item with semaphore control."""
@@ -1717,6 +1725,9 @@ class QueueService:
 
             async with semaphore:
                 try:
+                    # Yield to event loop before heavy operation
+                    await asyncio.sleep(0)
+
                     metadata = item.get("metadata", {})
                     content = item.get("content", {})
 
@@ -1726,6 +1737,9 @@ class QueueService:
                         content=content,
                         user_instruction="",  # No specific instruction
                     )
+
+                    # Yield to event loop after analysis
+                    await asyncio.sleep(0)
 
                     if new_analysis:
                         # Use unified method to update item
@@ -1752,12 +1766,19 @@ class QueueService:
                     logger.error(f"Error reanalyzing item {item_id}: {e}")
                     return False
 
-        # Run all analyses in parallel with semaphore-controlled concurrency
-        results = await asyncio.gather(*[reanalyze_single(item) for item in items])
-        started = sum(1 for r in results if r)
-        failed = total - started
+        # Process items in batches to allow event loop to handle other requests
+        batch_size = max_concurrent * 2  # Process 10 items per batch
+        for i in range(0, total, batch_size):
+            batch = items[i:i + batch_size]
+            results = await asyncio.gather(*[reanalyze_single(item) for item in batch])
+            completed += sum(1 for r in results if r)
+            failed += sum(1 for r in results if not r)
 
-        logger.info(f"Bulk reanalysis complete: {started}/{total} succeeded, {failed} failed")
+            # Log progress and yield to event loop between batches
+            logger.info(f"Bulk reanalysis progress: {completed + failed}/{total} processed")
+            await asyncio.sleep(0.1)  # Brief pause between batches
+
+        logger.info(f"Bulk reanalysis complete: {completed}/{total} succeeded, {failed} failed")
 
     async def enqueue_email(
         self,
