@@ -60,49 +60,30 @@ logger = get_logger("queue_storage")
 
 class ReadWriteLock:
     """
-    A lock that allows multiple concurrent readers OR one exclusive writer.
+    Simple lock wrapper for file operations.
 
-    This improves concurrency for read-heavy workloads like loading queue items
-    while still ensuring write safety.
+    Note: We don't use a full read-write lock because:
+    1. threading.Condition blocks the thread, which blocks asyncio event loop
+    2. JSON file reads are atomic at OS level, so concurrent reads are safe
+    3. We only need to serialize writes to prevent corruption
+
+    The read_lock is a no-op (reads don't need locking).
+    The write_lock uses a simple threading.Lock for write serialization.
     """
 
     def __init__(self) -> None:
-        self._read_ready = threading.Condition(threading.Lock())
-        self._readers = 0
-        self._writers_waiting = 0
-        self._writer_active = False
+        self._write_lock = threading.Lock()
 
     @contextmanager
     def read_lock(self) -> Generator[None, None, None]:
-        """Acquire a read lock. Multiple readers can hold this simultaneously."""
-        with self._read_ready:
-            # Wait if a writer is active or waiting (writer priority to avoid starvation)
-            while self._writer_active or self._writers_waiting > 0:
-                self._read_ready.wait()
-            self._readers += 1
-        try:
-            yield
-        finally:
-            with self._read_ready:
-                self._readers -= 1
-                if self._readers == 0:
-                    self._read_ready.notify_all()
+        """No-op for reads - JSON file reads are atomic at OS level."""
+        yield
 
     @contextmanager
     def write_lock(self) -> Generator[None, None, None]:
-        """Acquire a write lock. Only one writer at a time, no concurrent readers."""
-        with self._read_ready:
-            self._writers_waiting += 1
-            while self._readers > 0 or self._writer_active:
-                self._read_ready.wait()
-            self._writers_waiting -= 1
-            self._writer_active = True
-        try:
+        """Acquire write lock to serialize file writes."""
+        with self._write_lock:
             yield
-        finally:
-            with self._read_ready:
-                self._writer_active = False
-                self._read_ready.notify_all()
 
 
 class QueueStorage:
