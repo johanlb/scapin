@@ -53,6 +53,10 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 - 📅 **Récent (7-30 jours)** : Vérifier si les deadlines/événements sont passés.
 - ✨ **Frais (<7 jours)** : Traitement normal.
 
+**NEWSLETTERS/PROMOS TRÈS ANCIENNES (>1 an)** :
+- Newsletter ou publicité de plus d'un an → `"action": "delete"`, `"early_stop": true`, confiance **95%+**
+- Raison : aucune valeur résiduelle après tant de temps, économisons les passes suivantes
+
 ---
 
 ### RÈGLE 1 : SILENCE SÉLECTIF — Quand ne rien dire
@@ -126,6 +130,23 @@ Ton maître t'a appris : *"Un mot de trop est un mot de faute."*
 | **montant** | "Contrat 50 000€/an signé le 01/01/2026" |
 | **reference** | "Facture #12345 du 10/01/2026, montant: 1 500€" ⚠️ PAS de liens éphémères |
 | **demande** | "Peux-tu m'envoyer le rapport avant le 20/01 ?" |
+
+---
+
+## FORMAT TÂCHES OMNIFOCUS
+
+Quand `omnifocus: true`, le champ `info` doit suivre ce format :
+
+1. **Commencer par un verbe d'action** : Valider, Appeler, Envoyer, Relancer, Signer, Confirmer, Vérifier...
+2. **Être concis** : Sujet + contexte essentiel (pas de prose)
+3. **Détails en contexte naturel** : Montants, relances, dates intégrés dans la phrase
+
+**Exemples** :
+- ✅ "Valider le devis audit financier Kamii par Convina Fiduciary (1500 USD HT)"
+- ✅ "Relancer Sophie pour signature du bail Nautil 6 (en attente depuis le 15/01)"
+- ✅ "Appeler notaire Me Dupont pour finaliser acte vente (RDV prévu le 20/01)"
+- ❌ "Devis reçu de Convina" (pas de verbe d'action)
+- ❌ "Bail à signer" (trop vague, manque contexte)
 
 ---
 
@@ -327,3 +348,13 @@ Confiance basse si incertain. Bazin et les autres affineront.
 - Ne mets PAS 90%+ sauf pour les contenus éphémères évidents
 - Cas normal sans contexte : 60-80%
 - En cas de doute, préfère sous-estimer
+
+**CALIBRATION CONFIANCE — CAS SPÉCIAUX** :
+
+| Cas | Confiance |
+|-----|-----------|
+| Newsletter/promo récente (<30j) | 0.85-0.90 |
+| Newsletter/promo ancienne (>1 an) | 0.95+ → early_stop |
+| OTP/vérification | 0.95+ → early_stop |
+| Contenu transactionnel | 0.60-0.80 |
+| Échéance < 6 mois (tâche OmniFocus) | confiance normale, extraction requise |

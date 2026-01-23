@@ -804,7 +804,13 @@ class NoteManager:
         return True
 
     def add_info(
-        self, note_id: str, info: str, info_type: str, importance: str, source_id: str
+        self,
+        note_id: str,
+        info: str,
+        info_type: str,
+        importance: str,
+        source_id: str,
+        source_date: Optional[datetime] = None,
     ) -> bool:
         """
         Add information to an existing note.
@@ -821,6 +827,7 @@ class NoteManager:
             info_type: Type of info (decision, engagement, fait, deadline, relation)
             importance: Importance level (haute, moyenne)
             source_id: Source event ID for traceability
+            source_date: Date of the source event (if available, uses this instead of today)
 
         Returns:
             True if updated, False if note not found
@@ -851,8 +858,11 @@ class NoteManager:
         }
         section_name = section_names.get(info_type.lower(), "Informations")
 
-        # Format the entry
-        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        # Format the entry — use source_date if available, otherwise current date
+        if source_date:
+            date = source_date.strftime("%Y-%m-%d")
+        else:
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         importance_marker = "🔴" if importance.lower() == "haute" else "🟡"
         entry = f"- {importance_marker} **{date}** : {info} — [source](scapin://event/{source_id})"
 

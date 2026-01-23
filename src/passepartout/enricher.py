@@ -277,6 +277,16 @@ class PKMEnricher:
                 )
                 return self._create_new_note(extraction, source_event_id)
 
+            # Parse extraction.date (YYYY-MM-DD) to datetime if available
+            source_date: Optional[datetime] = None
+            if extraction.date:
+                try:
+                    source_date = datetime.strptime(extraction.date, "%Y-%m-%d").replace(
+                        tzinfo=timezone.utc
+                    )
+                except ValueError:
+                    logger.warning(f"Invalid date format: {extraction.date}")
+
             # Add info to existing note
             success = self.note_manager.add_info(
                 note_id=existing_note.note_id,
@@ -284,6 +294,7 @@ class PKMEnricher:
                 info_type=extraction.type.value,
                 importance=extraction.importance.value,
                 source_id=source_event_id,
+                source_date=source_date,
             )
 
             if not success:

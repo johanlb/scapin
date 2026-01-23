@@ -2187,8 +2187,8 @@ class MultiPassAnalyzer:
             critical_reason = "grimaud_flagged"
             logger.info("Grimaud flagged content as critical → Opus escalation enabled")
 
-        # Check for early stop (ephemeral content at 95%+ confidence)
-        if self._should_early_stop(grimaud):
+        # Check for early stop (ephemeral content at 95%+ confidence, or old newsletter)
+        if self._should_early_stop(grimaud, event):
             total_ms = (time.time() - start_time) * 1000
             logger.info(f"[PERF] Total (early stop Grimaud): {total_ms:.0f}ms, {total_tokens} tokens")
             logger.info(f"Grimaud early stop: {grimaud.early_stop_reason}")
@@ -2414,19 +2414,42 @@ class MultiPassAnalyzer:
         result.valet = ValetType.MOUSQUETON
         return result
 
-    def _should_early_stop(self, grimaud: PassResult) -> bool:
+    def _should_early_stop(self, grimaud: PassResult, event: Optional[PerceivedEvent] = None) -> bool:
         """
         Check if Grimaud requests early stop.
 
         Early stop is triggered for ephemeral content (OTP codes, newsletters)
         when Grimaud is highly confident (>95%) that the email should be deleted.
+
+        Additionally, very old newsletters (>1 year) trigger early stop even without
+        Grimaud explicitly requesting it, as they have no residual value.
         """
         threshold = self.config.four_valets.grimaud_early_stop_confidence
-        return (
+
+        # Standard early stop: Grimaud requests it with high confidence
+        if (
             grimaud.early_stop
             and grimaud.action == "delete"
             and grimaud.confidence.overall >= threshold
-        )
+        ):
+            return True
+
+        # Enhanced early stop: Very old newsletters (>1 year) → DELETE directly
+        # Even if Grimaud didn't set early_stop, save the escalation cost
+        if event and grimaud.action == "delete":
+            age_days = self._calculate_event_age_days(event)
+            from_person = getattr(event, "from_person", "") or ""
+            title = getattr(event, "title", "") or ""
+            is_newsletter = self._is_newsletter(from_person.lower(), title.lower())
+
+            if is_newsletter and age_days > 365:
+                # Force early stop for very old newsletters
+                grimaud.early_stop = True
+                grimaud.early_stop_reason = grimaud.early_stop_reason or "old_newsletter"
+                logger.info(f"Early stop forced: old newsletter ({age_days} days)")
+                return True
+
+        return False
 
     def _planchet_can_conclude(self, planchet: PassResult) -> bool:
         """

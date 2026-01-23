@@ -1507,6 +1507,14 @@ class QueueService:
                         "title": ext.info,
                         "due_date": ext.date,
                         "project": ext.note_cible,
+                        "confidence": ext.confidence.overall if ext.confidence else 0.85,
+                        "confidence_details": {
+                            "quality": ext.confidence.quality,
+                            "target_match": ext.confidence.target_match,
+                            "relevance": ext.confidence.relevance,
+                            "completeness": ext.confidence.completeness,
+                            "overall": ext.confidence.overall,
+                        } if ext.confidence else None,
                     }
                 )
 
