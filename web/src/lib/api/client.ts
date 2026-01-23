@@ -841,6 +841,39 @@ export interface PassHistoryEntry {
 	questions?: string[];
 }
 
+// v3.2: Briefing status visibility
+export interface BriefingFileStatus {
+	/** File name without extension (e.g., 'Profile') */
+	name: string;
+	/** File status: present, partial, missing, empty */
+	status: 'present' | 'partial' | 'missing' | 'empty';
+	/** Character count of file content */
+	char_count: number;
+	/** Line count of file content */
+	line_count: number;
+	/** Whether this file is required for complete briefing */
+	required: boolean;
+	/** Actual filename loaded (primary or alternative) */
+	loaded_from: string | null;
+}
+
+export interface BriefingStatus {
+	/** Overall completeness: complete, partial, incomplete */
+	completeness: 'complete' | 'partial' | 'incomplete';
+	/** Status of each briefing file */
+	files: BriefingFileStatus[];
+	/** Total characters across all present files */
+	total_chars: number;
+	/** Count of files with substantial content */
+	files_present: number;
+	/** Count of missing required files */
+	files_missing: number;
+	/** Count of files with insufficient content */
+	files_partial: number;
+	/** Timestamp when briefing was loaded (ISO format) */
+	loaded_at: string | null;
+}
+
 export interface MultiPassMetadata {
 	/** Total number of passes executed (1-5) */
 	passes_count: number;
@@ -860,6 +893,8 @@ export interface MultiPassMetadata {
 	total_duration_ms: number;
 	/** Detailed history of each pass */
 	pass_history: PassHistoryEntry[];
+	/** v3.2: Briefing status visibility */
+	briefing_status: BriefingStatus | null;
 }
 
 // v3.1: Strategic questions requiring human decision
@@ -2810,7 +2845,6 @@ export type {
 
 	QueueStats,
 	// Sprint 2: Entity types
-
 	ExtractionConfidence,
 
 
@@ -3076,6 +3110,78 @@ export async function triggerRetouche(noteId: string): Promise<RetoucheResponse>
 	return fetchApi<RetoucheResponse>(`/briefing/retouche/${encodeURIComponent(noteId)}`, {
 		method: 'POST'
 	});
+}
+
+// ============================================================================
+// ORPHAN QUESTIONS TYPES (Questions without target notes)
+// ============================================================================
+
+export interface OrphanQuestion {
+	question_id: string;
+	question: string;
+	category: string;
+	context: string;
+	source_valet: string;
+	source_email_subject: string;
+	created_at: string;
+	intended_target: string | null;
+	resolved: boolean;
+	resolved_at?: string;
+	resolution?: string;
+}
+
+export interface OrphanQuestionsListResponse {
+	questions: OrphanQuestion[];
+	pending_count: number;
+	total_count: number;
+}
+
+// ============================================================================
+// ORPHAN QUESTIONS API FUNCTIONS
+// ============================================================================
+
+/**
+ * List orphan strategic questions
+ * Orphan questions are strategic questions generated during email analysis
+ * that don't have a target note to attach to.
+ */
+export async function listOrphanQuestions(
+	includeResolved = false
+): Promise<OrphanQuestionsListResponse> {
+	const params = new URLSearchParams();
+	if (includeResolved) params.set('include_resolved', 'true');
+	const query = params.toString();
+	return fetchApi<OrphanQuestionsListResponse>(
+		`/briefing/orphan-questions${query ? `?${query}` : ''}`
+	);
+}
+
+/**
+ * Resolve an orphan strategic question
+ */
+export async function resolveOrphanQuestion(
+	questionId: string,
+	resolution?: string
+): Promise<{ question_id: string; resolved: boolean; resolution: string }> {
+	return fetchApi<{ question_id: string; resolved: boolean; resolution: string }>(
+		`/briefing/orphan-questions/${encodeURIComponent(questionId)}/resolve`,
+		{
+			method: 'POST',
+			body: JSON.stringify({ resolution: resolution ?? '' })
+		}
+	);
+}
+
+/**
+ * Delete an orphan strategic question
+ */
+export async function deleteOrphanQuestion(
+	questionId: string
+): Promise<{ question_id: string; deleted: boolean }> {
+	return fetchApi<{ question_id: string; deleted: boolean }>(
+		`/briefing/orphan-questions/${encodeURIComponent(questionId)}`,
+		{ method: 'DELETE' }
+	);
 }
 
 export { ApiError };

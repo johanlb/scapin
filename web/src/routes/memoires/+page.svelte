@@ -28,6 +28,7 @@
 		type NoteSearchResult
 	} from '$lib/api/client';
 	import { memoryCyclesStore } from '$lib/stores/memory-cycles.svelte';
+	import { orphanQuestionsStore } from '$lib/stores/orphan-questions.svelte';
 	import MarkdownEditor from '$lib/components/notes/MarkdownEditor.svelte';
 	import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
 	import { Modal } from '$lib/components/ui';
@@ -730,6 +731,7 @@
 		// Load Memory Cycles data for navigation badges
 		memoryCyclesStore.fetchFilage(20).catch(() => {/* ignore */});
 		memoryCyclesStore.fetchPendingQuestions(100).catch(() => {/* ignore */});
+		orphanQuestionsStore.fetchQuestions(false).catch(() => {/* ignore */});
 
 		// Global keyboard listener
 		window.addEventListener('keydown', handleGlobalKeydown);
@@ -782,29 +784,43 @@
 
 		<!-- Memory Cycles Quick Access -->
 		<div class="p-2 border-b border-[var(--color-border)]">
-			<div class="flex gap-1">
+			<div class="flex flex-col gap-1">
+				<div class="flex gap-1">
+					<button
+						type="button"
+						onclick={() => goto('/memoires/filage')}
+						class="flex-1 px-2 py-1.5 text-xs rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-colors flex items-center justify-center gap-1"
+						title="Filage du jour"
+					>
+						<span>📋</span>
+						<span>Filage</span>
+						{#if memoryCyclesStore.totalLectures > 0}
+							<span class="px-1 py-0.5 text-[10px] bg-amber-500/20 rounded-full">{memoryCyclesStore.totalLectures}</span>
+						{/if}
+					</button>
+					<button
+						type="button"
+						onclick={() => goto('/memoires/questions')}
+						class="flex-1 px-2 py-1.5 text-xs rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition-colors flex items-center justify-center gap-1"
+						title="Questions en attente"
+					>
+						<span>❓</span>
+						<span>Questions</span>
+						{#if memoryCyclesStore.pendingQuestionsCount > 0}
+							<span class="px-1 py-0.5 text-[10px] bg-purple-500/20 rounded-full">{memoryCyclesStore.pendingQuestionsCount}</span>
+						{/if}
+					</button>
+				</div>
 				<button
 					type="button"
-					onclick={() => goto('/memoires/filage')}
-					class="flex-1 px-2 py-1.5 text-xs rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 transition-colors flex items-center justify-center gap-1"
-					title="Filage du jour"
+					onclick={() => goto('/memoires/orphan-questions')}
+					class="w-full px-2 py-1.5 text-xs rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-300 transition-colors flex items-center justify-center gap-1"
+					title="Questions orphelines (sans note cible)"
 				>
-					<span>📋</span>
-					<span>Filage</span>
-					{#if memoryCyclesStore.totalLectures > 0}
-						<span class="px-1 py-0.5 text-[10px] bg-amber-500/20 rounded-full">{memoryCyclesStore.totalLectures}</span>
-					{/if}
-				</button>
-				<button
-					type="button"
-					onclick={() => goto('/memoires/questions')}
-					class="flex-1 px-2 py-1.5 text-xs rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 transition-colors flex items-center justify-center gap-1"
-					title="Questions en attente"
-				>
-					<span>❓</span>
-					<span>Questions</span>
-					{#if memoryCyclesStore.pendingQuestionsCount > 0}
-						<span class="px-1 py-0.5 text-[10px] bg-purple-500/20 rounded-full">{memoryCyclesStore.pendingQuestionsCount}</span>
+					<span>🎯</span>
+					<span>Questions orphelines</span>
+					{#if orphanQuestionsStore.pendingCount > 0}
+						<span class="px-1 py-0.5 text-[10px] bg-red-500/20 rounded-full">{orphanQuestionsStore.pendingCount}</span>
 					{/if}
 				</button>
 			</div>
