@@ -44,6 +44,7 @@ from src.sancho.analysis_engine import (
 from src.sancho.template_renderer import get_template_renderer
 
 if TYPE_CHECKING:
+    from src.passepartout.cross_source import CrossSourceEngine
     from src.sancho.router import AIRouter
 
 logger = get_logger("passepartout.retouche_reviewer")
@@ -137,6 +138,7 @@ class RetoucheContext:
     metadata: NoteMetadata
     linked_notes: list[Note] = field(default_factory=list)
     linked_note_excerpts: dict[str, str] = field(default_factory=dict)
+    related_entities: list[dict[str, Any]] = field(default_factory=list)  # CrossSource
     word_count: int = 0
     has_summary: bool = False
     section_count: int = 0
@@ -251,6 +253,7 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         metadata_store: NoteMetadataStore,
         scheduler: NoteScheduler,
         ai_router: Optional["AIRouter"] = None,
+        cross_source_engine: Optional["CrossSourceEngine"] = None,
     ):
         """
         Initialize Retouche reviewer
@@ -260,11 +263,13 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             metadata_store: Store for metadata
             scheduler: Scheduler for updating review times
             ai_router: AI router for analysis (Sancho)
+            cross_source_engine: Optional CrossSourceEngine for external context
         """
         self.notes = note_manager
         self.store = metadata_store
         self.scheduler = scheduler
         self.ai_router = ai_router
+        self.cross_source_engine = cross_source_engine
 
         # Initialize AnalysisEngine for AI calls if router available
         self._analysis_engine: Optional[AnalysisEngine] = None
@@ -506,11 +511,15 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         section_count = len(re.findall(r"^##\s", note.content, re.MULTILINE))
         question_count = note.content.count("?")
 
+        # Query CrossSourceEngine for related items from external sources
+        related_entities = await self._query_cross_source(note)
+
         return RetoucheContext(
             note=note,
             metadata=metadata,
             linked_notes=linked_notes,
             linked_note_excerpts=linked_excerpts,
+            related_entities=related_entities,
             word_count=word_count,
             has_summary=has_summary,
             section_count=section_count,
@@ -805,6 +814,73 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             })
 
         return issues
+
+    async def _query_cross_source(self, note: Note) -> list[dict[str, Any]]:
+        """
+        Query CrossSourceEngine for related items from external sources.
+
+        Builds a search query from the note's title and key terms,
+        then retrieves relevant items from emails, calendar, teams, etc.
+
+        Args:
+            note: The note being reviewed
+
+        Returns:
+            List of related items as dictionaries
+        """
+        if self.cross_source_engine is None:
+            return []
+
+        try:
+            # Build search query from note title and first 200 chars of content
+            query_parts = [note.title]
+
+            # Add key tags if available
+            if note.tags:
+                query_parts.extend(note.tags[:3])  # Limit to 3 tags
+
+            # Extract key terms from content (first line after title often has context)
+            content_lines = note.content.strip().split("\n")
+            if len(content_lines) > 1:
+                for line in content_lines[1:4]:
+                    clean_line = line.strip()
+                    if clean_line and not clean_line.startswith("#"):
+                        query_parts.append(clean_line[:100])
+                        break
+
+            query = " ".join(query_parts)
+            logger.debug(f"CrossSource query for note {note.note_id}: {query[:100]}...")
+
+            # Search cross-source with reasonable limits
+            result = await self.cross_source_engine.search(
+                query=query,
+                max_results=5,
+            )
+
+            # Convert SourceItems to dictionaries for storage
+            related_items: list[dict[str, Any]] = []
+            for item in result.items:
+                related_items.append({
+                    "source": item.source,
+                    "type": item.type,
+                    "title": item.title,
+                    "content": item.content[:300] if item.content else "",
+                    "timestamp": item.timestamp.isoformat() if item.timestamp else None,
+                    "relevance_score": item.relevance_score,
+                    "url": item.url,
+                    "metadata": item.metadata,
+                })
+
+            logger.info(
+                f"CrossSource found {len(related_items)} related items for note {note.note_id}",
+                extra={"sources": result.sources_searched},
+            )
+
+            return related_items
+
+        except Exception as e:
+            logger.warning(f"CrossSource query failed for note {note.note_id}: {e}")
+            return []
 
     def find_related_notes(
         self,
