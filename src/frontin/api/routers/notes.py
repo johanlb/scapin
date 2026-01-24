@@ -23,6 +23,7 @@ from src.frontin.api.models.notes import (
     NoteDiffResponse,
     NoteLinksResponse,
     NoteMetadataResponse,
+    NoteMetadataUpdateRequest,
     NoteMoveRequest,
     NoteMoveResponse,
     NoteResponse,
@@ -934,6 +935,49 @@ async def get_note_metadata(
         logger.error(f"Failed to get metadata for note {note_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to retrieve note metadata"
+        ) from e
+
+
+@router.patch("/{note_id}/metadata", response_model=APIResponse[NoteMetadataResponse])
+async def update_note_metadata(
+    note_id: str,
+    request: NoteMetadataUpdateRequest,
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[NoteMetadataResponse]:
+    """
+    Update metadata fields for a note
+
+    Allows updating:
+    - note_type: Type classification (personne, projet, concept, etc.)
+    - importance: Priority level (critical, high, normal, low, archive)
+    - auto_enrich: Enable/disable automatic enrichment
+    - web_search_enabled: Enable/disable web search for enrichment
+    - skip_revision: Exclude from SM-2 review scheduling
+    """
+    try:
+        result = await service.update_note_metadata(
+            note_id=note_id,
+            note_type=request.note_type,
+            importance=request.importance,
+            auto_enrich=request.auto_enrich,
+            web_search_enabled=request.web_search_enabled,
+            skip_revision=request.skip_revision,
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Note metadata not found")
+
+        return APIResponse(
+            success=True,
+            data=result,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update metadata for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to update note metadata"
         ) from e
 
 

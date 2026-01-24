@@ -22,6 +22,7 @@ from src.frontin.api.models.notes import (
     FolderNode,
     NoteDiffResponse,
     NoteLinksResponse,
+    NoteMetadataResponse,
     NoteMoveResponse,
     NoteResponse,
     NoteSearchResponse,
@@ -538,6 +539,85 @@ class NotesService:
 
         logger.info(f"Note updated: {note_id}")
         return _note_to_response(updated)
+
+    async def update_note_metadata(
+        self,
+        note_id: str,
+        note_type: str | None = None,
+        importance: str | None = None,
+        auto_enrich: bool | None = None,
+        web_search_enabled: bool | None = None,
+        skip_revision: bool | None = None,
+    ) -> NoteMetadataResponse | None:
+        """
+        Update note metadata fields
+
+        Args:
+            note_id: Note identifier
+            note_type: New note type
+            importance: New importance level
+            auto_enrich: Enable/disable auto-enrichment
+            web_search_enabled: Enable/disable web search
+            skip_revision: Exclude from SM-2 reviews
+
+        Returns:
+            Updated NoteMetadataResponse or None if not found
+        """
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_types import ImportanceLevel, NoteType
+
+        logger.info(f"Updating metadata for note: {note_id}")
+
+        # Get metadata store
+        store = NoteMetadataStore(self.config.notes_metadata_path)
+        metadata = store.get(note_id)
+
+        if metadata is None:
+            return None
+
+        # Apply updates
+        if note_type is not None:
+            try:
+                metadata.note_type = NoteType(note_type.lower())
+            except ValueError:
+                metadata.note_type = NoteType.AUTRE
+
+        if importance is not None:
+            try:
+                metadata.importance = ImportanceLevel(importance.lower())
+            except ValueError:
+                metadata.importance = ImportanceLevel.NORMAL
+
+        if auto_enrich is not None:
+            metadata.auto_enrich = auto_enrich
+
+        if web_search_enabled is not None:
+            metadata.web_search_enabled = web_search_enabled
+
+        # skip_revision=True means excluding from SM-2 reviews (set next_review to None)
+        # skip_revision=False doesn't change next_review (will be set during next review cycle)
+        if skip_revision is not None and skip_revision:
+            metadata.next_review = None
+
+        # Save - run in thread pool for I/O
+        await asyncio.to_thread(store.save, metadata)
+
+        logger.info(f"Metadata updated for note: {note_id}")
+
+        # Return response
+        return NoteMetadataResponse(
+            note_id=metadata.note_id,
+            note_type=metadata.note_type.value,
+            easiness_factor=metadata.easiness_factor,
+            repetition_number=metadata.repetition_number,
+            interval_hours=metadata.interval_hours,
+            next_review=metadata.next_review,
+            last_quality=metadata.last_quality,
+            review_count=metadata.review_count,
+            auto_enrich=metadata.auto_enrich,
+            importance=metadata.importance.value,
+            quality_score=None,  # Not tracked in metadata directly
+        )
 
     async def delete_note(self, note_id: str) -> bool:
         """

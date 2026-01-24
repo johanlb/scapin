@@ -237,6 +237,24 @@ class NoteMetadataResponse(BaseModel):
     quality_score: int | None = Field(None, ge=0, le=100, description="Quality score (0-100)")
 
 
+class NoteMetadataUpdateRequest(BaseModel):
+    """Request to update note metadata fields"""
+
+    note_type: str | None = Field(
+        None, description="Note type (personne, projet, concept, lieu, etc.)"
+    )
+    importance: str | None = Field(
+        None, description="Importance level (critical, high, normal, low, archive)"
+    )
+    auto_enrich: bool | None = Field(None, description="Enable/disable auto-enrichment")
+    web_search_enabled: bool | None = Field(
+        None, description="Enable/disable web search for enrichment"
+    )
+    skip_revision: bool | None = Field(
+        None, description="Exclude from SM-2 review scheduling"
+    )
+
+
 class NotesDueResponse(BaseModel):
     """Notes due for review"""
 
