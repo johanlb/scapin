@@ -68,6 +68,22 @@ Items avec analyse incomplète (confidence=0 ou action=None) restent maintenant 
 
 ---
 
+**Nettoyage Canevas :**
+
+Harmonisation du dossier Canevas (contexte permanent Johan).
+
+| Action | Détail |
+|--------|--------|
+| Dossier Apple Notes | Renommé "Briefing" → "Canevas" |
+| Métadonnées | 3 doublons supprimés, paths corrigés |
+| Frontmatters | path: Briefing → Canevas |
+| Preferences.md | Créé (template préférences) |
+
+**État final Canevas :** 4 fichiers, 15740 chars, COMPLETE
+- Profile.md, Projects.md, Goals.md, Preferences.md
+
+---
+
 **Système Retouche (✅ COMPLET — PR #56) :**
 
 Système complet d'amélioration automatique des notes par IA.
