@@ -220,3 +220,4 @@ Impact global estimé sur latence utilisateur : **~10-15%**.
 | 2026-01-24 | **Phase 1** : Thread pool 32→8 (4 occurrences, 36 tests passés) |
 | 2026-01-24 | **Phase 2** : Cache context search (TTLCache 60s, 32 tests passés) |
 | 2026-01-24 | **Phase 3** : Early-stop emails éphémères (flag is_ephemeral ajouté) |
+| 2026-01-24 | **Phase 4** : Documentation `docs/architecture/performance.md` créée |
