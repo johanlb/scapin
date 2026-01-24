@@ -103,10 +103,27 @@ py-spy record -o analysis-profile.svg -- python -c "from src.sancho import analy
 
 **Problème** : Pipeline 4 Valets réexécute context search pour chaque email. Même entités (personnes, projets) recherchées répétitivement.
 
+**Dépendance** : `cachetools` (TTLCache)
+```bash
+pip install cachetools
+# Ajouter à requirements.txt si absent
+```
+
 **Solution** :
 - Cache résultats par entity (personnes, projets)
 - TTL 15min pour entités stables
 - Réutilisation contexte entre emails similaires
+- **Invalidation obligatoire** lors du rebuild index FAISS
+
+**Invalidation cache** :
+```python
+# Dans context_searcher.py
+def invalidate_cache(self) -> None:
+    """Appelé lors du rebuild de l'index FAISS."""
+    self._faiss_cache.clear()
+
+# Appeler depuis note_manager.py après rebuild_index()
+```
 
 **Impact estimé** : ~20% gains sur analyse multi-pass
 
@@ -449,3 +466,4 @@ Phase 6 — Après refactoring UI
 | 2026-01-24 | Ajout profiling CPU py-spy (#11) |
 | 2026-01-24 | Décision : focus backend, frontend reporté après refactoring UI |
 | 2026-01-24 | Ajout installation py-spy (#12), tests (#13, #16), documentation (#14, #15) |
+| 2026-01-24 | Ajout dépendance `cachetools` et invalidation cache FAISS (#4) |

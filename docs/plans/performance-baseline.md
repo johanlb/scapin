@@ -95,14 +95,70 @@ max_workers = min(32, len(files_to_load))  # ACTUEL
 3. **Modèle sélection optimisé** : Haiku → Sonnet → Opus selon confiance
 4. **Quick wins backend** : Toujours valides mais impact limité
 
-### Décision
+### Décision (historique)
 
-**Plan performance mis en pause** pour prioritiser le nettoyage du workflow :
-- Le code workflow est confus (V1/V2/Four Valets mélangés)
-- AutoFetch non implémenté (planifié mais jamais codé)
-- Nettoyer avant d'optimiser
+~~**Plan performance mis en pause** pour prioritiser le nettoyage du workflow~~ → **REPRIS**
 
-→ Voir `docs/plans/workflow-cleanup-autofetch.md`
+Le workflow cleanup est terminé (voir `docs/plans/archive/workflow-cleanup-autofetch.md`).
+
+---
+
+## Plan d'Optimisation Corrigé
+
+> Conforme aux directives CLAUDE.md et skill /perf
+
+### Phase 0 : Nouveau Baseline
+
+1. Générer nouveau flamegraph (fetch réparé)
+2. Capturer métriques : notes load, context search, email fetch
+3. Exécuter tests performance
+4. Documenter valeurs de référence
+
+### Phase 1 : Thread Pool 32 → 8
+
+**Fichier critique** : `note_manager.py` (confirmation Johan requise)
+
+| Métrique | Avant | Cible | Seuil |
+|----------|-------|-------|-------|
+| `get_all_notes()` 150 notes | 450ms | 350ms | -20% |
+
+### Phase 2 : Cache Context Search
+
+**Prérequis** : Dépendance `cachetools`
+
+- TTLCache (maxsize=100, ttl=60s)
+- Invalidation obligatoire lors rebuild FAISS
+- Logs cache hit/miss
+
+| Métrique | Avant | Cible | Seuil |
+|----------|-------|-------|-------|
+| Context search | 500ms | 150ms | -70% |
+
+### Phase 3 : Early-Stop Emails
+
+Détection : list-id, list-unsubscribe, auto-submitted
+
+| Métrique | Avant | Cible | Seuil |
+|----------|-------|-------|-------|
+| Emails skipped | 0% | 30% | 30% |
+| Temps batch 10 emails | 10s | 7s | -30% |
+
+### Phase 4 : Documentation
+
+- `docs/architecture/performance.md` (nouveau)
+- Mise à jour ce fichier avec résultats
+
+### Phase 5 : Mesures Finales
+
+Comparer avec baseline et documenter gains réels.
+
+---
+
+## Avertissement Impact
+
+**Rappel** : ~47% du temps = attente API Anthropic (I/O wait).
+
+Impact global estimé sur latence utilisateur : **~10-15%**.
 
 ---
 
@@ -113,3 +169,5 @@ max_workers = min(32, len(files_to_load))  # ACTUEL
 | 2026-01-24 | Création baseline, flamegraph généré |
 | 2026-01-24 | Analyse flamegraph : bottleneck = I/O API, pas CPU |
 | 2026-01-24 | **PAUSE** : Priorité au cleanup workflow |
+| 2026-01-24 | Workflow cleanup terminé, plan **REPRIS** |
+| 2026-01-24 | Plan corrigé (conformité CLAUDE.md, cachetools, invalidation FAISS) |
