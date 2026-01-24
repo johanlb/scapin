@@ -122,13 +122,17 @@ py-spy --version  # 0.4.1
 
 ---
 
-### #5 Batch search VectorStore ⏳ À FAIRE
+### #5 Batch search VectorStore ✅
 
-**Fichier** : `src/passepartout/entity_search.py`
+**Commit** : `60666fa`
 
-**Solution** : Grouper 10-20 requêtes FAISS en une seule, réduire overhead embedding
+**Implémentation** :
+- `search_batch()` dans `VectorStore` — recherche multiple queries
+- `search_notes_batch()` dans `NoteManager` — wrapper pour notes
+- Utilise `embed_batch()` pour générer embeddings en un seul appel
+- 6 tests unitaires ajoutés
 
-**Priorité** : Moyenne (gains marginaux après cache)
+**Gain** : Réduit overhead embedding pour recherches multiples
 
 ---
 
@@ -297,7 +301,7 @@ flowchart TD
   ✅ #2 — Thread pool 32→8
   ✅ #4 — Cache context search
   ✅ #3 — Early-stop is_ephemeral
-  ⏳ #5 — Batch search VectorStore
+  ✅ #5 — Batch search VectorStore
 
 ⏳ Phase 3 — Validation
   ✅ #16 — Tests non-régression (partiel)
@@ -351,3 +355,4 @@ flowchart TD
 | 2026-01-24 | Phase 2 : Thread pool 32→8, cache context search, is_ephemeral |
 | 2026-01-24 | Phase 4 : Documentation `docs/architecture/performance.md` |
 | 2026-01-24 | Mise à jour plan : Phases 0-2 complétées, 3-4 en cours |
+| 2026-01-24 | #5 Batch search VectorStore implémenté |
