@@ -19,8 +19,9 @@ en connaissances organisées via analyse IA multi-pass et mémoire contextuelle.
 |-------|------------|---------|
 | **Valets** | `/valets` | "Où implémenter X ?", "Comment fonctionne Y ?" |
 | **Session** | `/session` | "Qu'est-ce qui a été fait ?", début de session |
-| **Workflow** | `/workflow` | Conventions de commit, commandes détaillées |
+| **Workflow** | `/workflow` | Conventions de commit, commandes, patterns code |
 | **Debug** | `/debug` | "Ça ne marche pas", erreurs, diagnostic, logs |
+| **UI** | `/ui` | Composants, accessibilité, performance frontend |
 
 ---
 
