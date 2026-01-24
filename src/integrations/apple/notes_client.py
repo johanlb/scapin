@@ -213,7 +213,11 @@ class AppleNotesClient:
 
         script DateFormatter
             on pad(num)
-                if num < 10 then return "0" & num else return num as string
+                if num < 10 then
+                    return "0" & num
+                else
+                    return num as string
+                end if
             end pad
             on formatDate(d)
                 return (year of d as string) & "-" & my pad(month of d as integer) & "-" & my pad(day of d) & " " & my pad(hours of d) & ":" & my pad(minutes of d) & ":" & my pad(seconds of d)
@@ -260,7 +264,11 @@ class AppleNotesClient:
 
         script DateFormatter
             on pad(num)
-                if num < 10 then return "0" & num else return num as string
+                if num < 10 then
+                    return "0" & num
+                else
+                    return num as string
+                end if
             end pad
             on formatDate(d)
                 return (year of d as string) & "-" & my pad(month of d as integer) & "-" & my pad(day of d) & " " & my pad(hours of d) & ":" & my pad(minutes of d) & ":" & my pad(seconds of d)
