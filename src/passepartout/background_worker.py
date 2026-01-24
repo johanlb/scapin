@@ -6,13 +6,15 @@ Includes Memory Cycles v2: Retouche (AI) and Filage (briefing).
 Designed to run without blocking the frontend or API.
 """
 
+from __future__ import annotations
+
 import asyncio
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 from src.monitoring.logger import get_logger
 from src.passepartout.janitor import NoteJanitor
@@ -20,11 +22,11 @@ from src.passepartout.note_manager import NoteManager
 from src.passepartout.note_metadata import NoteMetadataStore
 from src.passepartout.note_scheduler import NoteScheduler
 from src.passepartout.note_types import CycleType
-from src.passepartout.retouche_reviewer import RetoucheResult, RetoucheReviewer
 
 if TYPE_CHECKING:
     from src.passepartout.cross_source import CrossSourceEngine
     from src.passepartout.filage_service import Filage, FilageService
+    from src.passepartout.retouche_reviewer import RetoucheResult, RetoucheReviewer
     from src.sancho.processor import NoteProcessor
 
 logger = get_logger("passepartout.background_worker")
@@ -48,18 +50,18 @@ class WorkerStats:
     actions_applied: int = 0
     actions_pending: int = 0
     errors_today: int = 0
-    last_review_at: Optional[datetime] = None
-    session_start: Optional[datetime] = None
+    last_review_at: datetime | None = None
+    session_start: datetime | None = None
     average_review_seconds: float = 0.0
-    last_janitor_run: Optional[datetime] = None
+    last_janitor_run: datetime | None = None
     janitor_repairs_total: int = 0
 
     # Memory Cycles v2 stats
     retouches_today: int = 0
     retouches_total: int = 0
-    last_retouche_at: Optional[datetime] = None
+    last_retouche_at: datetime | None = None
     filage_prepared_today: bool = False
-    last_filage_at: Optional[datetime] = None
+    last_filage_at: datetime | None = None
 
 
 @dataclass
@@ -112,11 +114,11 @@ class BackgroundWorker:
     def __init__(
         self,
         notes_dir: Path,
-        data_dir: Optional[Path] = None,
-        config: Optional[WorkerConfig] = None,
-        cross_source_engine: Optional["CrossSourceEngine"] = None,
-        on_review_complete: Optional[Callable[[RetoucheResult], None]] = None,
-        on_state_change: Optional[Callable[[WorkerState], None]] = None,
+        data_dir: Path | None = None,
+        config: WorkerConfig | None = None,
+        cross_source_engine: CrossSourceEngine | None = None,
+        on_review_complete: Callable[[RetoucheResult | None, None]] = None,
+        on_state_change: Callable[[WorkerState | None, None]] = None,
     ):
         """
         Initialize background worker
@@ -143,21 +145,21 @@ class BackgroundWorker:
         self._stats = WorkerStats()
         self._stop_requested = False
         self._pause_requested = False
-        self._session_start: Optional[datetime] = None
+        self._session_start: datetime | None = None
         self._last_ingestion_check: float = 0
 
         # Components (lazy init)
-        self._note_manager: Optional[NoteManager] = None
-        self._metadata_store: Optional[NoteMetadataStore] = None
-        self._scheduler: Optional[NoteScheduler] = None
+        self._note_manager: NoteManager | None = None
+        self._metadata_store: NoteMetadataStore | None = None
+        self._scheduler: NoteScheduler | None = None
         # Note: _reviewer removed - using _retouche_reviewer for all reviews
-        self._processor: Optional[NoteProcessor] = None
-        self._janitor: Optional[NoteJanitor] = None
+        self._processor: NoteProcessor | None = None
+        self._janitor: NoteJanitor | None = None
 
         # Memory Cycles v2 components
-        self._retouche_reviewer: Optional[RetoucheReviewer] = None
-        self._filage_service: Optional[FilageService] = None
-        self._current_filage: Optional[Filage] = None
+        self._retouche_reviewer: RetoucheReviewer | None = None
+        self._filage_service: FilageService | None = None
+        self._current_filage: Filage | None = None
 
     @property
     def state(self) -> WorkerState:
@@ -200,6 +202,8 @@ class BackgroundWorker:
 
         # Memory Cycles v2 components (unified reviewer)
         if self._retouche_reviewer is None:
+            from src.passepartout.retouche_reviewer import RetoucheReviewer
+
             self._retouche_reviewer = RetoucheReviewer(
                 note_manager=self._note_manager,
                 metadata_store=self._metadata_store,
@@ -512,7 +516,7 @@ class BackgroundWorker:
         except Exception as e:
             logger.error(f"Filage preparation failed: {e}", exc_info=True)
 
-    def get_current_filage(self) -> Optional["Filage"]:
+    def get_current_filage(self) -> Filage | None:
         """Get the current day's Filage"""
         return self._current_filage
 
@@ -523,7 +527,7 @@ class BackgroundWorker:
         self._set_state(WorkerState.STOPPED)
         logger.info("Background worker stopped")
 
-    async def _process_note(self, note_id: str) -> Optional[RetoucheResult]:
+    async def _process_note(self, note_id: str) -> RetoucheResult | None:
         """Process a single note review using RetoucheReviewer"""
         logger.info(f"Processing note: {note_id}")
         start_time = time.time()
@@ -645,12 +649,12 @@ class BackgroundWorkerManager:
     Handles starting, stopping, and monitoring the worker.
     """
 
-    _instance: Optional["BackgroundWorkerManager"] = None
-    _worker: Optional[BackgroundWorker] = None
-    _task: Optional[asyncio.Task] = None
+    _instance: BackgroundWorkerManager | None = None
+    _worker: BackgroundWorker | None = None
+    _task: asyncio.Task | None = None
 
     @classmethod
-    def get_instance(cls) -> "BackgroundWorkerManager":
+    def get_instance(cls) -> BackgroundWorkerManager:
         """Get singleton instance"""
         if cls._instance is None:
             cls._instance = cls()
@@ -663,8 +667,8 @@ class BackgroundWorkerManager:
     async def start(
         self,
         notes_dir: Path,
-        data_dir: Optional[Path] = None,
-        config: Optional[WorkerConfig] = None,
+        data_dir: Path | None = None,
+        config: WorkerConfig | None = None,
     ) -> None:
         """Start the background worker"""
         if self._worker and self._worker.state == WorkerState.RUNNING:

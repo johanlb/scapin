@@ -1684,8 +1684,12 @@ def notes_pending(
 
     from src.core.config_manager import get_config
     from src.passepartout.note_manager import NoteManager
-    from src.passepartout.note_reviewer import ActionType, NoteReviewer, ReviewAction
     from src.passepartout.note_scheduler import create_scheduler
+    from src.passepartout.retouche_reviewer import (
+        RetoucheAction,
+        RetoucheActionResult,
+        RetoucheReviewer,
+    )
     from src.sancho.router import AIRouter
 
     config = get_config()
@@ -1761,9 +1765,9 @@ def notes_pending(
             console.print("[red]Note content not found[/red]")
             raise typer.Exit(1)
 
-        # Convert EnrichmentRecord to ReviewAction
-        review_action = ReviewAction(
-            action_type=ActionType(action_to_apply.action_type),
+        # Convert EnrichmentRecord to RetoucheActionResult
+        retouche_action = RetoucheActionResult(
+            action_type=RetoucheAction(action_to_apply.action_type),
             target=action_to_apply.target,
             content=action_to_apply.content,
             confidence=action_to_apply.confidence,
@@ -1772,7 +1776,7 @@ def notes_pending(
 
         # Initialize reviewer
         ai_router = AIRouter(config)
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=manager,
             metadata_store=scheduler.store,
             scheduler=scheduler,
@@ -1781,7 +1785,7 @@ def notes_pending(
 
         # Apply action
         with console.status("[bold green]Applying action..."):
-            updated_content = reviewer._apply_action(note.content, review_action)
+            updated_content = reviewer._apply_action(note.content, retouche_action)
 
             # Save
             manager.update_note(note_id=note_id, content=updated_content)
