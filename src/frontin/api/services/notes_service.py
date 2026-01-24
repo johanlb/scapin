@@ -599,7 +599,7 @@ class NotesService:
         limit: int = 20,
     ) -> NoteSearchResponse:
         """
-        Semantic search for notes
+        Semantic search for notes with filtering and ranking
 
         Args:
             query: Search query
@@ -607,36 +607,63 @@ class NotesService:
             limit: Maximum results
 
         Returns:
-            NoteSearchResponse with ranked results
+            NoteSearchResponse with ranked results (score >= 40% threshold)
         """
+        # Search relevance thresholds
+        MIN_SCORE_THRESHOLD = 0.4  # Reject results below 40% similarity
+        TITLE_BOOST_FACTOR = 1.5  # +50% boost if query appears in title
+
         logger.info(f"Searching notes: '{query}' (tags={tags})")
         manager = self._get_manager()
+
+        # Request more results to account for filtering
+        search_limit = limit * 3
 
         # Search with scores - run in thread pool for FAISS + iCloud I/O
         results = await asyncio.to_thread(
             manager.search_notes,
             query=query,
-            top_k=limit,
+            top_k=search_limit,
             tags=tags,
             return_scores=True,
         )
 
-        # Build response
+        # Build and filter response
+        query_lower = query.lower().strip()
         search_results = []
+
         for note, l2_distance in results:  # type: ignore
-            response = _note_to_response(note)
             # Convert L2 distance to similarity score (higher = better)
             # Using formula: similarity = 1 / (1 + distance)
             similarity_score = 1.0 / (1.0 + float(l2_distance))
+
+            # Apply title boost if query appears in title
+            title_lower = note.title.lower() if note.title else ""
+            if query_lower and query_lower in title_lower:
+                similarity_score = min(1.0, similarity_score * TITLE_BOOST_FACTOR)
+
+            # Skip results below threshold
+            if similarity_score < MIN_SCORE_THRESHOLD:
+                continue
+
+            response = _note_to_response(note)
             search_results.append(
                 NoteSearchResult(
                     note=response,
                     score=similarity_score,
-                    highlights=[],  # TODO: Generate highlights from matches
+                    highlights=[],
                 )
             )
 
-        logger.info(f"Search returned {len(search_results)} results")
+        # Sort by score descending (title-boosted results rise to top)
+        search_results.sort(key=lambda r: r.score, reverse=True)
+
+        # Apply limit after sorting
+        search_results = search_results[:limit]
+
+        logger.info(
+            f"Search returned {len(search_results)} results (filtered from {len(results)})"
+        )
         return NoteSearchResponse(
             query=query,
             results=search_results,
