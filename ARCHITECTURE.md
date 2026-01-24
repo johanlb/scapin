@@ -12,7 +12,8 @@
 
 - [Vision](#vision)
 - [Workflow v2: Knowledge Extraction](#workflow-v2-knowledge-extraction)
-- [Four Valets v3.0](#four-valets-v30-architecture) ⭐ NEW
+- [Four Valets v3.0](#four-valets-v30-architecture)
+- [AutoFetch & Confidence Routing](#autofetch--confidence-routing-sc-20) ⭐ NEW
 - [Core Principles](#core-principles)
 - [Architecture Overview](#architecture-overview)
 - [Component Specifications](#component-specifications)
@@ -380,6 +381,43 @@ Le Four Valets v3.0 est rétro-compatible avec le pipeline v2.2 :
 - `use_four_valets=True` (défaut) : Utilise le nouveau pipeline
 - `use_four_valets=False` : Utilise le pipeline legacy v2.2
 - Si Four Valets échoue et `fallback_to_legacy=True` : Retour automatique au v2.2
+
+---
+
+## 🔄 AutoFetch & Confidence Routing (SC-20)
+
+> **Doc complète**: [docs/architecture/workflow.md](docs/architecture/workflow.md)
+
+### AutoFetch
+
+AutoFetch maintient automatiquement la queue de review peuplée :
+
+| Contexte | Seuil | Comportement |
+|----------|-------|--------------|
+| **Startup** | < 20 items | Fetch immédiat au démarrage |
+| **Runtime** | < 5 items | Fetch après approve/reject (debounce 2s) |
+
+Cooldowns par source : Email 2min, Teams 2min, Calendar 5min.
+
+### Routage par Confiance
+
+| Confiance | Routage | Description |
+|-----------|---------|-------------|
+| **>= 85%** | Auto-apply | Action exécutée automatiquement |
+| **< 85%** | Queue | En attente de validation utilisateur |
+
+L'action `QUEUE` n'est jamais auto-appliquée.
+
+### Configuration
+
+```yaml
+autofetch:
+  enabled: true
+  auto_apply_enabled: true
+  auto_apply_threshold: 85
+  low_threshold: 5
+  startup_threshold: 20
+```
 
 ---
 
