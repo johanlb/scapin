@@ -1,7 +1,13 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { openCommandPalette } from '$lib/stores';
+	import { openCommandPalette, canevasStore } from '$lib/stores';
 	import { memoryCyclesStore } from '$lib/stores/memory-cycles.svelte';
+
+	// Load canevas status on mount
+	onMount(() => {
+		canevasStore.fetch();
+	});
 
 	interface NavItem {
 		href: string;
@@ -134,7 +140,50 @@
 	<!-- Footer -->
 	<div class="p-2 border-t border-[var(--glass-border-subtle)]">
 		{#if expanded}
-			<p class="text-xs text-[var(--color-text-tertiary)] text-center">v0.8.0</p>
+			<div class="flex items-center justify-between px-2 py-1">
+				<a
+					href="/memoires?folder=Canevas"
+					class="flex items-center gap-2 hover:opacity-80 transition-opacity"
+					title="Voir le Canevas"
+				>
+					<span class="text-sm">📜</span>
+					{#if canevasStore.hasStatus}
+						<span
+							class="text-xs"
+							style="color: {canevasStore.completenessColor}"
+						>
+							{canevasStore.completenessLabel}
+						</span>
+					{:else if canevasStore.loading}
+						<span class="text-xs text-[var(--color-text-tertiary)]">...</span>
+					{:else}
+						<span class="text-xs text-[var(--color-text-tertiary)]">—</span>
+					{/if}
+				</a>
+				<span class="text-xs text-[var(--color-text-tertiary)]">v0.8.0</span>
+			</div>
+		{:else}
+			<!-- Collapsed: show icon with status dot -->
+			<a
+				href="/memoires?folder=Canevas"
+				class="group relative flex items-center justify-center w-10 h-10 mx-auto rounded-xl
+					hover:bg-[var(--glass-subtle)] transition-all"
+				title="Canevas: {canevasStore.completenessLabel}"
+			>
+				<span class="text-lg relative">
+					📜
+					{#if canevasStore.hasStatus && !canevasStore.isComplete}
+						<span
+							class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
+							style="background-color: {canevasStore.completenessColor}"
+						></span>
+					{/if}
+				</span>
+				<!-- Tooltip -->
+				<span class="absolute left-full ml-2 px-2 py-1 glass-prominent text-[var(--color-text-primary)] text-xs font-medium rounded-xl shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+					Canevas: {canevasStore.completenessLabel}
+				</span>
+			</a>
 		{/if}
 	</div>
 </aside>

@@ -422,6 +422,11 @@ export async function getPreMeetingBriefing(
 	});
 }
 
+// Canevas endpoints
+export async function getCanevasStatus(): Promise<CanevasStatus | null> {
+	return fetchApi<CanevasStatus | null>('/canevas/status');
+}
+
 // ============================================================================
 // JOURNAL TYPES
 // ============================================================================

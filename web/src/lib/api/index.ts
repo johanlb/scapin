@@ -14,6 +14,8 @@ export {
 	// Briefing
 	getMorningBriefing,
 	getPreMeetingBriefing,
+	// Canevas
+	getCanevasStatus,
 	// Queue
 	listQueueItems,
 	getQueueItem,
@@ -80,6 +82,9 @@ export type {
 	PreMeetingBriefing,
 	TokenResponse,
 	AuthCheckResponse,
+	// Canevas types
+	CanevasStatus,
+	CanevasFileStatus,
 	// Queue types
 	Attachment,
 	ActionOption,

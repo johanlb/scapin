@@ -20,6 +20,7 @@ from src.frontin.api.routers import (
     auth_router,
     briefing_router,
     calendar_router,
+    canevas_router,
     discussions_router,
     drafts_router,
     email_router,
@@ -190,6 +191,7 @@ def create_app() -> FastAPI:
     app.include_router(queue_router, prefix="/api/queue", tags=["Queue"])
     app.include_router(email_router, prefix="/api/email", tags=["Email"])
     app.include_router(calendar_router, prefix="/api/calendar", tags=["Calendar"])
+    app.include_router(canevas_router, prefix="/api/canevas", tags=["Canevas"])
     app.include_router(teams_router, prefix="/api/teams", tags=["Teams"])
     app.include_router(notes_router, prefix="/api/notes", tags=["Notes"])
     app.include_router(media_router, tags=["Media"])  # Already has /api/media prefix

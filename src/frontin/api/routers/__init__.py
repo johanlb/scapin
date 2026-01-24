@@ -3,6 +3,7 @@
 from src.frontin.api.routers.auth import router as auth_router
 from src.frontin.api.routers.briefing import router as briefing_router
 from src.frontin.api.routers.calendar import router as calendar_router
+from src.frontin.api.routers.canevas import router as canevas_router
 from src.frontin.api.routers.discussions import router as discussions_router
 from src.frontin.api.routers.drafts import router as drafts_router
 from src.frontin.api.routers.email import router as email_router
@@ -23,6 +24,7 @@ __all__ = [
     "auth_router",
     "briefing_router",
     "calendar_router",
+    "canevas_router",
     "discussions_router",
     "drafts_router",
     "email_router",
