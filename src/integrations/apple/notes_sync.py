@@ -208,13 +208,17 @@ class AppleNotesSync:
                 self._save_mappings()
             else:
                 # In dry run, just populate result without making changes
-                for apple_id, action, _data in actions:
+                for apple_id, action, data in actions:
                     if action == SyncAction.CREATE:
                         result.created.append(apple_id)
                     elif action == SyncAction.UPDATE:
                         result.updated.append(apple_id)
                     elif action == SyncAction.DELETE:
                         result.deleted.append(apple_id)
+                    elif action == SyncAction.MOVE:
+                        apple_note = data.get("apple_note")
+                        name = apple_note.name if apple_note else apple_id
+                        result.updated.append(f"{name} (moved)")
                     elif action == SyncAction.SKIP:
                         result.skipped.append(apple_id)
 
@@ -327,6 +331,36 @@ class AppleNotesSync:
                 # Both exist - check for updates
                 scapin_path, scapin_modified = scapin_data
                 apple_modified = apple_note.modified_at
+
+                # Check if folder changed (note was moved in Apple Notes)
+                # Note: If note was moved to an excluded folder (e.g., Recently Deleted),
+                # it won't appear in apple_notes at all, triggering deletion logic below.
+                #
+                # For legacy mappings without apple_folder, infer expected folder from scapin_path
+                expected_folder = mapping.apple_folder
+                if not expected_folder:
+                    # Infer from scapin_path: "Folder/SubFolder/file.md" -> "Folder/SubFolder"
+                    path_parts = Path(mapping.scapin_path).parts
+                    expected_folder = (
+                        "/".join(path_parts[:-1]) if len(path_parts) > 1 else "Notes"
+                    )
+
+                if expected_folder and apple_note.folder != expected_folder:
+                    actions.append(
+                        (
+                            apple_id,
+                            SyncAction.MOVE,
+                            {
+                                "apple_note": apple_note,
+                                "scapin_path": scapin_path,
+                                "old_folder": expected_folder,
+                                "new_folder": apple_note.folder,
+                            },
+                        )
+                    )
+                    processed_apple.add(apple_id)
+                    processed_scapin.add(mapping.scapin_path)
+                    continue
 
                 # Compare modification times
                 if apple_modified > mapping.last_synced:
@@ -492,6 +526,8 @@ class AppleNotesSync:
                     self._execute_update(identifier, data, result)
                 elif action == SyncAction.DELETE:
                     self._execute_delete(identifier, data, result)
+                elif action == SyncAction.MOVE:
+                    self._execute_move(identifier, data, result)
                 elif action == SyncAction.SKIP:
                     result.skipped.append(identifier)
                 elif action == SyncAction.CONFLICT:
@@ -532,7 +568,9 @@ class AppleNotesSync:
 
             scapin_path = self._create_scapin_note(apple_note)
             if scapin_path:
-                self._add_mapping(apple_note.id, scapin_path, apple_note.modified_at)
+                self._add_mapping(
+                    apple_note.id, scapin_path, apple_note.modified_at, apple_note.folder
+                )
                 result.created.append(apple_note.name)
 
         elif direction == "scapin_to_apple":
@@ -639,6 +677,51 @@ class AppleNotesSync:
                 result.deleted.append(scapin_path.stem)
             except Exception as e:
                 logger.error(f"Failed to move Scapin note to trash: {e}")
+
+    def _execute_move(
+        self,
+        apple_id: str,
+        data: dict,
+        result: SyncResult,
+    ) -> None:
+        """Execute a move action - relocate Scapin note to match Apple folder change"""
+        apple_note: AppleNote = data["apple_note"]
+        old_scapin_path: Path = data["scapin_path"]
+        old_folder = data["old_folder"]
+        new_folder = data["new_folder"]
+
+        try:
+            # Calculate new path
+            new_folder_path = self.notes_dir / self._sanitize_folder_name(new_folder)
+            new_folder_path.mkdir(parents=True, exist_ok=True)
+
+            new_scapin_path = new_folder_path / old_scapin_path.name
+
+            # Handle duplicate filename in target
+            counter = 1
+            while new_scapin_path.exists():
+                stem = old_scapin_path.stem
+                suffix = old_scapin_path.suffix
+                new_scapin_path = new_folder_path / f"{stem}_{counter}{suffix}"
+                counter += 1
+
+            # Move the file
+            old_scapin_path.rename(new_scapin_path)
+
+            # Update the mapping
+            new_rel_path = str(new_scapin_path.relative_to(self.notes_dir))
+            self._mappings[apple_id].scapin_path = new_rel_path
+            self._mappings[apple_id].apple_folder = new_folder
+            self._mappings[apple_id].last_synced = datetime.now()
+
+            logger.info(
+                f"Moved note '{apple_note.name}' from '{old_folder}' to '{new_folder}'"
+            )
+            result.updated.append(f"{apple_note.name} (moved)")
+
+        except Exception as e:
+            logger.error(f"Failed to move note {apple_note.name}: {e}")
+            result.errors.append(f"Move failed: {apple_note.name}: {e}")
 
     def _extract_title_from_content(self, content: str, fallback_stem: str) -> str:
         """
@@ -929,6 +1012,7 @@ class AppleNotesSync:
                         apple_modified=datetime.fromisoformat(mapping_data["apple_modified"]),
                         scapin_modified=datetime.fromisoformat(mapping_data["scapin_modified"]),
                         last_synced=datetime.fromisoformat(mapping_data["last_synced"]),
+                        apple_folder=mapping_data.get("apple_folder", ""),
                     )
             except Exception as e:
                 logger.warning(f"Failed to load sync mappings: {e}")
@@ -943,10 +1027,13 @@ class AppleNotesSync:
                 "apple_modified": mapping.apple_modified.isoformat(),
                 "scapin_modified": mapping.scapin_modified.isoformat(),
                 "last_synced": mapping.last_synced.isoformat(),
+                "apple_folder": mapping.apple_folder,
             }
         mapping_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
-    def _add_mapping(self, apple_id: str, scapin_path: str, modified: datetime) -> None:
+    def _add_mapping(
+        self, apple_id: str, scapin_path: str, modified: datetime, apple_folder: str = ""
+    ) -> None:
         """Add a new sync mapping"""
         now = datetime.now()
         self._mappings[apple_id] = SyncMapping(
@@ -955,6 +1042,7 @@ class AppleNotesSync:
             apple_modified=modified,
             scapin_modified=modified,
             last_synced=now,
+            apple_folder=apple_folder,
         )
 
     def _update_mapping(self, apple_id: str, modified: datetime) -> None:

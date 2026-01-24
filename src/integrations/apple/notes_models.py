@@ -24,6 +24,7 @@ class SyncAction(str, Enum):
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
+    MOVE = "move"  # Note moved to different folder
     SKIP = "skip"
     CONFLICT = "conflict"
 
@@ -189,3 +190,4 @@ class SyncMapping:
     apple_modified: datetime
     scapin_modified: datetime
     last_synced: datetime
+    apple_folder: str = ""  # Track folder for move detection
