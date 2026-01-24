@@ -1675,6 +1675,7 @@ interface NoteReviewMetadata {
 	review_count: number;
 	auto_enrich: boolean;
 	importance: string;
+	quality_score?: number | null;
 }
 
 interface NotesDueResponse {
@@ -3483,6 +3484,40 @@ export async function getNoteLifecycleStatus(
 	return fetchApi<NoteLifecycleStatus>(
 		`/retouche/note/${encodeURIComponent(noteId)}/lifecycle`
 	);
+}
+
+// ============================================================================
+// NOTES FILTERS (Quality & Lifecycle)
+// ============================================================================
+
+/**
+ * Get notes with low quality score
+ */
+export async function getLowQualityNotes(
+	threshold: number = 50,
+	limit: number = 20
+): Promise<NoteReviewMetadata[]> {
+	return fetchApi<NoteReviewMetadata[]>(
+		`/notes/low-quality?threshold=${threshold}&limit=${limit}`
+	);
+}
+
+/**
+ * Get notes flagged as obsolete
+ */
+export async function getObsoleteNotes(
+	limit: number = 20
+): Promise<NoteReviewMetadata[]> {
+	return fetchApi<NoteReviewMetadata[]>(`/notes/obsolete?limit=${limit}`);
+}
+
+/**
+ * Get notes with pending merge actions
+ */
+export async function getMergePendingNotes(
+	limit: number = 20
+): Promise<NoteReviewMetadata[]> {
+	return fetchApi<NoteReviewMetadata[]>(`/notes/merge-pending?limit=${limit}`);
 }
 
 export { ApiError };

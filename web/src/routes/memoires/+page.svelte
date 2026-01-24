@@ -20,6 +20,9 @@
 		searchNotes,
 		addToFilage,
 		triggerRetouche,
+		getLowQualityNotes,
+		getObsoleteNotes,
+		getMergePendingNotes,
 		type Note,
 		type FolderNode,
 		type NotesTree,
@@ -127,6 +130,15 @@
 	const ALL_NOTES_PATH = '__all__';
 	const DELETED_NOTES_PATH = '__deleted__';
 
+	// Filter paths (lifecycle filters)
+	const FILTER_LOW_QUALITY = '__filter_low_quality__';
+	const FILTER_OBSOLETE = '__filter_obsolete__';
+	const FILTER_MERGE_PENDING = '__filter_merge_pending__';
+
+	// Active filter state
+	let activeFilter = $state<string | null>(null);
+	let filteredMetadata = $state<NoteReviewMetadata[]>([]);
+
 	// Sort folders with Canevas/Briefing first, then alphabetically
 	function sortFoldersWithCanevasFirst(foldersToSort: FolderNode[]): FolderNode[] {
 		return [...foldersToSort]
@@ -186,8 +198,47 @@
 		}
 	}
 
+	async function selectFilter(filterType: string) {
+		if (activeFilter === filterType) return;
+
+		activeFilter = filterType;
+		selectedFolderPath = filterType;
+		selectedNote = null;
+		noteReviewMetadata = null;
+		folderNotes = [];
+		filteredMetadata = [];
+		isLoadingNotes = true;
+
+		try {
+			let notes: NoteReviewMetadata[] = [];
+			if (filterType === FILTER_LOW_QUALITY) {
+				notes = await getLowQualityNotes(50, 100);
+			} else if (filterType === FILTER_OBSOLETE) {
+				notes = await getObsoleteNotes(100);
+			} else if (filterType === FILTER_MERGE_PENDING) {
+				notes = await getMergePendingNotes(100);
+			}
+
+			filteredMetadata = notes;
+			// Load first note if available
+			if (filteredMetadata.length > 0) {
+				const firstNote = await getNote(filteredMetadata[0].note_id);
+				await selectNote(firstNote);
+			}
+		} catch (error) {
+			console.error('Failed to load filtered notes:', error);
+			filteredMetadata = [];
+		} finally {
+			isLoadingNotes = false;
+		}
+	}
+
 	async function selectFolder(path: string) {
-		if (selectedFolderPath === path) return;
+		if (selectedFolderPath === path && !activeFilter) return;
+
+		// Clear filter when selecting a folder
+		activeFilter = null;
+		filteredMetadata = [];
 
 		selectedFolderPath = path;
 		selectedNote = null;
@@ -843,6 +894,49 @@
 			</div>
 		</div>
 
+		<!-- Quality Filters -->
+		<div class="p-2 border-b border-[var(--color-border)]">
+			<p class="text-[10px] text-[var(--color-text-tertiary)] uppercase tracking-wide mb-1 px-1">Filtres qualité</p>
+			<div class="flex flex-col gap-1">
+				<button
+					type="button"
+					onclick={() => selectFilter(FILTER_LOW_QUALITY)}
+					class="w-full px-2 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1
+						{activeFilter === FILTER_LOW_QUALITY
+							? 'bg-orange-500/20 text-orange-700 dark:text-orange-300'
+							: 'hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+					title="Notes à améliorer (score < 50)"
+				>
+					<span>📉</span>
+					<span>Faible qualité</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => selectFilter(FILTER_OBSOLETE)}
+					class="w-full px-2 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1
+						{activeFilter === FILTER_OBSOLETE
+							? 'bg-gray-500/20 text-gray-700 dark:text-gray-300'
+							: 'hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+					title="Notes marquées obsolètes"
+				>
+					<span>🗑️</span>
+					<span>Obsolètes</span>
+				</button>
+				<button
+					type="button"
+					onclick={() => selectFilter(FILTER_MERGE_PENDING)}
+					class="w-full px-2 py-1.5 text-xs rounded-lg transition-colors flex items-center gap-1
+						{activeFilter === FILTER_MERGE_PENDING
+							? 'bg-blue-500/20 text-blue-700 dark:text-blue-300'
+							: 'hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]'}"
+					title="Notes en attente de fusion"
+				>
+					<span>🔀</span>
+					<span>Fusion en attente</span>
+				</button>
+			</div>
+		</div>
+
 		<!-- Folders -->
 		<nav class="flex-1 overflow-y-auto p-2">
 			{#if isLoading}
@@ -955,6 +1049,25 @@
 				<p class="text-xs text-[var(--color-text-tertiary)]">
 					{searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''} pour "{searchQuery}"
 				</p>
+			{:else if activeFilter}
+				<div class="flex items-center gap-2">
+					<h2 class="font-semibold text-[var(--color-text-primary)]">
+						{activeFilter === FILTER_LOW_QUALITY ? 'Faible qualité' :
+						 activeFilter === FILTER_OBSOLETE ? 'Obsolètes' :
+						 activeFilter === FILTER_MERGE_PENDING ? 'Fusion en attente' : 'Filtre'}
+					</h2>
+					<button
+						type="button"
+						onclick={() => selectFolder(ALL_NOTES_PATH)}
+						class="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
+						title="Effacer le filtre"
+					>
+						✕
+					</button>
+				</div>
+				<p class="text-xs text-[var(--color-text-tertiary)]">
+					{filteredMetadata.length} note{filteredMetadata.length !== 1 ? 's' : ''}
+				</p>
 			{:else}
 				<h2 class="font-semibold text-[var(--color-text-primary)]">
 					{selectedFolderName()}
@@ -981,6 +1094,35 @@
 					<div class="px-3 py-2 space-y-1">
 						{#each searchResults as result}
 							{@render searchResultRow(result)}
+						{/each}
+					</div>
+				{/if}
+			{:else if activeFilter}
+				<!-- Filtered Notes List -->
+				{#if isLoadingNotes}
+					<div class="p-4 text-center text-[var(--color-text-tertiary)] text-sm">
+						Chargement...
+					</div>
+				{:else if filteredMetadata.length === 0}
+					<div class="p-8 text-center">
+						{#if activeFilter === FILTER_LOW_QUALITY}
+							<p class="text-4xl mb-3">✨</p>
+							<p class="text-[var(--color-text-primary)] font-medium mb-1">Toutes les notes sont de bonne qualité !</p>
+							<p class="text-sm text-[var(--color-text-tertiary)]">Aucune note n'a un score inférieur à 50.</p>
+						{:else if activeFilter === FILTER_OBSOLETE}
+							<p class="text-4xl mb-3">📚</p>
+							<p class="text-[var(--color-text-primary)] font-medium mb-1">Aucune note obsolète</p>
+							<p class="text-sm text-[var(--color-text-tertiary)]">Toutes vos notes sont à jour.</p>
+						{:else if activeFilter === FILTER_MERGE_PENDING}
+							<p class="text-4xl mb-3">🔗</p>
+							<p class="text-[var(--color-text-primary)] font-medium mb-1">Aucune fusion en attente</p>
+							<p class="text-sm text-[var(--color-text-tertiary)]">Pas de doublons détectés.</p>
+						{/if}
+					</div>
+				{:else}
+					<div class="px-3 py-2 space-y-1">
+						{#each filteredMetadata as meta}
+							{@render filteredNoteRow(meta)}
 						{/each}
 					</div>
 				{/if}
@@ -1471,6 +1613,54 @@
 		<div class="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
 			<span class="shrink-0">{formatNoteDate(note.updated_at)}</span>
 			<span class="truncate">{note.excerpt?.slice(0, 50) || ''}</span>
+		</div>
+	</button>
+{/snippet}
+
+{#snippet filteredNoteRow(meta: NoteReviewMetadata)}
+	{@const isSelected = selectedNote?.note_id === meta.note_id}
+	{@const qualityScore = meta.quality_score ?? 0}
+	{@const qualityColor = qualityScore >= 70 ? 'text-green-600 dark:text-green-400' :
+						   qualityScore >= 40 ? 'text-amber-600 dark:text-amber-400' :
+						   'text-red-600 dark:text-red-400'}
+
+	<button
+		type="button"
+		onclick={async () => {
+			const note = await getNote(meta.note_id);
+			selectNote(note);
+		}}
+		class="w-full text-left p-2 rounded-lg transition-colors relative
+			{isSelected
+				? 'bg-amber-100 dark:bg-amber-900/30'
+				: 'hover:bg-[var(--color-bg-secondary)]'}"
+	>
+		<div class="flex items-baseline gap-2 mb-0.5">
+			<span class="font-medium text-sm text-[var(--color-text-primary)] truncate flex-1">
+				{meta.note_id.split('/').pop() || meta.note_id}
+			</span>
+			{#if activeFilter === FILTER_LOW_QUALITY}
+				<span class="text-xs font-medium tabular-nums {qualityColor}" title="Score qualité">
+					{qualityScore}%
+				</span>
+			{:else if activeFilter === FILTER_OBSOLETE}
+				<span class="text-xs px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+					Obsolète
+				</span>
+			{:else if activeFilter === FILTER_MERGE_PENDING}
+				<span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+					🔀 Fusion
+				</span>
+			{/if}
+		</div>
+		<div class="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+			<span>{meta.note_type}</span>
+			<span>•</span>
+			<span>{meta.importance}</span>
+			{#if meta.review_count > 0}
+				<span>•</span>
+				<span>{meta.review_count} revue{meta.review_count > 1 ? 's' : ''}</span>
+			{/if}
 		</div>
 	</button>
 {/snippet}
