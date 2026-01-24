@@ -477,7 +477,11 @@ class NoteManager:
         with self._cache_lock:
             # Clear cache to force reload of content
             self._note_cache.clear()
-            return self._rebuild_metadata_index()
+            count = self._rebuild_metadata_index()
+
+        # Save the rebuilt index to disk
+        self._save_metadata_index()
+        return count
 
     def _rebuild_metadata_index(self) -> int:
         """

@@ -55,6 +55,7 @@ class WorkerStats:
     average_review_seconds: float = 0.0
     last_janitor_run: datetime | None = None
     janitor_repairs_total: int = 0
+    last_index_refresh: datetime | None = None
 
     # Memory Cycles v2 stats
     retouches_today: int = 0
@@ -78,6 +79,7 @@ class WorkerConfig:
     sleep_on_error_seconds: float = 60.0
     ingestion_interval_seconds: float = 60.0  # Check for modified notes every minute
     janitor_interval_hours: float = 24.0  # Run janitor once per day
+    index_refresh_interval_minutes: float = 30.0  # Refresh metadata index every 30 min
 
     # Throttling
     cpu_throttle_threshold: float = 80.0  # Pause if CPU > 80%
@@ -299,6 +301,9 @@ class BackgroundWorker:
                 # 1. Janitor / Hygiene check (daily)
                 await self._check_janitor()
 
+                # 1b. Index refresh (every 30 minutes)
+                await self._check_index_refresh()
+
                 # 2. Ingestion / Change Detection
                 if (
                     time.time() - self._last_ingestion_check
@@ -389,6 +394,29 @@ class BackgroundWorker:
 
         except Exception as e:
             logger.error(f"Janitor failed: {e}", exc_info=True)
+
+    async def _check_index_refresh(self) -> None:
+        """Refresh metadata index periodically (every 30 minutes by default)"""
+        if not self._note_manager:
+            return
+
+        now = datetime.now(timezone.utc)
+        interval_seconds = self.config.index_refresh_interval_minutes * 60
+
+        if self._stats.last_index_refresh:
+            elapsed = (now - self._stats.last_index_refresh).total_seconds()
+            if elapsed < interval_seconds:
+                return  # Not time yet
+
+        try:
+            logger.info("Running periodic metadata index refresh...")
+            # Run in thread pool to avoid blocking
+            count = await asyncio.to_thread(self._note_manager.refresh_index)
+            self._stats.last_index_refresh = now
+            logger.info(f"Index refresh completed: {count} notes indexed")
+
+        except Exception as e:
+            logger.error(f"Index refresh failed: {e}", exc_info=True)
 
     async def _check_ingestion(self) -> None:
         """Check for recently modified notes and trigger analysis"""
@@ -619,6 +647,12 @@ class BackgroundWorker:
                     else None
                 ),
                 "janitor_repairs_total": self._stats.janitor_repairs_total,
+                # Index refresh
+                "last_index_refresh": (
+                    self._stats.last_index_refresh.isoformat()
+                    if self._stats.last_index_refresh
+                    else None
+                ),
             },
             "config": {
                 "max_daily_reviews": self.config.max_daily_reviews,
@@ -631,6 +665,8 @@ class BackgroundWorker:
                 "filage_hour": self.config.filage_hour,
                 # Notes hygiene
                 "janitor_interval_hours": self.config.janitor_interval_hours,
+                # Index refresh
+                "index_refresh_interval_minutes": self.config.index_refresh_interval_minutes,
             },
             "memory_cycles": {
                 "is_quiet_hours": self._is_quiet_hours(),
