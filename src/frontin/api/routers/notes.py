@@ -15,6 +15,8 @@ from src.frontin.api.deps import get_current_user, get_notes_review_service, get
 from src.frontin.api.models.notes import (
     EnrichmentHistoryResponse,
     EnrichmentRecordResponse,
+    EnrichmentResultResponse,
+    EnrichNoteRequest,
     FolderCreateRequest,
     FolderCreateResponse,
     FolderListResponse,
@@ -978,6 +980,46 @@ async def update_note_metadata(
         logger.error(f"Failed to update metadata for note {note_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to update note metadata"
+        ) from e
+
+
+@router.post("/{note_id}/enrich", response_model=APIResponse[EnrichmentResultResponse])
+async def enrich_note(
+    note_id: str,
+    request: EnrichNoteRequest | None = None,
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[EnrichmentResultResponse]:
+    """
+    Enrich a note using NoteEnricher
+
+    Sources available:
+    - cross_reference: Information from linked notes (always available)
+    - ai_analysis: AI-powered gap analysis (requires auto_enrich=true)
+    - web_search: Web search for additional context (requires web_search_enabled=true)
+
+    Web search is only used if the note's metadata has web_search_enabled=true.
+    """
+    try:
+        sources = request.sources if request else ["cross_reference"]
+        result = await service.enrich_note(
+            note_id=note_id,
+            sources=sources,
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Note not found")
+
+        return APIResponse(
+            success=True,
+            data=result,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to enrich note {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to enrich note"
         ) from e
 
 

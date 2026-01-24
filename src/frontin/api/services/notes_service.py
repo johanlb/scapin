@@ -16,6 +16,8 @@ from typing import Any, Optional
 from src.core.config_manager import ScapinConfig
 from src.frontin.api.models.notes import (
     DiffChangeSection,
+    EnrichmentItemResponse,
+    EnrichmentResultResponse,
     EntityResponse,
     FolderCreateResponse,
     FolderListResponse,
@@ -637,6 +639,108 @@ class NotesService:
         if result:
             logger.info(f"Note deleted: {note_id}")
         return result
+
+    async def enrich_note(
+        self,
+        note_id: str,
+        sources: list[str] | None = None,
+    ) -> Optional[EnrichmentResultResponse]:
+        """
+        Enrich a note using NoteEnricher
+
+        Args:
+            note_id: Note identifier
+            sources: Sources to use (ai_analysis, cross_reference, web_search)
+                    Default: ["cross_reference"]
+
+        Returns:
+            EnrichmentResultResponse or None if note not found
+        """
+        from src.passepartout.note_enricher import EnrichmentContext, NoteEnricher
+        from src.passepartout.note_metadata import NoteMetadataStore
+
+        if sources is None:
+            sources = ["cross_reference"]
+
+        logger.info(f"Enriching note: {note_id} with sources: {sources}")
+
+        manager = self._get_manager()
+
+        # Get note
+        note = await asyncio.to_thread(manager.get_note, note_id)
+        if note is None:
+            return None
+
+        # Get metadata
+        store = NoteMetadataStore(self.config.notes_metadata_path)
+        metadata = store.get(note_id)
+        if metadata is None:
+            logger.warning(f"No metadata for note {note_id}, using defaults")
+            from src.passepartout.note_metadata import NoteMetadata
+            metadata = NoteMetadata(note_id=note_id)
+
+        # Check if web search is allowed
+        web_search_enabled = (
+            "web_search" in sources
+            and metadata.web_search_enabled
+        )
+
+        # Get linked notes for cross-reference
+        linked_notes = []
+        if "cross_reference" in sources:
+            # Extract wikilinks [[title]] from note content
+            wikilink_pattern = re.compile(r"\[\[([^\]]+)\]\]")
+            linked_titles = wikilink_pattern.findall(note.content)
+
+            # Try to find notes by title (limit to 10)
+            for title in linked_titles[:10]:
+                # Search for note by title
+                search_results = await asyncio.to_thread(
+                    manager.search_notes, title, limit=1
+                )
+                if search_results:
+                    linked_note, _ = search_results[0]
+                    if linked_note.note_id != note_id:  # Don't include self
+                        linked_notes.append(linked_note)
+
+        # Create enricher
+        enricher = NoteEnricher(
+            ai_router=None,  # TODO: Integrate Sancho if ai_analysis requested
+            web_search_enabled=web_search_enabled,
+        )
+
+        # Create context
+        context = EnrichmentContext(
+            note=note,
+            metadata=metadata,
+            linked_notes=linked_notes,
+        )
+
+        # Run enrichment
+        result = await enricher.enrich(note, metadata, context)
+
+        logger.info(
+            f"Enrichment complete for note {note_id}: {len(result.enrichments)} suggestions"
+        )
+
+        # Convert to response
+        return EnrichmentResultResponse(
+            note_id=result.note_id,
+            enrichments=[
+                EnrichmentItemResponse(
+                    source=e.source.value,
+                    section=e.section,
+                    content=e.content,
+                    confidence=e.confidence,
+                    reasoning=e.reasoning,
+                    metadata=e.metadata,
+                )
+                for e in result.enrichments
+            ],
+            gaps_identified=result.gaps_identified,
+            sources_used=[s.value for s in result.sources_used],
+            analysis_summary=result.analysis_summary,
+        )
 
     async def move_note(self, note_id: str, target_folder: str) -> Optional[NoteMoveResponse]:
         """

@@ -339,6 +339,42 @@ class TriggerReviewResponse(BaseModel):
     next_review: datetime = Field(..., description="Next review time (now)")
 
 
+class EnrichNoteRequest(BaseModel):
+    """Request to enrich a note"""
+
+    sources: list[str] = Field(
+        default=["cross_reference"],
+        description="Sources to use: ai_analysis, cross_reference, web_search",
+    )
+
+
+class EnrichmentItemResponse(BaseModel):
+    """A single enrichment suggestion"""
+
+    source: str = Field(..., description="Source: ai_analysis, cross_reference, email_context, web_search")
+    section: str = Field(..., description="Target section in note")
+    content: str = Field(..., description="Content to add/update")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
+    reasoning: str = Field(..., description="Why this enrichment is suggested")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+
+class EnrichmentResultResponse(BaseModel):
+    """Result of enrichment analysis"""
+
+    note_id: str = Field(..., description="Note identifier")
+    enrichments: list[EnrichmentItemResponse] = Field(
+        default_factory=list, description="Suggested enrichments"
+    )
+    gaps_identified: list[str] = Field(
+        default_factory=list, description="Missing information identified"
+    )
+    sources_used: list[str] = Field(
+        default_factory=list, description="Sources that provided enrichments"
+    )
+    analysis_summary: str = Field(..., description="Summary of the analysis")
+
+
 # =============================================================================
 # Folder Management Models
 # =============================================================================
