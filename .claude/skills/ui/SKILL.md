@@ -8,7 +8,7 @@ allowed-tools: Read, Grep, Glob, WebSearch
 
 Guide des meilleures pratiques frontend pour Scapin.
 
-> Sources : [Render Blog](https://render.com/blog/svelte-design-patterns), [W3C APG](https://www.w3.org/WAI/ARIA/apg/), [web.dev](https://web.dev/articles/optimize-lcp), [Penpot](https://penpot.app/blog/the-developers-guide-to-design-tokens-and-css-variables)
+> Sources : [Apple HIG](https://developer.apple.com/design/human-interface-guidelines/), [Render Blog](https://render.com/blog/svelte-design-patterns), [W3C APG](https://www.w3.org/WAI/ARIA/apg/), [web.dev](https://web.dev/articles/optimize-lcp)
 
 ---
 
@@ -191,25 +191,110 @@ Format : `--{category}-{property}-{variant}`
 --shadow-md
 ```
 
-### Glass Morphism (Design Scapin)
+### Liquid Glass (Apple HIG 2025)
+
+> **Implémentation complète dans `web/src/app.css`**
+
+Scapin utilise le design language **Liquid Glass** inspiré d'Apple iOS 26/macOS Tahoe.
+
+#### Principes Fondamentaux
+
+| Principe | Description |
+|----------|-------------|
+| **Layering** | Glass sur arrière-plan solide, jamais glass-sur-glass |
+| **Navigation Layer** | Glass pour barres de navigation, sidebars, popovers |
+| **Content Layer** | Contenu principal sur fonds solides pour lisibilité |
+| **Depth** | Plus l'élément est proche, plus le blur est intense |
+
+#### Système Multi-Depth
 
 ```css
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+/* Du plus léger au plus opaque */
+--glass-tint       /* 0.08 - Overlay très subtil */
+--glass-subtle     /* 0.45 - Cards secondaires */
+--glass-regular    /* 0.65 - Cards principales */
+--glass-prominent  /* 0.82 - Éléments flottants */
+--glass-solid      /* 0.95 - Modals, popovers */
+```
+
+#### Quand Utiliser Quel Niveau
+
+| Niveau | Usage | Blur |
+|--------|-------|------|
+| `glass-subtle` | Cards dans liste, info secondaire | 8px |
+| `glass` | Cards principales, conteneurs | 16px |
+| `glass-prominent` | Éléments flottants, tooltips | 24px |
+| `glass-solid` | Modals, dialogues | 40px |
+
+#### Classes Utilitaires Disponibles
+
+```svelte
+<!-- Glass basique -->
+<div class="glass rounded-xl p-4">...</div>
+
+<!-- Glass interactif (hover/active states) -->
+<button class="glass glass-interactive">...</button>
+
+<!-- Glass avec reflet spéculaire -->
+<div class="glass glass-specular">...</div>
+
+<!-- Glass avec effet de réfraction -->
+<div class="glass glass-refract">...</div>
+
+<!-- Effet de glow -->
+<div class="glass glass-glow">...</div>
+```
+
+#### Animations Spring (Physique Fluide)
+
+```css
+/* Courbes disponibles */
+--spring-responsive  /* Réponse rapide (100-180ms) */
+--spring-fluid       /* Material-like (280ms) */
+--spring-bouncy      /* Overshoot ludique */
+--spring-smooth      /* Ease doux (400ms) */
+--spring-snappy      /* Settle rapide */
+```
+
+```svelte
+<!-- Classes d'animation -->
+<div class="animate-fluid">...</div>      <!-- Transitions fluides -->
+<div class="animate-bouncy">...</div>     <!-- Effet rebond -->
+<div class="liquid-press">...</div>       <!-- Feedback tactile -->
+```
+
+#### Anti-patterns Liquid Glass
+
+| ❌ Ne pas faire | ✅ Faire |
+|-----------------|----------|
+| Glass sur glass (double blur) | Glass sur fond solide uniquement |
+| Glass pour le contenu texte principal | Fond solide pour lecture |
+| Même niveau de glass partout | Hiérarchie visuelle avec niveaux |
+| Ignorer prefers-reduced-motion | Respecter les préférences système |
+| Texte blanc sur glass clair | Contraste 4.5:1 minimum |
+
+#### Accessibilité Glass
+
+**Supporté automatiquement dans `app.css` :**
+
+```css
+/* Mouvement réduit */
+@media (prefers-reduced-motion: reduce) {
+  /* Désactive animations et effets */
 }
 
-.glass-subtle {
-  background: var(--glass-subtle);
-}
-
-.glass-prominent {
-  background: var(--glass-prominent);
-  box-shadow: var(--shadow-lg);
+/* Contraste élevé - Réduit transparence */
+@media (prefers-contrast: more) {
+  --glass-subtle: rgba(255, 255, 255, 0.85);
+  --glass-regular: rgba(255, 255, 255, 0.92);
+  /* ... opacités augmentées */
 }
 ```
+
+**Vérifications obligatoires :**
+- Contraste texte sur glass ≥ 4.5:1
+- Tester avec "Reduce Transparency" activé (macOS/iOS)
+- Tester avec "Increase Contrast" activé
 
 ---
 
@@ -445,8 +530,21 @@ Avant de livrer un composant :
 
 ## Ressources
 
+- [Apple Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)
 - [W3C ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
 - [A11Y Project Checklist](https://www.a11yproject.com/checklist/)
 - [web.dev Performance](https://web.dev/articles/optimize-lcp)
 - [Svelte 5 Documentation](https://svelte.dev/docs)
 - [shadcn-svelte](https://www.shadcn-svelte.com/) (patterns de composants)
+
+---
+
+## Référence Rapide Scapin
+
+**Fichiers CSS critiques :**
+- `web/src/app.css` — Design system complet, Liquid Glass, animations
+- `web/tailwind.config.ts` — Configuration Tailwind
+
+**Composants UI :**
+- `web/src/lib/components/ui/` — Composants primitifs (Card, Badge, Button...)
+- `web/src/lib/components/ui/index.ts` — Exports centralisés
