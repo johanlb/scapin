@@ -267,6 +267,32 @@ L'IA utilise une escalade progressive selon la complexité :
 | **Sonnet** | Cas complexes | ≥ 50% |
 | **Opus** | Cas critiques | < 50% |
 
+#### Actions de Cycle de Vie (v3.2)
+
+En plus d'améliorer le contenu, l'IA peut proposer des **actions de cycle de vie** pour maintenir votre base de connaissances :
+
+| Action | Description | Comportement |
+|--------|-------------|--------------|
+| **🗑️ Obsolète** | Note périmée ou inutile | Toujours en attente de validation |
+| **🔀 Fusionner** | Doublon ou note à consolider | Auto si confiance ≥ 85% |
+| **📁 Déplacer** | Note mal classée | Auto si confiance ≥ 85% |
+
+**Validation via Filage** : Les actions à faible confiance (< 85%) apparaissent dans le briefing matinal pour approbation humaine.
+
+**Undo** : Après approbation, un toast avec compte à rebours (15s) permet d'annuler l'action.
+
+#### Filtres Qualité (Page Notes)
+
+La sidebar Notes inclut des **filtres qualité** pour identifier rapidement les notes à traiter :
+
+| Filtre | Description |
+|--------|-------------|
+| **📉 Faible qualité** | Notes avec score < 50% |
+| **🗑️ Obsolètes** | Notes marquées obsolètes |
+| **🔀 Fusion en attente** | Notes avec action de fusion proposée |
+
+Ces filtres affichent les métadonnées SM-2 (type, importance, nombre de revues) pour faciliter le tri.
+
 #### Délai Initial
 
 Les nouvelles notes ne sont pas retouchées immédiatement. Un délai de **1 heure** permet de terminer la création avant l'analyse IA.
@@ -295,26 +321,36 @@ La **Lecture** est votre cycle de révision personnelle. Voir [Filage](02-briefi
 | **1** | Très difficile | Reset 24h |
 | **0** | Oubli total | Reset 24h |
 
-### Score de Qualité
+### Score de Qualité (v3.2)
 
 Chaque note possède un **score de qualité** (0-100%) calculé automatiquement :
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  SCORE QUALITÉ                                                   │
+│  SCORE QUALITÉ v2                                                │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  Base                                 50 points                  │
-│  + Nombre de mots (100-500)          +10 points                  │
-│  + Résumé présent                    +15 points                  │
-│  + Sections (×3 pts, max 15)         +15 points max              │
-│  + Liens (×2 pts, max 10)            +10 points max              │
-│  - Actions suggérées                 -5 pts chacune              │
+│  CONTENU (40 points max)                                         │
+│  • Longueur optimale (300-800 mots)  +20 points                  │
+│  • Résumé présent                    +20 points                  │
+│                                                                  │
+│  STRUCTURE (30 points max)                                       │
+│  • Sections (×6 pts, max 18)         +18 points max              │
+│  • Questions répondues               +12 points (ou -6 si non)   │
+│                                                                  │
+│  LIENS (20 points max)                                           │
+│  • Wikilinks (×4 pts, max 20)        +20 points max              │
+│                                                                  │
+│  COMPLÉTUDE (10 points max)                                      │
+│  • Pas de TODO/FIXME                 +5 points                   │
+│  • Pas de section vide               +5 points                   │
 │                                                                  │
 │  TOTAL MAX                           100 points                  │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Migration** : Le script `scripts/migrate_quality_score_v2.py` recalcule les scores existants.
 
 #### Badges de Qualité
 

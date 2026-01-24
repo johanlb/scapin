@@ -2091,6 +2091,8 @@ To preserve Scapin's knowledge graph integrity, the sync engine distinguishes be
 | **FilageService** | `src/passepartout/filage_service.py` | Génère le briefing matinal (Filage) |
 | **LectureService** | `src/passepartout/lecture_service.py` | Gère les sessions de révision humaine |
 
+> **Questions stratégiques & orphelines** : [docs/architecture/orphan-questions.md](docs/architecture/orphan-questions.md)
+
 ### Database Schema (v2)
 
 New fields in `NoteMetadata`:
@@ -2113,10 +2115,28 @@ lecture_last: datetime          # Last lecture performed
 lecture_count: int = 0          # Total lectures
 
 # Quality & Questions
-quality_score: int              # 0-100 overall quality
+quality_score: int              # 0-100 overall quality (v2 formula)
 questions_pending: bool         # Has unanswered questions
 questions_count: int            # Number of questions
+
+# Lifecycle Actions (v3.2)
+pending_actions: list[dict]     # Actions awaiting approval
+obsolete_flag: bool = False     # Marked as obsolete
+obsolete_reason: str = ""       # Why obsolete (if flag=True)
+merge_target_id: str | None     # Note to merge into (if merge pending)
 ```
+
+### Lifecycle Actions (v3.2)
+
+En plus de l'enrichissement, la Retouche peut proposer des **actions de cycle de vie** :
+
+| Action | Description | Auto-Apply |
+|--------|-------------|------------|
+| `flag_obsolete` | Marque la note comme obsolète | Non (toujours Filage) |
+| `merge_into` | Fusionne dans une autre note | Si confiance ≥ 85% |
+| `move_to_folder` | Déplace vers un dossier | Si confiance ≥ 85% |
+
+Les actions à faible confiance (< 85%) sont ajoutées au Filage pour validation humaine.
 
 ### API Endpoints
 
@@ -2126,6 +2146,13 @@ questions_count: int            # Number of questions
 | `/api/briefing/lecture/{note_id}/start` | POST | Démarre une Lecture |
 | `/api/briefing/lecture/{note_id}/complete` | POST | Termine une Lecture |
 | `/api/briefing/lecture/{note_id}/stats` | GET | Stats Lecture d'une note |
+| `/api/retouche/pending` | GET | Actions lifecycle en attente |
+| `/api/retouche/approve` | POST | Approuve une action |
+| `/api/retouche/reject` | POST | Rejette une action |
+| `/api/retouche/rollback` | POST | Annule une action appliquée |
+| `/api/notes/low-quality` | GET | Notes avec score < seuil |
+| `/api/notes/obsolete` | GET | Notes marquées obsolètes |
+| `/api/notes/merge-pending` | GET | Notes avec fusion en attente |
 
 ### WebSocket Events
 
