@@ -8,53 +8,30 @@ allowed-tools: Bash, Read, Grep
 
 Standards de qualité et workflow pour le développement Scapin.
 
-## Principes Fondamentaux
+## Checklist Avant Commit
 
-1. **Évaluation** : Demander confirmation avant de modifier des fichiers critiques
-2. **Atomicité** : Un commit par fonctionnalité ou correction cohérente
-3. **Qualité** : 0 warning Ruff toléré. Type hints obligatoires
-4. **Information en couches** : Résumés actionnables (L1) avant détails techniques (L3)
+**→ La checklist BLOQUANTE de référence est dans `CLAUDE.md` section "Discipline de Livraison".**
 
-## Commandes Rapides
-
-```bash
-# Développement (Backend + Frontend)
-./scripts/dev.sh
-
-# Tests backend
-.venv/bin/pytest tests/ -v
-
-# Tests E2E
-cd web && npx playwright test
-
-# Qualité du code
-.venv/bin/ruff check src/ --fix
-cd web && npm run check
-
-# CLI Scapin
-python scapin.py --help
-```
-
-## Checklist de Fin de Tâche
-
-Avant chaque commit, vérifier :
-
-- [ ] Tests backend passent : `.venv/bin/pytest tests/ -v`
-- [ ] Types frontend OK : `cd web && npm run check`
-- [ ] Ruff sans warnings : `.venv/bin/ruff check src/`
-- [ ] CLAUDE.md à jour si changement significatif
+Résumé rapide :
+- Documentation mise à jour (technique + user guide si besoin)
+- Tests E2E pour UI, unitaires pour backend
+- Test manuel effectué et décrit
+- Ruff 0 warning, TypeScript check passe
+- Pas de TODO, code commenté, console.log
 
 ## Conventions de Commit
 
 Format : `type(scope): description`
 
 **Types :**
-- `feat` : Nouvelle fonctionnalité
-- `fix` : Correction de bug
-- `refactor` : Refactoring sans changement fonctionnel
-- `docs` : Documentation uniquement
-- `test` : Ajout/modification de tests
-- `chore` : Maintenance, dépendances
+| Type | Usage |
+|------|-------|
+| `feat` | Nouvelle fonctionnalité |
+| `fix` | Correction de bug |
+| `refactor` | Refactoring sans changement fonctionnel |
+| `docs` | Documentation uniquement |
+| `test` | Ajout/modification de tests |
+| `chore` | Maintenance, dépendances |
 
 **Exemples :**
 ```
@@ -63,6 +40,25 @@ fix(api): handle null multi_pass in queue response
 refactor(valets): rename Jeeves to Frontin
 docs: update session notes
 test(e2e): fix flaky selectors
+```
+
+## Commandes
+
+```bash
+# Développement
+./scripts/dev.sh                      # Backend + Frontend
+
+# Tests
+.venv/bin/pytest tests/ -v            # Backend unitaires
+cd web && npx playwright test         # E2E complets
+cd web && npx playwright test --ui    # E2E avec UI debug
+
+# Qualité
+.venv/bin/ruff check src/ --fix       # Lint Python + autofix
+cd web && npm run check               # Types TypeScript
+
+# CLI Scapin
+python scapin.py --help
 ```
 
 ## Structure du Projet
@@ -81,15 +77,19 @@ scapin/
 ├── web/                # Frontend SvelteKit
 ├── tests/              # Tests backend
 └── docs/               # Documentation
+    └── user-guide/     # Guide utilisateur (specs)
 ```
 
 ## Fichiers Critiques
 
-Ne pas modifier sans review :
-- `src/trivelin/v2_processor.py` : Pipeline v2.2
-- `src/sancho/multi_pass_analyzer.py` : Convergence IA
-- `src/passepartout/note_manager.py` : Gestion notes
-- `src/core/config_manager.py` : Configuration
+**Ne pas modifier sans review (demander à Johan) :**
+
+| Fichier | Rôle |
+|---------|------|
+| `src/trivelin/v2_processor.py` | Pipeline Multi-Pass v2.2 |
+| `src/sancho/multi_pass_analyzer.py` | Convergence IA |
+| `src/passepartout/note_manager.py` | Gestion notes |
+| `src/core/config_manager.py` | Configuration globale |
 
 ## Qualité du Code
 
@@ -101,7 +101,9 @@ Ne pas modifier sans review :
 ### TypeScript/Svelte
 - `npm run check` doit passer
 - Types explicites, pas de `any`
+- Svelte 5 runes : `$state`, `$derived`, `$effect`
 
 ### Tests
 - Couverture backend : 95%+
 - Tests E2E : 100% pass rate
+- **Tester les cas d'erreur**, pas seulement le happy path

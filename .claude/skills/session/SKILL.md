@@ -8,12 +8,20 @@ allowed-tools: Read, Grep, Glob
 
 Historique des travaux récents sur le projet.
 
-## Session Actuelle - 19 Janvier 2026
+## Session Actuelle - 24 Janvier 2026
 
-### Tâches du jour
-- Merge des branches valets-enhanced
-- Fix Jeeves → Frontin (renommage complet)
-- Refactorisation CLAUDE.md en Skills
+### Travaux en cours
+- **Refactoring UI** : Plan de refactoring des composants volumineux
+  - `QueueItemFocusView.svelte` (620 lignes → 9 sous-composants)
+  - `FolderSelector.svelte` (675 lignes → 7 sous-composants)
+  - Création de composants génériques : `GenericTimeline`, `BaseCard`
+  - Plan complet : `docs/plans/2026-01-24-ui-refactoring.md`
+
+- **Amélioration CLAUDE.md** :
+  - Ajout section "Discipline de Livraison" avec checklist bloquante
+  - Ajout section "Anti-patterns"
+  - Ajout "Fichiers Critiques"
+  - Synchronisation avec skills
 
 ---
 
