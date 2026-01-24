@@ -17,7 +17,8 @@
 | Phase 2 — Quick Wins Backend | ✅ COMPLÉTÉ |
 | Phase 3 — Tests & Validation | ✅ COMPLÉTÉ |
 | Phase 4 — Documentation | ✅ COMPLÉTÉ |
-| Phase 5 — Frontend | 🔜 REPORTÉ |
+| Phase 5 — Infrastructure | ✅ COMPLÉTÉ |
+| Phase 6 — Frontend | 🔜 REPORTÉ |
 
 ---
 
@@ -198,7 +199,7 @@ py-spy --version  # 0.4.1
 
 ---
 
-## Phase 5 — Frontend (REPORTÉ)
+## Phase 6 — Frontend (REPORTÉ)
 
 > **Reporté après refactoring UI** — Ces tâches seront reprises une fois le refactoring UI terminé pour éviter les conflits.
 
@@ -211,13 +212,18 @@ py-spy --version  # 0.4.1
 
 ---
 
-## Phase 6 — Infrastructure (Basse priorité)
+## Phase 5 — Infrastructure ✅ COMPLÉTÉ
 
-### #8 Ajouter compression Gzip aux réponses API
+### #8 Ajouter compression Gzip aux réponses API ✅
 
-**Solution** : Middleware Gzip FastAPI
+**Commit** : À venir
 
-**Statut** : Peut être fait indépendamment, faible priorité
+**Implémentation** :
+- `GZipMiddleware` ajouté dans `src/frontin/api/app.py`
+- Seuil : 500 bytes minimum (évite compression inutile petites réponses)
+- Tests ajoutés dans `test_api_system.py`
+
+**Gain** : Réduction taille payloads JSON (notes, analyses, queue)
 
 ---
 
@@ -318,8 +324,8 @@ flowchart TD
   ✅ #14 — Doc technique
   ✅ #15 — Guide utilisateur
 
-🔜 Phase 5 — Optionnel
-  ⏳ #8 — Gzip (si temps)
+✅ Phase 5 — Infrastructure
+  ✅ #8 — Gzip middleware
 
 🔜 Phase 6 — Après refactoring UI
   🔜 #1, #6, #7, #9 — Optimisations frontend
@@ -365,3 +371,4 @@ flowchart TD
 | 2026-01-24 | #5 Batch search VectorStore implémenté |
 | 2026-01-24 | #13 Tests performance enrichis (8 nouveaux tests) |
 | 2026-01-24 | #15 Guide utilisateur performance créé |
+| 2026-01-24 | #8 Middleware Gzip ajouté à l'API |
