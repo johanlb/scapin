@@ -580,14 +580,8 @@
 		enrichmentResult = null;
 
 		try {
-			// Determine which sources to use based on metadata
-			const sources = ['cross_reference'];
-			if (noteReviewMetadata?.auto_enrich) {
-				sources.push('ai_analysis');
-			}
-			if (noteReviewMetadata?.web_search_enabled) {
-				sources.push('web_search');
-			}
+			// Use all enrichment sources by default
+			const sources = ['cross_reference', 'ai_analysis', 'web_search'];
 
 			enrichmentResult = await enrichNote(selectedNote.note_id, sources);
 			showEnrichmentPanel = true;

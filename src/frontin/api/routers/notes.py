@@ -987,6 +987,7 @@ async def update_note_metadata(
 @router.post("/{note_id}/enrich", response_model=APIResponse[EnrichmentResultResponse])
 async def enrich_note(
     note_id: str,
+    sources: list[str] = Query(default=["cross_reference"], description="Enrichment sources"),
     request: EnrichNoteRequest | None = None,
     service: NotesService = Depends(get_notes_service),
     _user: Optional[TokenData] = Depends(get_current_user),
@@ -996,13 +997,16 @@ async def enrich_note(
 
     Sources available:
     - cross_reference: Information from linked notes (always available)
-    - ai_analysis: AI-powered gap analysis (requires auto_enrich=true)
-    - web_search: Web search for additional context (requires web_search_enabled=true)
+    - ai_analysis: AI-powered gap analysis (always runs rule-based checks)
+    - web_search: Web search for additional context
 
-    Web search is only used if the note's metadata has web_search_enabled=true.
+    Sources can be passed as query params (?sources=cross_reference&sources=ai_analysis)
+    or in the request body.
     """
     try:
-        sources = request.sources if request else ["cross_reference"]
+        # Prefer query params, fallback to body, then default
+        if sources == ["cross_reference"] and request and request.sources:
+            sources = request.sources
         result = await service.enrich_note(
             note_id=note_id,
             sources=sources,
