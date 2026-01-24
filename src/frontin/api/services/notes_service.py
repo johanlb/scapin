@@ -574,7 +574,7 @@ class NotesService:
         logger.info(f"Updating metadata for note: {note_id}")
 
         # Get metadata store
-        store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        store = NoteMetadataStore(self.config.storage.database_path.parent / "notes_meta.db")
         metadata = store.get(note_id)
 
         if metadata is None:
@@ -676,7 +676,7 @@ class NotesService:
             return None
 
         # Get metadata
-        store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        store = NoteMetadataStore(self.config.storage.database_path.parent / "notes_meta.db")
         metadata = store.get(note_id)
         if metadata is None:
             logger.warning(f"No metadata for note {note_id}, using defaults")
@@ -1391,7 +1391,7 @@ class NotesService:
         from src.passepartout.note_metadata import NoteMetadataStore
 
         now = datetime.now(timezone.utc)
-        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        metadata_store = NoteMetadataStore(self.config.storage.database_path.parent / "notes_meta.db")
 
         updated_count = 0
         for note_name in synced_note_names:
@@ -1610,13 +1610,18 @@ class NotesService:
 
         # Load context and analyze
         from src.passepartout.note_metadata import NoteMetadataStore
-        from src.passepartout.note_types import detect_note_type_from_path
+        from src.passepartout.note_types import NoteType, detect_note_type_from_path
 
         # Get or create metadata
-        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        metadata_store = NoteMetadataStore(self.config.storage.database_path.parent / "notes_meta.db")
         metadata = metadata_store.get(note_id)
         if metadata is None:
-            note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
+            # D'abord essayer avec le metadata.path du frontmatter (chemin logique)
+            logical_path = note.metadata.get("path", "") if note.metadata else ""
+            note_type = detect_note_type_from_path(logical_path)
+            if note_type == NoteType.AUTRE:
+                # Fallback sur le chemin physique
+                note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
             metadata = metadata_store.create_for_note(
                 note_id=note_id,
                 note_type=note_type,
@@ -1727,7 +1732,7 @@ class NotesService:
                 from src.sancho.router import AIRouter
 
                 manager = self._get_manager()
-                metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+                metadata_store = NoteMetadataStore(self.config.storage.database_path.parent / "notes_meta.db")
                 scheduler = NoteScheduler(metadata_store)
 
                 # Try to get AI router
@@ -1793,7 +1798,7 @@ class NotesService:
         # Use record_index to find the content_before
         from src.passepartout.note_metadata import NoteMetadataStore
 
-        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        metadata_store = NoteMetadataStore(self.config.storage.database_path.parent / "notes_meta.db")
         metadata = metadata_store.get(note_id)
 
         if metadata is None or not metadata.enrichment_history:
@@ -1878,7 +1883,7 @@ class NotesService:
 
         from src.passepartout.note_metadata import NoteMetadataStore
 
-        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        metadata_store = NoteMetadataStore(self.config.storage.database_path.parent / "notes_meta.db")
         manager = self._get_manager()
 
         # Get all notes with metadata
