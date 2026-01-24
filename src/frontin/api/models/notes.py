@@ -290,6 +290,45 @@ class ReviewWorkloadResponse(BaseModel):
     total_upcoming: int = Field(0, description="Total notes in upcoming period")
 
 
+# ============================================================================
+# HYGIENE MODELS
+# ============================================================================
+
+
+class HygieneIssueResponse(BaseModel):
+    """Single hygiene issue found in a note"""
+
+    type: str = Field(..., description="Issue type (broken_link, formatting, temporal, task)")
+    severity: str = Field(..., description="Severity level (error, warning, info)")
+    detail: str = Field(..., description="Detailed description of the issue")
+    suggestion: str | None = Field(None, description="Suggested fix")
+    confidence: float = Field(..., ge=0, le=1, description="Confidence score")
+    auto_applied: bool = Field(False, description="Whether fix was auto-applied")
+    related_note_id: str | None = Field(None, description="Related note if applicable")
+    source: str | None = Field(None, description="Source of detection")
+
+
+class HygieneSummaryResponse(BaseModel):
+    """Summary of hygiene analysis"""
+
+    total_issues: int = Field(0, description="Total issues found")
+    auto_fixed: int = Field(0, description="Issues auto-fixed")
+    pending_review: int = Field(0, description="Issues pending review")
+    health_score: float = Field(1.0, ge=0, le=1, description="Overall health score")
+
+
+class HygieneResultResponse(BaseModel):
+    """Full hygiene analysis result"""
+
+    note_id: str = Field(..., description="Analyzed note ID")
+    analyzed_at: datetime = Field(..., description="When analysis was performed")
+    duration_ms: int = Field(..., description="Analysis duration in milliseconds")
+    model_used: str = Field("rule-based", description="Model/method used for analysis")
+    context_notes_count: int = Field(0, description="Number of context notes used")
+    issues: list[HygieneIssueResponse] = Field(default_factory=list, description="Issues found")
+    summary: HygieneSummaryResponse = Field(..., description="Analysis summary")
+
+
 class RecordReviewRequest(BaseModel):
     """Request to record a review"""
 

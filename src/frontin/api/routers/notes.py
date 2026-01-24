@@ -20,6 +20,7 @@ from src.frontin.api.models.notes import (
     FolderCreateRequest,
     FolderCreateResponse,
     FolderListResponse,
+    HygieneResultResponse,
     IndexRebuildResponse,
     NoteCreateRequest,
     NoteDiffResponse,
@@ -1020,6 +1021,40 @@ async def enrich_note(
         logger.error(f"Failed to enrich note {note_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to enrich note"
+        ) from e
+
+
+@router.post("/{note_id}/hygiene", response_model=APIResponse[HygieneResultResponse])
+async def run_note_hygiene(
+    note_id: str,
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[HygieneResultResponse]:
+    """
+    Run hygiene checks on a note.
+
+    Performs rule-based analysis (no AI) to identify:
+    - Broken or missing links
+    - Formatting issues
+    - Outdated temporal references
+    - Completed tasks that could be archived
+    """
+    try:
+        result = await service.run_hygiene(note_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Note not found")
+
+        return APIResponse(
+            success=True,
+            data=result,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to run hygiene on note {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to run hygiene check"
         ) from e
 
 

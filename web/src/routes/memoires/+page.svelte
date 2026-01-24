@@ -24,12 +24,14 @@
 		getLowQualityNotes,
 		getObsoleteNotes,
 		getMergePendingNotes,
+		runNoteHygiene,
 		type Note,
 		type FolderNode,
 		type NotesTree,
 		type NoteSyncStatus,
 		type NoteReviewMetadata,
-		type NoteSearchResult
+		type NoteSearchResult,
+		type HygieneResult
 	} from '$lib/api/client';
 	import { memoryCyclesStore } from '$lib/stores/memory-cycles.svelte';
 	import { orphanQuestionsStore } from '$lib/stores/orphan-questions.svelte';
@@ -91,33 +93,7 @@
 	let editedTitle = $state('');
 	let titleInputRef = $state<HTMLInputElement | null>(null);
 
-	// Hygiene review state
-	interface HygieneIssue {
-		type: string;
-		severity: 'error' | 'warning' | 'info';
-		detail: string;
-		suggestion?: string;
-		confidence: number;
-		auto_applied: boolean;
-		related_note_id?: string;
-		source?: string;
-	}
-
-	interface HygieneResult {
-		note_id: string;
-		analyzed_at: string;
-		duration_ms: number;
-		model_used: string;
-		context_notes_count: number;
-		issues: HygieneIssue[];
-		summary: {
-			total_issues: number;
-			auto_fixed: number;
-			pending_review: number;
-			health_score: number;
-		};
-	}
-
+	// Hygiene review state (types imported from client.ts)
 	let isRunningHygiene = $state(false);
 	let hygieneResult = $state<HygieneResult | null>(null);
 	let showHygienePanel = $state(false);
@@ -547,42 +523,17 @@
 		hygieneResult = null;
 
 		try {
-			// TODO: Replace with actual API call when backend is ready
-			// const result = await runNoteHygiene(selectedNote.note_id);
-
-			// For now, simulate the API call with a placeholder
-			await new Promise(resolve => setTimeout(resolve, 2000));
-
-			// Mock result for UI development
-			hygieneResult = {
-				note_id: selectedNote.note_id,
-				analyzed_at: new Date().toISOString(),
-				duration_ms: 2340,
-				model_used: 'claude-3-5-haiku',
-				context_notes_count: 8,
-				issues: [
-					{
-						type: 'broken_link',
-						severity: 'warning',
-						detail: 'Exemple: lien cassé détecté',
-						suggestion: 'Correction suggérée',
-						confidence: 0.95,
-						auto_applied: true,
-						source: 'fuzzy_match'
-					}
-				],
-				summary: {
-					total_issues: 1,
-					auto_fixed: 1,
-					pending_review: 0,
-					health_score: 0.95
-				}
-			};
+			// Call the hygiene API
+			hygieneResult = await runNoteHygiene(selectedNote.note_id);
 
 			showHygienePanel = true;
-			toastStore.success('Analyse hygiène terminée');
+
+			if (hygieneResult.issues.length === 0) {
+				toastStore.success('Aucun problème détecté');
+			} else {
+				toastStore.success(`Analyse terminée: ${hygieneResult.issues.length} problème(s)`);
+			}
 		} catch (error) {
-			console.error('Failed to run hygiene review:', error);
 			toastStore.error('Échec de l\'analyse hygiène');
 		} finally {
 			isRunningHygiene = false;

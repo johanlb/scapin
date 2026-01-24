@@ -11,7 +11,10 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from src.frontin.api.models.notes import HygieneResultResponse
 
 from src.core.config_manager import ScapinConfig
 from src.frontin.api.models.notes import (
@@ -741,6 +744,138 @@ class NotesService:
             gaps_identified=result.gaps_identified,
             sources_used=[s.value for s in result.sources_used],
             analysis_summary=result.analysis_summary,
+        )
+
+    async def run_hygiene(
+        self, note_id: str
+    ) -> Optional["HygieneResultResponse"]:
+        """
+        Run hygiene checks on a note.
+
+        This runs rule-based checks (no AI) to identify:
+        - Broken/missing links
+        - Formatting issues
+        - Temporal references (outdated content)
+        - Completed tasks
+
+        Args:
+            note_id: Note identifier
+
+        Returns:
+            HygieneResultResponse or None if note not found
+        """
+        import time
+
+        from src.frontin.api.models.notes import (
+            HygieneIssueResponse,
+            HygieneResultResponse,
+            HygieneSummaryResponse,
+        )
+        from src.passepartout.retouche_reviewer import RetoucheReviewer
+
+        start_time = time.time()
+        logger.info(f"Running hygiene checks on note: {note_id}")
+
+        manager = self._get_manager()
+
+        # Get the note
+        note = await asyncio.to_thread(manager.get_note, note_id)
+        if not note:
+            logger.warning(f"Note not found for hygiene: {note_id}")
+            return None
+
+        # Create reviewer (no AI, just rule-based checks)
+        reviewer = RetoucheReviewer(
+            notes=manager,
+            ai_router=None,  # No AI for hygiene
+            notes_dir=manager.notes_dir,
+        )
+
+        # Collect issues
+        issues: list[HygieneIssueResponse] = []
+        auto_fixed = 0
+
+        # 1. Check temporal references
+        temporal_issues = reviewer._check_temporal_references(note.content)
+        for issue in temporal_issues:
+            issues.append(HygieneIssueResponse(
+                type="temporal",
+                severity="warning",
+                detail=issue.get("reason", "Référence temporelle obsolète"),
+                suggestion="Mettre à jour ou supprimer cette référence",
+                confidence=issue.get("confidence", 0.7),
+                auto_applied=False,
+                source="rule_based",
+            ))
+
+        # 2. Check completed tasks
+        completed_tasks = reviewer._check_completed_tasks(note.content)
+        for task in completed_tasks:
+            issues.append(HygieneIssueResponse(
+                type="task",
+                severity="info",
+                detail=task.get("reason", "Tâche terminée"),
+                suggestion="Archiver ou supprimer cette tâche",
+                confidence=task.get("confidence", 0.75),
+                auto_applied=False,
+                source="rule_based",
+            ))
+
+        # 3. Check missing links
+        linked_notes = await asyncio.to_thread(manager.get_linked_notes, note_id)
+        missing_links = reviewer._check_missing_links(note.content, linked_notes)
+        for link in missing_links:
+            issues.append(HygieneIssueResponse(
+                type="missing_link",
+                severity="info",
+                detail=link.get("reason", "Entité non liée"),
+                suggestion=f"Ajouter lien vers [[{link.get('entity', '')}]]",
+                confidence=link.get("confidence", 0.7),
+                auto_applied=False,
+                source="rule_based",
+            ))
+
+        # 4. Check formatting issues
+        format_issues = reviewer._check_formatting(note.content)
+        for fmt in format_issues:
+            issues.append(HygieneIssueResponse(
+                type="formatting",
+                severity="warning" if fmt.get("severity") == "warning" else "info",
+                detail=fmt.get("reason", "Problème de formatage"),
+                suggestion=fmt.get("fix", "Corriger le formatage"),
+                confidence=0.9,
+                auto_applied=False,
+                source="rule_based",
+            ))
+
+        # Calculate health score (1.0 = perfect, decreases with issues)
+        error_count = len([i for i in issues if i.severity == "error"])
+        warning_count = len([i for i in issues if i.severity == "warning"])
+        info_count = len([i for i in issues if i.severity == "info"])
+
+        # Weighted score: errors -0.2, warnings -0.1, info -0.02
+        health_score = max(0.0, 1.0 - (error_count * 0.2) - (warning_count * 0.1) - (info_count * 0.02))
+
+        duration_ms = int((time.time() - start_time) * 1000)
+
+        logger.info(
+            f"Hygiene complete for {note_id}: {len(issues)} issues, "
+            f"health_score={health_score:.2f}, duration={duration_ms}ms"
+        )
+
+        return HygieneResultResponse(
+            note_id=note_id,
+            analyzed_at=datetime.now(timezone.utc),
+            duration_ms=duration_ms,
+            model_used="rule-based",
+            context_notes_count=len(linked_notes),
+            issues=issues,
+            summary=HygieneSummaryResponse(
+                total_issues=len(issues),
+                auto_fixed=auto_fixed,
+                pending_review=len(issues) - auto_fixed,
+                health_score=health_score,
+            ),
         )
 
     async def move_note(self, note_id: str, target_folder: str) -> Optional[NoteMoveResponse]:

@@ -1840,6 +1840,50 @@ export async function syncAppleNotes(): Promise<NoteSyncStatus> {
 	return fetchApi<NoteSyncStatus>('/notes/sync', { method: 'POST' });
 }
 
+// ============================================================================
+// HYGIENE TYPES
+// ============================================================================
+
+export interface HygieneIssue {
+	type: string;
+	severity: 'error' | 'warning' | 'info';
+	detail: string;
+	suggestion?: string;
+	confidence: number;
+	auto_applied: boolean;
+	related_note_id?: string;
+	source?: string;
+}
+
+export interface HygieneSummary {
+	total_issues: number;
+	auto_fixed: number;
+	pending_review: number;
+	health_score: number;
+}
+
+export interface HygieneResult {
+	note_id: string;
+	analyzed_at: string;
+	duration_ms: number;
+	model_used: string;
+	context_notes_count: number;
+	issues: HygieneIssue[];
+	summary: HygieneSummary;
+}
+
+/**
+ * Run hygiene checks on a note
+ *
+ * Returns rule-based analysis of issues like broken links,
+ * formatting problems, outdated references, and completed tasks.
+ */
+export async function runNoteHygiene(noteId: string): Promise<HygieneResult> {
+	return fetchApi<HygieneResult>(`/notes/${encodeURIComponent(noteId)}/hygiene`, {
+		method: 'POST'
+	});
+}
+
 export async function getDeletedNotes(): Promise<Note[]> {
 	return fetchApi<Note[]>('/notes/deleted');
 }
