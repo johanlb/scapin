@@ -574,7 +574,7 @@ class NotesService:
         logger.info(f"Updating metadata for note: {note_id}")
 
         # Get metadata store
-        store = NoteMetadataStore(self.config.notes_metadata_path)
+        store = NoteMetadataStore(self.config.data_path / "metadata.db")
         metadata = store.get(note_id)
 
         if metadata is None:
@@ -676,7 +676,7 @@ class NotesService:
             return None
 
         # Get metadata
-        store = NoteMetadataStore(self.config.notes_metadata_path)
+        store = NoteMetadataStore(self.config.data_path / "metadata.db")
         metadata = store.get(note_id)
         if metadata is None:
             logger.warning(f"No metadata for note {note_id}, using defaults")
