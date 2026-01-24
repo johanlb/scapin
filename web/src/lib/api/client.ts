@@ -234,6 +234,27 @@ interface BriefingItem {
 	conflicts?: CalendarConflict[];
 }
 
+interface OrphanQuestionItem {
+	question_id: string;
+	question: string;
+	category: string;
+	context: string;
+	source_valet: string;
+	source_email_subject: string;
+	created_at: string;
+	intended_target: string | null;
+}
+
+interface RetoucheAlertItem {
+	note_id: string;
+	note_title: string;
+	note_path: string;
+	alert_type: 'suggest_contact' | 'flag_stale' | 'create_omnifocus' | 'duplicate_detected' | 'restructure_graph';
+	message: string;
+	confidence: number;
+	created_at: string | null;
+}
+
 interface MorningBriefing {
 	date: string;
 	generated_at: string;
@@ -245,6 +266,10 @@ interface MorningBriefing {
 	calendar_today: BriefingItem[];
 	emails_pending: BriefingItem[];
 	teams_unread: BriefingItem[];
+	orphan_questions: OrphanQuestionItem[];
+	orphan_questions_count: number;
+	retouche_alerts: RetoucheAlertItem[];
+	retouche_alerts_count: number;
 	ai_summary: string | null;
 	key_decisions: string[];
 }

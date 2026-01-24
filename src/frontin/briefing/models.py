@@ -90,6 +90,35 @@ class OrphanQuestionItem:
 
 
 @dataclass
+class RetoucheAlertItem:
+    """
+    Retouche alert for briefing display.
+
+    Alerts about notes that need attention based on retouche analysis.
+    """
+
+    note_id: str
+    note_title: str
+    note_path: str
+    alert_type: str  # suggest_contact, flag_stale, create_omnifocus, etc.
+    message: str
+    confidence: float
+    created_at: Optional[str] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "note_id": self.note_id,
+            "note_title": self.note_title,
+            "note_path": self.note_path,
+            "alert_type": self.alert_type,
+            "message": self.message,
+            "confidence": self.confidence,
+            "created_at": self.created_at,
+        }
+
+
+@dataclass
 class MorningBriefing:
     """
     Morning briefing aggregating all sources
@@ -100,6 +129,7 @@ class MorningBriefing:
     - Pending emails
     - Unread Teams messages
     - Orphan strategic questions requiring attention
+    - Retouche alerts for notes needing attention
 
     Designed for multi-layer display:
     - Layer 1 (5s): Quick stats overview
@@ -114,12 +144,14 @@ class MorningBriefing:
         emails_pending: Pending emails requiring action
         teams_unread: Unread Teams messages
         orphan_questions: Strategic questions without target notes
+        retouche_alerts: Retouche alerts for notes needing attention
         ai_summary: AI-generated 2-3 sentence summary
         key_decisions: Key decisions to be made today
         total_items: Total count of all items
         urgent_count: Count of urgent items
         meetings_today: Number of meetings today
         orphan_questions_count: Count of orphan questions
+        retouche_alerts_count: Count of retouche alerts
     """
 
     date: date
@@ -136,6 +168,9 @@ class MorningBriefing:
     # Orphan strategic questions (v3.2)
     orphan_questions: list[OrphanQuestionItem] = field(default_factory=list)
 
+    # Retouche alerts (v3.3 - Phase 6)
+    retouche_alerts: list[RetoucheAlertItem] = field(default_factory=list)
+
     # AI-generated insights
     ai_summary: Optional[str] = None
     key_decisions: list[str] = field(default_factory=list)
@@ -145,6 +180,7 @@ class MorningBriefing:
     urgent_count: int = 0
     meetings_today: int = 0
     orphan_questions_count: int = 0
+    retouche_alerts_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
@@ -156,12 +192,14 @@ class MorningBriefing:
             "emails_pending": [item.to_dict() for item in self.emails_pending],
             "teams_unread": [item.to_dict() for item in self.teams_unread],
             "orphan_questions": [q.to_dict() for q in self.orphan_questions],
+            "retouche_alerts": [a.to_dict() for a in self.retouche_alerts],
             "ai_summary": self.ai_summary,
             "key_decisions": self.key_decisions,
             "total_items": self.total_items,
             "urgent_count": self.urgent_count,
             "meetings_today": self.meetings_today,
             "orphan_questions_count": self.orphan_questions_count,
+            "retouche_alerts_count": self.retouche_alerts_count,
         }
 
     def to_markdown(self) -> str:
@@ -183,6 +221,7 @@ class MorningBriefing:
             f"- **Pending emails**: {len(self.emails_pending)}",
             f"- **Unread Teams**: {len(self.teams_unread)}",
             f"- **Questions stratégiques**: {self.orphan_questions_count}",
+            f"- **Alertes retouche**: {self.retouche_alerts_count}",
             "",
         ]
 
@@ -263,6 +302,27 @@ class MorningBriefing:
                 if q.context:
                     lines.append(f"  - *{q.context}*")
                 lines.append(f"  - Source: {q.source_valet} (via \"{q.source_email_subject[:40]}...\")")
+            lines.append("")
+
+        # Retouche alerts (v3.3 - Phase 6)
+        if self.retouche_alerts:
+            lines.extend([
+                "## Alertes Retouche",
+                "",
+                "*Notes nécessitant votre attention suite à l'analyse IA:*",
+                "",
+            ])
+            for alert in self.retouche_alerts:
+                alert_icon = {
+                    "suggest_contact": "💬",
+                    "flag_stale": "⏸️",
+                    "create_omnifocus": "✅",
+                    "duplicate_detected": "🔀",
+                    "restructure_graph": "📂",
+                }.get(alert.alert_type, "🔧")
+                lines.append(f"- {alert_icon} **[[{alert.note_title}]]**")
+                lines.append(f"  - {alert.message}")
+                lines.append(f"  - Confiance: {alert.confidence:.0%}")
             lines.append("")
 
         # Key decisions

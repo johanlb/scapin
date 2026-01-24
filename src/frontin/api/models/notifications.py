@@ -32,6 +32,12 @@ class NotificationType(str, Enum):
     NOTES_DUE = "notes_due"
     NOTE_ENRICHED = "note_enriched"
 
+    # Retouche notifications (Phase 6)
+    RETOUCHE_IMPORTANT = "retouche_important"  # Action proactive (HIGH priority)
+    RETOUCHE_PENDING = "retouche_pending"  # Actions en attente validation (NORMAL)
+    RETOUCHE_AUTO = "retouche_auto"  # Retouches auto-appliquées (LOW)
+    RETOUCHE_ERROR = "retouche_error"  # Échec répété (HIGH priority)
+
     # System notifications
     SYSTEM_INFO = "system_info"
     SYSTEM_WARNING = "system_warning"
