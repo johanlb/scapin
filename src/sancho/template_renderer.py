@@ -148,9 +148,8 @@ class TemplateRenderer:
         context["now"] = datetime.now(timezone.utc)
 
         # Add canevas context if available (v2.5)
-        # Note: Variable name in templates remains 'briefing' until templates are migrated
-        if self._canevas_context and "briefing" not in context:
-            context["briefing"] = self._canevas_context
+        if self._canevas_context and "canevas" not in context:
+            context["canevas"] = self._canevas_context
 
         try:
             template = self._env.get_template(template_name)
@@ -207,7 +206,7 @@ class TemplateRenderer:
             "pass1_grimaud",
             event=event,
             max_content_chars=max_content_chars,
-            briefing=self._get_canevas(),
+            canevas=self._get_canevas(),
         )
 
     def render_bazin(
@@ -241,7 +240,7 @@ class TemplateRenderer:
             context=context,
             max_content_chars=max_content_chars,
             max_context_notes=max_context_notes,
-            briefing=self._get_canevas(),
+            canevas=self._get_canevas(),
         )
 
     def render_planchet(
@@ -274,7 +273,7 @@ class TemplateRenderer:
             previous_passes=[grimaud_result, bazin_result],  # Template expects previous_passes
             context=context,
             max_content_chars=max_content_chars,
-            briefing=self._get_canevas(),
+            canevas=self._get_canevas(),
         )
 
     def render_mousqueton(
@@ -310,7 +309,7 @@ class TemplateRenderer:
                 planchet_result,
             ],  # Template expects previous_passes
             full_context=context,  # Template expects full_context
-            briefing=self._get_canevas(),
+            canevas=self._get_canevas(),
         )
 
     # ==================== Cache-Optimized Rendering (v3.1) ====================
@@ -343,7 +342,7 @@ class TemplateRenderer:
             "pass1_grimaud_user",
             event=event,
             max_content_chars=max_content_chars,
-            briefing=self._get_canevas(),
+            canevas=self._get_canevas(),
         )
         return SplitPrompt(system=system, user=user)
 
@@ -378,7 +377,7 @@ class TemplateRenderer:
             context=context,
             max_content_chars=max_content_chars,
             max_context_notes=max_context_notes,
-            briefing=self._get_canevas(),
+            canevas=self._get_canevas(),
         )
         return SplitPrompt(system=system, user=user)
 
@@ -412,7 +411,7 @@ class TemplateRenderer:
             previous_passes=[grimaud_result, bazin_result],
             context=context,
             max_content_chars=max_content_chars,
-            briefing=self._get_canevas(),
+            canevas=self._get_canevas(),
         )
         return SplitPrompt(system=system, user=user)
 
@@ -445,7 +444,7 @@ class TemplateRenderer:
             event=event,
             previous_passes=[grimaud_result, bazin_result, planchet_result],
             full_context=context,
-            briefing=self._get_canevas(),
+            canevas=self._get_canevas(),
         )
         return SplitPrompt(system=system, user=user)
 
