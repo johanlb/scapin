@@ -463,6 +463,7 @@ class TemplateRenderer:
         updated_at: Optional[str] = None,
         frontmatter: Optional[str] = None,
         linked_notes: Optional[dict[str, str]] = None,
+        template_structure: Optional[str] = None,
     ) -> str:
         """
         Render Retouche user prompt for a note.
@@ -476,6 +477,7 @@ class TemplateRenderer:
             updated_at: Last modification date string
             frontmatter: YAML frontmatter string
             linked_notes: Dict of {title: excerpt} for linked notes
+            template_structure: Optional template content from "Modèle - Fiche X" note
 
         Returns:
             Rendered user prompt string
@@ -490,6 +492,7 @@ class TemplateRenderer:
             updated_at=updated_at,
             frontmatter=frontmatter,
             linked_notes=linked_notes or {},
+            template_structure=template_structure,
         )
 
     # Custom Jinja2 filters

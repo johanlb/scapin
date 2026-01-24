@@ -34,6 +34,21 @@
 {% endfor %}
 {% endif %}
 
+{% if template_structure %}
+## Modèle de référence (structure attendue)
+
+Voici la structure type pour une fiche **{{ note_type }}**. Utilise ce modèle comme référence pour restructurer la note si nécessaire :
+
+```
+{{ template_structure[:2000] }}
+{% if template_structure | length > 2000 %}
+[... modèle tronqué ...]
+{% endif %}
+```
+
+**Important** : Adapte les sections à ce modèle lors d'une action "structure". Les sections entre crochets [exemple] sont à remplacer par le contenu réel.
+{% endif %}
+
 ## Instructions spécifiques
 
 {% if note_type == 'personne' %}

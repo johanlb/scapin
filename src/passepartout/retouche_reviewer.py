@@ -52,6 +52,18 @@ logger = get_logger("passepartout.retouche_reviewer")
 # Maximum regex matches to process per pattern to prevent DoS on large documents
 MAX_REGEX_MATCHES = 100
 
+# Template files mapping for note types (Point #3 - Templates depuis notes Modèle)
+# Path relative to notes_dir: Personal Knowledge Management/Modèles/
+TEMPLATE_FOLDER = "Personal Knowledge Management/Modèles"
+TEMPLATE_TYPE_MAP = {
+    "personne": "Modèle — Fiche Personne.md",
+    "projet": "Modèle — Fiche Projet.md",
+    "reunion": "Modèle — Fiche Réunion.md",
+    "entite": "Modèle — Fiche Entité.md",
+    "processus": "Modèle — Fiche Processus.md",
+    "evenement": "Modèle — Fiche Événement.md",
+}
+
 
 @dataclass
 class HygieneMetrics:
@@ -281,6 +293,64 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
                     "opus": self.ESCALATE_TO_OPUS_THRESHOLD,
                 },
             )
+
+    def _load_template_for_type(self, note_type: str) -> Optional[str]:
+        """
+        Load the template structure from a "Modèle — Fiche {Type}" note.
+
+        Reads the template from PKM/Modèles/ folder and extracts the content
+        between "━━━ DÉBUT MODÈLE ━━━" and "━━━ FIN MODÈLE ━━━" markers.
+
+        Args:
+            note_type: Type of note (personne, projet, reunion, etc.)
+
+        Returns:
+            Template content string or None if not found
+        """
+        note_type_lower = note_type.lower() if note_type else ""
+        template_file = TEMPLATE_TYPE_MAP.get(note_type_lower)
+
+        if not template_file:
+            logger.debug(f"No template file mapped for type: {note_type}")
+            return None
+
+        # Build path to template file
+        template_path = self.notes.notes_dir / TEMPLATE_FOLDER / template_file
+
+        if not template_path.exists():
+            logger.warning(f"Template file not found: {template_path}")
+            return None
+
+        try:
+            content = template_path.read_text(encoding="utf-8")
+
+            # Extract content between markers
+            start_marker = "━━━ DÉBUT MODÈLE ━━━"
+            end_marker = "━━━ FIN MODÈLE ━━━"
+
+            start_idx = content.find(start_marker)
+            end_idx = content.find(end_marker)
+
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                # Extract content between markers (excluding markers themselves)
+                template_content = content[start_idx + len(start_marker) : end_idx].strip()
+                logger.info(
+                    f"Loaded template for type {note_type}: {len(template_content)} chars"
+                )
+                return template_content
+            else:
+                # If no markers, return full content (minus frontmatter)
+                logger.debug(f"No template markers found in {template_file}, using full content")
+                # Skip frontmatter if present
+                if content.startswith("---"):
+                    parts = content.split("---", 2)
+                    if len(parts) >= 3:
+                        return parts[2].strip()
+                return content
+
+        except Exception as e:
+            logger.error(f"Failed to load template {template_path}: {e}")
+            return None
 
     async def review_note(self, note_id: str) -> RetoucheResult:
         """
@@ -1210,6 +1280,9 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         if context.metadata and context.metadata.updated_at:
             updated_at = context.metadata.updated_at.isoformat()
 
+        # Load template structure from PKM/Modèles/ if available (Point #3)
+        template_structure = self._load_template_for_type(note_type)
+
         # Use TemplateRenderer for specialized prompts per note type
         renderer = get_template_renderer()
         return renderer.render_retouche(
@@ -1221,6 +1294,7 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             updated_at=updated_at,
             frontmatter=frontmatter,
             linked_notes=context.linked_note_excerpts,
+            template_structure=template_structure,
         )
 
     async def _call_ai_router(
