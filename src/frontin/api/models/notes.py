@@ -234,6 +234,7 @@ class NoteMetadataResponse(BaseModel):
     review_count: int = Field(0, description="Total reviews completed")
     auto_enrich: bool = Field(True, description="Auto-enrichment enabled")
     importance: str = Field("normal", description="Importance level")
+    quality_score: int | None = Field(None, ge=0, le=100, description="Quality score (0-100)")
 
 
 class NotesDueResponse(BaseModel):

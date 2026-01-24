@@ -1022,34 +1022,42 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
         analysis: "AnalysisResult",
     ) -> int:
         """
-        Calculate quality score (0-100)
+        Calculate quality score (0-100) — v2 formula
 
         Factors:
-        - Word count (10-1000+ words)
-        - Has summary
-        - Section structure
-        - Links to other notes
-        - Completeness
+        - Contenu (max 30 pts): seuils à 50, 200, 500 mots
+        - Structure (max 25 pts): résumé + sections
+        - Liens (max 15 pts): wikilinks sortants
+        - Complétude IA (max 30 pts): bonus si peu d'actions proposées
+
+        Base à 0 (note vide = 0, pas 50).
         """
-        score = 50  # Base score
+        score = 0  # Base neutre
 
-        # Word count bonus (up to +20)
-        if context.word_count >= 100:
-            score += min(20, context.word_count // 50)
+        # === Contenu (max 30 pts) ===
+        if context.word_count >= 50:
+            score += 10
+        if context.word_count >= 200:
+            score += 10
+        if context.word_count >= 500:
+            score += 10
 
-        # Summary bonus (+15)
+        # === Structure (max 25 pts) ===
         if context.has_summary:
             score += 15
-
-        # Section structure bonus (up to +10)
         score += min(10, context.section_count * 3)
 
-        # Links bonus (up to +10)
-        score += min(10, len(context.linked_notes) * 2)
+        # === Liens (max 15 pts) ===
+        # Compter les wikilinks dans le contenu
+        outgoing_links = self._extract_wikilinks(context.note.content)
+        score += min(15, len(outgoing_links) * 3)
 
-        # Actions applied penalty (-5 per action needed)
-        actions_needed = sum(1 for a in analysis.actions if a.applied)
-        score -= actions_needed * 5
+        # === Complétude IA (max 30 pts) ===
+        # Moins d'actions proposées = note déjà bien formée
+        # 0 actions = +30, 1 action = +20, 2 = +10, 3+ = 0
+        proposed_actions = [a for a in analysis.actions if a.action_type != RetoucheAction.SCORE]
+        completeness_bonus = max(0, 30 - (len(proposed_actions) * 10))
+        score += completeness_bonus
 
         # Ensure score is in valid range
         return max(0, min(100, score))

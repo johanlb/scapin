@@ -1008,7 +1008,7 @@ class NoteMetadataStore:
                 query += f" AND note_type IN ({placeholders})"
                 params.extend([t.value for t in note_types])
 
-            # Order by importance (critical first) then by how overdue
+            # Order by importance (critical first), then quality (low first), then overdue
             query += """
                 ORDER BY
                     CASE importance
@@ -1018,6 +1018,7 @@ class NoteMetadataStore:
                         WHEN 'low' THEN 4
                         ELSE 5
                     END,
+                    COALESCE(quality_score, 0) ASC,
                     retouche_next ASC NULLS FIRST
                 LIMIT ?
             """
@@ -1481,6 +1482,47 @@ class NoteMetadataStore:
                 ORDER BY updated_at DESC
             """,
                 (target_note_id,),
+            )
+            rows = cursor.fetchall()
+
+            return [self._row_to_metadata(row) for row in rows]
+
+    def get_low_quality_notes(
+        self,
+        threshold: int = 50,
+        limit: int = 50,
+    ) -> list[NoteMetadata]:
+        """
+        Get notes with low quality score (below threshold)
+
+        Args:
+            threshold: Quality score threshold (notes below this are returned)
+            limit: Maximum number of notes to return
+
+        Returns:
+            List of NoteMetadata with low quality, ordered by score ascending
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT * FROM note_metadata
+                WHERE COALESCE(quality_score, 0) < ?
+                AND obsolete_flag = 0
+                AND importance != 'archive'
+                ORDER BY
+                    CASE importance
+                        WHEN 'critical' THEN 1
+                        WHEN 'high' THEN 2
+                        WHEN 'normal' THEN 3
+                        WHEN 'low' THEN 4
+                        ELSE 5
+                    END,
+                    COALESCE(quality_score, 0) ASC
+                LIMIT ?
+            """,
+                (threshold, limit),
             )
             rows = cursor.fetchall()
 

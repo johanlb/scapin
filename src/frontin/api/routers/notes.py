@@ -1173,3 +1173,144 @@ async def get_retouche_queue(
         raise HTTPException(
             status_code=500, detail="Failed to get retouche queue"
         ) from e
+
+
+# =============================================================================
+# LIFECYCLE FILTER ENDPOINTS (Phase 3.3)
+# =============================================================================
+
+
+@router.get("/low-quality", response_model=APIResponse[list[NoteMetadataResponse]])
+async def get_low_quality_notes(
+    threshold: int = Query(50, ge=0, le=100, description="Quality score threshold"),
+    limit: int = Query(20, ge=1, le=100, description="Max notes to return"),
+    review_service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[list[NoteMetadataResponse]]:
+    """
+    Get notes with low quality score (below threshold)
+
+    Returns notes that need improvement, ordered by importance then quality.
+    Default threshold is 50.
+    """
+    try:
+        store = review_service._get_store()
+        notes = store.get_low_quality_notes(threshold=threshold, limit=limit)
+
+        response_items = [
+            NoteMetadataResponse(
+                note_id=m.note_id,
+                note_type=m.note_type.value,
+                easiness_factor=m.easiness_factor,
+                repetition_number=m.repetition_number,
+                interval_hours=m.interval_hours,
+                next_review=m.next_review,
+                last_quality=m.last_quality,
+                review_count=m.review_count,
+                auto_enrich=m.auto_enrich,
+                importance=m.importance.value,
+                quality_score=m.quality_score,
+            )
+            for m in notes
+        ]
+
+        return APIResponse(
+            success=True,
+            data=response_items,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(f"Failed to get low quality notes: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to get low quality notes"
+        ) from e
+
+
+@router.get("/obsolete", response_model=APIResponse[list[NoteMetadataResponse]])
+async def get_obsolete_notes(
+    limit: int = Query(20, ge=1, le=100, description="Max notes to return"),
+    review_service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[list[NoteMetadataResponse]]:
+    """
+    Get notes flagged as obsolete
+
+    Returns notes marked for archival/deletion review.
+    """
+    try:
+        store = review_service._get_store()
+        notes = store.get_obsolete_notes(limit=limit)
+
+        response_items = [
+            NoteMetadataResponse(
+                note_id=m.note_id,
+                note_type=m.note_type.value,
+                easiness_factor=m.easiness_factor,
+                repetition_number=m.repetition_number,
+                interval_hours=m.interval_hours,
+                next_review=m.next_review,
+                last_quality=m.last_quality,
+                review_count=m.review_count,
+                auto_enrich=m.auto_enrich,
+                importance=m.importance.value,
+                quality_score=m.quality_score,
+            )
+            for m in notes
+        ]
+
+        return APIResponse(
+            success=True,
+            data=response_items,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(f"Failed to get obsolete notes: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to get obsolete notes"
+        ) from e
+
+
+@router.get("/merge-pending", response_model=APIResponse[list[NoteMetadataResponse]])
+async def get_merge_pending_notes(
+    limit: int = Query(20, ge=1, le=100, description="Max notes to return"),
+    review_service: NotesReviewService = Depends(get_notes_review_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[list[NoteMetadataResponse]]:
+    """
+    Get notes pending merge into another note
+
+    Returns notes that have a merge_target_id set.
+    """
+    try:
+        store = review_service._get_store()
+        # Use list_all and filter for merge_target_id
+        all_notes = store.list_all(limit=500)
+        notes = [n for n in all_notes if n.merge_target_id is not None][:limit]
+
+        response_items = [
+            NoteMetadataResponse(
+                note_id=m.note_id,
+                note_type=m.note_type.value,
+                easiness_factor=m.easiness_factor,
+                repetition_number=m.repetition_number,
+                interval_hours=m.interval_hours,
+                next_review=m.next_review,
+                last_quality=m.last_quality,
+                review_count=m.review_count,
+                auto_enrich=m.auto_enrich,
+                importance=m.importance.value,
+                quality_score=m.quality_score,
+            )
+            for m in notes
+        ]
+
+        return APIResponse(
+            success=True,
+            data=response_items,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(f"Failed to get merge pending notes: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to get merge pending notes"
+        ) from e
