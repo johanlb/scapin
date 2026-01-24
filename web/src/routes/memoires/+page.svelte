@@ -13,6 +13,7 @@
 		updateNote,
 		deleteNote,
 		moveNote,
+		createNote,
 		getNoteReviewMetadata,
 		triggerReview,
 		getNotesDue,
@@ -79,6 +80,11 @@
 	let isMoving = $state(false);
 	let availableFolders = $state<string[]>([]);
 	let targetMoveFolder = $state('');
+
+	// Create note modal state
+	let showCreateNoteModal = $state(false);
+	let isCreatingNote = $state(false);
+	let newNoteTitle = $state('');
 
 	// Title editing state
 	let isEditingTitle = $state(false);
@@ -648,6 +654,38 @@
 		}
 	}
 
+	async function handleCreateNote() {
+		if (!newNoteTitle.trim()) return;
+
+		isCreatingNote = true;
+		try {
+			// Use selected folder or root
+			const folder = selectedFolderPath || '';
+			const content = `# ${newNoteTitle}\n\n`;
+
+			const note = await createNote(newNoteTitle, content, folder);
+
+			// Close modal and reset
+			showCreateNoteModal = false;
+			newNoteTitle = '';
+
+			// Reload tree and select the new note
+			await loadTree();
+
+			// Select the new note
+			if (selectedFolderPath) {
+				await selectFolder(selectedFolderPath);
+			}
+			selectedNote = note;
+
+			toastStore.success('Note créée');
+		} catch (error) {
+			toastStore.error('Erreur lors de la création');
+		} finally {
+			isCreatingNote = false;
+		}
+	}
+
 	function openInNewWindow() {
 		if (!selectedNote) return;
 		// Build the full path: folder/note_id
@@ -826,23 +864,34 @@
 	<aside class="w-56 flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-bg-secondary)]/50 flex flex-col">
 		<!-- Sync Button with Progress -->
 		<div class="p-3 border-b border-[var(--color-border)]">
-			<button
-				type="button"
-				onclick={syncWithAppleNotes}
-				disabled={isSyncing}
-				class="w-full px-3 py-1.5 text-sm rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-tertiary)]/80 transition-colors disabled:opacity-50"
-			>
-				{#if isSyncing}
-					<span class="inline-block animate-spin mr-1">⟳</span>
-					{#if syncProgress}
-						Synchro... ({syncProgress.current})
+			<div class="flex gap-2">
+				<button
+					type="button"
+					onclick={syncWithAppleNotes}
+					disabled={isSyncing}
+					class="flex-1 px-3 py-1.5 text-sm rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-tertiary)]/80 transition-colors disabled:opacity-50"
+				>
+					{#if isSyncing}
+						<span class="inline-block animate-spin mr-1">⟳</span>
+						{#if syncProgress}
+							Synchro...
+						{:else}
+							Synchro...
+						{/if}
 					{:else}
-						Synchro...
+						⟳ Sync
 					{/if}
-				{:else}
-					⟳ Sync Apple Notes
-				{/if}
-			</button>
+				</button>
+				<button
+					type="button"
+					onclick={() => (showCreateNoteModal = true)}
+					class="px-3 py-1.5 text-sm rounded-lg bg-[var(--color-accent)]/10 hover:bg-[var(--color-accent)]/20 text-[var(--color-accent)] transition-colors"
+					title="Créer une nouvelle note"
+					data-testid="create-note-button"
+				>
+					➕
+				</button>
+			</div>
 			{#if syncStatus?.last_sync}
 				<p class="text-[10px] text-[var(--color-text-tertiary)] mt-1 text-center">
 					Dernière sync: {formatNoteDate(syncStatus.last_sync)}
@@ -1796,4 +1845,55 @@
 			{/if}
 		</button>
 	</div>
+</Modal>
+
+<!-- Create Note Modal -->
+<Modal bind:open={showCreateNoteModal} title="Nouvelle note">
+	<form onsubmit={(e) => { e.preventDefault(); handleCreateNote(); }}>
+		<div class="mb-4">
+			<label for="note-title" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
+				Titre de la note
+			</label>
+			<input
+				id="note-title"
+				type="text"
+				bind:value={newNoteTitle}
+				placeholder="Entrez le titre..."
+				class="w-full px-3 py-2 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-border)]
+					focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50
+					text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]"
+				data-testid="create-note-title-input"
+			/>
+			{#if selectedFolderPath}
+				<p class="text-xs text-[var(--color-text-tertiary)] mt-2">
+					📁 Dossier : {selectedFolderPath}
+				</p>
+			{:else}
+				<p class="text-xs text-[var(--color-text-tertiary)] mt-2">
+					📁 Dossier : Racine
+				</p>
+			{/if}
+		</div>
+		<div class="flex justify-end gap-3">
+			<button
+				type="button"
+				onclick={() => { showCreateNoteModal = false; newNoteTitle = ''; }}
+				class="px-4 py-2 rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-bg-secondary)] transition-colors text-[var(--color-text-primary)]"
+			>
+				Annuler
+			</button>
+			<button
+				type="submit"
+				disabled={isCreatingNote || !newNoteTitle.trim()}
+				class="px-4 py-2 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/80 text-white transition-colors disabled:opacity-50"
+				data-testid="create-note-submit"
+			>
+				{#if isCreatingNote}
+					Création...
+				{:else}
+					Créer
+				{/if}
+			</button>
+		</div>
+	</form>
 </Modal>
