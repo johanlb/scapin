@@ -18,14 +18,13 @@ from src.monitoring.logger import get_logger
 from src.passepartout.janitor import NoteJanitor
 from src.passepartout.note_manager import NoteManager
 from src.passepartout.note_metadata import NoteMetadataStore
-from src.passepartout.note_reviewer import NoteReviewer, ReviewResult
 from src.passepartout.note_scheduler import NoteScheduler
 from src.passepartout.note_types import CycleType
+from src.passepartout.retouche_reviewer import RetoucheResult, RetoucheReviewer
 
 if TYPE_CHECKING:
     from src.passepartout.cross_source import CrossSourceEngine
     from src.passepartout.filage_service import Filage, FilageService
-    from src.passepartout.retouche_reviewer import RetoucheReviewer
     from src.sancho.processor import NoteProcessor
 
 logger = get_logger("passepartout.background_worker")
@@ -116,7 +115,7 @@ class BackgroundWorker:
         data_dir: Optional[Path] = None,
         config: Optional[WorkerConfig] = None,
         cross_source_engine: Optional["CrossSourceEngine"] = None,
-        on_review_complete: Optional[Callable[[ReviewResult], None]] = None,
+        on_review_complete: Optional[Callable[[RetoucheResult], None]] = None,
         on_state_change: Optional[Callable[[WorkerState], None]] = None,
     ):
         """
@@ -151,7 +150,7 @@ class BackgroundWorker:
         self._note_manager: Optional[NoteManager] = None
         self._metadata_store: Optional[NoteMetadataStore] = None
         self._scheduler: Optional[NoteScheduler] = None
-        self._reviewer: Optional[NoteReviewer] = None
+        # Note: _reviewer removed - using _retouche_reviewer for all reviews
         self._processor: Optional[NoteProcessor] = None
         self._janitor: Optional[NoteJanitor] = None
 
@@ -192,14 +191,6 @@ class BackgroundWorker:
         if self._scheduler is None:
             self._scheduler = NoteScheduler(self._metadata_store)
 
-        if self._reviewer is None:
-            self._reviewer = NoteReviewer(
-                note_manager=self._note_manager,
-                metadata_store=self._metadata_store,
-                scheduler=self._scheduler,
-                cross_source_engine=self._cross_source_engine,
-            )
-
         if self._processor is None:
             from src.sancho.processor import NoteProcessor
 
@@ -207,14 +198,13 @@ class BackgroundWorker:
                 note_manager=self._note_manager,
             )
 
-        # Memory Cycles v2 components
+        # Memory Cycles v2 components (unified reviewer)
         if self._retouche_reviewer is None:
-            from src.passepartout.retouche_reviewer import RetoucheReviewer
-
             self._retouche_reviewer = RetoucheReviewer(
                 note_manager=self._note_manager,
                 metadata_store=self._metadata_store,
                 scheduler=self._scheduler,
+                cross_source_engine=self._cross_source_engine,
             )
 
         if self._filage_service is None:
@@ -533,21 +523,25 @@ class BackgroundWorker:
         self._set_state(WorkerState.STOPPED)
         logger.info("Background worker stopped")
 
-    async def _process_note(self, note_id: str) -> Optional[ReviewResult]:
-        """Process a single note review"""
+    async def _process_note(self, note_id: str) -> Optional[RetoucheResult]:
+        """Process a single note review using RetoucheReviewer"""
         logger.info(f"Processing note: {note_id}")
         start_time = time.time()
 
         try:
-            assert self._reviewer is not None
-            result = await self._reviewer.review_note(note_id)
+            assert self._retouche_reviewer is not None
+            result = await self._retouche_reviewer.review_note(note_id)
 
             # Update stats
             elapsed = time.time() - start_time
             self._stats.reviews_today += 1
             self._stats.reviews_total += 1
-            self._stats.actions_applied += len(result.applied_actions)
-            self._stats.actions_pending += len(result.pending_actions)
+
+            # Count applied vs pending actions
+            applied = [a for a in result.actions if a.applied]
+            pending = [a for a in result.actions if a.requires_confirmation]
+            self._stats.actions_applied += len(applied)
+            self._stats.actions_pending += len(pending)
             self._stats.last_review_at = datetime.now(timezone.utc)
 
             # Update average review time
@@ -562,8 +556,8 @@ class BackgroundWorker:
 
             logger.info(
                 f"Review complete for {note_id}: "
-                f"Q={result.quality}, applied={len(result.applied_actions)}, "
-                f"pending={len(result.pending_actions)}, time={elapsed:.2f}s"
+                f"Q={result.quality_after}, applied={len(applied)}, "
+                f"pending={len(pending)}, time={elapsed:.2f}s"
             )
 
             return result
