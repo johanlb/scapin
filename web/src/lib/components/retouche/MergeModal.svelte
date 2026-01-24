@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import { Modal, Button, Skeleton } from '$lib/components/ui';
-	import { approveRetoucheAction, rejectRetoucheAction, getNote } from '$lib/api';
+	import { approveRetoucheAction, rejectRetoucheAction, rollbackRetoucheAction, getNote } from '$lib/api';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import type { PendingRetoucheAction, Note } from '$lib/api';
 
@@ -63,7 +63,24 @@
 		try {
 			const result = await approveRetoucheAction(action.action_id, action.note_id, true);
 			if (result.success) {
-				toastStore.success(result.message);
+				// Show undo toast if rollback is available
+				if (result.rollback_available && result.rollback_token) {
+					const token = result.rollback_token;
+					const noteId = action.note_id;
+					toastStore.undo(
+						`Note fusionnée : ${action.note_title}`,
+						async () => {
+							await rollbackRetoucheAction(token, noteId);
+						},
+						{
+							title: 'Fusion effectuée',
+							itemId: action.action_id,
+							countdownSeconds: 15
+						}
+					);
+				} else {
+					toastStore.success(result.message);
+				}
 				open = false;
 				onapprove?.();
 			} else {
