@@ -393,3 +393,49 @@ class EnrichmentHistoryResponse(BaseModel):
     total_records: int = Field(0, description="Total number of records")
     quality_score: int | None = Field(None, description="Current quality score (0-100)")
     retouche_count: int = Field(0, description="Total retouche cycles")
+
+
+# =============================================================================
+# Retouche Preview Models (Phase 4)
+# =============================================================================
+
+
+class RetoucheActionPreview(BaseModel):
+    """Preview of a single retouche action"""
+
+    action_type: str = Field(
+        ...,
+        description="Action type (enrich, structure, summarize, suggest_links, cleanup, etc.)",
+    )
+    target: str = Field(..., description="Target section or field")
+    content: str | None = Field(None, description="Proposed new content")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Action confidence")
+    reasoning: str = Field("", description="Why this action is proposed")
+    auto_apply: bool = Field(
+        False, description="Whether action will be auto-applied (confidence >= 0.85)"
+    )
+
+
+class RetouchePreviewResponse(BaseModel):
+    """Preview of proposed retouche changes"""
+
+    note_id: str = Field(..., description="Note identifier")
+    note_title: str = Field(..., description="Note title")
+    quality_before: int | None = Field(None, description="Current quality score")
+    quality_after: int = Field(..., description="Predicted quality after retouche")
+    model_used: str = Field("haiku", description="AI model used for analysis")
+    actions: list[RetoucheActionPreview] = Field(
+        default_factory=list, description="Proposed actions"
+    )
+    diff_preview: str = Field("", description="Unified diff preview of all changes")
+    reasoning: str = Field("", description="Overall analysis reasoning")
+
+
+class RetoucheApplyRequest(BaseModel):
+    """Request to apply selected retouche actions"""
+
+    action_indices: list[int] = Field(
+        default_factory=list,
+        description="Indices of actions to apply (empty = apply all auto-apply actions)",
+    )
+    apply_all: bool = Field(False, description="Apply all proposed actions")

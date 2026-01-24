@@ -2070,6 +2070,60 @@ export async function getEnrichmentHistory(
 }
 
 // ============================================================================
+// RETOUCHE PREVIEW TYPES (Phase 4)
+// ============================================================================
+
+export interface RetoucheActionPreview {
+	action_type: string;
+	target: string;
+	content: string | null;
+	confidence: number;
+	reasoning: string;
+	auto_apply: boolean;
+}
+
+export interface RetouchePreview {
+	note_id: string;
+	note_title: string;
+	quality_before: number | null;
+	quality_after: number;
+	model_used: string;
+	actions: RetoucheActionPreview[];
+	diff_preview: string;
+	reasoning: string;
+}
+
+export interface RetoucheApplyRequest {
+	action_indices?: number[];
+	apply_all?: boolean;
+}
+
+/**
+ * Preview proposed retouche changes for a note
+ */
+export async function previewRetouche(noteId: string): Promise<RetouchePreview> {
+	return fetchApi<RetouchePreview>(
+		`/notes/${encodeURIComponent(noteId)}/retouche/preview`
+	);
+}
+
+/**
+ * Apply selected retouche actions to a note
+ */
+export async function applyRetouche(
+	noteId: string,
+	request: RetoucheApplyRequest = {}
+): Promise<RetouchePreview> {
+	return fetchApi<RetouchePreview>(
+		`/notes/${encodeURIComponent(noteId)}/retouche/apply`,
+		{
+			method: 'POST',
+			body: JSON.stringify(request)
+		}
+	);
+}
+
+// ============================================================================
 // DRAFTS TYPES
 // ============================================================================
 

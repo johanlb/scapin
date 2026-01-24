@@ -31,6 +31,8 @@ from src.frontin.api.models.notes import (
     NoteVersionContentResponse,
     NoteVersionResponse,
     NoteVersionsResponse,
+    RetoucheActionPreview,
+    RetouchePreviewResponse,
     WikilinkResponse,
 )
 from src.monitoring.logger import get_logger
@@ -1175,3 +1177,183 @@ class NotesService:
             folders=folders,
             total=len(folders),
         )
+
+    # =========================================================================
+    # RETOUCHE PREVIEW (Phase 4)
+    # =========================================================================
+
+    async def preview_retouche(self, note_id: str) -> Optional[RetouchePreviewResponse]:
+        """
+        Preview proposed retouche changes for a note
+
+        Analyzes the note with AI and returns proposed improvements
+        without applying them.
+
+        Args:
+            note_id: Note identifier
+
+        Returns:
+            RetouchePreviewResponse with proposed actions, or None if note not found
+        """
+        logger.info(f"Previewing retouche for note: {note_id}")
+        manager = self._get_manager()
+
+        # Get the note
+        note = await asyncio.to_thread(manager.get_note, note_id)
+        if note is None:
+            return None
+
+        # Get retouche reviewer (lazy init to avoid circular imports)
+        reviewer = await self._get_retouche_reviewer()
+        if reviewer is None:
+            # Return empty preview if reviewer not available
+            return RetouchePreviewResponse(
+                note_id=note_id,
+                note_title=note.title,
+                quality_before=None,
+                quality_after=50,
+                model_used="unavailable",
+                actions=[],
+                diff_preview="",
+                reasoning="Retouche service not available",
+            )
+
+        # Load context and analyze
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_types import detect_note_type_from_path
+
+        # Get or create metadata
+        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        metadata = metadata_store.get(note_id)
+        if metadata is None:
+            note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
+            metadata = metadata_store.create_for_note(
+                note_id=note_id,
+                note_type=note_type,
+                content=note.content,
+            )
+
+        # Load context
+        context = await reviewer._load_context(note, metadata)
+
+        # Analyze with AI
+        analysis = await reviewer._analyze_with_escalation(context)
+
+        # Convert actions to preview format
+        actions = []
+        for action in analysis.actions:
+            actions.append(
+                RetoucheActionPreview(
+                    action_type=action.action_type.value,
+                    target=action.target,
+                    content=action.content,
+                    confidence=action.confidence,
+                    reasoning=action.reasoning,
+                    auto_apply=action.confidence >= reviewer.AUTO_APPLY_THRESHOLD,
+                )
+            )
+
+        # Calculate quality
+        quality_after = reviewer._calculate_quality_score(context, analysis)
+
+        return RetouchePreviewResponse(
+            note_id=note_id,
+            note_title=note.title,
+            quality_before=metadata.quality_score,
+            quality_after=quality_after,
+            model_used=analysis.model_used,
+            actions=actions,
+            diff_preview="",  # TODO: Generate unified diff
+            reasoning=analysis.reasoning,
+        )
+
+    async def apply_retouche(
+        self,
+        note_id: str,
+        action_indices: list[int] | None = None,
+        apply_all: bool = False,
+    ) -> Optional[RetouchePreviewResponse]:
+        """
+        Apply selected retouche actions to a note
+
+        Args:
+            note_id: Note identifier
+            action_indices: Indices of actions to apply (None = auto-apply only)
+            apply_all: Apply all proposed actions
+
+        Returns:
+            RetouchePreviewResponse with applied actions, or None if note not found
+        """
+        # TODO: Implement selective action application based on action_indices
+        # For now, we run the full retouche cycle
+        _ = action_indices  # Reserved for future selective application
+        _ = apply_all  # Reserved for future "apply all" mode
+
+        logger.info(f"Applying retouche for note: {note_id}")
+
+        # Get the reviewer
+        reviewer = await self._get_retouche_reviewer()
+        if reviewer is None:
+            return None
+
+        # Run full retouche cycle
+        result = await reviewer.review_note(note_id)
+
+        if not result.success:
+            return None
+
+        # Convert to response format
+        actions = []
+        for action in result.actions:
+            actions.append(
+                RetoucheActionPreview(
+                    action_type=action.action_type.value,
+                    target=action.target,
+                    content=action.content,
+                    confidence=action.confidence,
+                    reasoning=action.reasoning,
+                    auto_apply=action.applied,
+                )
+            )
+
+        return RetouchePreviewResponse(
+            note_id=note_id,
+            note_title="",  # Not available in result
+            quality_before=result.quality_before,
+            quality_after=result.quality_after,
+            model_used=result.model_used,
+            actions=actions,
+            diff_preview="",
+            reasoning=result.reasoning,
+        )
+
+    async def _get_retouche_reviewer(self):
+        """Get or create RetoucheReviewer instance"""
+        if not hasattr(self, "_retouche_reviewer"):
+            try:
+                from src.passepartout.note_metadata import NoteMetadataStore
+                from src.passepartout.note_scheduler import NoteScheduler
+                from src.passepartout.retouche_reviewer import RetoucheReviewer
+                from src.sancho.router import AIRouter
+
+                manager = self._get_manager()
+                metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+                scheduler = NoteScheduler(metadata_store)
+
+                # Try to get AI router
+                try:
+                    ai_router = AIRouter()
+                except Exception:
+                    ai_router = None
+
+                self._retouche_reviewer = RetoucheReviewer(
+                    note_manager=manager,
+                    metadata_store=metadata_store,
+                    scheduler=scheduler,
+                    ai_router=ai_router,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to initialize RetoucheReviewer: {e}")
+                self._retouche_reviewer = None
+
+        return self._retouche_reviewer
