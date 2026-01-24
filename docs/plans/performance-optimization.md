@@ -149,19 +149,25 @@ py-spy --version  # 0.4.1
 
 ---
 
-### #13 Tests de performance (benchmarks) ⏳ À ENRICHIR
+### #13 Tests de performance (benchmarks) ✅
 
-**Fichier existant** : `tests/performance/test_notes_perf.py`
+**Commit** : `a215888`
 
-**À ajouter** :
-- `tests/performance/test_context_search_perf.py` — Cache hit/miss
-- `tests/performance/test_multi_pass_analysis_perf.py` — Pipeline complet
+**Fichiers** :
+- `tests/performance/test_notes_perf.py` — Tests notes existants
+- `tests/performance/test_multi_pass_perf.py` — Tests pipeline existants
+- `tests/performance/test_context_search_perf.py` — **NOUVEAU** (8 tests)
 
-| Test | Métrique | Seuil |
-|------|----------|-------|
-| Context search (cache hit) | Temps réponse | < 100ms |
-| Note loading (1000 notes) | Temps total | < 2s |
-| Multi-pass analysis | Temps par email | < 5s |
+**Nouveaux tests ajoutés** :
+- `TestContextSearchCache` : cache hit/miss, invalidation, clés séparées
+- `TestBatchSearchPerformance` : single embed call, comparaison vitesse
+- `TestPerformanceThresholds` : cache < 0.1ms, search 1000 docs < 100ms
+
+| Test | Métrique | Seuil | Status |
+|------|----------|-------|--------|
+| Cache hit | Temps accès | < 0.1ms | ✅ |
+| Vector search 1000 docs | Temps total | < 100ms | ✅ |
+| Batch vs sequential | Ratio | < 1.5x | ✅ |
 
 ---
 
@@ -305,7 +311,7 @@ flowchart TD
 
 ⏳ Phase 3 — Validation
   ✅ #16 — Tests non-régression (partiel)
-  ⏳ #13 — Tests performance (à enrichir)
+  ✅ #13 — Tests performance
 
 ⏳ Phase 4 — Documentation
   ✅ #14 — Doc technique
@@ -340,7 +346,7 @@ flowchart TD
 | Baseline chiffrée | `docs/plans/archive/performance-baseline.md` | ✅ |
 | Flamegraphs CPU | `data/profiling/*.svg` | ✅ |
 | Doc technique | `docs/architecture/performance.md` | ✅ |
-| Tests performance | `tests/performance/*.py` | ⏳ À enrichir |
+| Tests performance | `tests/performance/*.py` | ✅ 8 nouveaux tests |
 | Guide utilisateur | `docs/user-guide/performance.md` | ⏳ À créer |
 
 ---
@@ -356,3 +362,4 @@ flowchart TD
 | 2026-01-24 | Phase 4 : Documentation `docs/architecture/performance.md` |
 | 2026-01-24 | Mise à jour plan : Phases 0-2 complétées, 3-4 en cours |
 | 2026-01-24 | #5 Batch search VectorStore implémenté |
+| 2026-01-24 | #13 Tests performance enrichis (8 nouveaux tests) |
