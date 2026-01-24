@@ -1,6 +1,6 @@
-# Plan : Migration NoteReviewer → RetoucheReviewer
+# Plan : Migration et Améliorations Retouche
 
-**Version** : v3 (contexte IA enrichi)
+**Version** : v3.1 (contexte IA enrichi + modèles PKM)
 
 ## Objectif
 
@@ -549,6 +549,151 @@ Réponds en JSON valide avec cette structure exacte :
 
 ---
 
+### Commit 4c : Intégrer les modèles PKM comme référence (CRITIQUE)
+
+**Objectif** : L'IA doit utiliser les modèles de notes de Johan (dans `PKM/Processus/`) comme référence de structure idéale, pas les templates Jinja2 génériques.
+
+**Problème actuel** :
+- Johan maintient des modèles détaillés (`Modèle — Fiche Personne.md`, etc.)
+- Ces modèles définissent précisément les sections attendues (👤, 🏢, 🧠, 🤝...)
+- L'IA Retouche ne les consulte pas → suggestions non alignées
+
+**Fichiers modifiés :**
+- `src/passepartout/retouche_reviewer.py`
+- `templates/ai/v2/retouche/retouche_user.j2`
+
+#### 4c.1 Ajouter un loader de modèles PKM
+
+```python
+# Dans retouche_reviewer.py
+
+# Mapping type de note → titre du modèle PKM
+PKM_MODEL_TITLES = {
+    "personne": "Modèle — Fiche Personne",
+    "projet": "Modèle — Fiche Projet",
+    "reunion": "Modèle — Fiche Réunion",
+    "entite": "Modèle — Fiche Entité",
+    "evenement": "Modèle — Fiche Événement",
+}
+
+def _load_pkm_model(self, note_type: str) -> Optional[str]:
+    """
+    Load the PKM model template for a given note type.
+
+    Searches for notes titled "Modèle — Fiche {Type}" in the PKM.
+    Returns the content to use as reference structure.
+    """
+    model_title = PKM_MODEL_TITLES.get(note_type)
+    if not model_title:
+        return None
+
+    try:
+        results = self.notes.search_notes(query=model_title, top_k=1)
+        if results:
+            model_note = results[0][0] if isinstance(results[0], tuple) else results[0]
+            if model_note.title == model_title:
+                # Extraire uniquement la section "STRUCTURE À COPIER"
+                content = model_note.content
+                start = content.find("━━━ DÉBUT MODÈLE")
+                end = content.find("━━━ FIN MODÈLE")
+                if start != -1 and end != -1:
+                    return content[start:end + len("━━━ FIN MODÈLE ━━━")]
+                return content[:2000]  # Fallback: premiers 2000 chars
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to load PKM model for {note_type}: {e}")
+        return None
+```
+
+#### 4c.2 Étendre RetoucheContext
+
+```python
+@dataclass
+class RetoucheContext:
+    # ... champs existants ...
+
+    # NOUVEAU: Modèle PKM de référence
+    pkm_model: Optional[str] = None  # Contenu du modèle pour ce type de note
+```
+
+#### 4c.3 Charger le modèle dans `_load_context()`
+
+```python
+async def _load_context(self, note: Note, metadata: NoteMetadata) -> RetoucheContext:
+    # ... code existant ...
+
+    # NOUVEAU: Charger le modèle PKM correspondant
+    note_type = metadata.note_type.value if metadata.note_type else "inconnu"
+    pkm_model = self._load_pkm_model(note_type)
+
+    return RetoucheContext(
+        # ... champs existants ...
+        pkm_model=pkm_model,
+    )
+```
+
+#### 4c.4 Modifier `_build_retouche_prompt()` pour passer le modèle
+
+```python
+def _build_retouche_prompt(self, context: RetoucheContext) -> str:
+    # ... code existant ...
+
+    return renderer.render_retouche(
+        # ... paramètres existants ...
+        pkm_model=context.pkm_model,  # NOUVEAU
+    )
+```
+
+#### 4c.5 Modifier le template `retouche_user.j2`
+
+Ajouter après la section "Notes liées" :
+
+```jinja2
+{% if pkm_model %}
+## Modèle de référence PKM
+
+Cette note devrait suivre la structure définie par Johan :
+
+```
+{{ pkm_model }}
+```
+
+**Instructions** : Compare la note analysée à ce modèle. Suggère des actions pour :
+- Ajouter les sections manquantes
+- Réorganiser selon la structure du modèle
+- Compléter les champs requis
+{% endif %}
+```
+
+#### 4c.6 Modifier `render_retouche()` dans template_renderer.py
+
+```python
+def render_retouche(
+    self,
+    # ... paramètres existants ...
+    pkm_model: Optional[str] = None,  # NOUVEAU
+) -> str:
+    return self.render(
+        "retouche/retouche_user",
+        # ... paramètres existants ...
+        pkm_model=pkm_model,
+    )
+```
+
+**Vérification :**
+```bash
+.venv/bin/pytest tests/unit/test_retouche_reviewer.py -v
+# Test manuel : vérifier que le modèle PKM apparaît dans les logs
+.venv/bin/python -m src.frontin.cli notes review --process --limit 1 --force
+```
+
+**Impact attendu :**
+- L'IA connaît maintenant la structure exacte attendue par Johan
+- Suggestions de sections manquantes (🧠 PROFIL RELATIONNEL, etc.)
+- Meilleur alignement avec les pratiques PKM de Johan
+
+---
+
 ### Commit 5 : Adapter background_worker.py
 
 **Fichiers modifiés :**
@@ -678,17 +823,19 @@ self._reviewer: Optional[NoteReviewer] = None
 | Suggestions de liens | ~0.3 | ≥1.0 | Actions SUGGEST_LINKS |
 | Détection doublons | 0 | ≥0.5 | Actions MERGE_INTO |
 | Notes avec contexte enrichi | 0% | 80%+ | Logs context_loaded |
+| **Alignement modèle PKM** | 0% | 90%+ | Notes avec pkm_model chargé |
+| **Sections manquantes détectées** | 0 | ≥1.5/note | Actions STRUCTURE ciblant sections modèle |
 
 ---
 
 ## Estimation
 
-- **10 commits atomiques** (9 + 4b pour template)
-- ~400 lignes ajoutées à retouche_reviewer.py (vs 300 avant)
-- ~50 lignes ajoutées à template_renderer.py
-- ~100 lignes ajoutées à retouche_user.j2
+- **11 commits atomiques** (9 + 4b + 4c)
+- ~450 lignes ajoutées à retouche_reviewer.py
+- ~60 lignes ajoutées à template_renderer.py
+- ~150 lignes ajoutées à retouche_user.j2
 - ~1000 lignes supprimées (note_reviewer.py)
-- Bilan net : -450 lignes
+- Bilan net : -340 lignes
 
 ---
 
