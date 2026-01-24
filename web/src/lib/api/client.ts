@@ -1676,6 +1676,7 @@ interface NoteReviewMetadata {
 	auto_enrich: boolean;
 	importance: string;
 	quality_score?: number | null;
+	last_synced_at?: string | null;
 }
 
 interface NotesDueResponse {

@@ -619,6 +619,7 @@ class NotesService:
             auto_enrich=metadata.auto_enrich,
             importance=metadata.importance.value,
             quality_score=None,  # Not tracked in metadata directly
+            last_synced_at=metadata.last_synced_at,
         )
 
     async def delete_note(self, note_id: str) -> bool:
@@ -1221,6 +1222,11 @@ class NotesService:
             indexed_count = await asyncio.to_thread(manager.refresh_index)
             logger.info(f"Refreshed metadata index: {indexed_count} notes")
 
+            # Update last_synced_at for synced notes
+            synced_note_names = result.created + result.updated
+            if synced_note_names:
+                await self._update_sync_timestamps(manager, synced_note_names)
+
             return NoteSyncStatus(
                 last_sync=result.completed_at or datetime.now(timezone.utc),
                 syncing=False,
@@ -1236,6 +1242,41 @@ class NotesService:
                 notes_synced=0,
                 errors=[f"Sync failed: {str(e)}"],
             )
+
+    async def _update_sync_timestamps(
+        self, manager: "NoteManager", synced_note_names: list[str]
+    ) -> None:
+        """
+        Update last_synced_at for notes that were synced.
+
+        Args:
+            manager: NoteManager instance
+            synced_note_names: List of note names/titles that were synced
+        """
+        from src.passepartout.note_metadata import NoteMetadataStore
+
+        now = datetime.now(timezone.utc)
+        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+
+        updated_count = 0
+        for note_name in synced_note_names:
+            # Clean up the name (remove suffixes like "(Apple wins)")
+            clean_name = note_name.split(" (")[0].strip()
+
+            # Search for the note by title
+            results = manager.search_notes(clean_name, limit=5)
+            for note, _score in results:
+                # Check if title matches closely
+                if note.title.lower() == clean_name.lower() or clean_name.lower() in note.title.lower():
+                    # Get or create metadata
+                    metadata = metadata_store.get(note.note_id)
+                    if metadata:
+                        metadata.last_synced_at = now
+                        metadata_store.save(metadata)
+                        updated_count += 1
+                        break
+
+        logger.info(f"Updated last_synced_at for {updated_count} notes")
 
     async def get_deleted_notes(self) -> list[NoteResponse]:
         """

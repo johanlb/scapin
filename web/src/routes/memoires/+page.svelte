@@ -1572,6 +1572,11 @@
 								Dernière évaluation : {noteReviewMetadata.last_quality}/5
 							</div>
 						{/if}
+						{#if noteReviewMetadata.last_synced_at}
+							<div class="mt-2 text-sm text-[var(--color-text-tertiary)]">
+								🔄 Sync Apple Notes : {formatRelativeTime(noteReviewMetadata.last_synced_at)}
+							</div>
+						{/if}
 					{:else}
 						<div class="text-sm text-[var(--color-text-tertiary)]">
 							Aucune donnée de revue disponible

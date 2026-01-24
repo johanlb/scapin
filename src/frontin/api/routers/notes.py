@@ -1366,6 +1366,7 @@ async def get_low_quality_notes(
                 auto_enrich=m.auto_enrich,
                 importance=m.importance.value,
                 quality_score=m.quality_score,
+                last_synced_at=m.last_synced_at,
             )
             for m in notes
         ]
@@ -1410,6 +1411,7 @@ async def get_obsolete_notes(
                 auto_enrich=m.auto_enrich,
                 importance=m.importance.value,
                 quality_score=m.quality_score,
+                last_synced_at=m.last_synced_at,
             )
             for m in notes
         ]
@@ -1456,6 +1458,7 @@ async def get_merge_pending_notes(
                 auto_enrich=m.auto_enrich,
                 importance=m.importance.value,
                 quality_score=m.quality_score,
+                last_synced_at=m.last_synced_at,
             )
             for m in notes
         ]

@@ -39,6 +39,7 @@ def _metadata_to_response(metadata: NoteMetadata) -> NoteMetadataResponse:
         review_count=metadata.review_count,
         auto_enrich=metadata.auto_enrich,
         importance=metadata.importance.value,
+        last_synced_at=metadata.last_synced_at,
     )
 
 

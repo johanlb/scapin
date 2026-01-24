@@ -235,6 +235,7 @@ class NoteMetadataResponse(BaseModel):
     auto_enrich: bool = Field(True, description="Auto-enrichment enabled")
     importance: str = Field("normal", description="Importance level")
     quality_score: int | None = Field(None, ge=0, le=100, description="Quality score (0-100)")
+    last_synced_at: datetime | None = Field(None, description="Last Apple Notes sync timestamp")
 
 
 class NoteMetadataUpdateRequest(BaseModel):

@@ -33,7 +33,7 @@ WAL_CHECKPOINT_THRESHOLD = 1000  # Checkpoint after this many operations
 logger = get_logger("passepartout.note_metadata")
 
 # Database schema version for migrations
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 # Importance level ordering for priority sorting (lower value = higher priority)
 IMPORTANCE_ORDER: dict[ImportanceLevel, int] = {
@@ -152,6 +152,9 @@ class NoteMetadata:
     obsolete_flag: bool = False  # Note marquée comme obsolète
     obsolete_reason: str = ""  # Raison de l'obsolescence
     merge_target_id: Optional[str] = None  # ID de la note cible pour fusion
+
+    # === Sync tracking (v4) ===
+    last_synced_at: Optional[datetime] = None  # Last sync with Apple Notes
 
     def is_due_for_review(self, now: Optional[datetime] = None) -> bool:
         """Check if note is due for review"""
@@ -409,6 +412,8 @@ class NoteMetadataStore:
                 self._migrate_v1_to_v2(cursor)
             if current_version < 3:
                 self._migrate_v2_to_v3(cursor)
+            if current_version < 4:
+                self._migrate_v3_to_v4(cursor)
 
             # Create indexes for common queries
             cursor.execute("""
@@ -597,6 +602,28 @@ class NoteMetadataStore:
 
         logger.info("Migration v2 to v3 completed successfully")
 
+    def _migrate_v3_to_v4(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Migrate from schema v3 to v4: Add sync tracking field.
+
+        Migration strategy:
+        - Add last_synced_at to track Apple Notes sync timestamp
+        """
+        logger.info("Migrating database schema from v3 to v4 (sync tracking)")
+
+        # Check which columns already exist
+        cursor.execute("PRAGMA table_info(note_metadata)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+
+        # Sync tracking column
+        if "last_synced_at" not in existing_columns:
+            cursor.execute(
+                "ALTER TABLE note_metadata ADD COLUMN last_synced_at TEXT"
+            )
+            logger.debug("Added column last_synced_at")
+
+        logger.info("Migration v3 to v4 completed successfully")
+
     def _parse_datetime_safe(self, val: Optional[str], field_name: str = "") -> Optional[datetime]:
         """
         Safely parse datetime string with error handling
@@ -693,6 +720,10 @@ class NoteMetadataStore:
             obsolete_flag=bool(get_row_value("obsolete_flag", False)),
             obsolete_reason=get_row_value("obsolete_reason", ""),
             merge_target_id=get_row_value("merge_target_id", None),
+            # v4: Sync tracking
+            last_synced_at=self._parse_datetime_safe(
+                get_row_value("last_synced_at", None), "last_synced_at"
+            ),
         )
 
     def save(self, metadata: NoteMetadata) -> None:
@@ -724,8 +755,9 @@ class NoteMetadataStore:
                     lecture_ef, lecture_rep, lecture_interval,
                     lecture_next, lecture_last, lecture_count,
                     quality_score, questions_pending, questions_count,
-                    pending_actions, obsolete_flag, obsolete_reason, merge_target_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    pending_actions, obsolete_flag, obsolete_reason, merge_target_id,
+                    last_synced_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     metadata.note_id,
@@ -765,6 +797,8 @@ class NoteMetadataStore:
                     int(metadata.obsolete_flag),
                     metadata.obsolete_reason,
                     metadata.merge_target_id,
+                    # v4: Sync tracking
+                    metadata.last_synced_at.isoformat() if metadata.last_synced_at else None,
                 ),
             )
 
@@ -833,6 +867,8 @@ class NoteMetadataStore:
                         int(metadata.obsolete_flag),
                         metadata.obsolete_reason,
                         metadata.merge_target_id,
+                        # v4: Sync tracking
+                        metadata.last_synced_at.isoformat() if metadata.last_synced_at else None,
                     )
                 )
 
@@ -849,8 +885,9 @@ class NoteMetadataStore:
                     lecture_ef, lecture_rep, lecture_interval,
                     lecture_next, lecture_last, lecture_count,
                     quality_score, questions_pending, questions_count,
-                    pending_actions, obsolete_flag, obsolete_reason, merge_target_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    pending_actions, obsolete_flag, obsolete_reason, merge_target_id,
+                    last_synced_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 data_tuples,
             )
