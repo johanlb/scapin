@@ -1475,8 +1475,8 @@ def notes_review(
 
     from src.core.config_manager import get_config
     from src.passepartout.note_manager import NoteManager
-    from src.passepartout.note_reviewer import NoteReviewer
     from src.passepartout.note_scheduler import create_scheduler
+    from src.passepartout.retouche_reviewer import RetoucheReviewer
     from src.sancho.router import AIRouter
 
     logger = get_logger("cli")
@@ -1527,7 +1527,7 @@ def notes_review(
         # Initialize AI components
         console.print("[dim]Initializing Sancho...[/dim]")
         ai_router = AIRouter(config=config.ai)
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=manager,
             metadata_store=scheduler.store,
             scheduler=scheduler,
@@ -1565,7 +1565,6 @@ def notes_review(
         )
 
         async def run_reviews():
-            from rich.table import Table
 
             count = 0
             for idx, note_id in enumerate(notes_to_process_ids, 1):
@@ -1586,88 +1585,60 @@ def notes_review(
                     with console.status("[bold green]Analyzing note..."):
                         result = await reviewer.review_note(note_id)
 
-                    # Display hygiene metrics if available
-                    if (
-                        result.analysis
-                        and hasattr(result.analysis, "hygiene")
-                        and result.analysis.hygiene
-                    ):
-                        hygiene = result.analysis.hygiene
+                    # Separate applied and pending actions
+                    applied_actions = [a for a in result.actions if a.applied]
+                    pending_actions = [a for a in result.actions if not a.applied]
 
-                        hygiene_table = Table(
-                            title="📊 Hygiene Metrics", show_header=False, box=None
-                        )
-                        hygiene_table.add_column("Metric", style="cyan", width=20)
-                        hygiene_table.add_column("Value", style="white")
+                    # Action icons for Retouche action types
+                    action_icons = {
+                        "enrich": "🌟",
+                        "structure": "📋",
+                        "summarize": "📝",
+                        "score": "📊",
+                        "inject_questions": "❓",
+                        "suggest_links": "🔗",
+                        "cleanup": "🧹",
+                        "flag_obsolete": "🗑️",
+                        "merge_into": "🔀",
+                        "move_to_folder": "📁",
+                        "create_omnifocus": "✅",
+                    }
 
-                        hygiene_table.add_row("Word Count", f"{hygiene.word_count} words")
-                        hygiene_table.add_row(
-                            "Frontmatter",
-                            "✅ Valid"
-                            if hygiene.frontmatter_valid
-                            else f"❌ Issues: {', '.join(hygiene.frontmatter_issues)}",
-                        )
-
-                        if hygiene.broken_links:
-                            hygiene_table.add_row(
-                                "Broken Links", f"⚠️  {len(hygiene.broken_links)} found"
-                            )
-
-                        if hygiene.duplicate_candidates:
-                            hygiene_table.add_row(
-                                "Duplicates",
-                                f"🔍 {len(hygiene.duplicate_candidates)} similar notes",
-                            )
-
-                        if hygiene.is_too_short:
-                            hygiene_table.add_row("Length", "⚠️  Too short (< 100 words)")
-                        elif hygiene.is_too_long:
-                            hygiene_table.add_row("Length", "⚠️  Too long (> 2000 words)")
-
-                        console.print(hygiene_table)
-                        console.print()
-
-                    # Display actions
-                    total_actions = len(result.applied_actions) + len(result.pending_actions)
-
-                    if result.applied_actions:
+                    # Display applied actions
+                    if applied_actions:
                         console.print("[bold green]✅ AUTO-APPLIED ACTIONS:[/bold green]")
-                        for action in result.applied_actions:
-                            action_icon = {
-                                "fix_links": "🔗",
-                                "validate": "✓",
-                                "format": "📝",
-                                "update": "➕",
-                                "enrich": "🌟",
-                            }.get(action.action_type, "•")
+                        for action in applied_actions:
+                            icon = action_icons.get(action.action_type.value, "•")
                             console.print(
-                                f"  {action_icon} [cyan][{action.action_type.upper()}][/cyan] {action.reasoning} "
+                                f"  {icon} [cyan][{action.action_type.value.upper()}][/cyan] {action.reasoning} "
                                 f"[dim](confidence: {action.confidence:.0%})[/dim]"
                             )
                         console.print()
 
-                    if result.pending_actions:
+                    # Display pending actions
+                    if pending_actions:
                         console.print("[bold yellow]⏳ PENDING APPROVAL:[/bold yellow]")
-                        for action in result.pending_actions:
-                            action_icon = {
-                                "merge": "🔀",
-                                "split": "✂️",
-                                "refactor": "🔄",
-                            }.get(action.action_type, "•")
+                        for action in pending_actions:
+                            icon = action_icons.get(action.action_type.value, "•")
                             console.print(
-                                f"  {action_icon} [yellow][{action.action_type.upper()}][/yellow] {action.reasoning} "
+                                f"  {icon} [yellow][{action.action_type.value.upper()}][/yellow] {action.reasoning} "
                                 f"[dim](confidence: {action.confidence:.0%})[/dim]"
                             )
                         console.print()
 
-                    if total_actions == 0:
+                    if not result.actions:
                         console.print("[dim]No actions suggested.[/dim]\n")
 
-                    # Quality score
-                    quality_stars = "⭐" * result.quality
+                    # Quality score (convert 0-100 to 0-5 stars)
+                    stars = max(1, result.quality_after // 20) if result.quality_after > 0 else 0
+                    quality_stars = "⭐" * stars
                     console.print(
-                        f"✨ [bold]Quality Score:[/bold] {quality_stars} ({result.quality}/5)"
+                        f"✨ [bold]Quality Score:[/bold] {quality_stars} ({result.quality_after}/100)"
                     )
+
+                    # Show model used and escalation info
+                    if result.escalated:
+                        console.print(f"[dim]Model: {result.model_used} (escalated)[/dim]")
 
                     console.print("━" * 60 + "\n")
                     count += 1
@@ -1717,7 +1688,6 @@ def notes_pending(
     from src.passepartout.note_scheduler import create_scheduler
     from src.sancho.router import AIRouter
 
-    logger = get_logger("cli")
     config = get_config()
     notes_dir = Path(config.storage.notes_path)
     manager = NoteManager(notes_dir)
