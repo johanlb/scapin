@@ -694,6 +694,174 @@ def render_retouche(
 
 ---
 
+### Pré-requis : Réorganiser les modèles PKM (action manuelle Johan)
+
+**Objectif** : Centraliser tous les modèles dans un dossier dédié pour faciliter leur maintenance et leur chargement.
+
+**Actions à effectuer dans Apple Notes :**
+
+1. **Créer le dossier** : `Personal Knowledge Management/Modèles/`
+
+2. **Déplacer les modèles existants** depuis `PKM/Processus/` :
+   - `Modèle — Fiche Personne.md`
+   - `Modèle — Fiche Projet.md`
+   - `Modèle — Fiche Réunion.md`
+   - `Modèle — Fiche Entité.md`
+   - `Modèle — Fiche Événement.md`
+
+3. **Créer le modèle manquant** : `Modèle — Fiche Processus.md` (voir contenu ci-dessous)
+
+4. **Sync Apple Notes** : Attendre la synchronisation Scapin
+
+**Modèle Processus à créer :**
+
+```markdown
+---
+title: Modèle — Fiche Processus
+---
+
+Modèle — Fiche Processus
+
+Template pour fiches Processus/Procédures
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Modèle à copier pour créer une fiche Processus. Couvre : procédures, workflows, checklists, modes opératoires.
+
+📋 STRUCTURE À COPIER
+
+━━━ DÉBUT MODÈLE ━━━
+
+name: [Nom du processus]
+
+content:
+
+[Type de processus] — [Domaine]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[Description courte : à quoi sert ce processus, quand l'utiliser]
+
+🎯 OBJECTIF
+
+[Quel résultat ce processus permet d'atteindre]
+
+⚠️ PRÉREQUIS
+
+  • [Condition 1 à vérifier avant de commencer]
+  • [Condition 2]
+  • [Outils/accès nécessaires]
+
+📋 ÉTAPES
+
+1. **[Étape 1]**
+   [Description détaillée]
+
+2. **[Étape 2]**
+   [Description détaillée]
+
+3. **[Étape 3]**
+   [Description détaillée]
+
+⚡ RACCOURCIS / COMMANDES
+
+```
+[Commande 1]
+[Commande 2]
+```
+
+🚨 POINTS D'ATTENTION
+
+  • [Erreur fréquente à éviter]
+  • [Cas particulier à gérer]
+  • [Avertissement important]
+
+📊 CRITÈRES DE SUCCÈS
+
+  • [Comment savoir que le processus est terminé]
+  • [Vérification à effectuer]
+
+🔄 FRÉQUENCE
+
+[Quand exécuter ce processus : quotidien, hebdo, sur demande...]
+
+📅 DERNIÈRE VÉRIFICATION
+
+[Date de dernière validation du processus]
+
+📁 DOCUMENTS
+
+  • [Lien vers documentation complémentaire]
+  • [Template associé]
+
+🔗 FICHES CONNEXES
+
+Processus liés : [Autres processus dépendants]
+Entités : [Outils, services concernés]
+Personnes : [Responsables, experts]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+#PKM #IA #Processus #[Domaine]
+
+Mise à jour : [Date]
+
+━━━ FIN MODÈLE ━━━
+
+📊 EXEMPLES DE SOUS-TITRES
+
+Technique : "Processus Technique — Scapin"
+Admin : "Processus Administratif — AWCS"
+GTD : "Processus GTD — Revue"
+PKM : "Processus PKM — Maintenance"
+
+✅ ACTIONS APRÈS CRÉATION
+
+  1. Tester le processus une fois
+  2. Noter les ajustements nécessaires
+  3. Ranger dans PKM/Processus/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+#PKM #IA #Processus #Modèle
+
+Mise à jour : [Date]
+```
+
+**Mise à jour du code après réorganisation :**
+
+```python
+# Dans retouche_reviewer.py - Mettre à jour le chemin de recherche
+
+PKM_MODELS_FOLDER = "Personal Knowledge Management/Modèles"
+
+def _load_pkm_model(self, note_type: str) -> Optional[str]:
+    """Load PKM model from the Modèles folder"""
+    model_title = PKM_MODEL_TITLES.get(note_type)
+    if not model_title:
+        return None
+
+    try:
+        # Chercher d'abord dans le dossier Modèles
+        results = self.notes.search_notes(
+            query=model_title,
+            top_k=3,
+        )
+
+        for result in results:
+            note = result[0] if isinstance(result, tuple) else result
+            # Vérifier que c'est bien le modèle (titre exact)
+            if note.title == model_title:
+                return self._extract_model_structure(note.content)
+
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to load PKM model: {e}")
+        return None
+```
+
+---
+
 ### Commit 4d : Implémenter le scoring v3 basé sur l'alignement PKM
 
 **Objectif** : Remplacer le scoring générique (v2) par un scoring qui évalue l'alignement avec les modèles PKM.
@@ -801,6 +969,21 @@ SECTION_DEFINITIONS = {
                    patterns=[r"résolution|adopté|rejeté|voté"]),
         SectionDef("📝 NOTES", weight=15, required=False, min_words=30),
         SectionDef("🔗 FICHES CONNEXES", weight=20, required=False,
+                   patterns=[r"\[\[.+\]\]"]),
+    ],
+    "processus": [
+        SectionDef("🎯 OBJECTIF", weight=15, required=True, min_words=20),
+        SectionDef("⚠️ PRÉREQUIS", weight=15, required=False,
+                   patterns=[r"•.*condition|•.*accès|•.*outil"]),
+        SectionDef("📋 ÉTAPES", weight=30, required=True,
+                   patterns=[r"\d+\.\s+\*\*|\d+\.\s+\[", r"étape\s+\d"]),
+        SectionDef("⚡ RACCOURCIS / COMMANDES", weight=10, required=False,
+                   patterns=[r"```|`[^`]+`"]),
+        SectionDef("🚨 POINTS D'ATTENTION", weight=10, required=False,
+                   patterns=[r"•.*éviter|•.*attention|•.*important"]),
+        SectionDef("📊 CRITÈRES DE SUCCÈS", weight=10, required=False,
+                   patterns=[r"•.*vérif|•.*succès|•.*terminé"]),
+        SectionDef("🔗 FICHES CONNEXES", weight=10, required=False,
                    patterns=[r"\[\[.+\]\]"]),
     ],
 }
