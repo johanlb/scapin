@@ -44,6 +44,26 @@ if TYPE_CHECKING:
 
 logger = get_logger("passepartout.retouche_reviewer")
 
+# Maximum regex matches to process per pattern to prevent DoS on large documents
+MAX_REGEX_MATCHES = 100
+
+
+@dataclass
+class HygieneMetrics:
+    """Structural health metrics for a note (migré de NoteReviewer)"""
+
+    word_count: int
+    is_too_short: bool  # < 100 words
+    is_too_long: bool  # > 2000 words
+    frontmatter_valid: bool
+    frontmatter_issues: list[str] = field(default_factory=list)
+    broken_links: list[str] = field(default_factory=list)
+    heading_issues: list[str] = field(default_factory=list)
+    duplicate_candidates: list[tuple[str, float]] = field(
+        default_factory=list
+    )  # (note_id, similarity_score)
+    formatting_score: float = 1.0  # 0-1, 1 = perfect
+
 
 class RetoucheAction(str, Enum):
     """Types of Retouche actions"""
@@ -63,6 +83,10 @@ class RetoucheAction(str, Enum):
     FLAG_OBSOLETE = "flag_obsolete"  # Marquer note obsolète → Filage (toujours)
     MERGE_INTO = "merge_into"  # Fusionner dans une autre note → Auto/Filage
     MOVE_TO_FOLDER = "move_to_folder"  # Classer dans le bon dossier → Auto
+    # Hygiene actions (migré de NoteReviewer)
+    FORMAT = "format"  # Corrections formatage (espaces, headers)
+    VALIDATE = "validate"  # Validation frontmatter
+    FIX_LINKS = "fix_links"  # Corriger liens cassés
 
 
 @dataclass
@@ -98,6 +122,7 @@ class RetoucheResult:
     escalated: bool = False  # Whether we escalated to a higher model
     reasoning: str = ""
     error: Optional[str] = None
+    hygiene: Optional[HygieneMetrics] = None  # Métriques d'hygiène structurelle
 
 
 @dataclass
@@ -503,6 +528,21 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             if re.search(pattern, content, re.MULTILINE | re.IGNORECASE):
                 return True
         return False
+
+    def _scrub_content(self, content: str) -> str:
+        """
+        Scrub media links and large binary-like patterns from content.
+
+        Replaces ![image](path) or other media markers with placeholders.
+        Saves tokens during AI analysis.
+        """
+        # Replace Markdown images/attachments: ![alt](path)
+        scrubbed = re.sub(r"!\[([^\]]*)\]\([^\)]+\)", r"[MEDIA: \1]", content)
+
+        # Replace HTML images: <img src="...">
+        scrubbed = re.sub(r"<img[^>]+src=[\"'][^\"']+[\"'][^>]*>", "[IMAGE]", scrubbed)
+
+        return scrubbed
 
     def find_related_notes(
         self,
