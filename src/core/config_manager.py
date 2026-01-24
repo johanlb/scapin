@@ -719,6 +719,53 @@ class AuthConfig(BaseModel):
     pin_hash: str = Field("", description="Bcrypt hash of the PIN code (4-6 digits)")
 
 
+class AutoFetchConfig(BaseModel):
+    """
+    Configuration AutoFetch (SC-20)
+
+    Controls automatic background fetching of new emails/events
+    to keep the review queue populated.
+    """
+
+    enabled: bool = Field(True, description="Enable automatic background fetching")
+    low_threshold: int = Field(
+        5,
+        ge=0,
+        le=50,
+        description="Fetch triggered when queue drops below this count (during runtime)",
+    )
+    startup_threshold: int = Field(
+        20,
+        ge=0,
+        le=100,
+        description="Fetch triggered at startup if queue below this count",
+    )
+    email_cooldown_minutes: int = Field(
+        2,
+        ge=1,
+        le=60,
+        description="Minimum minutes between email fetches",
+    )
+    teams_cooldown_minutes: int = Field(
+        2,
+        ge=1,
+        le=60,
+        description="Minimum minutes between Teams fetches",
+    )
+    calendar_cooldown_minutes: int = Field(
+        5,
+        ge=1,
+        le=60,
+        description="Minimum minutes between calendar fetches",
+    )
+    fetch_limit: int = Field(
+        20,
+        ge=1,
+        le=100,
+        description="Maximum items to fetch per source per trigger",
+    )
+
+
 class ScapinConfig(BaseSettings):
     """
     Configuration principale Scapin
@@ -752,6 +799,7 @@ class ScapinConfig(BaseSettings):
     icloud_calendar: ICloudCalendarConfig = Field(default_factory=ICloudCalendarConfig)
     briefing: BriefingConfig = Field(default_factory=BriefingConfig)
     workflow_v2: WorkflowV2Config = Field(default_factory=WorkflowV2Config)
+    autofetch: AutoFetchConfig = Field(default_factory=AutoFetchConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
     api: APIConfig = Field(default_factory=APIConfig)
 

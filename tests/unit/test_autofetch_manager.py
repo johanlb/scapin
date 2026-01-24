@@ -5,245 +5,227 @@ Tests the AutoFetchManager singleton that handles automatic fetching
 of emails, Teams messages, and calendar events.
 
 Architecture decisions (2026-01-24):
-- Trigger: Polling seul (pas d'event-driven après approve/reject)
-- Intervalle: 2 minutes
-- Concurrence: Debounce (ignorer si fetch en cours)
-- Startup: Fetch immédiat si queue < 20
+- Trigger: Event-driven after approve/reject (debounced)
+- Startup: Fetch immédiat si queue < startup_threshold (20)
+- Runtime: Fetch si queue < low_threshold (5)
+- Cooldowns: 2min email/teams, 5min calendar
 - Default: Activé par défaut
 
 See: docs/plans/workflow-cleanup-autofetch.md
 """
-from dataclasses import dataclass
-from enum import Enum
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-# These tests are placeholders for when AutoFetchManager is implemented
-# The implementation should be in src/frontin/api/services/autofetch_manager.py
+from src.frontin.api.services.autofetch_manager import (
+    AutoFetchManager,
+    FetchSource,
+    get_autofetch_manager,
+)
 
 
-class Source(Enum):
-    """Source types for auto-fetch."""
-    EMAIL = "email"
-    TEAMS = "teams"
-    CALENDAR = "calendar"
+@pytest.fixture
+def mock_config():
+    """Create a mock config for testing."""
+    config = MagicMock()
+    config.autofetch.enabled = True
+    config.autofetch.low_threshold = 5
+    config.autofetch.startup_threshold = 20
+    config.autofetch.fetch_limit = 20
+    config.autofetch.email_cooldown_minutes = 2
+    config.autofetch.teams_cooldown_minutes = 2
+    config.autofetch.calendar_cooldown_minutes = 5
+    return config
 
 
-@dataclass
-class AutoFetchConfig:
-    """Configuration for auto-fetch behavior."""
-    enabled: bool = True
-    polling_interval_seconds: int = 120  # 2 minutes
-    low_threshold: int = 5               # Fetch if queue < 5
-    max_threshold: int = 20              # No startup fetch if queue >= 20
-    email_enabled: bool = True
-    email_cooldown_minutes: int = 2
-    teams_enabled: bool = True
-    teams_cooldown_minutes: int = 2
-    calendar_enabled: bool = True
-    calendar_cooldown_minutes: int = 5
+@pytest.fixture
+def autofetch_manager():
+    """Create a fresh AutoFetchManager for testing."""
+    # Reset singleton for clean tests
+    AutoFetchManager._instance = None
+    return AutoFetchManager()
 
 
 class TestAutoFetchManagerInit:
     """Tests for AutoFetchManager initialization."""
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_singleton_pattern(self):
+    @pytest.mark.asyncio
+    async def test_singleton_pattern(self):
         """AutoFetchManager should be a singleton."""
-        # TODO: Implement
-        # manager1 = AutoFetchManager.get_instance()
-        # manager2 = AutoFetchManager.get_instance()
-        # assert manager1 is manager2
-        pass
+        AutoFetchManager._instance = None
+        manager1 = await AutoFetchManager.get_instance()
+        manager2 = await AutoFetchManager.get_instance()
+        assert manager1 is manager2
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_default_config_loaded(self):
-        """Should load default configuration on init."""
-        # TODO: Implement
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_last_fetch_initialized_empty(self):
+    def test_last_fetch_initialized_empty(self, autofetch_manager):
         """last_fetch dict should be empty on init."""
-        # TODO: Implement
-        pass
+        assert autofetch_manager._last_fetch == {}
+
+    def test_fetch_in_progress_initialized(self, autofetch_manager):
+        """fetch_in_progress should be False for all sources."""
+        for source in FetchSource:
+            assert autofetch_manager._fetch_in_progress[source] is False
 
 
 class TestAutoFetchManagerCooldown:
     """Tests for cooldown tracking."""
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_is_source_eligible_no_previous_fetch(self):
+    def test_is_source_eligible_no_previous_fetch(self, autofetch_manager):
         """Source should be eligible if never fetched before."""
-        # TODO: Implement
-        # manager = AutoFetchManager.get_instance()
-        # assert manager.is_source_eligible(Source.EMAIL) is True
-        pass
+        assert autofetch_manager.is_source_eligible(FetchSource.EMAIL) is True
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_is_source_eligible_cooldown_not_elapsed(self):
+    def test_is_source_eligible_fetch_in_progress(self, autofetch_manager):
+        """Source should NOT be eligible if fetch is in progress."""
+        autofetch_manager._fetch_in_progress[FetchSource.EMAIL] = True
+        assert autofetch_manager.is_source_eligible(FetchSource.EMAIL) is False
+
+    @patch("src.frontin.api.services.autofetch_manager.get_config")
+    def test_is_source_eligible_cooldown_not_elapsed(
+        self, mock_get_config, autofetch_manager, mock_config
+    ):
         """Source should NOT be eligible if cooldown not elapsed."""
-        # TODO: Implement
-        # manager.last_fetch[Source.EMAIL] = datetime.now()
-        # assert manager.is_source_eligible(Source.EMAIL) is False
-        pass
+        mock_get_config.return_value = mock_config
+        autofetch_manager._last_fetch[FetchSource.EMAIL] = datetime.now()
+        assert autofetch_manager.is_source_eligible(FetchSource.EMAIL) is False
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_is_source_eligible_cooldown_elapsed(self):
+    @patch("src.frontin.api.services.autofetch_manager.get_config")
+    def test_is_source_eligible_cooldown_elapsed(
+        self, mock_get_config, autofetch_manager, mock_config
+    ):
         """Source should be eligible if cooldown has elapsed."""
-        # TODO: Implement
-        # manager.last_fetch[Source.EMAIL] = datetime.now() - timedelta(minutes=5)
-        # assert manager.is_source_eligible(Source.EMAIL) is True
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_record_fetch_updates_last_fetch(self):
-        """record_fetch should update last_fetch timestamp."""
-        # TODO: Implement
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_get_next_eligible_time(self):
-        """get_next_eligible_time should return when source becomes eligible."""
-        # TODO: Implement
-        pass
+        mock_get_config.return_value = mock_config
+        autofetch_manager._last_fetch[FetchSource.EMAIL] = datetime.now() - timedelta(
+            minutes=5
+        )
+        assert autofetch_manager.is_source_eligible(FetchSource.EMAIL) is True
 
 
 class TestAutoFetchManagerQueueCheck:
     """Tests for queue threshold checks."""
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_should_fetch_queue_below_low_threshold(self):
-        """should_fetch should return True when queue < low_threshold."""
-        # TODO: Implement
-        pass
+    @pytest.mark.asyncio
+    @patch("src.frontin.api.services.autofetch_manager.get_config")
+    async def test_check_disabled_returns_disabled(
+        self, mock_get_config, autofetch_manager, mock_config
+    ):
+        """Should return disabled status when autofetch is disabled."""
+        mock_config.autofetch.enabled = False
+        mock_get_config.return_value = mock_config
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_should_not_fetch_queue_above_low_threshold(self):
-        """should_fetch should return False when queue >= low_threshold."""
-        # TODO: Implement
-        pass
+        result = await autofetch_manager.check_and_fetch_if_needed(is_startup=False)
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_should_fetch_at_startup_queue_below_max(self):
-        """At startup, should fetch if queue < max_threshold."""
-        # TODO: Implement
-        pass
+        assert result["status"] == "disabled"
+        assert result["fetched"] == 0
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_should_not_fetch_at_startup_queue_above_max(self):
-        """At startup, should NOT fetch if queue >= max_threshold."""
-        # TODO: Implement
-        pass
+    @pytest.mark.asyncio
+    @patch("src.frontin.api.services.autofetch_manager.get_config")
+    async def test_check_sufficient_queue(
+        self, mock_get_config, autofetch_manager, mock_config
+    ):
+        """Should return sufficient when queue is above threshold."""
+        mock_get_config.return_value = mock_config
 
+        mock_queue_service = MagicMock()
+        mock_queue_service._storage.get_stats.return_value = {
+            "by_state": {"awaiting_review": 10, "analyzing": 0}
+        }
 
-class TestAutoFetchManagerFetch:
-    """Tests for the fetch operation."""
+        result = await autofetch_manager.check_and_fetch_if_needed(
+            is_startup=False, queue_service=mock_queue_service
+        )
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_fetch_all_eligible_sources(self):
-        """fetch_if_needed should fetch all eligible sources."""
-        # TODO: Implement
-        pass
+        assert result["status"] == "sufficient"
+        assert result["fetched"] == 0
+        assert result["active_count"] == 10
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_fetch_skips_disabled_sources(self):
-        """fetch_if_needed should skip disabled sources."""
-        # TODO: Implement
-        pass
+    @pytest.mark.asyncio
+    @patch("src.frontin.api.services.autofetch_manager.get_config")
+    async def test_check_uses_startup_threshold_at_startup(
+        self, mock_get_config, autofetch_manager, mock_config
+    ):
+        """Should use startup_threshold when is_startup=True."""
+        mock_get_config.return_value = mock_config
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_fetch_skips_sources_on_cooldown(self):
-        """fetch_if_needed should skip sources still on cooldown."""
-        # TODO: Implement
-        pass
+        mock_queue_service = MagicMock()
+        mock_queue_service._storage.get_stats.return_value = {
+            "by_state": {"awaiting_review": 15, "analyzing": 0}
+        }
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_fetch_returns_total_count(self):
-        """fetch_if_needed should return total items fetched."""
-        # TODO: Implement
-        pass
+        # 15 items: < startup_threshold (20), but >= low_threshold (5)
+        result = await autofetch_manager.check_and_fetch_if_needed(
+            is_startup=True, queue_service=mock_queue_service
+        )
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_fetch_updates_last_fetch_on_success(self):
-        """Successful fetch should update last_fetch timestamp."""
-        # TODO: Implement
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_fetch_does_not_update_last_fetch_on_error(self):
-        """Failed fetch should NOT update last_fetch timestamp."""
-        # TODO: Implement
-        pass
+        # Should try to fetch because 15 < 20 (startup threshold)
+        assert result["threshold"] == 20
 
 
 class TestAutoFetchManagerEventDriven:
     """Tests for event-driven fetch triggering."""
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_on_item_processed_checks_queue(self):
-        """on_item_processed should check if fetch is needed."""
-        # TODO: Implement
-        pass
+    @pytest.mark.asyncio
+    @patch("src.frontin.api.services.autofetch_manager.get_config")
+    async def test_on_item_processed_does_nothing_when_disabled(
+        self, mock_get_config, autofetch_manager, mock_config
+    ):
+        """on_item_processed should do nothing when disabled."""
+        mock_config.autofetch.enabled = False
+        mock_get_config.return_value = mock_config
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_on_item_processed_triggers_fetch_if_needed(self):
-        """on_item_processed should trigger fetch if queue is low."""
-        # TODO: Implement
-        pass
+        # Should not raise and should not schedule task
+        await autofetch_manager.on_item_processed()
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_on_item_processed_debounced(self):
-        """on_item_processed should be debounced to avoid rapid triggers."""
-        # TODO: Implement
-        pass
+        assert autofetch_manager._debounce_task is None
+
+    @pytest.mark.asyncio
+    @patch("src.frontin.api.services.autofetch_manager.get_config")
+    async def test_on_item_processed_schedules_debounced_check(
+        self, mock_get_config, autofetch_manager, mock_config
+    ):
+        """on_item_processed should schedule a debounced check."""
+        mock_get_config.return_value = mock_config
+
+        await autofetch_manager.on_item_processed()
+
+        assert autofetch_manager._debounce_task is not None
+        assert not autofetch_manager._debounce_task.done()
+
+        # Cancel the task to cleanup
+        autofetch_manager._debounce_task.cancel()
+
+    @pytest.mark.asyncio
+    @patch("src.frontin.api.services.autofetch_manager.get_config")
+    async def test_on_item_processed_cancels_previous_task(
+        self, mock_get_config, autofetch_manager, mock_config
+    ):
+        """on_item_processed should cancel previous debounce task."""
+        mock_get_config.return_value = mock_config
+
+        # First call
+        await autofetch_manager.on_item_processed()
+        first_task = autofetch_manager._debounce_task
+
+        # Second call should cancel the first
+        await autofetch_manager.on_item_processed()
+        second_task = autofetch_manager._debounce_task
+
+        # The new task should be different from the first
+        assert second_task is not first_task
+        # The first task should be cancelling (cancel() was called)
+        assert first_task.cancelling() or first_task.cancelled() or first_task.done()
+
+        # Cleanup
+        second_task.cancel()
 
 
-class TestAutoFetchManagerWebSocket:
-    """Tests for WebSocket event emission."""
+class TestAutoFetchManagerHelper:
+    """Tests for helper function."""
 
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_emits_fetch_started_event(self):
-        """Should emit fetch_started event when fetch begins."""
-        # TODO: Implement
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_emits_fetch_completed_event(self):
-        """Should emit fetch_completed event when fetch ends."""
-        # TODO: Implement
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    async def test_emits_queue_updated_event(self):
-        """Should emit queue_updated event after fetch."""
-        # TODO: Implement
-        pass
-
-
-class TestAutoFetchManagerConfig:
-    """Tests for configuration management."""
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_update_config(self):
-        """update_config should update settings."""
-        # TODO: Implement
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_config_persisted(self):
-        """Configuration changes should be persisted."""
-        # TODO: Implement
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_disable_autofetch_globally(self):
-        """Disabling globally should stop all auto-fetching."""
-        # TODO: Implement
-        pass
-
-    @pytest.mark.skip(reason="AutoFetchManager not yet implemented")
-    def test_disable_single_source(self):
-        """Disabling a source should stop fetching that source only."""
-        # TODO: Implement
-        pass
+    @pytest.mark.asyncio
+    async def test_get_autofetch_manager_returns_singleton(self):
+        """get_autofetch_manager should return the singleton."""
+        AutoFetchManager._instance = None
+        manager1 = await get_autofetch_manager()
+        manager2 = await get_autofetch_manager()
+        assert manager1 is manager2

@@ -50,6 +50,38 @@ _notes_service_ready = False
 NOTIFICATION_CLEANUP_INTERVAL = 3600
 
 
+async def init_autofetch_background() -> None:
+    """
+    Initialize AutoFetch and check if fetch is needed at startup.
+
+    This runs after a short delay to ensure other services are ready.
+    """
+    config = get_config()
+    if not config.autofetch.enabled:
+        logger.debug("AutoFetch disabled, skipping startup check")
+        return
+
+    try:
+        # Small delay to ensure services are ready
+        await asyncio.sleep(2.0)
+
+        from src.frontin.api.services.autofetch_manager import get_autofetch_manager
+
+        manager = await get_autofetch_manager()
+        result = await manager.check_and_fetch_if_needed(is_startup=True)
+
+        if result.get("fetched", 0) > 0:
+            logger.info(
+                f"AutoFetch startup: fetched {result['fetched']} items",
+                extra=result,
+            )
+        else:
+            logger.debug(f"AutoFetch startup: {result.get('status', 'unknown')}")
+
+    except Exception as e:
+        logger.warning(f"AutoFetch startup failed: {e}")
+
+
 async def init_notes_service_background() -> None:
     """
     Initialize NotesService in background at startup.
@@ -130,6 +162,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # This preloads embedding model, vector store, and metadata index
     notes_init_task = asyncio.create_task(init_notes_service_background())
 
+    # Start AutoFetch check at startup (SC-20)
+    # Fetches emails if queue is below startup_threshold
+    autofetch_task = asyncio.create_task(init_autofetch_background())
+
     yield
 
     # Cancel notes init task if still running
@@ -137,6 +173,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         notes_init_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await notes_init_task
+
+    # Cancel autofetch task if still running
+    if not autofetch_task.done():
+        autofetch_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await autofetch_task
 
     # Cancel cleanup task on shutdown
     cleanup_task.cancel()

@@ -10,6 +10,10 @@ Events:
     - item_removed: Item removed from queue
     - stats_updated: Queue statistics changed
 
+AutoFetch Events (SC-20):
+    - fetch_started: Background fetch started for a source
+    - fetch_completed: Background fetch completed with item count
+
 Memory Cycles v2 Events:
     - retouche_done: AI improvement cycle completed
     - filage_ready: Morning briefing prepared
@@ -161,6 +165,60 @@ class QueueEventEmitter:
         logger.debug(
             f"Emitted stats_updated event to {sent_count} clients",
             extra={"total": stats.get("total")},
+        )
+
+        return sent_count
+
+    # === AutoFetch Events (SC-20) ===
+
+    async def emit_fetch_started(self, source: str) -> int:
+        """
+        Emit event when background fetch starts for a source.
+
+        Args:
+            source: Source being fetched (email, teams, calendar)
+
+        Returns:
+            Number of clients that received the event
+        """
+        message = {
+            "type": "fetch_started",
+            "source": source,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        sent_count = await self.manager.broadcast_to_channel(ChannelType.QUEUE, message)
+
+        logger.debug(
+            f"Emitted fetch_started event to {sent_count} clients",
+            extra={"source": source},
+        )
+
+        return sent_count
+
+    async def emit_fetch_completed(self, source: str, count: int) -> int:
+        """
+        Emit event when background fetch completes for a source.
+
+        Args:
+            source: Source that was fetched (email, teams, calendar)
+            count: Number of items fetched
+
+        Returns:
+            Number of clients that received the event
+        """
+        message = {
+            "type": "fetch_completed",
+            "source": source,
+            "count": count,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        sent_count = await self.manager.broadcast_to_channel(ChannelType.QUEUE, message)
+
+        logger.debug(
+            f"Emitted fetch_completed event to {sent_count} clients",
+            extra={"source": source, "count": count},
         )
 
         return sent_count
@@ -368,6 +426,14 @@ class QueueEventEmitter:
         _schedule_async(
             self.emit_lecture_completed(note_id, note_title, quality, next_lecture, answers_recorded)
         )
+
+    def emit_fetch_started_sync(self, source: str) -> None:
+        """Synchronous wrapper for emit_fetch_started."""
+        _schedule_async(self.emit_fetch_started(source))
+
+    def emit_fetch_completed_sync(self, source: str, count: int) -> None:
+        """Synchronous wrapper for emit_fetch_completed."""
+        _schedule_async(self.emit_fetch_completed(source, count))
 
 
 def _sanitize_item(item: dict[str, Any]) -> dict[str, Any]:
