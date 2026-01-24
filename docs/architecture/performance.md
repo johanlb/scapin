@@ -201,3 +201,4 @@ Le flag `is_ephemeral` est détecté mais pas utilisé. À implémenter :
 | 2026-01-24 | Thread pool 32→8 |
 | 2026-01-24 | Cache context search (TTL 60s) |
 | 2026-01-24 | Détection emails éphémères |
+| 2026-01-24 | Mesures finales Phase 5 (plan terminé) |
