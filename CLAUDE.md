@@ -49,6 +49,43 @@ en connaissances organisées via analyse IA multi-pass et mémoire contextuelle.
 
 ---
 
+## Glossaire
+
+Termes spécifiques au projet Scapin.
+
+### Concepts IA
+
+| Terme | Définition |
+|-------|------------|
+| **Multi-Pass** | Analyse itérative (jusqu'à 5 passes) affinant la compréhension jusqu'à 95% de confiance |
+| **Escalade** | Bascule auto vers modèle plus puissant (Haiku → Sonnet → Opus) si confiance < 90% |
+| **Convergence** | État où les scores entre passes ne varient plus (< 5%), analyse terminée |
+| **Confidence** | Score composite 0-100% combinant 5 dimensions (entités, action, complétude...) |
+| **Context Influence** | Métadonnées montrant quelles notes PKM ont influencé la décision IA |
+| **Early Stop** | Arrêt prématuré si contenu éphémère détecté (OTP, spam) avec confiance ≥ 95% |
+
+### Termes Métier (UI)
+
+| Terme | Définition |
+|-------|------------|
+| **Péripéties** | Événements entrants en attente (emails, messages) — la "queue" en UI |
+| **Fourberies** | Actions préparées par Scapin à approuver (réponse, archivage, tâche...) |
+| **Briefing** | Résumé matinal ou pré-réunion (emails prioritaires, RDV, contexte personnes) |
+| **Retouche** | Révision espacée SM-2 pour maintenir les notes en mémoire active |
+| **Lecture** | Session de révision/enrichissement de notes existantes |
+
+### Termes Techniques
+
+| Terme | Définition |
+|-------|------------|
+| **Pass** | Une itération du pipeline multi-pass (Grimaud → Bazin → Planchet → Mousqueton) |
+| **Queue** | File de traitement des événements, classés par priorité |
+| **PerceivedEvent** | Représentation normalisée d'un événement brut après Trivelin |
+| **Stop Reason** | Raison d'arrêt d'une passe (confidence_sufficient, max_passes, no_changes) |
+| **Enrichment** | Amélioration IA d'une note sans remplacer le contenu existant |
+
+---
+
 ## Fichiers Critiques
 
 **Ne pas modifier sans confirmation explicite de Johan :**
