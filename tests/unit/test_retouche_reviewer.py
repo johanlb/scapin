@@ -2,8 +2,7 @@
 Tests for RetoucheReviewer — Memory Cycles v2
 """
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -15,8 +14,8 @@ from src.passepartout.retouche_reviewer import (
     RetoucheAction,
     RetoucheActionResult,
     RetoucheContext,
-    RetoucheReviewer,
     RetoucheResult,
+    RetoucheReviewer,
 )
 
 
@@ -272,3 +271,121 @@ Some text here.
 
         assert "Original content" in result
         assert "Additional information" in result
+
+
+class TestRetouchePhase1:
+    """Tests for Phase 1 - AI Connection with cache optimization."""
+
+    def test_system_prompt_exists(self):
+        """Test that SYSTEM_PROMPT constant exists and contains key instructions."""
+        assert hasattr(RetoucheReviewer, "SYSTEM_PROMPT")
+        system_prompt = RetoucheReviewer.SYSTEM_PROMPT
+
+        # Check key elements are present
+        assert "Scapin" in system_prompt
+        assert "Johan" in system_prompt
+        assert "score" in system_prompt
+        assert "structure" in system_prompt
+        assert "enrich" in system_prompt
+        assert "JSON" in system_prompt
+        assert "confidence" in system_prompt
+
+    def test_system_prompt_is_cacheable(self):
+        """Test that SYSTEM_PROMPT is static (suitable for caching)."""
+        prompt1 = RetoucheReviewer.SYSTEM_PROMPT
+        prompt2 = RetoucheReviewer.SYSTEM_PROMPT
+
+        # Same object reference (immutable string)
+        assert prompt1 is prompt2
+
+    def test_build_retouche_prompt_returns_dynamic_content(self, reviewer):
+        """Test that _build_retouche_prompt returns note data only."""
+        mock_note = MagicMock()
+        mock_note.title = "Test Note Title"
+        mock_note.content = "This is the note content for testing."
+
+        context = RetoucheContext(
+            note=mock_note,
+            metadata=NoteMetadata(note_id="test-001", note_type=NoteType.PERSONNE),
+            word_count=150,
+            has_summary=False,
+            section_count=2,
+            question_count=1,
+            linked_note_excerpts={"Related Note": "Some related content..."},
+        )
+
+        prompt = reviewer._build_retouche_prompt(context)
+
+        # Check dynamic content is present
+        assert "Test Note Title" in prompt
+        assert "This is the note content" in prompt
+        assert "150" in prompt  # word count
+        assert "personne" in prompt.lower()  # note type
+        assert "Related Note" in prompt
+
+        # Check system prompt instructions are NOT in user prompt
+        assert "JAMAIS inventer" not in prompt
+        assert "Règles absolues" not in prompt
+
+    def test_build_retouche_prompt_handles_missing_note_type(self, reviewer):
+        """Test prompt building when note type is missing."""
+        mock_note = MagicMock()
+        mock_note.title = "Untitled"
+        mock_note.content = "Content"
+
+        context = RetoucheContext(
+            note=mock_note,
+            metadata=NoteMetadata(note_id="test-001"),  # No note_type
+            word_count=50,
+        )
+
+        prompt = reviewer._build_retouche_prompt(context)
+
+        # Should handle gracefully
+        assert "inconnu" in prompt.lower() or "Untitled" in prompt
+
+    @pytest.mark.asyncio
+    async def test_call_ai_router_without_engine(self, reviewer):
+        """Test _call_ai_router returns empty when no engine available."""
+        # reviewer has no ai_router, so _analysis_engine is None
+        result = await reviewer._call_ai_router("test prompt", "haiku")
+
+        assert result == {"reasoning": "AI unavailable", "actions": []}
+
+    @pytest.mark.asyncio
+    async def test_call_ai_router_uses_system_prompt(self, mock_note_manager, metadata_store, scheduler):
+        """Test that _call_ai_router passes system_prompt for caching."""
+        from src.sancho.analysis_engine import AICallResult, ModelTier
+
+        # Create mock AI router
+        mock_router = MagicMock()
+
+        # Create reviewer with router
+        reviewer = RetoucheReviewer(
+            note_manager=mock_note_manager,
+            metadata_store=metadata_store,
+            scheduler=scheduler,
+            ai_router=mock_router,
+        )
+
+        # Mock the analysis engine's call_ai method
+        mock_result = AICallResult(
+            response='{"quality_score": 75, "reasoning": "Test", "actions": []}',
+            model_used=ModelTier.HAIKU,
+            model_id="claude-3-haiku",
+            tokens_used=100,
+            duration_ms=500.0,
+            cache_hit=True,
+            cache_read_tokens=500,
+        )
+        reviewer._analysis_engine.call_ai = AsyncMock(return_value=mock_result)
+
+        # Call the method
+        result = await reviewer._call_ai_router("test prompt", "haiku")
+
+        # Verify call_ai was called with system_prompt
+        call_args = reviewer._analysis_engine.call_ai.call_args
+        assert call_args.kwargs.get("system_prompt") == RetoucheReviewer.SYSTEM_PROMPT
+
+        # Verify result is parsed
+        assert result["quality_score"] == 75

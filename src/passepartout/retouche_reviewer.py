@@ -121,6 +121,51 @@ class RetoucheReviewer:
     AUTO_APPLY_THRESHOLD = 0.85
     RESTRUCTURE_THRESHOLD = 0.95  # Very high for destructive suggestions
 
+    # System prompt (cacheable by Anthropic API)
+    # This is the static part of the prompt, optimized for cache hits
+    SYSTEM_PROMPT = """Tu es Scapin, l'assistant cognitif de Johan.
+
+Mission : Améliorer la qualité des notes de sa base de connaissances personnelle.
+
+## Règles absolues
+1. JAMAIS inventer d'information - enrichir uniquement avec ce qui est implicite dans le contenu
+2. Respecter le ton et style existant de Johan
+3. Privilégier la concision
+4. Confiance > 0.85 pour actions auto-applicables
+
+## Actions disponibles
+- score : Évaluer qualité 0-100 (structure, complétude, liens)
+- structure : Réorganiser les sections pour plus de clarté
+- enrich : Compléter les informations manquantes mais implicites
+- summarize : Générer un résumé en-tête (> **Résumé** : ...)
+- inject_questions : Poser des questions stratégiques pour Johan
+- suggest_links : Proposer des wikilinks [[Note]] pertinents
+- cleanup : Identifier le contenu obsolète à supprimer
+- restructure_graph : Proposer split/merge (confiance 0.95 requise)
+
+## Format de réponse JSON
+{
+  "quality_score": 0-100,
+  "reasoning": "Analyse globale de la note",
+  "actions": [
+    {
+      "type": "action_type",
+      "target": "section ou champ ciblé",
+      "content": "nouveau contenu (si applicable)",
+      "confidence": 0.0-1.0,
+      "reasoning": "justification de cette action"
+    }
+  ]
+}
+
+## Règles par type de note
+- PERSONNE : Priorité structure > enrichir > liens
+- PROJET : Priorité structure > nettoyer > questions
+- RÉUNION : Priorité structure > enrichir > liens
+- ENTITÉ : Priorité enrichir > liens > structure
+- SOUVENIR : Aucune modification (scoring uniquement)
+"""
+
     def __init__(
         self,
         note_manager: NoteManager,
@@ -449,49 +494,46 @@ class RetoucheReviewer:
         )
 
     def _build_retouche_prompt(self, context: RetoucheContext) -> str:
-        """Build prompt for AI Retouche analysis"""
+        """
+        Build user prompt for AI Retouche analysis.
+
+        This is the dynamic part of the prompt containing note data.
+        The static instructions are in SYSTEM_PROMPT (cacheable).
+
+        Args:
+            context: RetoucheContext with note and metadata
+
+        Returns:
+            User prompt string with note data
+        """
+        # Build linked notes context
         linked_context = ""
         if context.linked_note_excerpts:
-            linked_context = "\n\n## Notes liées:\n"
+            linked_context = "\n## Notes liées (contexte)\n"
             for title, excerpt in list(context.linked_note_excerpts.items())[:5]:
-                linked_context += f"\n### {title}\n{excerpt[:300]}...\n"
+                linked_context += f"\n### [[{title}]]\n{excerpt[:300]}...\n"
 
-        return f"""Tu es Scapin, un assistant cognitif qui améliore les notes de Johan.
+        # Get note type safely
+        note_type = "inconnu"
+        if context.metadata and context.metadata.note_type:
+            note_type = context.metadata.note_type.value
 
-## Note à analyser:
-**Titre**: {context.note.title}
-**Type**: {context.metadata.note_type.value}
-**Mots**: {context.word_count}
-**Sections**: {context.section_count}
-**Résumé présent**: {'Oui' if context.has_summary else 'Non'}
+        # Build user prompt with note data only
+        return f"""## Note à analyser
 
-## Contenu:
-{context.note.content[:3000]}
+**Titre** : {context.note.title}
+**Type** : {note_type}
+**Mots** : {context.word_count}
+**Sections** : {context.section_count}
+**Résumé présent** : {'Oui' if context.has_summary else 'Non'}
+**Questions existantes** : {context.question_count}
 
+## Contenu actuel
+
+{context.note.content[:4000]}
 {linked_context}
 
-## Ta mission:
-Analyse cette note et propose des améliorations. Pour chaque action, indique:
-- Type: enrich, structure, summarize, inject_questions
-- Cible: quelle partie de la note
-- Contenu: le nouveau contenu proposé
-- Confiance: 0.0 à 1.0
-- Raisonnement: pourquoi cette action
-
-Réponds en JSON avec ce format:
-{{
-  "quality_score": 0-100,
-  "reasoning": "...",
-  "actions": [
-    {{
-      "type": "enrich|structure|summarize|inject_questions",
-      "target": "...",
-      "content": "...",
-      "confidence": 0.0-1.0,
-      "reasoning": "..."
-    }}
-  ]
-}}
+Analyse cette note et propose des améliorations selon les règles définies.
 """
 
     async def _call_ai_router(
@@ -502,15 +544,19 @@ Réponds en JSON avec ce format:
         """
         Call AI router with specified model using AnalysisEngine.
 
+        Uses SYSTEM_PROMPT for cache optimization (Anthropic prompt caching).
+        The system prompt is static and cacheable (~90% cost reduction).
+
         Args:
-            prompt: Rendered prompt for the analysis
+            prompt: User prompt with note data (dynamic)
             model: Model name ("haiku", "sonnet", "opus")
 
         Returns:
             Parsed JSON response dict
 
         Raises:
-            Exception: If AI call fails (triggers rule-based fallback)
+            AICallError: If AI call fails
+            JSONParseError: If response parsing fails
         """
         if self._analysis_engine is None:
             logger.warning("No analysis engine available, returning empty response")
@@ -525,18 +571,27 @@ Réponds en JSON avec ce format:
         model_tier = model_map.get(model.lower(), ModelTier.HAIKU)
 
         try:
-            # Call AI using AnalysisEngine
+            # Call AI using AnalysisEngine with cacheable system prompt
             result = await self._analysis_engine.call_ai(
                 prompt=prompt,
                 model=model_tier,
                 max_tokens=2048,
+                system_prompt=self.SYSTEM_PROMPT,  # Cacheable
             )
 
             # Parse JSON response
             data = self._analysis_engine.parse_json_response(result.response)
 
-            logger.debug(
-                f"Retouche AI call successful: model={model}, tokens={result.tokens_used}"
+            # Log with cache info
+            cache_info = ""
+            if result.cache_hit:
+                cache_info = f", cache_hit={result.cache_read_tokens} tokens"
+            elif result.cache_write:
+                cache_info = f", cache_write={result.cache_creation_tokens} tokens"
+
+            logger.info(
+                f"Retouche AI call: model={model}, tokens={result.tokens_used}, "
+                f"duration={result.duration_ms:.0f}ms{cache_info}"
             )
 
             return data
