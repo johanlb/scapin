@@ -11,6 +11,8 @@ Actions:
 4. score — Calculate quality score (0-100)
 5. inject_questions — Add questions for Johan
 6. restructure_graph — Suggest splitting/merging (high confidence only)
+
+Phase 1 of Retouche implementation uses AnalysisEngine for AI calls.
 """
 
 import re
@@ -28,6 +30,14 @@ from src.passepartout.note_metadata import (
 )
 from src.passepartout.note_scheduler import NoteScheduler
 from src.passepartout.note_types import CycleType
+from src.sancho.analysis_engine import (
+    AICallError,
+    AICallResult,
+    AnalysisEngine,
+    JSONParseError,
+    ModelTier,
+)
+from src.sancho.template_renderer import get_template_renderer
 
 if TYPE_CHECKING:
     from src.sancho.router import AIRouter
@@ -44,6 +54,11 @@ class RetoucheAction(str, Enum):
     SCORE = "score"  # Évaluer qualité
     INJECT_QUESTIONS = "inject_questions"  # Ajouter questions pour Johan
     RESTRUCTURE_GRAPH = "restructure_graph"  # Scinder/fusionner (suggestion)
+    # Phase 3: Actions avancées
+    SUGGEST_LINKS = "suggest_links"  # Proposer des wikilinks [[Note]]
+    CLEANUP = "cleanup"  # Supprimer contenu obsolète
+    PROFILE_INSIGHT = "profile_insight"  # Ajouter analyse comportementale
+    CREATE_OMNIFOCUS = "create_omnifocus"  # Créer tâche OmniFocus
 
 
 @dataclass
@@ -69,6 +84,7 @@ class RetoucheResult:
     quality_after: int  # 0-100
     actions: list[RetoucheActionResult] = field(default_factory=list)
     questions_added: int = 0
+    tasks_created: int = 0  # OmniFocus tasks created
     model_used: str = "haiku"  # Final model used
     escalated: bool = False  # Whether we escalated to a higher model
     reasoning: str = ""
@@ -100,6 +116,8 @@ class RetoucheReviewer:
     4. Escalates to Opus if confidence < 0.5
     5. Applies improvement actions
     6. Updates SM-2 retouche scheduling
+
+    Uses AnalysisEngine for AI calls with automatic escalation and JSON parsing.
     """
 
     # Confidence thresholds for model escalation
@@ -109,6 +127,51 @@ class RetoucheReviewer:
     # Auto-apply thresholds
     AUTO_APPLY_THRESHOLD = 0.85
     RESTRUCTURE_THRESHOLD = 0.95  # Very high for destructive suggestions
+
+    # System prompt (cacheable by Anthropic API)
+    # This is the static part of the prompt, optimized for cache hits
+    SYSTEM_PROMPT = """Tu es Scapin, l'assistant cognitif de Johan.
+
+Mission : Améliorer la qualité des notes de sa base de connaissances personnelle.
+
+## Règles absolues
+1. JAMAIS inventer d'information - enrichir uniquement avec ce qui est implicite dans le contenu
+2. Respecter le ton et style existant de Johan
+3. Privilégier la concision
+4. Confiance > 0.85 pour actions auto-applicables
+
+## Actions disponibles
+- score : Évaluer qualité 0-100 (structure, complétude, liens)
+- structure : Réorganiser les sections pour plus de clarté
+- enrich : Compléter les informations manquantes mais implicites
+- summarize : Générer un résumé en-tête (> **Résumé** : ...)
+- inject_questions : Poser des questions stratégiques pour Johan
+- suggest_links : Proposer des wikilinks [[Note]] pertinents
+- cleanup : Identifier le contenu obsolète à supprimer
+- restructure_graph : Proposer split/merge (confiance 0.95 requise)
+
+## Format de réponse JSON
+{
+  "quality_score": 0-100,
+  "reasoning": "Analyse globale de la note",
+  "actions": [
+    {
+      "type": "action_type",
+      "target": "section ou champ ciblé",
+      "content": "nouveau contenu (si applicable)",
+      "confidence": 0.0-1.0,
+      "reasoning": "justification de cette action"
+    }
+  ]
+}
+
+## Règles par type de note
+- PERSONNE : Priorité structure > enrichir > liens
+- PROJET : Priorité structure > nettoyer > questions
+- RÉUNION : Priorité structure > enrichir > liens
+- ENTITÉ : Priorité enrichir > liens > structure
+- SOUVENIR : Aucune modification (scoring uniquement)
+"""
 
     def __init__(
         self,
@@ -130,6 +193,17 @@ class RetoucheReviewer:
         self.store = metadata_store
         self.scheduler = scheduler
         self.ai_router = ai_router
+
+        # Initialize AnalysisEngine for AI calls if router available
+        self._analysis_engine: Optional[AnalysisEngine] = None
+        if ai_router:
+            self._analysis_engine = _RetoucheAnalysisEngine(
+                ai_router=ai_router,
+                escalation_thresholds={
+                    "sonnet": self.ESCALATE_TO_SONNET_THRESHOLD,
+                    "opus": self.ESCALATE_TO_OPUS_THRESHOLD,
+                },
+            )
 
     async def review_note(self, note_id: str) -> RetoucheResult:
         """
@@ -186,11 +260,26 @@ class RetoucheReviewer:
                     questions_added += action.content.count("?") if action.content else 0
 
         # Apply content changes
+        tasks_created = 0
         for action in actions:
-            if action.content and action.action_type in (
+            if action.action_type == RetoucheAction.CREATE_OMNIFOCUS:
+                # Handle OmniFocus task creation separately
+                if action.content:
+                    success = await self.create_omnifocus_task(
+                        task_name=action.content,
+                        note_id=note_id,
+                        note_title=note.title,
+                    )
+                    if success:
+                        tasks_created += 1
+            elif action.content and action.action_type in (
                 RetoucheAction.ENRICH,
                 RetoucheAction.STRUCTURE,
                 RetoucheAction.SUMMARIZE,
+                RetoucheAction.SUGGEST_LINKS,
+                RetoucheAction.CLEANUP,
+                RetoucheAction.PROFILE_INSIGHT,
+                RetoucheAction.INJECT_QUESTIONS,
             ):
                 updated_content = self._apply_action(updated_content, action)
 
@@ -241,7 +330,7 @@ class RetoucheReviewer:
             f"Retouche complete for {note_id}: "
             f"quality={quality_before or 0}→{quality_after}, "
             f"actions={len(actions)}, questions={questions_added}, "
-            f"model={analysis_result.model_used}"
+            f"tasks={tasks_created}, model={analysis_result.model_used}"
         )
 
         return RetoucheResult(
@@ -251,6 +340,7 @@ class RetoucheReviewer:
             quality_after=quality_after,
             actions=actions,
             questions_added=questions_added,
+            tasks_created=tasks_created,
             model_used=analysis_result.model_used,
             escalated=analysis_result.escalated,
             reasoning=analysis_result.reasoning,
@@ -310,6 +400,110 @@ class RetoucheReviewer:
             if re.search(pattern, content, re.MULTILINE | re.IGNORECASE):
                 return True
         return False
+
+    def find_related_notes(
+        self,
+        note: "Note",
+        top_k: int = 5,
+        exclude_linked: bool = True,
+    ) -> list[tuple[str, float]]:
+        """
+        Find semantically related notes for suggest_links action.
+
+        Uses vector search to find notes similar to the current note,
+        optionally excluding already linked notes.
+
+        Args:
+            note: The note to find relations for
+            top_k: Maximum number of suggestions
+            exclude_linked: Whether to exclude already linked notes
+
+        Returns:
+            List of (note_title, similarity_score) tuples
+        """
+        # Get existing links to exclude
+        existing_links = set()
+        if exclude_linked:
+            existing_links = set(self._extract_wikilinks(note.content))
+            existing_links.add(note.title)  # Exclude self
+
+        # Search for similar notes using note content
+        try:
+            results = self.notes.search_notes(
+                query=f"{note.title} {note.content[:500]}",
+                top_k=top_k + len(existing_links),  # Get extra to filter
+                return_scores=True,
+            )
+
+            # Filter and format results
+            suggestions = []
+            for result_note, score in results:
+                if result_note.title not in existing_links:
+                    suggestions.append((result_note.title, score))
+                    if len(suggestions) >= top_k:
+                        break
+
+            return suggestions
+
+        except Exception as e:
+            logger.warning(f"Failed to find related notes: {e}")
+            return []
+
+    async def create_omnifocus_task(
+        self,
+        task_name: str,
+        note_id: str,
+        note_title: str,
+        project_name: Optional[str] = None,
+        due_date: Optional[str] = None,
+    ) -> bool:
+        """
+        Create an OmniFocus task via Figaro.
+
+        Args:
+            task_name: Name of the task to create
+            note_id: ID of the related note
+            note_title: Title of the related note
+            project_name: Optional OmniFocus project
+            due_date: Optional due date (ISO format)
+
+        Returns:
+            True if task was created successfully
+        """
+        try:
+            from src.figaro.actions.tasks import CreateTaskAction
+
+            # Build task note with link to PKM note
+            task_note = f"Lié à la note: [[{note_title}]]\nNote ID: {note_id}"
+
+            action = CreateTaskAction(
+                name=task_name,
+                note=task_note,
+                project_name=project_name,
+                due_date=due_date,
+                tags=["scapin", "retouche"],
+            )
+
+            # Validate and execute
+            validation = action.validate()
+            if not validation.is_valid:
+                logger.warning(f"Task validation failed: {validation.errors}")
+                return False
+
+            result = action.execute()
+            if result.success:
+                logger.info(f"Created OmniFocus task: {task_name}")
+                return True
+            else:
+                logger.warning(f"Failed to create task: {result.error}")
+                return False
+
+        except ImportError:
+            logger.warning("OmniFocus integration not available")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to create OmniFocus task: {e}")
+            return False
 
     async def _analyze_with_escalation(
         self,
@@ -427,60 +621,114 @@ class RetoucheReviewer:
         )
 
     def _build_retouche_prompt(self, context: RetoucheContext) -> str:
-        """Build prompt for AI Retouche analysis"""
-        linked_context = ""
-        if context.linked_note_excerpts:
-            linked_context = "\n\n## Notes liées:\n"
-            for title, excerpt in list(context.linked_note_excerpts.items())[:5]:
-                linked_context += f"\n### {title}\n{excerpt[:300]}...\n"
+        """
+        Build user prompt for AI Retouche analysis using Jinja2 templates.
 
-        return f"""Tu es Scapin, un assistant cognitif qui améliore les notes de Johan.
+        Uses specialized templates per note type for focused instructions.
+        The static instructions are in SYSTEM_PROMPT (cacheable).
 
-## Note à analyser:
-**Titre**: {context.note.title}
-**Type**: {context.metadata.note_type.value}
-**Mots**: {context.word_count}
-**Sections**: {context.section_count}
-**Résumé présent**: {'Oui' if context.has_summary else 'Non'}
+        Args:
+            context: RetoucheContext with note and metadata
 
-## Contenu:
-{context.note.content[:3000]}
+        Returns:
+            User prompt string with note data
+        """
+        # Get note type safely
+        note_type = "inconnu"
+        if context.metadata and context.metadata.note_type:
+            note_type = context.metadata.note_type.value
 
-{linked_context}
+        # Extract frontmatter from content
+        frontmatter = None
+        if context.note.content.startswith("---"):
+            parts = context.note.content.split("---", 2)
+            if len(parts) >= 3:
+                frontmatter = parts[1].strip()
 
-## Ta mission:
-Analyse cette note et propose des améliorations. Pour chaque action, indique:
-- Type: enrich, structure, summarize, inject_questions
-- Cible: quelle partie de la note
-- Contenu: le nouveau contenu proposé
-- Confiance: 0.0 à 1.0
-- Raisonnement: pourquoi cette action
+        # Get quality score from metadata
+        quality_score = context.metadata.quality_score if context.metadata else None
 
-Réponds en JSON avec ce format:
-{{
-  "quality_score": 0-100,
-  "reasoning": "...",
-  "actions": [
-    {{
-      "type": "enrich|structure|summarize|inject_questions",
-      "target": "...",
-      "content": "...",
-      "confidence": 0.0-1.0,
-      "reasoning": "..."
-    }}
-  ]
-}}
-"""
+        # Get updated_at from metadata or note
+        updated_at = None
+        if context.metadata and context.metadata.updated_at:
+            updated_at = context.metadata.updated_at.isoformat()
+
+        # Use TemplateRenderer for specialized prompts per note type
+        renderer = get_template_renderer()
+        return renderer.render_retouche(
+            note=context.note,
+            note_type=note_type,
+            word_count=context.word_count,
+            content=context.note.content,
+            quality_score=quality_score,
+            updated_at=updated_at,
+            frontmatter=frontmatter,
+            linked_notes=context.linked_note_excerpts,
+        )
 
     async def _call_ai_router(
         self,
-        prompt: str,  # noqa: ARG002
-        model: str,  # noqa: ARG002
+        prompt: str,
+        model: str,
     ) -> dict[str, Any]:
-        """Call AI router with specified model"""
-        # This is a placeholder - actual implementation depends on AIRouter interface
-        # For now, return empty response to trigger rule-based fallback
-        return {"reasoning": "AI response", "actions": []}
+        """
+        Call AI router with specified model using AnalysisEngine.
+
+        Uses SYSTEM_PROMPT for cache optimization (Anthropic prompt caching).
+        The system prompt is static and cacheable (~90% cost reduction).
+
+        Args:
+            prompt: User prompt with note data (dynamic)
+            model: Model name ("haiku", "sonnet", "opus")
+
+        Returns:
+            Parsed JSON response dict
+
+        Raises:
+            AICallError: If AI call fails
+            JSONParseError: If response parsing fails
+        """
+        if self._analysis_engine is None:
+            logger.warning("No analysis engine available, returning empty response")
+            return {"reasoning": "AI unavailable", "actions": []}
+
+        # Map model string to ModelTier
+        model_map = {
+            "haiku": ModelTier.HAIKU,
+            "sonnet": ModelTier.SONNET,
+            "opus": ModelTier.OPUS,
+        }
+        model_tier = model_map.get(model.lower(), ModelTier.HAIKU)
+
+        try:
+            # Call AI using AnalysisEngine with cacheable system prompt
+            result = await self._analysis_engine.call_ai(
+                prompt=prompt,
+                model=model_tier,
+                max_tokens=2048,
+                system_prompt=self.SYSTEM_PROMPT,  # Cacheable
+            )
+
+            # Parse JSON response
+            data = self._analysis_engine.parse_json_response(result.response)
+
+            # Log with cache info
+            cache_info = ""
+            if result.cache_hit:
+                cache_info = f", cache_hit={result.cache_read_tokens} tokens"
+            elif result.cache_write:
+                cache_info = f", cache_write={result.cache_creation_tokens} tokens"
+
+            logger.info(
+                f"Retouche AI call: model={model}, tokens={result.tokens_used}, "
+                f"duration={result.duration_ms:.0f}ms{cache_info}"
+            )
+
+            return data
+
+        except (AICallError, JSONParseError) as e:
+            logger.warning(f"Retouche AI call failed: {e}")
+            raise
 
     def _parse_ai_response(
         self,
@@ -549,6 +797,39 @@ Réponds en JSON avec ce format:
                 return f"{content.rstrip()}{questions_section}"
             return content
 
+        if action.action_type == RetoucheAction.SUGGEST_LINKS:
+            # Add suggested wikilinks section
+            if action.content:
+                links_section = f"\n\n## Liens suggérés\n\n{action.content}\n"
+                return f"{content.rstrip()}{links_section}"
+            return content
+
+        if action.action_type == RetoucheAction.CLEANUP:
+            # Content cleanup - mark obsolete sections or remove them
+            # The AI provides the cleaned content directly
+            if action.content:
+                # If confidence is high enough, replace content
+                if action.confidence >= self.AUTO_APPLY_THRESHOLD:
+                    logger.info(f"Cleanup applied: {action.reasoning}")
+                    return action.content
+                # Otherwise, add a warning comment
+                warning = f"\n\n<!-- CLEANUP SUGGÉRÉ ({action.confidence:.0%}): {action.reasoning} -->\n"
+                return f"{content.rstrip()}{warning}"
+            return content
+
+        if action.action_type == RetoucheAction.PROFILE_INSIGHT:
+            # Add behavioral/psychological insight section
+            if action.content:
+                insight_section = f"\n\n## Insights\n\n{action.content}\n"
+                return f"{content.rstrip()}{insight_section}"
+            return content
+
+        if action.action_type == RetoucheAction.CREATE_OMNIFOCUS:
+            # OmniFocus task creation is handled separately, not content modification
+            # Just log it - actual creation happens in review_note
+            logger.info(f"OmniFocus task to create: {action.content}")
+            return content
+
         return content
 
     def _calculate_quality_score(
@@ -613,3 +894,21 @@ class AnalysisResult:
     model_used: str
     escalated: bool
     reasoning: str
+
+
+class _RetoucheAnalysisEngine(AnalysisEngine):
+    """
+    Internal AnalysisEngine implementation for Retouche.
+
+    Provides AI call functionality with escalation and JSON parsing.
+    This is a minimal implementation - the actual prompt building and
+    result processing are handled by RetoucheReviewer.
+    """
+
+    def _build_prompt(self, context: Any) -> str:
+        """Not used - prompts are built by RetoucheReviewer."""
+        raise NotImplementedError("Use RetoucheReviewer._build_retouche_prompt()")
+
+    def _process_result(self, result: dict[str, Any], call_result: AICallResult) -> Any:
+        """Not used - results are processed by RetoucheReviewer."""
+        raise NotImplementedError("Use RetoucheReviewer._parse_ai_response()")

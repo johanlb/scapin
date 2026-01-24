@@ -35,19 +35,25 @@ Historique des travaux récents sur le projet.
 **Infrastructure :**
 - Hook pre-commit Git (Ruff, TypeScript, console.log, TODO)
 
-**Plan Workflow Cleanup + AutoFetch :**
-- Plan complet : `docs/plans/workflow-cleanup-autofetch.md`
-- 4 phases planifiées :
-  1. Nettoyage workflow (supprimer V1, garder Four Valets)
-  2. AutoFetch (polling 2 min, debounce, cooldowns)
-  3. Routage confiance (3 seuils : action 90%, required 90%, optional 70%)
-  4. Documentation (restructurer `docs/architecture/`, Mermaid, français)
-- Décisions d'architecture validées
-- Plan aligné avec CLAUDE.md v3.3 (tests, logs, checklist, fichiers critiques)
+**Plan Workflow Cleanup + AutoFetch (✅ COMPLÉTÉ) :**
+- Plan archivé : `docs/plans/archive/workflow-cleanup-autofetch.md`
+- 4 phases complétées :
+  1. ✅ Nettoyage workflow (suppression V1, Four Valets seul)
+  2. ✅ AutoFetch (`ee49e2d`) — fetch auto, cooldowns, WebSocket events
+  3. ✅ Routage confiance (`0741ad8`) — auto-apply >= 85%
+  4. ✅ Documentation (`d26cda7`) — `docs/architecture/workflow.md`
+
+**Fichiers créés/modifiés :**
+- `src/frontin/api/services/autofetch_manager.py` — Singleton AutoFetch
+- `src/core/config_manager.py` — AutoFetchConfig (thresholds, cooldowns)
+- `src/frontin/api/websocket/queue_events.py` — Events fetch_started/completed
+- `docs/architecture/workflow.md` — Documentation complète
+- `ARCHITECTURE.md` — Section AutoFetch ajoutée
+
+**Bug fix inclus :**
+- `9516cf0` — Normalisation message IDs dans ProcessedEmailTracker
 
 ### En attente
-- **Workflow Cleanup + AutoFetch** : Prêt à implémenter (4 phases)
-  - Plan : `docs/plans/workflow-cleanup-autofetch.md`
 - **Refactoring UI** : Plan de refactoring des composants volumineux
   - `QueueItemFocusView.svelte` (620 lignes → 9 sous-composants)
   - `FolderSelector.svelte` (675 lignes → 7 sous-composants)

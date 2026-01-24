@@ -20,6 +20,7 @@ from src.frontin.briefing.models import (
     MorningBriefing,
     OrphanQuestionItem,
     PreMeetingBriefing,
+    RetoucheAlertItem,
 )
 from src.monitoring.logger import get_logger
 from src.utils import now_utc
@@ -238,6 +239,9 @@ class BriefingGenerator:
         # Load orphan strategic questions (v3.2)
         orphan_question_items = self._load_orphan_questions()
 
+        # Load retouche alerts (v3.3 - Phase 6)
+        retouche_alert_items = self._load_retouche_alerts()
+
         # Build briefing
         briefing = MorningBriefing(
             date=target_date,
@@ -253,10 +257,12 @@ class BriefingGenerator:
                 teams_events[:self.config.max_standard_items]
             ),
             orphan_questions=orphan_question_items,
+            retouche_alerts=retouche_alert_items,
             total_items=len(all_events),
             urgent_count=len(urgent_items),
             meetings_today=meetings_count,
             orphan_questions_count=len(orphan_question_items),
+            retouche_alerts_count=len(retouche_alert_items),
         )
 
         # Generate AI summary if enabled
@@ -265,7 +271,7 @@ class BriefingGenerator:
 
         logger.info(
             f"Morning briefing generated: {briefing.urgent_count} urgent, "
-            f"{briefing.total_items} total items"
+            f"{briefing.total_items} total items, {briefing.retouche_alerts_count} retouche alerts"
         )
 
         return briefing
@@ -450,6 +456,74 @@ class BriefingGenerator:
 
         except Exception as e:
             logger.warning(f"Failed to load orphan questions: {e}")
+            return []
+
+    def _load_retouche_alerts(self) -> list[RetoucheAlertItem]:
+        """
+        Load pending retouche alerts for the briefing.
+
+        Retouche alerts are proactive suggestions from the retouche system:
+        - Contacts not contacted in a while
+        - Projects without recent activity
+        - OmniFocus task suggestions
+
+        Returns:
+            List of RetoucheAlertItem for display in the briefing
+        """
+        try:
+            from pathlib import Path
+
+            from src.passepartout.note_manager import NoteManager
+            from src.passepartout.note_metadata import NoteMetadataStore
+
+            # Get metadata store
+            data_dir = Path("data")
+            meta_store = NoteMetadataStore(data_dir / "notes_meta.db")
+            note_manager = NoteManager(data_dir / "notes_cache.db")
+
+            alerts: list[RetoucheAlertItem] = []
+
+            # Look for recent retouches with proactive actions
+            recent_notes = meta_store.get_recently_retouched(hours=48, limit=100)
+
+            for meta in recent_notes:
+                # Check enrichment history for proactive alerts
+                for record in meta.enrichment_history[-10:]:  # Last 10 records
+                    if not record.applied:
+                        continue
+
+                    # Filter for proactive action types
+                    if record.action_type in ("suggest_contact", "flag_stale", "create_omnifocus"):
+                        # Get note info
+                        note = note_manager.get_note(meta.note_id)
+                        if note is None:
+                            continue
+
+                        alert = RetoucheAlertItem(
+                            note_id=meta.note_id,
+                            note_title=note.title,
+                            note_path=note.path or "",
+                            alert_type=record.action_type,
+                            message=record.reasoning or record.content or "",
+                            confidence=record.confidence,
+                            created_at=record.timestamp.isoformat(),
+                        )
+                        alerts.append(alert)
+
+            # Deduplicate by note_id + alert_type (keep most recent)
+            seen = set()
+            unique_alerts = []
+            for alert in sorted(alerts, key=lambda a: a.created_at or "", reverse=True):
+                key = (alert.note_id, alert.alert_type)
+                if key not in seen:
+                    seen.add(key)
+                    unique_alerts.append(alert)
+
+            logger.debug(f"Loaded {len(unique_alerts)} retouche alerts for briefing")
+            return unique_alerts[:10]  # Limit to 10 alerts
+
+        except Exception as e:
+            logger.warning(f"Failed to load retouche alerts: {e}")
             return []
 
     def _extract_urgent(

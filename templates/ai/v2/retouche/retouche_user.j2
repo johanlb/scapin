@@ -1,0 +1,72 @@
+{# Retouche User Prompt (DYNAMIC) #}
+{# Contient les données de la note à analyser #}
+
+## Note à analyser
+
+**Titre** : {{ note.title }}
+**Type** : {{ note_type | default('inconnu') }}
+**Mots** : {{ word_count }}
+**Dernière modification** : {{ updated_at | default('Non disponible') }}
+**Score actuel** : {{ quality_score | default('Non évalué') }}
+
+{% if frontmatter %}
+## Frontmatter
+
+```yaml
+{{ frontmatter }}
+```
+{% endif %}
+
+## Contenu
+
+{{ content[:3000] }}
+{% if content | length > 3000 %}
+[... contenu tronqué, {{ content | length }} caractères au total ...]
+{% endif %}
+
+{% if linked_notes %}
+## Notes liées (contexte)
+
+{% for title, excerpt in linked_notes.items() %}
+### [[{{ title }}]]
+{{ excerpt[:200] }}{% if excerpt | length > 200 %}...{% endif %}
+
+{% endfor %}
+{% endif %}
+
+## Instructions spécifiques
+
+{% if note_type == 'personne' %}
+{% include 'retouche/personne.j2' %}
+{% elif note_type == 'projet' %}
+{% include 'retouche/projet.j2' %}
+{% elif note_type == 'reunion' %}
+{% include 'retouche/reunion.j2' %}
+{% elif note_type == 'entite' %}
+{% include 'retouche/entite.j2' %}
+{% elif note_type == 'processus' %}
+{% include 'retouche/processus.j2' %}
+{% elif note_type == 'evenement' %}
+{% include 'retouche/evenement.j2' %}
+{% else %}
+{% include 'retouche/generique.j2' %}
+{% endif %}
+
+## Réponse attendue
+
+Réponds en JSON valide avec cette structure exacte :
+```json
+{
+  "quality_score": 0-100,
+  "reasoning": "Analyse globale de la note",
+  "actions": [
+    {
+      "type": "action_type",
+      "target": "section ou champ ciblé",
+      "content": "nouveau contenu (si applicable)",
+      "confidence": 0.0-1.0,
+      "reasoning": "justification de l'action"
+    }
+  ]
+}
+```

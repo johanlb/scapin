@@ -405,6 +405,9 @@ class QueueService:
         if updated_item:
             await self._emit_item_event(updated_item, changes=["status", "resolution"])
 
+        # SC-20: Trigger AutoFetch check (non-blocking)
+        await self._trigger_autofetch()
+
         return updated_item
 
     async def _execute_email_action(
@@ -914,6 +917,9 @@ class QueueService:
         updated_item = self._storage.get_item(item_id)
         if updated_item:
             await self._emit_item_event(updated_item, changes=["status"])
+
+        # SC-20: Trigger AutoFetch check (non-blocking)
+        await self._trigger_autofetch()
 
         return updated_item
 
@@ -2160,6 +2166,21 @@ class QueueService:
             await self._event_emitter.emit_stats_updated(stats)
         except Exception as e:
             logger.warning(f"Failed to emit stats update: {e}")
+
+    async def _trigger_autofetch(self) -> None:
+        """
+        Trigger AutoFetch check after item is processed.
+
+        Non-blocking: uses debounced check to avoid hammering sources.
+        """
+        try:
+            from src.frontin.api.services.autofetch_manager import get_autofetch_manager
+
+            manager = await get_autofetch_manager()
+            await manager.on_item_processed(queue_service=self)
+        except Exception as e:
+            # Don't fail the main operation if AutoFetch fails
+            logger.debug(f"AutoFetch trigger failed: {e}")
 
 
 class _EmailSender:

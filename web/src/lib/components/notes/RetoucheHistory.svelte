@@ -5,18 +5,25 @@
 	 */
 	import { Modal, Button, Card, Badge } from '$lib/components/ui';
 	import { toastStore } from '$lib/stores/toast.svelte';
-	import { getEnrichmentHistory, type EnrichmentRecord, type EnrichmentHistory } from '$lib/api/client';
+	import {
+		getEnrichmentHistory,
+		rollbackRetouche,
+		type EnrichmentRecord,
+		type EnrichmentHistory
+	} from '$lib/api/client';
 
 	interface Props {
 		noteId: string;
 		open: boolean;
+		onRollback?: () => void;
 	}
 
-	let { noteId, open = $bindable(false) }: Props = $props();
+	let { noteId, open = $bindable(false), onRollback }: Props = $props();
 
 	let history = $state<EnrichmentHistory | null>(null);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+	let rollingBack = $state<number | null>(null);
 
 	// Load history when modal opens
 	$effect(() => {
@@ -105,6 +112,39 @@
 	}
 
 	const groupedRecords = $derived(history ? groupByDate(history.records) : new Map());
+
+	async function handleRollback(recordIndex: number, record: EnrichmentRecord) {
+		if (!record.applied) {
+			toastStore.warning("Cette action n'a pas été appliquée, rien à annuler");
+			return;
+		}
+
+		rollingBack = recordIndex;
+		try {
+			const result = await rollbackRetouche(noteId, { record_index: recordIndex });
+			if (result.rolled_back) {
+				toastStore.success(`Action "${getActionLabel(record.action_type)}" annulée`);
+				// Reload history
+				await loadHistory();
+				onRollback?.();
+			} else {
+				toastStore.error("Impossible d'annuler cette action");
+			}
+		} catch (e) {
+			toastStore.error(e instanceof Error ? e.message : "Erreur lors de l'annulation");
+		} finally {
+			rollingBack = null;
+		}
+	}
+
+	// Check if record can be rolled back (only recent applied actions)
+	function canRollback(record: EnrichmentRecord, index: number): boolean {
+		if (!record.applied) return false;
+		// Only allow rollback of recent actions (within 7 days)
+		const sevenDaysAgo = new Date();
+		sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+		return new Date(record.timestamp) > sevenDaysAgo && index < 10;
+	}
 </script>
 
 <Modal bind:open title="Historique des retouches IA" size="lg" data-testid="retouche-history">
@@ -187,6 +227,11 @@
 													{extractModel(record.reasoning)}
 												</Badge>
 											{/if}
+											{#if record.applied}
+												<Badge class="bg-green-500/20 text-green-300 text-xs">Appliqué</Badge>
+											{:else}
+												<Badge class="bg-gray-500/20 text-gray-300 text-xs">Non appliqué</Badge>
+											{/if}
 											<span class={`text-xs font-mono ${getConfidenceColor(record.confidence)}`}>
 												{(record.confidence * 100).toFixed(0)}%
 											</span>
@@ -214,6 +259,22 @@
 												<pre
 													class="mt-2 p-2 text-xs bg-black/20 rounded overflow-x-auto whitespace-pre-wrap">{record.content}</pre>
 											</details>
+										{/if}
+
+										<!-- Rollback button -->
+										{#if record.applied && canRollback(record, history?.records.indexOf(record) ?? -1)}
+											{@const recordIndex = history?.records.indexOf(record) ?? -1}
+											<div class="mt-2 flex justify-end">
+												<Button
+													variant="ghost"
+													size="sm"
+													onclick={() => handleRollback(recordIndex, record)}
+													disabled={rollingBack === recordIndex}
+													class="text-xs text-orange-400 hover:text-orange-300"
+												>
+													{rollingBack === recordIndex ? 'Annulation...' : 'Annuler'}
+												</Button>
+											</div>
 										{/if}
 									</div>
 								</Card>

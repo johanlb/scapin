@@ -39,6 +39,19 @@ POOL_MAX_SIZE = 3  # Maximum connections per account
 POOL_CONNECTION_TTL = 300  # 5 minutes
 POOL_ACQUIRE_TIMEOUT = 10  # Seconds to wait for connection
 
+# Ephemeral email detection patterns
+EPHEMERAL_FROM_PATTERNS = frozenset({
+    "noreply", "no-reply", "donotreply", "do-not-reply",
+    "notification", "notifications", "alert", "alerts",
+    "mailer-daemon", "postmaster",
+})
+EPHEMERAL_DOMAIN_PATTERNS = frozenset({
+    "facebookmail.com", "linkedin.com", "twitter.com", "x.com",
+    "amazonses.com", "sendgrid.net", "mailchimp.com",
+    "constantcontact.com", "hubspot.com", "mailgun.org",
+    "support.facebook.com", "support.google.com",
+})
+
 
 class IMAPConnectionPool:
     """
@@ -877,6 +890,14 @@ class EmailAdapter(BaseAdapter):
             # Calculate relevance (higher for more recent emails)
             relevance = self._calculate_relevance(timestamp)
 
+            # Detect ephemeral emails (notifications, newsletters, automated)
+            is_ephemeral, ephemeral_reason = self._is_ephemeral_email(msg, from_header)
+            if is_ephemeral:
+                logger.debug(
+                    "Ephemeral email detected",
+                    extra={"subject": subject[:50], "reason": ephemeral_reason},
+                )
+
             return SourceItem(
                 source="email",
                 type="message",
@@ -889,6 +910,8 @@ class EmailAdapter(BaseAdapter):
                     "message_id": message_id_header,
                     "from": from_header,
                     "folder": folder,
+                    "is_ephemeral": is_ephemeral,
+                    "ephemeral_reason": ephemeral_reason,
                     "imap_id": msg_id.decode() if isinstance(msg_id, bytes) else msg_id,
                 },
             )
@@ -1096,3 +1119,52 @@ class EmailAdapter(BaseAdapter):
             return 0.6
         else:
             return 0.5
+
+    def _is_ephemeral_email(
+        self,
+        msg: email.message.Message,
+        from_header: str,
+    ) -> tuple[bool, str | None]:
+        """
+        Detect if an email is ephemeral (automated notification, newsletter, etc.).
+
+        Ephemeral emails can be processed with simpler analysis (no escalation).
+
+        Args:
+            msg: Parsed email message with headers
+            from_header: Decoded From header
+
+        Returns:
+            Tuple of (is_ephemeral, reason)
+        """
+        from_lower = from_header.lower()
+
+        # Check for noreply/notification patterns in From
+        for pattern in EPHEMERAL_FROM_PATTERNS:
+            if pattern in from_lower:
+                return True, f"from_pattern:{pattern}"
+
+        # Check for known automated domains
+        for domain in EPHEMERAL_DOMAIN_PATTERNS:
+            if domain in from_lower:
+                return True, f"domain:{domain}"
+
+        # Check for List-Id header (mailing lists/newsletters)
+        if msg.get("List-Id"):
+            return True, "header:list-id"
+
+        # Check for List-Unsubscribe (newsletters)
+        if msg.get("List-Unsubscribe"):
+            return True, "header:list-unsubscribe"
+
+        # Check for Auto-Submitted header
+        auto_submitted = msg.get("Auto-Submitted", "").lower()
+        if auto_submitted and auto_submitted != "no":
+            return True, f"header:auto-submitted:{auto_submitted}"
+
+        # Check for Precedence: bulk/list
+        precedence = msg.get("Precedence", "").lower()
+        if precedence in ("bulk", "list", "junk"):
+            return True, f"header:precedence:{precedence}"
+
+        return False, None

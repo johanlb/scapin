@@ -1,7 +1,7 @@
 # Plan: Nettoyage Workflow + AutoFetch
 
 **Date** : 2026-01-24
-**Statut** : En cours
+**Statut** : ✅ Complété
 
 ## Objectif
 

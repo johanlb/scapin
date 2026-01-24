@@ -1,19 +1,51 @@
 # Baseline Performance — 24 Janvier 2026
 
 **Objectif** : Documenter l'état de performance actuel avant optimisations
-**Backend PID** : 11171
 **Profiling** : py-spy 0.4.1
 
 ---
 
-## Flamegraph CPU
+## Flamegraphs CPU
 
-**Fichier** : `data/profiling/baseline-20260124-121436.svg`
-**Samples** : 4560
-**Durée** : 45 secondes
+### Nouveau Baseline (après workflow cleanup)
 
-> Ouvrir le fichier SVG dans un navigateur pour analyse interactive.
+| Fichier | Samples | Taille | Description |
+|---------|---------|--------|-------------|
+| `baseline-20260124-174511.svg` | 1189 | 105K | Backend idle (30s) |
+| `analysis-20260124-174541.svg` | ~1500 | 86K | Pendant fetch attempt |
+
+### Ancien Baseline (avant workflow cleanup)
+
+| Fichier | Samples | Description |
+|---------|---------|-------------|
+| `baseline-20260124-121436.svg` | 4560 | Backend 45s |
+| `analysis-20260124-121931.svg` | 22741 | Analyse réelle |
+
+> Ouvrir les fichiers SVG dans un navigateur pour analyse interactive.
 > Les barres les plus larges = fonctions consommant le plus de CPU.
+
+---
+
+## Tests de Performance (24 Jan 2026 - 17h45)
+
+```
+tests/performance/test_notes_perf.py
+├── test_load_all_notes_performance      PASSED
+├── test_note_cache_speedup              PASSED
+├── test_summary_cache_speedup           PASSED
+├── test_concurrent_reads_performance    PASSED
+└── test_mixed_operations_performance    PASSED
+
+5 passed, 12 skipped in 33.17s
+```
+
+### Métriques Notes
+
+| Métrique | Valeur | Seuil |
+|----------|--------|-------|
+| Documents indexés | 836 | - |
+| Load vector store | ~700ms | < 1s |
+| Cache max size | 2000 | - |
 
 ---
 
@@ -45,19 +77,32 @@ Les logs `[PERF]` dans `src/sancho/multi_pass_analyzer.py` capturent :
 
 ## Configuration Actuelle
 
-### Thread Pool (note_manager.py:1723)
+### Thread Pool (note_manager.py)
 ```python
-max_workers = min(32, len(files_to_load))  # ACTUEL
-# Recommandation : min(8, len(files_to_load))
+max_workers = min(8, len(files_to_load))  # MODIFIÉ (était 32)
 ```
+**Status** : ✅ Appliqué (4 occurrences : lignes 487, 540, 1723, 1791)
 
 ### Context Search
-- Pas de cache actuellement
-- Chaque analyse déclenche des recherches vectorielles
+```python
+# Cache TTLCache ajouté (maxsize=100, ttl=60s)
+self._search_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
+```
+**Status** : ✅ Appliqué (context_searcher.py)
+- Cache sur recherches sémantiques FAISS
+- Logs cache hit/miss
+- Méthode `invalidate_cache()` disponible
 
 ### Adapters Email
-- Pas d'early-stop
-- Scan complet même si quota atteint
+```python
+# Détection emails éphémères ajoutée
+is_ephemeral, ephemeral_reason = self._is_ephemeral_email(msg, from_header)
+# Flag ajouté dans metadata: is_ephemeral, ephemeral_reason
+```
+**Status** : ✅ Appliqué (email_adapter.py)
+- Patterns détectés : noreply, notifications, newsletters
+- Domains détectés : facebook, linkedin, mailchimp, etc.
+- Headers détectés : List-Id, List-Unsubscribe, Auto-Submitted, Precedence
 
 ---
 
@@ -95,14 +140,70 @@ max_workers = min(32, len(files_to_load))  # ACTUEL
 3. **Modèle sélection optimisé** : Haiku → Sonnet → Opus selon confiance
 4. **Quick wins backend** : Toujours valides mais impact limité
 
-### Décision
+### Décision (historique)
 
-**Plan performance mis en pause** pour prioritiser le nettoyage du workflow :
-- Le code workflow est confus (V1/V2/Four Valets mélangés)
-- AutoFetch non implémenté (planifié mais jamais codé)
-- Nettoyer avant d'optimiser
+~~**Plan performance mis en pause** pour prioritiser le nettoyage du workflow~~ → **REPRIS**
 
-→ Voir `docs/plans/workflow-cleanup-autofetch.md`
+Le workflow cleanup est terminé (voir `docs/plans/archive/workflow-cleanup-autofetch.md`).
+
+---
+
+## Plan d'Optimisation Corrigé
+
+> Conforme aux directives CLAUDE.md et skill /perf
+
+### Phase 0 : Nouveau Baseline
+
+1. Générer nouveau flamegraph (fetch réparé)
+2. Capturer métriques : notes load, context search, email fetch
+3. Exécuter tests performance
+4. Documenter valeurs de référence
+
+### Phase 1 : Thread Pool 32 → 8
+
+**Fichier critique** : `note_manager.py` (confirmation Johan requise)
+
+| Métrique | Avant | Cible | Seuil |
+|----------|-------|-------|-------|
+| `get_all_notes()` 150 notes | 450ms | 350ms | -20% |
+
+### Phase 2 : Cache Context Search
+
+**Prérequis** : Dépendance `cachetools`
+
+- TTLCache (maxsize=100, ttl=60s)
+- Invalidation obligatoire lors rebuild FAISS
+- Logs cache hit/miss
+
+| Métrique | Avant | Cible | Seuil |
+|----------|-------|-------|-------|
+| Context search | 500ms | 150ms | -70% |
+
+### Phase 3 : Early-Stop Emails
+
+Détection : list-id, list-unsubscribe, auto-submitted
+
+| Métrique | Avant | Cible | Seuil |
+|----------|-------|-------|-------|
+| Emails skipped | 0% | 30% | 30% |
+| Temps batch 10 emails | 10s | 7s | -30% |
+
+### Phase 4 : Documentation
+
+- `docs/architecture/performance.md` (nouveau)
+- Mise à jour ce fichier avec résultats
+
+### Phase 5 : Mesures Finales
+
+Comparer avec baseline et documenter gains réels.
+
+---
+
+## Avertissement Impact
+
+**Rappel** : ~47% du temps = attente API Anthropic (I/O wait).
+
+Impact global estimé sur latence utilisateur : **~10-15%**.
 
 ---
 
@@ -113,3 +214,10 @@ max_workers = min(32, len(files_to_load))  # ACTUEL
 | 2026-01-24 | Création baseline, flamegraph généré |
 | 2026-01-24 | Analyse flamegraph : bottleneck = I/O API, pas CPU |
 | 2026-01-24 | **PAUSE** : Priorité au cleanup workflow |
+| 2026-01-24 | Workflow cleanup terminé, plan **REPRIS** |
+| 2026-01-24 | Plan corrigé (conformité CLAUDE.md, cachetools, invalidation FAISS) |
+| 2026-01-24 | **Phase 0** : Nouveau flamegraph + tests perf (836 docs, 5 tests passés) |
+| 2026-01-24 | **Phase 1** : Thread pool 32→8 (4 occurrences, 36 tests passés) |
+| 2026-01-24 | **Phase 2** : Cache context search (TTLCache 60s, 32 tests passés) |
+| 2026-01-24 | **Phase 3** : Early-stop emails éphémères (flag is_ephemeral ajouté) |
+| 2026-01-24 | **Phase 4** : Documentation `docs/architecture/performance.md` créée |

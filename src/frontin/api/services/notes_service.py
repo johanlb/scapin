@@ -31,6 +31,11 @@ from src.frontin.api.models.notes import (
     NoteVersionContentResponse,
     NoteVersionResponse,
     NoteVersionsResponse,
+    RetoucheActionPreview,
+    RetouchePreviewResponse,
+    RetoucheQueueItem,
+    RetoucheQueueResponse,
+    RetoucheRollbackResponse,
     WikilinkResponse,
 )
 from src.monitoring.logger import get_logger
@@ -1174,4 +1179,393 @@ class NotesService:
         return FolderListResponse(
             folders=folders,
             total=len(folders),
+        )
+
+    # =========================================================================
+    # RETOUCHE PREVIEW (Phase 4)
+    # =========================================================================
+
+    async def preview_retouche(self, note_id: str) -> Optional[RetouchePreviewResponse]:
+        """
+        Preview proposed retouche changes for a note
+
+        Analyzes the note with AI and returns proposed improvements
+        without applying them.
+
+        Args:
+            note_id: Note identifier
+
+        Returns:
+            RetouchePreviewResponse with proposed actions, or None if note not found
+        """
+        logger.info(f"Previewing retouche for note: {note_id}")
+        manager = self._get_manager()
+
+        # Get the note
+        note = await asyncio.to_thread(manager.get_note, note_id)
+        if note is None:
+            return None
+
+        # Get retouche reviewer (lazy init to avoid circular imports)
+        reviewer = await self._get_retouche_reviewer()
+        if reviewer is None:
+            # Return empty preview if reviewer not available
+            return RetouchePreviewResponse(
+                note_id=note_id,
+                note_title=note.title,
+                quality_before=None,
+                quality_after=50,
+                model_used="unavailable",
+                actions=[],
+                diff_preview="",
+                reasoning="Retouche service not available",
+            )
+
+        # Load context and analyze
+        from src.passepartout.note_metadata import NoteMetadataStore
+        from src.passepartout.note_types import detect_note_type_from_path
+
+        # Get or create metadata
+        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        metadata = metadata_store.get(note_id)
+        if metadata is None:
+            note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
+            metadata = metadata_store.create_for_note(
+                note_id=note_id,
+                note_type=note_type,
+                content=note.content,
+            )
+
+        # Load context
+        context = await reviewer._load_context(note, metadata)
+
+        # Analyze with AI
+        analysis = await reviewer._analyze_with_escalation(context)
+
+        # Convert actions to preview format
+        actions = []
+        for action in analysis.actions:
+            actions.append(
+                RetoucheActionPreview(
+                    action_type=action.action_type.value,
+                    target=action.target,
+                    content=action.content,
+                    confidence=action.confidence,
+                    reasoning=action.reasoning,
+                    auto_apply=action.confidence >= reviewer.AUTO_APPLY_THRESHOLD,
+                )
+            )
+
+        # Calculate quality
+        quality_after = reviewer._calculate_quality_score(context, analysis)
+
+        return RetouchePreviewResponse(
+            note_id=note_id,
+            note_title=note.title,
+            quality_before=metadata.quality_score,
+            quality_after=quality_after,
+            model_used=analysis.model_used,
+            actions=actions,
+            diff_preview="",  # TODO: Generate unified diff
+            reasoning=analysis.reasoning,
+        )
+
+    async def apply_retouche(
+        self,
+        note_id: str,
+        action_indices: list[int] | None = None,
+        apply_all: bool = False,
+    ) -> Optional[RetouchePreviewResponse]:
+        """
+        Apply selected retouche actions to a note
+
+        Args:
+            note_id: Note identifier
+            action_indices: Indices of actions to apply (None = auto-apply only)
+            apply_all: Apply all proposed actions
+
+        Returns:
+            RetouchePreviewResponse with applied actions, or None if note not found
+        """
+        # TODO: Implement selective action application based on action_indices
+        # For now, we run the full retouche cycle
+        _ = action_indices  # Reserved for future selective application
+        _ = apply_all  # Reserved for future "apply all" mode
+
+        logger.info(f"Applying retouche for note: {note_id}")
+
+        # Get the reviewer
+        reviewer = await self._get_retouche_reviewer()
+        if reviewer is None:
+            return None
+
+        # Run full retouche cycle
+        result = await reviewer.review_note(note_id)
+
+        if not result.success:
+            return None
+
+        # Convert to response format
+        actions = []
+        for action in result.actions:
+            actions.append(
+                RetoucheActionPreview(
+                    action_type=action.action_type.value,
+                    target=action.target,
+                    content=action.content,
+                    confidence=action.confidence,
+                    reasoning=action.reasoning,
+                    auto_apply=action.applied,
+                )
+            )
+
+        return RetouchePreviewResponse(
+            note_id=note_id,
+            note_title="",  # Not available in result
+            quality_before=result.quality_before,
+            quality_after=result.quality_after,
+            model_used=result.model_used,
+            actions=actions,
+            diff_preview="",
+            reasoning=result.reasoning,
+        )
+
+    async def _get_retouche_reviewer(self):
+        """Get or create RetoucheReviewer instance"""
+        if not hasattr(self, "_retouche_reviewer"):
+            try:
+                from src.passepartout.note_metadata import NoteMetadataStore
+                from src.passepartout.note_scheduler import NoteScheduler
+                from src.passepartout.retouche_reviewer import RetoucheReviewer
+                from src.sancho.router import AIRouter
+
+                manager = self._get_manager()
+                metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+                scheduler = NoteScheduler(metadata_store)
+
+                # Try to get AI router
+                try:
+                    ai_router = AIRouter()
+                except Exception:
+                    ai_router = None
+
+                self._retouche_reviewer = RetoucheReviewer(
+                    note_manager=manager,
+                    metadata_store=metadata_store,
+                    scheduler=scheduler,
+                    ai_router=ai_router,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to initialize RetoucheReviewer: {e}")
+                self._retouche_reviewer = None
+
+        return self._retouche_reviewer
+
+    # =========================================================================
+    # RETOUCHE ROLLBACK (Phase 5)
+    # =========================================================================
+
+    async def rollback_retouche(
+        self,
+        note_id: str,
+        record_index: int | None = None,
+        git_commit: str | None = None,
+    ) -> Optional[RetoucheRollbackResponse]:
+        """
+        Rollback a retouche action on a note
+
+        Args:
+            note_id: Note identifier
+            record_index: Index in enrichment_history to rollback (0 = most recent)
+            git_commit: Git commit hash to restore (alternative method)
+
+        Returns:
+            RetoucheRollbackResponse or None if not found
+        """
+        logger.info(f"Rolling back retouche for note: {note_id}")
+
+        # Validate at least one method is specified
+        if record_index is None and git_commit is None:
+            raise ValueError("Must specify either record_index or git_commit")
+
+        # If git_commit is provided, use git restore
+        if git_commit is not None:
+            _validate_version_id(git_commit)
+            result = await self.restore_version(note_id, git_commit)
+            if result is None:
+                return None
+
+            return RetoucheRollbackResponse(
+                note_id=note_id,
+                rolled_back=True,
+                action_type="git_restore",
+                restored_from=f"git:{git_commit[:7]}",
+                new_content_preview=result.content[:200] if result else "",
+            )
+
+        # Use record_index to find the content_before
+        from src.passepartout.note_metadata import NoteMetadataStore
+
+        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        metadata = metadata_store.get(note_id)
+
+        if metadata is None or not metadata.enrichment_history:
+            return None
+
+        # Get the record to rollback (records are stored newest first)
+        if record_index >= len(metadata.enrichment_history):
+            return None
+
+        record = metadata.enrichment_history[record_index]
+
+        # Check if record has content_before (needed for rollback)
+        content_before = getattr(record, "content_before", None)
+        if not content_before:
+            # Fall back to git restore if we have the timestamp
+            # Find the git commit just before this record
+            git_manager = self._get_git_manager()
+            manager = self._get_manager()
+            filename = await asyncio.to_thread(manager.get_relative_path, note_id)
+            if not filename:
+                filename = f"{note_id}.md"
+
+            versions = await asyncio.to_thread(git_manager.list_versions, filename, 100)
+
+            # Find version just before the record timestamp
+            target_version = None
+            for version in versions:
+                if version.timestamp < record.timestamp:
+                    target_version = version
+                    break
+
+            if target_version:
+                result = await self.restore_version(note_id, target_version.version_id)
+                if result:
+                    return RetoucheRollbackResponse(
+                        note_id=note_id,
+                        rolled_back=True,
+                        action_type=record.action_type,
+                        restored_from=f"git:{target_version.version_id}",
+                        new_content_preview=result.content[:200] if result else "",
+                    )
+
+            return None
+
+        # Restore the content_before
+        manager = self._get_manager()
+        note = await asyncio.to_thread(manager.get_note, note_id)
+        if note is None:
+            return None
+
+        # Replace the target section with content_before
+        # This is a simplified implementation - for complex cases, use git
+        success = await asyncio.to_thread(
+            manager.update_note,
+            note_id=note_id,
+            content=content_before,
+        )
+
+        if not success:
+            return None
+
+        return RetoucheRollbackResponse(
+            note_id=note_id,
+            rolled_back=True,
+            action_type=record.action_type,
+            restored_from=f"record:{record_index}",
+            new_content_preview=content_before[:200],
+        )
+
+    # =========================================================================
+    # RETOUCHE QUEUE (Phase 5)
+    # =========================================================================
+
+    async def get_retouche_queue(self) -> RetoucheQueueResponse:
+        """
+        Get queue of notes with pending retouche actions
+
+        Returns notes that have been analyzed but need user action,
+        grouped by confidence level.
+        """
+        logger.info("Getting retouche queue")
+
+        from src.passepartout.note_metadata import NoteMetadataStore
+
+        metadata_store = NoteMetadataStore(self.config.data_path / "metadata.db")
+        manager = self._get_manager()
+
+        # Get all notes with metadata
+        all_metadata = await asyncio.to_thread(metadata_store.list_all)
+
+        high_confidence: list[RetoucheQueueItem] = []
+        pending_review: list[RetoucheQueueItem] = []
+
+        stats = {
+            "total": 0,
+            "high_confidence": 0,
+            "pending_review": 0,
+            "auto_applied_today": 0,
+        }
+
+        for meta in all_metadata:
+            # Check if note has pending actions in recent history
+            if not meta.enrichment_history:
+                continue
+
+            # Get recent pending actions (not applied)
+            pending_actions = [
+                r for r in meta.enrichment_history[:10] if not r.applied
+            ]
+
+            if not pending_actions:
+                continue
+
+            stats["total"] += 1
+
+            # Get note info for display
+            note = await asyncio.to_thread(manager.get_note, meta.note_id)
+            if note is None:
+                continue
+
+            avg_confidence = (
+                sum(a.confidence for a in pending_actions) / len(pending_actions)
+                if pending_actions
+                else 0.0
+            )
+
+            all_high_confidence = all(a.confidence >= 0.85 for a in pending_actions)
+
+            item = RetoucheQueueItem(
+                note_id=meta.note_id,
+                note_title=note.title,
+                note_path=note.metadata.get("path", ""),
+                action_count=len(pending_actions),
+                avg_confidence=avg_confidence,
+                quality_score=meta.quality_score,
+                last_retouche=(
+                    meta.enrichment_history[0].timestamp if meta.enrichment_history else None
+                ),
+                high_confidence=all_high_confidence,
+            )
+
+            if all_high_confidence:
+                high_confidence.append(item)
+                stats["high_confidence"] += 1
+            else:
+                pending_review.append(item)
+                stats["pending_review"] += 1
+
+        # Sort by avg_confidence descending
+        high_confidence.sort(key=lambda x: x.avg_confidence, reverse=True)
+        pending_review.sort(key=lambda x: x.avg_confidence, reverse=True)
+
+        logger.info(
+            f"Retouche queue: {stats['high_confidence']} high confidence, "
+            f"{stats['pending_review']} pending review"
+        )
+
+        return RetoucheQueueResponse(
+            high_confidence=high_confidence,
+            pending_review=pending_review,
+            stats=stats,
         )

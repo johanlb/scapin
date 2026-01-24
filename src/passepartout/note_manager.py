@@ -484,7 +484,7 @@ class NoteManager:
         count = 0
 
         # Use parallel execution to read frontmatter from all files
-        max_workers = min(32, len(visible_files) + 1)
+        max_workers = min(8, len(visible_files) + 1)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Map over _read_note_file but we only need it for metadata
             for note in executor.map(self._read_note_file, visible_files):
@@ -537,7 +537,7 @@ class NoteManager:
 
         count = 0
         # Use parallel execution for faster I/O
-        max_workers = min(32, len(files) + 1)
+        max_workers = min(8, len(files) + 1)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Filter hidden files
@@ -1720,7 +1720,7 @@ class NoteManager:
                 extra={"cached": len(notes), "to_load": len(files_to_load)},
             )
             # Use parallel execution for faster I/O
-            max_workers = min(32, len(files_to_load) + 1)
+            max_workers = min(8, len(files_to_load) + 1)
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 for note in executor.map(self._read_note_file, files_to_load):
@@ -1788,7 +1788,7 @@ class NoteManager:
         notes_to_index: list[tuple[Note, str, dict[str, Any]]] = []
 
         # Use parallel execution for reading files
-        max_workers = min(32, len(visible_files) + 1)
+        max_workers = min(8, len(visible_files) + 1)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             for note in executor.map(self._read_note_file, visible_files):

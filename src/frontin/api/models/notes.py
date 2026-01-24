@@ -393,3 +393,108 @@ class EnrichmentHistoryResponse(BaseModel):
     total_records: int = Field(0, description="Total number of records")
     quality_score: int | None = Field(None, description="Current quality score (0-100)")
     retouche_count: int = Field(0, description="Total retouche cycles")
+
+
+# =============================================================================
+# Retouche Preview Models (Phase 4)
+# =============================================================================
+
+
+class RetoucheActionPreview(BaseModel):
+    """Preview of a single retouche action"""
+
+    action_type: str = Field(
+        ...,
+        description="Action type (enrich, structure, summarize, suggest_links, cleanup, etc.)",
+    )
+    target: str = Field(..., description="Target section or field")
+    content: str | None = Field(None, description="Proposed new content")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Action confidence")
+    reasoning: str = Field("", description="Why this action is proposed")
+    auto_apply: bool = Field(
+        False, description="Whether action will be auto-applied (confidence >= 0.85)"
+    )
+
+
+class RetouchePreviewResponse(BaseModel):
+    """Preview of proposed retouche changes"""
+
+    note_id: str = Field(..., description="Note identifier")
+    note_title: str = Field(..., description="Note title")
+    quality_before: int | None = Field(None, description="Current quality score")
+    quality_after: int = Field(..., description="Predicted quality after retouche")
+    model_used: str = Field("haiku", description="AI model used for analysis")
+    actions: list[RetoucheActionPreview] = Field(
+        default_factory=list, description="Proposed actions"
+    )
+    diff_preview: str = Field("", description="Unified diff preview of all changes")
+    reasoning: str = Field("", description="Overall analysis reasoning")
+
+
+class RetoucheApplyRequest(BaseModel):
+    """Request to apply selected retouche actions"""
+
+    action_indices: list[int] = Field(
+        default_factory=list,
+        description="Indices of actions to apply (empty = apply all auto-apply actions)",
+    )
+    apply_all: bool = Field(False, description="Apply all proposed actions")
+
+
+# =============================================================================
+# Retouche Rollback Models (Phase 5)
+# =============================================================================
+
+
+class RetoucheRollbackRequest(BaseModel):
+    """Request to rollback a retouche action"""
+
+    record_index: int | None = Field(
+        None,
+        ge=0,
+        description="Index in enrichment_history to rollback (newest first)",
+    )
+    git_commit: str | None = Field(
+        None,
+        description="Git commit hash to restore (alternative to record_index)",
+    )
+
+
+class RetoucheRollbackResponse(BaseModel):
+    """Response after rolling back a retouche"""
+
+    note_id: str = Field(..., description="Note identifier")
+    rolled_back: bool = Field(..., description="Whether rollback succeeded")
+    action_type: str = Field("", description="Type of action that was rolled back")
+    restored_from: str = Field("", description="What was restored (record index or git commit)")
+    new_content_preview: str = Field("", description="Preview of restored content (first 200 chars)")
+
+
+class RetoucheQueueItem(BaseModel):
+    """A note with pending retouche actions"""
+
+    note_id: str = Field(..., description="Note identifier")
+    note_title: str = Field(..., description="Note title")
+    note_path: str = Field("", description="Note folder path")
+    action_count: int = Field(0, description="Number of pending actions")
+    avg_confidence: float = Field(0.0, description="Average confidence of pending actions")
+    quality_score: int | None = Field(None, description="Current quality score")
+    last_retouche: datetime | None = Field(None, description="Last retouche timestamp")
+    high_confidence: bool = Field(False, description="All actions >= 85% confidence")
+
+
+class RetoucheQueueResponse(BaseModel):
+    """Queue of notes with pending retouche actions"""
+
+    high_confidence: list[RetoucheQueueItem] = Field(
+        default_factory=list,
+        description="Notes with high confidence actions (auto-applicable)",
+    )
+    pending_review: list[RetoucheQueueItem] = Field(
+        default_factory=list,
+        description="Notes requiring user review (lower confidence)",
+    )
+    stats: dict[str, int] = Field(
+        default_factory=dict,
+        description="Queue statistics (total, auto_applied, pending, etc.)",
+    )

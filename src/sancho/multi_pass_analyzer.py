@@ -2195,11 +2195,21 @@ class MultiPassAnalyzer:
 
         logger.info(f"[PERF] Starting Four Valets analysis for event {event.event_id}")
 
+        # === DETECT EPHEMERAL CONTENT (from email_adapter) ===
+        # Ephemeral emails: noreply, notifications, newsletters, automated messages
+        # These don't need Opus escalation and can use lower confidence thresholds
+        is_ephemeral = event.metadata.get("is_ephemeral", False)
+        ephemeral_reason = event.metadata.get("ephemeral_reason")
+        if is_ephemeral:
+            logger.info(f"Ephemeral content detected: {ephemeral_reason} → Fast path enabled")
+
         # === DETECT CRITICAL CONTENT (triggers Opus escalation) ===
         # Critical content: legal/contractual, financial documents, high amounts (> 1000€)
+        # Note: Critical overrides ephemeral — we want careful analysis for legal docs
         is_critical, critical_reason = self._is_critical_content(event)
         if is_critical:
             logger.info(f"Critical content detected: {critical_reason} → Opus escalation enabled")
+            is_ephemeral = False  # Critical content is never treated as ephemeral
 
         # === GRIMAUD (Pass 1) — Extraction silencieuse ===
         grimaud_start = time.time()
@@ -2220,7 +2230,8 @@ class MultiPassAnalyzer:
             logger.info("Grimaud flagged content as critical → Opus escalation enabled")
 
         # Check for early stop (ephemeral content at 95%+ confidence, or old newsletter)
-        if self._should_early_stop(grimaud, event):
+        # Note: is_ephemeral from adapter lowers the threshold to 80%
+        if self._should_early_stop(grimaud, event, is_ephemeral):
             total_ms = (time.time() - start_time) * 1000
             logger.info(f"[PERF] Total (early stop Grimaud): {total_ms:.0f}ms, {total_tokens} tokens")
             logger.info(f"Grimaud early stop: {grimaud.early_stop_reason}")
@@ -2236,7 +2247,8 @@ class MultiPassAnalyzer:
             )
 
         # Get context for Bazin
-        if self.context_searcher and grimaud.entities_discovered:
+        # Skip context search for ephemeral content (no point searching notes for spam/newsletters)
+        if self.context_searcher and grimaud.entities_discovered and not is_ephemeral:
             context_start = time.time()
             logger.debug(f"Searching context for entities: {grimaud.entities_discovered}")
             context = await self.context_searcher.search_for_entities(
@@ -2244,23 +2256,26 @@ class MultiPassAnalyzer:
                 sender_email=getattr(event, "from_person", None),
             )
             logger.info(f"[PERF] Context search: {(time.time() - context_start)*1000:.0f}ms ({len(context.notes) if context else 0} notes)")
+        elif is_ephemeral:
+            logger.info("[PERF] Context search skipped (ephemeral content)")
 
         # === BAZIN (Pass 2) — Enrichissement contextuel ===
         bazin_start = time.time()
-        bazin = await self._run_bazin(event, grimaud, context, is_critical)
+        bazin = await self._run_bazin(event, grimaud, context, is_critical, is_ephemeral)
         passes.append(bazin)
         total_tokens += bazin.tokens_used
         logger.info(f"[PERF] Bazin: {(time.time() - bazin_start)*1000:.0f}ms ({bazin.model_used})")
 
         # === PLANCHET (Pass 3) — Critique et validation ===
         planchet_start = time.time()
-        planchet = await self._run_planchet(event, passes, context, is_critical)
+        planchet = await self._run_planchet(event, passes, context, is_critical, is_ephemeral)
         passes.append(planchet)
         total_tokens += planchet.tokens_used
         logger.info(f"[PERF] Planchet: {(time.time() - planchet_start)*1000:.0f}ms ({planchet.model_used})")
 
         # Check if Planchet can conclude without Mousqueton
-        if self._planchet_can_conclude(planchet):
+        # Note: is_ephemeral lowers the threshold to 80%
+        if self._planchet_can_conclude(planchet, is_ephemeral):
             total_ms = (time.time() - start_time) * 1000
             logger.info(f"[PERF] Total (stopped at Planchet): {total_ms:.0f}ms, {total_tokens} tokens")
             logger.info(f"Planchet concludes at {planchet.confidence.overall:.0%} confidence")
@@ -2277,7 +2292,7 @@ class MultiPassAnalyzer:
 
         # === MOUSQUETON (Pass 4) — Arbitrage final ===
         mousqueton_start = time.time()
-        mousqueton = await self._run_mousqueton(event, passes, context, is_critical)
+        mousqueton = await self._run_mousqueton(event, passes, context, is_critical, is_ephemeral)
         passes.append(mousqueton)
         total_tokens += mousqueton.tokens_used
         logger.info(f"[PERF] Mousqueton: {(time.time() - mousqueton_start)*1000:.0f}ms ({mousqueton.model_used})")
@@ -2328,6 +2343,7 @@ class MultiPassAnalyzer:
         grimaud: PassResult,
         context: Optional[StructuredContext],
         is_critical_content: bool = False,
+        is_ephemeral: bool = False,
     ) -> PassResult:
         """
         Execute Bazin (Pass 2) — Enrichissement contextuel.
@@ -2347,8 +2363,9 @@ class MultiPassAnalyzer:
         )
         # Pass Grimaud's confidence for adaptive escalation
         # Critical content escalates directly to Opus
+        # Ephemeral content blocks Opus escalation
         model_tier = self._get_valet_model(
-            "bazin", grimaud.confidence.overall, is_critical_content
+            "bazin", grimaud.confidence.overall, is_critical_content, is_ephemeral
         )
 
         result = await self._call_model_with_cache(
@@ -2367,6 +2384,7 @@ class MultiPassAnalyzer:
         previous_passes: list[PassResult],
         context: Optional[StructuredContext],
         is_critical_content: bool = False,
+        is_ephemeral: bool = False,
     ) -> PassResult:
         """
         Execute Planchet (Pass 3) — Critique et validation.
@@ -2389,8 +2407,9 @@ class MultiPassAnalyzer:
         )
         # Pass Bazin's confidence for adaptive escalation
         # Critical content escalates directly to Opus
+        # Ephemeral content blocks Opus escalation
         model_tier = self._get_valet_model(
-            "planchet", bazin.confidence.overall, is_critical_content
+            "planchet", bazin.confidence.overall, is_critical_content, is_ephemeral
         )
 
         result = await self._call_model_with_cache(
@@ -2409,6 +2428,7 @@ class MultiPassAnalyzer:
         previous_passes: list[PassResult],
         context: Optional[StructuredContext],
         is_critical_content: bool = False,
+        is_ephemeral: bool = False,
     ) -> PassResult:
         """
         Execute Mousqueton (Pass 4) — Arbitrage final.
@@ -2432,8 +2452,9 @@ class MultiPassAnalyzer:
         )
         # Pass Planchet's confidence for adaptive escalation (Sonnet → Opus if needed)
         # Critical content escalates directly to Opus
+        # Ephemeral content blocks Opus escalation
         model_tier = self._get_valet_model(
-            "mousqueton", planchet.confidence.overall, is_critical_content
+            "mousqueton", planchet.confidence.overall, is_critical_content, is_ephemeral
         )
 
         result = await self._call_model_with_cache(
@@ -2446,7 +2467,12 @@ class MultiPassAnalyzer:
         result.valet = ValetType.MOUSQUETON
         return result
 
-    def _should_early_stop(self, grimaud: PassResult, event: Optional[PerceivedEvent] = None) -> bool:
+    def _should_early_stop(
+        self,
+        grimaud: PassResult,
+        event: Optional[PerceivedEvent] = None,
+        is_ephemeral: bool = False,
+    ) -> bool:
         """
         Check if Grimaud requests early stop.
 
@@ -2455,8 +2481,15 @@ class MultiPassAnalyzer:
 
         Additionally, very old newsletters (>1 year) trigger early stop even without
         Grimaud explicitly requesting it, as they have no residual value.
+
+        Args:
+            grimaud: Result from Grimaud pass
+            event: Original event (for age calculation)
+            is_ephemeral: If True (from email_adapter), use lower threshold (80%)
         """
-        threshold = self.config.four_valets.grimaud_early_stop_confidence
+        # Use lower threshold for emails detected as ephemeral by adapter
+        # This saves expensive escalations for obvious spam/notifications
+        threshold = 0.80 if is_ephemeral else self.config.four_valets.grimaud_early_stop_confidence
 
         # Standard early stop: Grimaud requests it with high confidence
         if (
@@ -2464,6 +2497,14 @@ class MultiPassAnalyzer:
             and grimaud.action == "delete"
             and grimaud.confidence.overall >= threshold
         ):
+            return True
+
+        # Fast path for ephemeral content: early stop even without explicit early_stop flag
+        # if Grimaud recommends delete/archive with sufficient confidence
+        if is_ephemeral and grimaud.action in ("delete", "archive") and grimaud.confidence.overall >= threshold:
+            grimaud.early_stop = True
+            grimaud.early_stop_reason = grimaud.early_stop_reason or "ephemeral_fast_path"
+            logger.info(f"Early stop forced: ephemeral content ({grimaud.confidence.overall:.0%} >= {threshold:.0%})")
             return True
 
         # Enhanced early stop: Very old newsletters (>1 year) → DELETE directly
@@ -2483,15 +2524,20 @@ class MultiPassAnalyzer:
 
         return False
 
-    def _planchet_can_conclude(self, planchet: PassResult) -> bool:
+    def _planchet_can_conclude(self, planchet: PassResult, is_ephemeral: bool = False) -> bool:
         """
         Check if Planchet can conclude without Mousqueton.
 
         Planchet can conclude if:
         - needs_mousqueton is False
-        - confidence is above threshold (90%)
+        - confidence is above threshold (90%, or 80% for ephemeral content)
+
+        Args:
+            planchet: Result from Planchet pass
+            is_ephemeral: If True, use lower threshold (80%) for ephemeral content
         """
-        threshold = self.config.four_valets.planchet_stop_confidence
+        # Use lower threshold for ephemeral content
+        threshold = 0.80 if is_ephemeral else self.config.four_valets.planchet_stop_confidence
         return not planchet.needs_mousqueton and planchet.confidence.overall >= threshold
 
     def _get_valet_model(
@@ -2499,6 +2545,7 @@ class MultiPassAnalyzer:
         valet: str,
         previous_confidence: Optional[float] = None,
         is_critical_content: bool = False,
+        is_ephemeral: bool = False,
     ) -> ModelTier:
         """
         Get the model for a valet, with adaptive escalation if confidence is low.
@@ -2515,6 +2562,7 @@ class MultiPassAnalyzer:
             valet: Valet name (grimaud, bazin, planchet, mousqueton)
             previous_confidence: Confidence from the previous pass (triggers escalation if < threshold)
             is_critical_content: If True, escalate directly to Opus (legal/contractual or high amount)
+            is_ephemeral: If True, block escalation to Opus (save cost on spam/notifications)
 
         Returns:
             ModelTier to use for this valet
@@ -2542,6 +2590,13 @@ class MultiPassAnalyzer:
             # Escalate to a more powerful model
             escalated_model_name = escalation_config.escalation_map.get(model_name)
             if escalated_model_name:
+                # Block Opus escalation for ephemeral content (sonnet max)
+                if is_ephemeral and escalated_model_name == "opus":
+                    logger.info(
+                        f"Escalation capped for {valet}: {model_name} → sonnet "
+                        f"(ephemeral content, Opus blocked)"
+                    )
+                    return ModelTier.SONNET
                 logger.info(
                     f"Adaptive escalation for {valet}: {model_name} → {escalated_model_name} "
                     f"(previous confidence {previous_confidence:.0%} < {escalation_config.threshold:.0%})"

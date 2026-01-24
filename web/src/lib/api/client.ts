@@ -234,6 +234,27 @@ interface BriefingItem {
 	conflicts?: CalendarConflict[];
 }
 
+interface OrphanQuestionItem {
+	question_id: string;
+	question: string;
+	category: string;
+	context: string;
+	source_valet: string;
+	source_email_subject: string;
+	created_at: string;
+	intended_target: string | null;
+}
+
+interface RetoucheAlertItem {
+	note_id: string;
+	note_title: string;
+	note_path: string;
+	alert_type: 'suggest_contact' | 'flag_stale' | 'create_omnifocus' | 'duplicate_detected' | 'restructure_graph';
+	message: string;
+	confidence: number;
+	created_at: string | null;
+}
+
 interface MorningBriefing {
 	date: string;
 	generated_at: string;
@@ -245,6 +266,10 @@ interface MorningBriefing {
 	calendar_today: BriefingItem[];
 	emails_pending: BriefingItem[];
 	teams_unread: BriefingItem[];
+	orphan_questions: OrphanQuestionItem[];
+	orphan_questions_count: number;
+	retouche_alerts: RetoucheAlertItem[];
+	retouche_alerts_count: number;
 	ai_summary: string | null;
 	key_decisions: string[];
 }
@@ -2067,6 +2092,113 @@ export async function getEnrichmentHistory(
 	return fetchApi<EnrichmentHistory>(
 		`/notes/${encodeURIComponent(noteId)}/enrichment-history?limit=${limit}`
 	);
+}
+
+// ============================================================================
+// RETOUCHE PREVIEW TYPES (Phase 4)
+// ============================================================================
+
+export interface RetoucheActionPreview {
+	action_type: string;
+	target: string;
+	content: string | null;
+	confidence: number;
+	reasoning: string;
+	auto_apply: boolean;
+}
+
+export interface RetouchePreview {
+	note_id: string;
+	note_title: string;
+	quality_before: number | null;
+	quality_after: number;
+	model_used: string;
+	actions: RetoucheActionPreview[];
+	diff_preview: string;
+	reasoning: string;
+}
+
+export interface RetoucheApplyRequest {
+	action_indices?: number[];
+	apply_all?: boolean;
+}
+
+export interface RetoucheRollbackRequest {
+	record_index?: number;
+	git_commit?: string;
+}
+
+export interface RetoucheRollbackResponse {
+	note_id: string;
+	rolled_back: boolean;
+	action_type: string;
+	restored_from: string;
+	new_content_preview: string;
+}
+
+export interface RetoucheQueueItem {
+	note_id: string;
+	note_title: string;
+	note_path: string;
+	action_count: number;
+	avg_confidence: number;
+	quality_score: number | null;
+	last_retouche: string | null;
+	high_confidence: boolean;
+}
+
+export interface RetoucheQueue {
+	high_confidence: RetoucheQueueItem[];
+	pending_review: RetoucheQueueItem[];
+	stats: Record<string, number>;
+}
+
+/**
+ * Preview proposed retouche changes for a note
+ */
+export async function previewRetouche(noteId: string): Promise<RetouchePreview> {
+	return fetchApi<RetouchePreview>(
+		`/notes/${encodeURIComponent(noteId)}/retouche/preview`
+	);
+}
+
+/**
+ * Apply selected retouche actions to a note
+ */
+export async function applyRetouche(
+	noteId: string,
+	request: RetoucheApplyRequest = {}
+): Promise<RetouchePreview> {
+	return fetchApi<RetouchePreview>(
+		`/notes/${encodeURIComponent(noteId)}/retouche/apply`,
+		{
+			method: 'POST',
+			body: JSON.stringify(request)
+		}
+	);
+}
+
+/**
+ * Rollback a retouche action on a note
+ */
+export async function rollbackRetouche(
+	noteId: string,
+	request: RetoucheRollbackRequest
+): Promise<RetoucheRollbackResponse> {
+	return fetchApi<RetoucheRollbackResponse>(
+		`/notes/${encodeURIComponent(noteId)}/retouche/rollback`,
+		{
+			method: 'POST',
+			body: JSON.stringify(request)
+		}
+	);
+}
+
+/**
+ * Get queue of notes with pending retouche actions
+ */
+export async function getRetoucheQueue(): Promise<RetoucheQueue> {
+	return fetchApi<RetoucheQueue>('/notes/retouche/queue');
 }
 
 // ============================================================================
