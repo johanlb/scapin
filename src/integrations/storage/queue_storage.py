@@ -512,9 +512,23 @@ class QueueStorage:
                     "strategic_questions": multi_pass_data.get("strategic_questions", []) if multi_pass_data else [],
                 }
 
-                # Update state to AWAITING_REVIEW
-                item["state"] = PeripetieState.AWAITING_REVIEW.value
-                item["status"] = "pending"  # Legacy compatibility
+                # Update state based on analysis completeness
+                # Only transition to AWAITING_REVIEW if analysis is valid
+                if analysis.confidence > 0 and analysis.action is not None:
+                    item["state"] = PeripetieState.AWAITING_REVIEW.value
+                    item["status"] = "pending"  # Legacy compatibility
+                else:
+                    # Analysis incomplete or failed - keep in ANALYZING
+                    # This allows retry or manual intervention
+                    logger.warning(
+                        "Incomplete analysis - keeping in ANALYZING state",
+                        extra={
+                            "item_id": item_id,
+                            "confidence": analysis.confidence,
+                            "action": analysis.action.value if analysis.action else None,
+                        },
+                    )
+                    # Don't change state - item stays in ANALYZING
 
                 # Update timestamps
                 if "timestamps" not in item:
@@ -530,7 +544,8 @@ class QueueStorage:
                     extra={
                         "item_id": item_id,
                         "confidence": analysis.confidence,
-                        "action": analysis.action.value,
+                        "action": analysis.action.value if analysis.action else None,
+                        "state": item["state"],
                     },
                 )
 
