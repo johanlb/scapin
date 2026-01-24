@@ -33,14 +33,10 @@ Le vrai défi est: **où faire tourner le backend pour un accès multi-device?**
 
 ### Option A: Mac comme Serveur (actuel + amélioration) ✅ RECOMMANDÉ
 
-```
-┌─────────────┐     ┌─────────────┐
-│ iPhone PWA  │────▶│             │
-└─────────────┘     │   Mac       │
-                    │   Backend   │
-┌─────────────┐     │   Python    │
-│ Mac Browser │────▶│   :8000     │
-└─────────────┘     └─────────────┘
+```mermaid
+flowchart LR
+    iPhone["iPhone PWA"] --> Mac["Mac<br/>Backend Python<br/>:8000"]
+    Browser["Mac Browser"] --> Mac
 ```
 
 **Comment y accéder depuis l'iPhone?**
@@ -64,14 +60,10 @@ Le vrai défi est: **où faire tourner le backend pour un accès multi-device?**
 
 ### Option B: Backend sur VPS Cloud
 
-```
-┌─────────────┐     ┌─────────────────┐
-│ iPhone PWA  │────▶│                 │
-└─────────────┘     │  VPS (Fly.io)   │
-                    │  Backend Python │
-┌─────────────┐     │  + SQLite       │
-│ Mac Browser │────▶│                 │
-└─────────────┘     └─────────────────┘
+```mermaid
+flowchart LR
+    iPhone["iPhone PWA"] --> VPS["VPS (Fly.io)<br/>Backend Python<br/>+ SQLite"]
+    Browser["Mac Browser"] --> VPS
 ```
 
 **Fournisseurs recommandés:**
@@ -117,20 +109,14 @@ Réécrire le backend en Swift pour iOS.
 
 Wrapper la PWA actuelle dans une app native via Capacitor.
 
-```
-┌─────────────────────────────────────┐
-│  App iOS (Capacitor)                │
-│  ┌───────────────────────────────┐  │
-│  │  WebView (SvelteKit PWA)      │  │
-│  │  + Plugins natifs             │  │
-│  └───────────────────────────────┘  │
-│  - Push Notifications (native)      │
-│  - Haptics (native)                 │
-│  - Local storage (native)           │
-└─────────────────────────────────────┘
-          │
-          ▼
-    Backend Python (Mac ou VPS)
+```mermaid
+flowchart TD
+    subgraph App["App iOS (Capacitor)"]
+        WV["WebView (SvelteKit PWA)<br/>+ Plugins natifs"]
+        Features["- Push Notifications (native)<br/>- Haptics (native)<br/>- Local storage (native)"]
+    end
+
+    App --> Backend["Backend Python<br/>(Mac ou VPS)"]
 ```
 
 **Avantages:**
