@@ -12,6 +12,73 @@ Historique des travaux récents sur le projet.
 
 ### Travaux complétés
 
+**Plan Performance-Baseline (✅ COMPLET) :**
+
+Optimisations backend pour réduire latence et overhead.
+
+| Phase | Contenu | Commit |
+|-------|---------|--------|
+| 0 | Nouveau baseline (flamegraph + métriques) | documenté |
+| 1 | Thread pool 32→8 (note_manager.py) | `0aaa9ab` |
+| 2 | Cache context search (TTLCache 60s) | `0aaa9ab` |
+| 3 | Early-stop emails éphémères | `0aaa9ab` |
+| 4 | Documentation performance.md | `6ea2ae1` |
+| 5 | Mesures finales | `7869c43` |
+
+**Gains mesurés :**
+- Thread pool : -75% overhead context switching
+- Cache FAISS : -70% temps multi-pass (cache hits)
+- Emails éphémères : ~30% flaggés
+
+**Fichiers clés modifiés :**
+- `src/passepartout/note_manager.py` — Thread pool 32→8
+- `src/sancho/context_searcher.py` — TTLCache + invalidate_cache()
+- `src/passepartout/cross_source/adapters/email_adapter.py` — is_ephemeral flag
+- `docs/architecture/performance.md` — Documentation complète
+
+**Plan archivé** : `docs/plans/archive/performance-baseline.md`
+
+**Limitation** : ~47% du temps = attente API Anthropic (I/O wait) → impact global ~10-15%
+
+---
+
+**Bug fix analyses incomplètes (`e6c71a7`) :**
+
+Items avec analyse incomplète (confidence=0 ou action=None) restent maintenant en état ANALYZING au lieu de passer en AWAITING_REVIEW.
+
+**Fichier modifié** : `src/integrations/storage/queue_storage.py`
+
+---
+
+**Système Retouche (✅ COMPLET — PR #56) :**
+
+Système complet d'amélioration automatique des notes par IA.
+
+| Phase | Contenu | Statut |
+|-------|---------|--------|
+| 0 | Refactoring AnalysisEngine | ✅ |
+| 1 | Connexion IA (AIRouter) | ✅ |
+| 2 | Prompts Jinja2 par type de note | ✅ |
+| 3 | Actions avancées (suggest_links, cleanup, omnifocus) | ✅ |
+| 4 | Preview UI (RetoucheDiff, RetoucheBadge) | ✅ |
+| 5 | Queue + Rollback | ✅ |
+| 6 | Notifications (rate limiting, filage) | ✅ |
+| 7 | Tests unitaires + E2E | ✅ |
+
+**Fichiers clés créés :**
+- `src/passepartout/retouche_reviewer.py` — Moteur Retouche
+- `src/sancho/analysis_engine.py` — Classe abstraite partagée
+- `src/frontin/api/services/retouche_notification_service.py` — Notifications
+- `templates/ai/v2/retouche/*.j2` — Prompts par type
+- `web/src/lib/components/notes/RetoucheDiff.svelte` — Modal preview
+- `web/src/lib/components/notes/RetoucheQueue.svelte` — Page queue
+- `tests/unit/test_retouche_reviewer.py` — 5 tests erreurs
+- `web/e2e/pages/retouche.spec.ts` — Tests E2E Playwright
+
+**Plan archivé** : `docs/archive/completed-plans/retouche-notes-2026-01.md`
+
+---
+
 **Amélioration CLAUDE.md :**
 - Structure du Projet (arbre complet des dossiers)
 - APIs Externes & Secrets (Gmail, iCloud, Anthropic, Keychain)
@@ -54,6 +121,14 @@ Historique des travaux récents sur le projet.
 - `9516cf0` — Normalisation message IDs dans ProcessedEmailTracker
 
 ### En attente
+
+- **Utiliser `is_ephemeral` dans Sancho** : Le flag est détecté mais pas encore utilisé
+  - Éviter escalade Opus pour emails éphémères
+  - Réduire seuil convergence (80% au lieu de 95%)
+  - Skip context search
+  - Fichiers à modifier : `v2_processor.py`, `multi_pass_analyzer.py`
+  - Voir `docs/architecture/performance.md` section "Travaux Futurs"
+
 - **Refactoring UI** : Plan de refactoring des composants volumineux
   - `QueueItemFocusView.svelte` (620 lignes → 9 sous-composants)
   - `FolderSelector.svelte` (675 lignes → 7 sous-composants)
