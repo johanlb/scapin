@@ -29,7 +29,11 @@ from src.passepartout.note_metadata import (
     NoteMetadataStore,
 )
 from src.passepartout.note_scheduler import NoteScheduler
-from src.passepartout.note_types import CycleType
+from src.passepartout.note_types import (
+    DEFAULT_CONSERVATION_CRITERIA,
+    ConservationCriteria,
+    CycleType,
+)
 from src.sancho.analysis_engine import (
     AICallError,
     AICallResult,
@@ -544,6 +548,264 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
 
         return scrubbed
 
+    def _calculate_hygiene_metrics(self, note: Note) -> HygieneMetrics:
+        """
+        Calculate structural health metrics for a note (migré de NoteReviewer).
+
+        Args:
+            note: The note to analyze
+
+        Returns:
+            HygieneMetrics with structural health information
+        """
+        # Count words
+        words = note.content.split()
+        word_count = len(words)
+
+        # Length analysis
+        is_too_short = word_count < 100
+        is_too_long = word_count > 2000
+
+        # Frontmatter validation
+        frontmatter_issues: list[str] = []
+        frontmatter_valid = True
+
+        required_fields = ["title", "created_at", "updated_at"]
+        for field_name in required_fields:
+            if field_name not in note.metadata or not note.metadata.get(field_name):
+                frontmatter_issues.append(f"Missing: {field_name}")
+                frontmatter_valid = False
+
+        # Detect broken wikilinks
+        broken_links: list[str] = []
+        wikilinks = self._extract_wikilinks(note.content)
+        for link in wikilinks[:20]:  # Limit checks to avoid slowdown
+            search_result = self.notes.search_notes(query=link, top_k=3)
+            if not search_result:
+                # No match found
+                similar = self.notes.search_notes(query=link, top_k=1)
+                if similar:
+                    similar_note = similar[0][0] if isinstance(similar[0], tuple) else similar[0]
+                    broken_links.append(f"{link} -> suggest: {similar_note.title}")
+                else:
+                    broken_links.append(link)
+            elif isinstance(search_result[0], tuple):
+                score = search_result[0][1] if len(search_result[0]) > 1 else 1.0
+                if score < 0.7:
+                    broken_links.append(f"{link} (low confidence)")
+
+        # Check heading hierarchy
+        heading_issues: list[str] = []
+        lines = note.content.split("\n")
+        prev_level = 0
+        for line in lines:
+            if line.startswith("#"):
+                level = len(line) - len(line.lstrip("#"))
+                if level > prev_level + 1:
+                    heading_issues.append(f"Skip at: {line[:40]}")
+                prev_level = level
+
+        # Formatting score
+        formatting_score = 1.0
+        if heading_issues:
+            formatting_score -= 0.2
+        if broken_links:
+            formatting_score -= 0.1 * min(len(broken_links), 5)
+        formatting_score = max(0.0, formatting_score)
+
+        # Detect duplicate candidates using vector similarity
+        duplicate_candidates: list[tuple[str, float]] = []
+        try:
+            similar_notes = self.notes.search_notes(query=note.content[:500], top_k=5)
+            for result in similar_notes:
+                if isinstance(result, tuple):
+                    similar_note, score = result[0], result[1] if len(result) > 1 else 0.0
+                else:
+                    similar_note, score = result, 0.0
+
+                if similar_note.note_id == note.note_id:
+                    continue
+                if score > 0.8:
+                    duplicate_candidates.append((similar_note.note_id, score))
+        except Exception as e:
+            logger.debug(f"Duplicate detection failed: {e}")
+
+        return HygieneMetrics(
+            word_count=word_count,
+            is_too_short=is_too_short,
+            is_too_long=is_too_long,
+            frontmatter_valid=frontmatter_valid,
+            frontmatter_issues=frontmatter_issues,
+            broken_links=broken_links,
+            heading_issues=heading_issues,
+            duplicate_candidates=duplicate_candidates,
+            formatting_score=formatting_score,
+        )
+
+    def _check_temporal_references(
+        self,
+        content: str,
+        criteria: ConservationCriteria | None = None,
+    ) -> list[dict]:
+        """
+        Check for outdated temporal references (migré de NoteReviewer).
+
+        Args:
+            content: Note content to analyze
+            criteria: Conservation criteria with keep patterns
+
+        Returns:
+            List of issues with text, confidence, and reason
+        """
+        if criteria is None:
+            criteria = DEFAULT_CONSERVATION_CRITERIA
+
+        issues: list[dict] = []
+
+        patterns = [
+            (r"(cette semaine|this week)", 7),
+            (r"(demain|tomorrow)", 2),
+            (r"(aujourd'hui|today)", 1),
+            (r"(la semaine prochaine|next week)", 14),
+            (r"(le mois prochain|next month)", 45),
+            (r"(réunion|meeting).*?(\d{1,2}[/\-]\d{1,2})", 30),
+        ]
+
+        for pattern, days_threshold in patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for i, match in enumerate(matches):
+                if i >= MAX_REGEX_MATCHES:
+                    logger.warning(
+                        f"Hit regex match limit ({MAX_REGEX_MATCHES}) for pattern {pattern}"
+                    )
+                    break
+                context_str = content[max(0, match.start() - 50) : match.end() + 50]
+                should_keep = any(
+                    re.search(keep_pattern, context_str, re.IGNORECASE)
+                    for keep_pattern in criteria.keep_patterns
+                )
+
+                if not should_keep:
+                    confidence = min(0.85, 0.5 + (days_threshold / 100))
+                    issues.append({
+                        "text": match.group(0),
+                        "confidence": confidence,
+                        "reason": f"Référence temporelle potentiellement obsolète: '{match.group(0)}'",
+                    })
+
+        return issues
+
+    def _check_completed_tasks(self, content: str) -> list[dict]:
+        """
+        Check for completed minor tasks (migré de NoteReviewer).
+
+        Args:
+            content: Note content to analyze
+
+        Returns:
+            List of tasks with text, confidence, and reason
+        """
+        tasks: list[dict] = []
+
+        pattern = r"\[x\]\s*(.+?)(?:\n|$)"
+        matches = re.finditer(pattern, content, re.IGNORECASE)
+
+        for i, match in enumerate(matches):
+            if i >= MAX_REGEX_MATCHES:
+                logger.warning(f"Hit regex match limit ({MAX_REGEX_MATCHES}) for completed tasks")
+                break
+            task_text = match.group(1).strip()
+
+            important_keywords = [
+                "projet",
+                "client",
+                "deadline",
+                "important",
+                "urgent",
+                "milestone",
+            ]
+            is_minor = len(task_text) < 50 and not any(
+                kw in task_text.lower() for kw in important_keywords
+            )
+
+            if is_minor:
+                tasks.append({
+                    "text": match.group(0),
+                    "confidence": 0.75,
+                    "reason": f"Tâche mineure terminée: '{task_text[:30]}...'",
+                })
+
+        return tasks
+
+    def _check_missing_links(
+        self,
+        content: str,
+        _linked_notes: list[Note],
+    ) -> list[dict]:
+        """
+        Check for entities that could be linked (migré de NoteReviewer).
+
+        Args:
+            content: Note content to analyze
+            _linked_notes: Currently linked notes (for context)
+
+        Returns:
+            List of suggestions with entity, confidence, and reason
+        """
+        suggestions: list[dict] = []
+
+        existing_links = set(self._extract_wikilinks(content))
+
+        pattern = r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b"
+        potential_entities = set(re.findall(pattern, content))
+
+        for entity in potential_entities:
+            if entity in existing_links:
+                continue
+            if len(entity) < 3:
+                continue
+
+            search_results = self.notes.search_notes(query=entity, top_k=1)
+            if search_results:
+                suggestions.append({
+                    "entity": entity,
+                    "confidence": 0.7,
+                    "reason": f"Entité '{entity}' pourrait être liée à une note existante",
+                })
+
+        return suggestions[:5]
+
+    def _check_formatting(self, content: str) -> list[dict]:
+        """
+        Check for formatting issues (migré de NoteReviewer).
+
+        Args:
+            content: Note content to analyze
+
+        Returns:
+            List of issues with location, fix, and reason
+        """
+        issues: list[dict] = []
+
+        headers = re.findall(r"^(#+)\s", content, re.MULTILINE)
+        if headers:
+            levels = [len(h) for h in headers]
+            if levels and levels[0] != 1:
+                issues.append({
+                    "location": "headers",
+                    "fix": None,
+                    "reason": "Le premier titre devrait être de niveau 1 (#)",
+                })
+
+        if re.search(r"[ \t]+$", content, re.MULTILINE):
+            issues.append({
+                "location": "whitespace",
+                "fix": re.sub(r"[ \t]+$", "", content, flags=re.MULTILINE),
+                "reason": "Espaces en fin de ligne détectés",
+            })
+
+        return issues
+
     def find_related_notes(
         self,
         note: "Note",
@@ -714,8 +976,79 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             return self._rule_based_analysis(context)
 
     def _rule_based_analysis(self, context: RetoucheContext) -> "AnalysisResult":
-        """Fallback rule-based analysis when AI is unavailable"""
-        actions = []
+        """
+        Fallback rule-based analysis when AI is unavailable.
+
+        Applies hygiene checks migrated from NoteReviewer:
+        - Temporal references (obsolete dates)
+        - Completed tasks cleanup
+        - Missing wikilinks
+        - Formatting issues
+        """
+        actions: list[RetoucheActionResult] = []
+        content = context.note.content
+
+        # === Hygiene checks (migré de NoteReviewer) ===
+
+        # Check for outdated temporal references
+        temporal_issues = self._check_temporal_references(content)
+        for issue in temporal_issues:
+            actions.append(
+                RetoucheActionResult(
+                    action_type=RetoucheAction.CLEANUP,
+                    target=issue["text"],
+                    confidence=issue["confidence"],
+                    reasoning=issue["reason"],
+                    applied=issue["confidence"] >= self.AUTO_APPLY_THRESHOLD,
+                    model_used="rules",
+                )
+            )
+
+        # Check for completed tasks that could be cleaned
+        completed_tasks = self._check_completed_tasks(content)
+        for task in completed_tasks:
+            actions.append(
+                RetoucheActionResult(
+                    action_type=RetoucheAction.CLEANUP,
+                    target=task["text"],
+                    confidence=task["confidence"],
+                    reasoning=task["reason"],
+                    applied=task["confidence"] >= self.AUTO_APPLY_THRESHOLD,
+                    model_used="rules",
+                )
+            )
+
+        # Check for missing links
+        missing_links = self._check_missing_links(content, context.linked_notes)
+        for link in missing_links:
+            actions.append(
+                RetoucheActionResult(
+                    action_type=RetoucheAction.SUGGEST_LINKS,
+                    target=link["entity"],
+                    content=f"[[{link['entity']}]]",
+                    confidence=link["confidence"],
+                    reasoning=link["reason"],
+                    applied=link["confidence"] >= self.AUTO_APPLY_THRESHOLD,
+                    model_used="rules",
+                )
+            )
+
+        # Check formatting issues
+        format_issues = self._check_formatting(content)
+        for issue in format_issues:
+            actions.append(
+                RetoucheActionResult(
+                    action_type=RetoucheAction.FORMAT,
+                    target=issue["location"],
+                    content=issue["fix"],
+                    confidence=0.95,
+                    reasoning=issue["reason"],
+                    applied=True,  # Formatting is safe to auto-apply
+                    model_used="rules",
+                )
+            )
+
+        # === Original rule-based checks ===
 
         # Check if summary is needed
         if not context.has_summary and context.word_count > 200:
@@ -738,7 +1071,7 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
                     target="content",
                     confidence=0.8,
                     reasoning="Long content with few sections",
-                    applied=True,
+                    applied=False,  # Structure changes need review
                     model_used="rules",
                 )
             )
@@ -755,12 +1088,17 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             )
         )
 
+        # Calculate overall confidence
+        avg_confidence = (
+            sum(a.confidence for a in actions) / len(actions) if actions else 0.75
+        )
+
         return AnalysisResult(
             actions=actions,
-            confidence=0.75,
+            confidence=avg_confidence,
             model_used="rules",
             escalated=False,
-            reasoning="Rule-based analysis (AI unavailable)",
+            reasoning="Rule-based analysis with hygiene checks",
         )
 
     def _build_retouche_prompt(self, context: RetoucheContext) -> str:
