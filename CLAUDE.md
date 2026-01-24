@@ -166,6 +166,8 @@ Termes spécifiques au projet Scapin.
 | **Confidence** | Score composite 0-100% combinant 5 dimensions (entités, action, complétude...) |
 | **Context Influence** | Métadonnées montrant quelles notes PKM ont influencé la décision IA |
 | **Early Stop** | Arrêt prématuré si contenu éphémère détecté (OTP, spam) avec confiance ≥ 95% |
+| **Canevas** | Contexte permanent de Johan injecté dans chaque analyse IA (Profile, Goals, Projects). Terme issu de la commedia dell'arte — le scénario de base guidant l'improvisation des valets |
+| **Didascalies** | Terme UI pour les instructions données aux valets IA (prompts). Le code utilise "prompt" / "template" |
 
 ### Termes Métier (UI)
 
