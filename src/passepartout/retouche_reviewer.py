@@ -54,6 +54,11 @@ class RetoucheAction(str, Enum):
     SCORE = "score"  # Évaluer qualité
     INJECT_QUESTIONS = "inject_questions"  # Ajouter questions pour Johan
     RESTRUCTURE_GRAPH = "restructure_graph"  # Scinder/fusionner (suggestion)
+    # Phase 3: Actions avancées
+    SUGGEST_LINKS = "suggest_links"  # Proposer des wikilinks [[Note]]
+    CLEANUP = "cleanup"  # Supprimer contenu obsolète
+    PROFILE_INSIGHT = "profile_insight"  # Ajouter analyse comportementale
+    CREATE_OMNIFOCUS = "create_omnifocus"  # Créer tâche OmniFocus
 
 
 @dataclass
@@ -79,6 +84,7 @@ class RetoucheResult:
     quality_after: int  # 0-100
     actions: list[RetoucheActionResult] = field(default_factory=list)
     questions_added: int = 0
+    tasks_created: int = 0  # OmniFocus tasks created
     model_used: str = "haiku"  # Final model used
     escalated: bool = False  # Whether we escalated to a higher model
     reasoning: str = ""
@@ -254,11 +260,26 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
                     questions_added += action.content.count("?") if action.content else 0
 
         # Apply content changes
+        tasks_created = 0
         for action in actions:
-            if action.content and action.action_type in (
+            if action.action_type == RetoucheAction.CREATE_OMNIFOCUS:
+                # Handle OmniFocus task creation separately
+                if action.content:
+                    success = await self.create_omnifocus_task(
+                        task_name=action.content,
+                        note_id=note_id,
+                        note_title=note.title,
+                    )
+                    if success:
+                        tasks_created += 1
+            elif action.content and action.action_type in (
                 RetoucheAction.ENRICH,
                 RetoucheAction.STRUCTURE,
                 RetoucheAction.SUMMARIZE,
+                RetoucheAction.SUGGEST_LINKS,
+                RetoucheAction.CLEANUP,
+                RetoucheAction.PROFILE_INSIGHT,
+                RetoucheAction.INJECT_QUESTIONS,
             ):
                 updated_content = self._apply_action(updated_content, action)
 
@@ -309,7 +330,7 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
             f"Retouche complete for {note_id}: "
             f"quality={quality_before or 0}→{quality_after}, "
             f"actions={len(actions)}, questions={questions_added}, "
-            f"model={analysis_result.model_used}"
+            f"tasks={tasks_created}, model={analysis_result.model_used}"
         )
 
         return RetoucheResult(
@@ -319,6 +340,7 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
             quality_after=quality_after,
             actions=actions,
             questions_added=questions_added,
+            tasks_created=tasks_created,
             model_used=analysis_result.model_used,
             escalated=analysis_result.escalated,
             reasoning=analysis_result.reasoning,
@@ -378,6 +400,110 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
             if re.search(pattern, content, re.MULTILINE | re.IGNORECASE):
                 return True
         return False
+
+    def find_related_notes(
+        self,
+        note: "Note",
+        top_k: int = 5,
+        exclude_linked: bool = True,
+    ) -> list[tuple[str, float]]:
+        """
+        Find semantically related notes for suggest_links action.
+
+        Uses vector search to find notes similar to the current note,
+        optionally excluding already linked notes.
+
+        Args:
+            note: The note to find relations for
+            top_k: Maximum number of suggestions
+            exclude_linked: Whether to exclude already linked notes
+
+        Returns:
+            List of (note_title, similarity_score) tuples
+        """
+        # Get existing links to exclude
+        existing_links = set()
+        if exclude_linked:
+            existing_links = set(self._extract_wikilinks(note.content))
+            existing_links.add(note.title)  # Exclude self
+
+        # Search for similar notes using note content
+        try:
+            results = self.notes.search_notes(
+                query=f"{note.title} {note.content[:500]}",
+                top_k=top_k + len(existing_links),  # Get extra to filter
+                return_scores=True,
+            )
+
+            # Filter and format results
+            suggestions = []
+            for result_note, score in results:
+                if result_note.title not in existing_links:
+                    suggestions.append((result_note.title, score))
+                    if len(suggestions) >= top_k:
+                        break
+
+            return suggestions
+
+        except Exception as e:
+            logger.warning(f"Failed to find related notes: {e}")
+            return []
+
+    async def create_omnifocus_task(
+        self,
+        task_name: str,
+        note_id: str,
+        note_title: str,
+        project_name: Optional[str] = None,
+        due_date: Optional[str] = None,
+    ) -> bool:
+        """
+        Create an OmniFocus task via Figaro.
+
+        Args:
+            task_name: Name of the task to create
+            note_id: ID of the related note
+            note_title: Title of the related note
+            project_name: Optional OmniFocus project
+            due_date: Optional due date (ISO format)
+
+        Returns:
+            True if task was created successfully
+        """
+        try:
+            from src.figaro.actions.tasks import CreateTaskAction
+
+            # Build task note with link to PKM note
+            task_note = f"Lié à la note: [[{note_title}]]\nNote ID: {note_id}"
+
+            action = CreateTaskAction(
+                name=task_name,
+                note=task_note,
+                project_name=project_name,
+                due_date=due_date,
+                tags=["scapin", "retouche"],
+            )
+
+            # Validate and execute
+            validation = action.validate()
+            if not validation.is_valid:
+                logger.warning(f"Task validation failed: {validation.errors}")
+                return False
+
+            result = action.execute()
+            if result.success:
+                logger.info(f"Created OmniFocus task: {task_name}")
+                return True
+            else:
+                logger.warning(f"Failed to create task: {result.error}")
+                return False
+
+        except ImportError:
+            logger.warning("OmniFocus integration not available")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to create OmniFocus task: {e}")
+            return False
 
     async def _analyze_with_escalation(
         self,
@@ -669,6 +795,39 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
             if action.content:
                 questions_section = f"\n\n## Questions pour Johan\n\n{action.content}\n"
                 return f"{content.rstrip()}{questions_section}"
+            return content
+
+        if action.action_type == RetoucheAction.SUGGEST_LINKS:
+            # Add suggested wikilinks section
+            if action.content:
+                links_section = f"\n\n## Liens suggérés\n\n{action.content}\n"
+                return f"{content.rstrip()}{links_section}"
+            return content
+
+        if action.action_type == RetoucheAction.CLEANUP:
+            # Content cleanup - mark obsolete sections or remove them
+            # The AI provides the cleaned content directly
+            if action.content:
+                # If confidence is high enough, replace content
+                if action.confidence >= self.AUTO_APPLY_THRESHOLD:
+                    logger.info(f"Cleanup applied: {action.reasoning}")
+                    return action.content
+                # Otherwise, add a warning comment
+                warning = f"\n\n<!-- CLEANUP SUGGÉRÉ ({action.confidence:.0%}): {action.reasoning} -->\n"
+                return f"{content.rstrip()}{warning}"
+            return content
+
+        if action.action_type == RetoucheAction.PROFILE_INSIGHT:
+            # Add behavioral/psychological insight section
+            if action.content:
+                insight_section = f"\n\n## Insights\n\n{action.content}\n"
+                return f"{content.rstrip()}{insight_section}"
+            return content
+
+        if action.action_type == RetoucheAction.CREATE_OMNIFOCUS:
+            # OmniFocus task creation is handled separately, not content modification
+            # Just log it - actual creation happens in review_note
+            logger.info(f"OmniFocus task to create: {action.content}")
             return content
 
         return content
