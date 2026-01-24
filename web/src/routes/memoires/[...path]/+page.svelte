@@ -82,6 +82,13 @@
 		});
 	}
 
+	function extractFolder(path: string): string {
+		const parts = path.split('/');
+		// Remove the filename (last part) to get folder path
+		const folder = parts.slice(0, -1).join('/');
+		return folder || 'Racine';
+	}
+
 	async function handleSave(content: string): Promise<void> {
 		if (!note) return;
 		try {
@@ -181,6 +188,15 @@
 		</div>
 	{:else if note}
 		<main class="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
+			<!-- Folder path -->
+			<div
+				class="flex items-center gap-2 text-sm text-[var(--color-text-tertiary)]"
+				data-testid="note-folder"
+			>
+				<span>📁</span>
+				<span>{extractFolder(note.path)}</span>
+			</div>
+
 			<!-- Meta info -->
 			<div class="flex flex-wrap items-center gap-2">
 				{#if note.pinned}
