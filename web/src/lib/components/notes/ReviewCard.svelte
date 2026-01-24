@@ -135,7 +135,10 @@
 	<!-- SM-2 Metadata - Compact grid -->
 	<div class="p-3 bg-[var(--glass-subtle)] rounded-xl mb-4">
 		<div class="grid grid-cols-4 gap-2 text-center">
-			<div>
+			<div
+				title="Facteur de facilité SM-2 (1.3=difficile, 2.5=facile). Influence l'intervalle entre les révisions."
+				class="cursor-help"
+			>
 				<p class="text-xs text-[var(--color-text-tertiary)]">EF</p>
 				<p class="font-medium text-[var(--color-text-primary)]">
 					{(note.easiness_factor ?? 2.5).toFixed(1)}
