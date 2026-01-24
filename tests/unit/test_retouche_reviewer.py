@@ -389,3 +389,191 @@ class TestRetouchePhase1:
 
         # Verify result is parsed
         assert result["quality_score"] == 75
+
+
+class TestRetouchePhase2:
+    """Tests for Phase 2 - Jinja2 templates per note type."""
+
+    def test_templates_exist(self):
+        """Test that all retouche templates exist."""
+        from pathlib import Path
+
+        template_dir = Path(__file__).parent.parent.parent / "templates" / "ai" / "v2" / "retouche"
+
+        expected_templates = [
+            "retouche_user.j2",
+            "personne.j2",
+            "projet.j2",
+            "reunion.j2",
+            "entite.j2",
+            "processus.j2",
+            "evenement.j2",
+            "generique.j2",
+        ]
+
+        for template in expected_templates:
+            assert (template_dir / template).exists(), f"Template missing: {template}"
+
+    def test_template_renderer_has_render_retouche(self):
+        """Test that TemplateRenderer has render_retouche method."""
+        from src.sancho.template_renderer import TemplateRenderer
+
+        assert hasattr(TemplateRenderer, "render_retouche")
+
+    def test_render_retouche_for_personne(self, reviewer):
+        """Test that render_retouche produces correct output for PERSONNE type."""
+        from src.sancho.template_renderer import get_template_renderer
+
+        mock_note = MagicMock()
+        mock_note.title = "Jean Dupont"
+        mock_note.content = "Directeur technique chez Acme Corp."
+
+        renderer = get_template_renderer()
+        prompt = renderer.render_retouche(
+            note=mock_note,
+            note_type="personne",
+            word_count=50,
+            content=mock_note.content,
+            quality_score=60,
+            linked_notes={"Acme Corp": "Entreprise de technologie..."},
+        )
+
+        # Check note data is present
+        assert "Jean Dupont" in prompt
+        assert "personne" in prompt.lower()
+        assert "50" in prompt  # word count
+
+        # Check PERSONNE-specific instructions are included
+        assert "contact" in prompt.lower()
+        assert "Historique" in prompt or "historique" in prompt
+
+    def test_render_retouche_for_projet(self, reviewer):
+        """Test that render_retouche produces correct output for PROJET type."""
+        from src.sancho.template_renderer import get_template_renderer
+
+        mock_note = MagicMock()
+        mock_note.title = "Migration Cloud"
+        mock_note.content = "Migration des services vers AWS."
+
+        renderer = get_template_renderer()
+        prompt = renderer.render_retouche(
+            note=mock_note,
+            note_type="projet",
+            word_count=100,
+            content=mock_note.content,
+        )
+
+        # Check PROJET-specific instructions are included
+        assert "Migration Cloud" in prompt
+        assert "statut" in prompt.lower() or "status" in prompt.lower()
+        assert "Parties prenantes" in prompt or "parties prenantes" in prompt.lower()
+
+    def test_render_retouche_for_reunion(self, reviewer):
+        """Test that render_retouche produces correct output for REUNION type."""
+        from src.sancho.template_renderer import get_template_renderer
+
+        mock_note = MagicMock()
+        mock_note.title = "Réunion Projet Alpha"
+        mock_note.content = "Participants: Jean, Marie. Décisions: lancer la phase 2."
+
+        renderer = get_template_renderer()
+        prompt = renderer.render_retouche(
+            note=mock_note,
+            note_type="reunion",
+            word_count=80,
+            content=mock_note.content,
+        )
+
+        # Check REUNION-specific instructions are included
+        assert "Réunion Projet Alpha" in prompt
+        assert "Participants" in prompt or "participants" in prompt.lower()
+        assert "Décisions" in prompt or "décisions" in prompt.lower()
+
+    def test_render_retouche_with_frontmatter(self, reviewer):
+        """Test that frontmatter is included in prompt."""
+        from src.sancho.template_renderer import get_template_renderer
+
+        mock_note = MagicMock()
+        mock_note.title = "Test Note"
+        mock_note.content = "Some content"
+
+        renderer = get_template_renderer()
+        prompt = renderer.render_retouche(
+            note=mock_note,
+            note_type="autre",
+            word_count=50,
+            content=mock_note.content,
+            frontmatter="title: Test Note\ntags: [test]",
+        )
+
+        # Check frontmatter section is present
+        assert "Frontmatter" in prompt
+        assert "tags:" in prompt
+
+    def test_render_retouche_with_linked_notes(self, reviewer):
+        """Test that linked notes are included in prompt."""
+        from src.sancho.template_renderer import get_template_renderer
+
+        mock_note = MagicMock()
+        mock_note.title = "Main Note"
+        mock_note.content = "References [[Other Note]]"
+
+        renderer = get_template_renderer()
+        prompt = renderer.render_retouche(
+            note=mock_note,
+            note_type="projet",
+            word_count=50,
+            content=mock_note.content,
+            linked_notes={
+                "Other Note": "This is the excerpt from Other Note...",
+                "Another Note": "Another excerpt here...",
+            },
+        )
+
+        # Check linked notes section is present
+        assert "Notes liées" in prompt
+        assert "Other Note" in prompt
+        assert "Another Note" in prompt
+
+    def test_build_retouche_prompt_uses_template(self, reviewer, mock_note_manager):
+        """Test that _build_retouche_prompt uses TemplateRenderer."""
+        mock_note = MagicMock()
+        mock_note.title = "Template Test"
+        mock_note.content = "---\ntitle: Template Test\n---\n\nContent here."
+
+        context = RetoucheContext(
+            note=mock_note,
+            metadata=NoteMetadata(note_id="test-001", note_type=NoteType.PERSONNE),
+            word_count=50,
+            has_summary=False,
+            section_count=1,
+            linked_note_excerpts={"Related": "Related content..."},
+        )
+
+        prompt = reviewer._build_retouche_prompt(context)
+
+        # Check template was used (should have structured format)
+        assert "Template Test" in prompt
+        assert "personne" in prompt.lower()
+        assert "50" in prompt  # word count
+
+    def test_unknown_note_type_uses_generique(self, reviewer):
+        """Test that unknown note types fall back to generique template."""
+        from src.sancho.template_renderer import get_template_renderer
+
+        mock_note = MagicMock()
+        mock_note.title = "Unknown Type Note"
+        mock_note.content = "Some random content."
+
+        renderer = get_template_renderer()
+        prompt = renderer.render_retouche(
+            note=mock_note,
+            note_type="unknown_type",
+            word_count=30,
+            content=mock_note.content,
+        )
+
+        # Should use generique template instructions
+        assert "Unknown Type Note" in prompt
+        # generique template should have general focus points
+        assert "Structure" in prompt or "structure" in prompt.lower()

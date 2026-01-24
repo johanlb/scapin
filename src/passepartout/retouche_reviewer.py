@@ -37,6 +37,7 @@ from src.sancho.analysis_engine import (
     JSONParseError,
     ModelTier,
 )
+from src.sancho.template_renderer import get_template_renderer
 
 if TYPE_CHECKING:
     from src.sancho.router import AIRouter
@@ -495,9 +496,9 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
 
     def _build_retouche_prompt(self, context: RetoucheContext) -> str:
         """
-        Build user prompt for AI Retouche analysis.
+        Build user prompt for AI Retouche analysis using Jinja2 templates.
 
-        This is the dynamic part of the prompt containing note data.
+        Uses specialized templates per note type for focused instructions.
         The static instructions are in SYSTEM_PROMPT (cacheable).
 
         Args:
@@ -506,35 +507,38 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
         Returns:
             User prompt string with note data
         """
-        # Build linked notes context
-        linked_context = ""
-        if context.linked_note_excerpts:
-            linked_context = "\n## Notes liées (contexte)\n"
-            for title, excerpt in list(context.linked_note_excerpts.items())[:5]:
-                linked_context += f"\n### [[{title}]]\n{excerpt[:300]}...\n"
-
         # Get note type safely
         note_type = "inconnu"
         if context.metadata and context.metadata.note_type:
             note_type = context.metadata.note_type.value
 
-        # Build user prompt with note data only
-        return f"""## Note à analyser
+        # Extract frontmatter from content
+        frontmatter = None
+        if context.note.content.startswith("---"):
+            parts = context.note.content.split("---", 2)
+            if len(parts) >= 3:
+                frontmatter = parts[1].strip()
 
-**Titre** : {context.note.title}
-**Type** : {note_type}
-**Mots** : {context.word_count}
-**Sections** : {context.section_count}
-**Résumé présent** : {'Oui' if context.has_summary else 'Non'}
-**Questions existantes** : {context.question_count}
+        # Get quality score from metadata
+        quality_score = context.metadata.quality_score if context.metadata else None
 
-## Contenu actuel
+        # Get updated_at from metadata or note
+        updated_at = None
+        if context.metadata and context.metadata.updated_at:
+            updated_at = context.metadata.updated_at.isoformat()
 
-{context.note.content[:4000]}
-{linked_context}
-
-Analyse cette note et propose des améliorations selon les règles définies.
-"""
+        # Use TemplateRenderer for specialized prompts per note type
+        renderer = get_template_renderer()
+        return renderer.render_retouche(
+            note=context.note,
+            note_type=note_type,
+            word_count=context.word_count,
+            content=context.note.content,
+            quality_score=quality_score,
+            updated_at=updated_at,
+            frontmatter=frontmatter,
+            linked_notes=context.linked_note_excerpts,
+        )
 
     async def _call_ai_router(
         self,

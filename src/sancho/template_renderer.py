@@ -448,6 +448,50 @@ class TemplateRenderer:
         )
         return SplitPrompt(system=system, user=user)
 
+    # ==================== Retouche Rendering (v3.3) ====================
+    #
+    # Templates for note quality improvement (Retouche system).
+    # Uses specialized prompts per note type.
+
+    def render_retouche(
+        self,
+        note: Any,
+        note_type: str,
+        word_count: int,
+        content: str,
+        quality_score: Optional[int] = None,
+        updated_at: Optional[str] = None,
+        frontmatter: Optional[str] = None,
+        linked_notes: Optional[dict[str, str]] = None,
+    ) -> str:
+        """
+        Render Retouche user prompt for a note.
+
+        Args:
+            note: Note object with title attribute
+            note_type: Type of note (personne, projet, reunion, etc.)
+            word_count: Word count of the note
+            content: Full note content
+            quality_score: Current quality score (0-100) or None
+            updated_at: Last modification date string
+            frontmatter: YAML frontmatter string
+            linked_notes: Dict of {title: excerpt} for linked notes
+
+        Returns:
+            Rendered user prompt string
+        """
+        return self.render(
+            "retouche/retouche_user",
+            note=note,
+            note_type=note_type.lower() if note_type else "inconnu",
+            word_count=word_count,
+            content=content,
+            quality_score=quality_score,
+            updated_at=updated_at,
+            frontmatter=frontmatter,
+            linked_notes=linked_notes or {},
+        )
+
     # Custom Jinja2 filters
 
     @staticmethod
