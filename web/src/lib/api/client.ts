@@ -3313,6 +3313,178 @@ export async function deleteOrphanQuestion(
 	);
 }
 
+// ============================================================================
+// RETOUCHE LIFECYCLE ACTIONS TYPES & API
+// ============================================================================
+
+/**
+ * Type of retouche lifecycle action
+ */
+type RetoucheActionType = 'flag_obsolete' | 'merge_into' | 'move_to_folder';
+
+/**
+ * Pending retouche action awaiting human approval
+ */
+interface PendingRetoucheAction {
+	action_id: string;
+	note_id: string;
+	note_title: string;
+	note_path: string;
+	action_type: RetoucheActionType;
+	confidence: number;
+	reasoning: string;
+	target_note_id?: string | null;
+	target_note_title?: string | null;
+	target_folder?: string | null;
+	created_at?: string | null;
+}
+
+/**
+ * Queue of pending retouche actions
+ */
+interface RetoucheActionsQueue {
+	pending_actions: PendingRetoucheAction[];
+	total_count: number;
+	by_type: Record<string, number>;
+}
+
+/**
+ * Result of approving/rejecting a retouche action
+ */
+interface RetoucheActionResult {
+	success: boolean;
+	action_id: string;
+	note_id: string;
+	action_type: string;
+	message: string;
+	applied: boolean;
+	rollback_available: boolean;
+	rollback_token?: string | null;
+}
+
+/**
+ * Result of rolling back an action
+ */
+interface RetoucheRollbackResult {
+	success: boolean;
+	note_id: string;
+	action_type: string;
+	message: string;
+}
+
+/**
+ * Result of batch approval
+ */
+interface RetoucheBatchResult {
+	success: boolean;
+	approved_count: number;
+	failed_count: number;
+	results: RetoucheActionResult[];
+}
+
+/**
+ * Lifecycle status for a note
+ */
+interface NoteLifecycleStatus {
+	note_id: string;
+	obsolete_flag: boolean;
+	obsolete_reason: string;
+	merge_target_id?: string | null;
+	merge_target_title?: string | null;
+	pending_actions_count: number;
+	quality_score?: number | null;
+}
+
+/**
+ * Get all pending retouche actions awaiting approval
+ */
+export async function getPendingRetoucheActions(): Promise<RetoucheActionsQueue> {
+	return fetchApi<RetoucheActionsQueue>('/retouche/pending');
+}
+
+/**
+ * Approve a pending retouche action
+ */
+export async function approveRetoucheAction(
+	actionId: string,
+	noteId: string,
+	applyImmediately = true,
+	customParams?: Record<string, unknown>
+): Promise<RetoucheActionResult> {
+	return fetchApi<RetoucheActionResult>('/retouche/approve', {
+		method: 'POST',
+		body: JSON.stringify({
+			action_id: actionId,
+			note_id: noteId,
+			apply_immediately: applyImmediately,
+			custom_params: customParams
+		})
+	});
+}
+
+/**
+ * Reject a pending retouche action
+ */
+export async function rejectRetoucheAction(
+	actionId: string,
+	noteId: string,
+	reason?: string,
+	suppressFuture = false
+): Promise<RetoucheActionResult> {
+	return fetchApi<RetoucheActionResult>('/retouche/reject', {
+		method: 'POST',
+		body: JSON.stringify({
+			action_id: actionId,
+			note_id: noteId,
+			reason,
+			suppress_future: suppressFuture
+		})
+	});
+}
+
+/**
+ * Rollback a previously applied retouche action
+ */
+export async function rollbackRetoucheAction(
+	rollbackToken: string,
+	noteId: string
+): Promise<RetoucheRollbackResult> {
+	return fetchApi<RetoucheRollbackResult>('/retouche/rollback', {
+		method: 'POST',
+		body: JSON.stringify({
+			rollback_token: rollbackToken,
+			note_id: noteId
+		})
+	});
+}
+
+/**
+ * Batch approve multiple pending actions
+ */
+export async function batchApproveRetoucheActions(
+	actionIds: string[],
+	noteIds: string[]
+): Promise<RetoucheBatchResult> {
+	return fetchApi<RetoucheBatchResult>('/retouche/batch-approve', {
+		method: 'POST',
+		body: JSON.stringify({
+			action_ids: actionIds,
+			note_ids: noteIds
+		})
+	});
+}
+
+/**
+ * Get lifecycle status for a note
+ */
+export async function getNoteLifecycleStatus(
+	noteId: string
+): Promise<NoteLifecycleStatus> {
+	return fetchApi<NoteLifecycleStatus>(
+		`/retouche/note/${encodeURIComponent(noteId)}/lifecycle`
+	);
+}
+
 export { ApiError };
 
 export type {
@@ -3323,5 +3495,13 @@ export type {
 	LectureResult,
 	PendingQuestion,
 	QuestionsListResponse,
-	LectureStats
+	LectureStats,
+	// Retouche Lifecycle types
+	RetoucheActionType,
+	PendingRetoucheAction,
+	RetoucheActionsQueue,
+	RetoucheActionResult,
+	RetoucheRollbackResult,
+	RetoucheBatchResult,
+	NoteLifecycleStatus
 };

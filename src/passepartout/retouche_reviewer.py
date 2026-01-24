@@ -59,6 +59,10 @@ class RetoucheAction(str, Enum):
     CLEANUP = "cleanup"  # Supprimer contenu obsolète
     PROFILE_INSIGHT = "profile_insight"  # Ajouter analyse comportementale
     CREATE_OMNIFOCUS = "create_omnifocus"  # Créer tâche OmniFocus
+    # Phase 4: Cycle de vie des notes (v3)
+    FLAG_OBSOLETE = "flag_obsolete"  # Marquer note obsolète → Filage (toujours)
+    MERGE_INTO = "merge_into"  # Fusionner dans une autre note → Auto/Filage
+    MOVE_TO_FOLDER = "move_to_folder"  # Classer dans le bon dossier → Auto
 
 
 @dataclass
@@ -72,6 +76,11 @@ class RetoucheActionResult:
     reasoning: str = ""
     applied: bool = False
     model_used: str = "haiku"  # Which model performed this action
+    # Pour MERGE_INTO: note cible
+    target_note_id: Optional[str] = None
+    target_note_title: Optional[str] = None
+    # Pour actions en attente de confirmation (Filage)
+    requires_confirmation: bool = False
 
 
 @dataclass
@@ -141,6 +150,8 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
 4. Confiance > 0.85 pour actions auto-applicables
 
 ## Actions disponibles
+
+### Actions d'amélioration (auto si confiance >= 0.85)
 - score : Évaluer qualité 0-100 (structure, complétude, liens)
 - structure : Réorganiser les sections pour plus de clarté
 - enrich : Compléter les informations manquantes mais implicites
@@ -148,6 +159,21 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
 - inject_questions : Poser des questions stratégiques pour Johan
 - suggest_links : Proposer des wikilinks [[Note]] pertinents
 - cleanup : Identifier le contenu obsolète à supprimer
+
+### Actions de cycle de vie
+- flag_obsolete : Marquer la note comme obsolète.
+  TOUJOURS nécessite validation humaine (Filage). Fournir "reasoning" détaillé.
+  Utiliser si : contenu périmé, note dupliquée sans valeur, contenu incompréhensible.
+- merge_into : Fusionner cette note dans une autre.
+  Auto si confiance >= 0.85, sinon Filage.
+  Fournir "target_note_title" (titre de la note cible) dans le JSON.
+  Utiliser si : contenu redondant avec une autre note, fragment à consolider.
+- move_to_folder : Classer la note dans le bon dossier.
+  Auto si confiance >= 0.85.
+  Fournir le dossier cible dans "content".
+  Dossiers possibles : Personnes, Projets, Entités, Réunions, Processus, Événements, Souvenirs
+
+### Actions avancées
 - restructure_graph : Proposer split/merge (confiance 0.95 requise)
 
 ## Format de réponse JSON
@@ -160,7 +186,8 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
       "target": "section ou champ ciblé",
       "content": "nouveau contenu (si applicable)",
       "confidence": 0.0-1.0,
-      "reasoning": "justification de cette action"
+      "reasoning": "justification de cette action",
+      "target_note_title": "titre note cible (pour merge_into uniquement)"
     }
   ]
 }
@@ -261,6 +288,9 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
 
         # Apply content changes
         tasks_created = 0
+        moves_applied = 0
+        pending_actions: list[dict] = []
+
         for action in actions:
             if action.action_type == RetoucheAction.CREATE_OMNIFOCUS:
                 # Handle OmniFocus task creation separately
@@ -272,6 +302,38 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
                     )
                     if success:
                         tasks_created += 1
+
+            elif action.action_type == RetoucheAction.MOVE_TO_FOLDER:
+                # Déplacer la note vers le bon dossier
+                if action.content and action.applied:
+                    target_folder = f"Personal Knowledge Management/{action.content}"
+                    try:
+                        self.notes.move_note(note_id, target_folder)
+                        moves_applied += 1
+                        logger.info(
+                            f"Note moved to {target_folder}",
+                            extra={"note_id": note_id, "folder": action.content},
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to move note: {e}",
+                            extra={"note_id": note_id, "folder": action.content},
+                        )
+
+            elif action.action_type == RetoucheAction.MERGE_INTO:
+                # MERGE_INTO avec auto-apply : fusionner et archiver
+                if action.applied and action.target_note_title:
+                    merged = await self._execute_merge(
+                        source_note_id=note_id,
+                        target_note_title=action.target_note_title,
+                        source_content=note.content,
+                    )
+                    if merged:
+                        logger.info(
+                            f"Note merged into {action.target_note_title}",
+                            extra={"note_id": note_id},
+                        )
+
             elif action.content and action.action_type in (
                 RetoucheAction.ENRICH,
                 RetoucheAction.STRUCTURE,
@@ -282,6 +344,21 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
                 RetoucheAction.INJECT_QUESTIONS,
             ):
                 updated_content = self._apply_action(updated_content, action)
+
+        # Collecter les actions en attente de confirmation (Filage)
+        for action in analysis_result.actions:
+            if action.requires_confirmation:
+                pending_actions.append({
+                    "action_id": f"{note_id}_{action.action_type.value}_{datetime.now(timezone.utc).timestamp()}",
+                    "action_type": action.action_type.value,
+                    "target": action.target,
+                    "content": action.content,
+                    "confidence": action.confidence,
+                    "reasoning": action.reasoning,
+                    "target_note_id": action.target_note_id,
+                    "target_note_title": action.target_note_title,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                })
 
         # Calculate new quality score
         quality_after = self._calculate_quality_score(context, analysis_result)
@@ -298,6 +375,16 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
         if questions_added > 0:
             metadata.questions_pending = True
             metadata.questions_count += questions_added
+
+        # Store pending actions for Filage confirmation
+        if pending_actions:
+            # Append to existing pending_actions if any
+            existing_pending = getattr(metadata, "pending_actions", []) or []
+            metadata.pending_actions = existing_pending + pending_actions
+            logger.info(
+                f"Added {len(pending_actions)} pending actions for Filage",
+                extra={"note_id": note_id, "actions": [a["action_type"] for a in pending_actions]},
+            )
 
         # Record actions in enrichment_history
         now = datetime.now(timezone.utc)
@@ -747,10 +834,25 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
 
             confidence = float(action_data.get("confidence", 0.5))
             should_apply = confidence >= self.AUTO_APPLY_THRESHOLD
+            requires_confirmation = False
 
             # Restructure actions need very high confidence
             if action_type == RetoucheAction.RESTRUCTURE_GRAPH:
                 should_apply = confidence >= self.RESTRUCTURE_THRESHOLD
+
+            # FLAG_OBSOLETE : TOUJOURS nécessite confirmation humaine
+            elif action_type == RetoucheAction.FLAG_OBSOLETE:
+                should_apply = False  # Jamais auto
+                requires_confirmation = True
+
+            # MERGE_INTO : Auto si >= 0.85, sinon Filage
+            elif action_type == RetoucheAction.MERGE_INTO:
+                should_apply = confidence >= self.AUTO_APPLY_THRESHOLD
+                requires_confirmation = confidence < self.AUTO_APPLY_THRESHOLD
+
+            # MOVE_TO_FOLDER : Auto si >= 0.85
+            elif action_type == RetoucheAction.MOVE_TO_FOLDER:
+                should_apply = confidence >= self.AUTO_APPLY_THRESHOLD
 
             actions.append(
                 RetoucheActionResult(
@@ -761,6 +863,9 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
                     reasoning=action_data.get("reasoning", ""),
                     applied=should_apply,
                     model_used=model,
+                    target_note_id=action_data.get("target_note_id"),
+                    target_note_title=action_data.get("target_note_title"),
+                    requires_confirmation=requires_confirmation,
                 )
             )
 
@@ -830,7 +935,86 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
             logger.info(f"OmniFocus task to create: {action.content}")
             return content
 
+        if action.action_type == RetoucheAction.FLAG_OBSOLETE:
+            # FLAG_OBSOLETE ne modifie pas le contenu
+            # L'action est stockée dans pending_actions et traitée via Filage
+            logger.info(f"Note flagged as obsolete: {action.reasoning}")
+            return content
+
+        if action.action_type == RetoucheAction.MERGE_INTO:
+            # MERGE_INTO ne modifie pas le contenu de la note source
+            # L'action est appliquée via le service (append à la cible + soft delete source)
+            logger.info(
+                f"Merge requested into: {action.target_note_title or action.target}"
+            )
+            return content
+
+        if action.action_type == RetoucheAction.MOVE_TO_FOLDER:
+            # MOVE_TO_FOLDER ne modifie pas le contenu
+            # Le déplacement est géré par NoteManager.move_note() dans review_note
+            logger.info(f"Move to folder requested: {action.content}")
+            return content
+
         return content
+
+    async def _execute_merge(
+        self,
+        source_note_id: str,
+        target_note_title: str,
+        source_content: str,
+    ) -> bool:
+        """
+        Execute automatic merge of source note into target note.
+
+        Args:
+            source_note_id: ID of the note to merge (will be archived)
+            target_note_title: Title of the note to merge into
+            source_content: Content of the source note
+
+        Returns:
+            True if merge was successful
+        """
+        try:
+            # Find target note by title
+            target_results = self.notes.search_notes(query=target_note_title, top_k=1)
+            if not target_results:
+                logger.warning(
+                    f"Merge target not found: {target_note_title}",
+                    extra={"source_note_id": source_note_id},
+                )
+                return False
+
+            target_note = target_results[0]
+            if isinstance(target_note, tuple):
+                target_note = target_note[0]
+
+            # Append source content to target
+            merged_content = f"{target_note.content.rstrip()}\n\n---\n\n## Contenu fusionné\n\n{source_content}"
+            self.notes.update_note(
+                note_id=target_note.note_id,
+                content=merged_content,
+            )
+
+            # Soft delete source note (move to _Supprimées)
+            self.notes.delete_note(source_note_id)
+
+            logger.info(
+                f"Merge completed: {source_note_id} → {target_note.note_id}",
+                extra={
+                    "source_id": source_note_id,
+                    "target_id": target_note.note_id,
+                    "target_title": target_note_title,
+                },
+            )
+            return True
+
+        except Exception as e:
+            logger.error(
+                f"Merge failed: {e}",
+                extra={"source_note_id": source_note_id, "target_title": target_note_title},
+                exc_info=True,
+            )
+            return False
 
     def _calculate_quality_score(
         self,

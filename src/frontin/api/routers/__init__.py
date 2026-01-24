@@ -13,6 +13,7 @@ from src.frontin.api.routers.media import router as media_router
 from src.frontin.api.routers.notes import router as notes_router
 from src.frontin.api.routers.notifications import router as notifications_router
 from src.frontin.api.routers.queue import router as queue_router
+from src.frontin.api.routers.retouche import router as retouche_router
 from src.frontin.api.routers.search import router as search_router
 from src.frontin.api.routers.stats import router as stats_router
 from src.frontin.api.routers.system import router as system_router
@@ -34,6 +35,7 @@ __all__ = [
     "notes_router",
     "notifications_router",
     "queue_router",
+    "retouche_router",
     "search_router",
     "stats_router",
     "system_router",

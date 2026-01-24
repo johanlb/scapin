@@ -119,6 +119,57 @@ class RetoucheAlertItem:
 
 
 @dataclass
+class PendingRetoucheAction:
+    """
+    Pending retouche action awaiting human approval in Filage.
+
+    These are critical lifecycle actions (FLAG_OBSOLETE, MERGE_INTO, etc.)
+    that require explicit human decision before being applied.
+
+    Attributes:
+        action_id: Unique identifier for this action
+        note_id: ID of the note this action applies to
+        note_title: Title of the note
+        note_path: Path to the note
+        action_type: Type of action (flag_obsolete, merge_into, move_to_folder)
+        confidence: AI confidence score (0.0-1.0)
+        reasoning: AI explanation for suggesting this action
+        target_note_id: For merge_into - ID of the target note
+        target_note_title: For merge_into - title of target note
+        target_folder: For move_to_folder - target folder path
+        created_at: When this action was proposed
+    """
+
+    action_id: str
+    note_id: str
+    note_title: str
+    note_path: str
+    action_type: str  # flag_obsolete, merge_into, move_to_folder
+    confidence: float
+    reasoning: str
+    target_note_id: Optional[str] = None
+    target_note_title: Optional[str] = None
+    target_folder: Optional[str] = None
+    created_at: Optional[str] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization"""
+        return {
+            "action_id": self.action_id,
+            "note_id": self.note_id,
+            "note_title": self.note_title,
+            "note_path": self.note_path,
+            "action_type": self.action_type,
+            "confidence": self.confidence,
+            "reasoning": self.reasoning,
+            "target_note_id": self.target_note_id,
+            "target_note_title": self.target_note_title,
+            "target_folder": self.target_folder,
+            "created_at": self.created_at,
+        }
+
+
+@dataclass
 class MorningBriefing:
     """
     Morning briefing aggregating all sources
@@ -130,6 +181,7 @@ class MorningBriefing:
     - Unread Teams messages
     - Orphan strategic questions requiring attention
     - Retouche alerts for notes needing attention
+    - Pending retouche actions awaiting approval
 
     Designed for multi-layer display:
     - Layer 1 (5s): Quick stats overview
@@ -145,6 +197,7 @@ class MorningBriefing:
         teams_unread: Unread Teams messages
         orphan_questions: Strategic questions without target notes
         retouche_alerts: Retouche alerts for notes needing attention
+        pending_retouche_actions: Lifecycle actions awaiting human approval
         ai_summary: AI-generated 2-3 sentence summary
         key_decisions: Key decisions to be made today
         total_items: Total count of all items
@@ -152,6 +205,7 @@ class MorningBriefing:
         meetings_today: Number of meetings today
         orphan_questions_count: Count of orphan questions
         retouche_alerts_count: Count of retouche alerts
+        pending_retouche_count: Count of pending retouche actions
     """
 
     date: date
@@ -171,6 +225,9 @@ class MorningBriefing:
     # Retouche alerts (v3.3 - Phase 6)
     retouche_alerts: list[RetoucheAlertItem] = field(default_factory=list)
 
+    # Pending retouche actions awaiting approval (v3.3 - Lifecycle)
+    pending_retouche_actions: list[PendingRetoucheAction] = field(default_factory=list)
+
     # AI-generated insights
     ai_summary: Optional[str] = None
     key_decisions: list[str] = field(default_factory=list)
@@ -181,6 +238,7 @@ class MorningBriefing:
     meetings_today: int = 0
     orphan_questions_count: int = 0
     retouche_alerts_count: int = 0
+    pending_retouche_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
@@ -193,6 +251,7 @@ class MorningBriefing:
             "teams_unread": [item.to_dict() for item in self.teams_unread],
             "orphan_questions": [q.to_dict() for q in self.orphan_questions],
             "retouche_alerts": [a.to_dict() for a in self.retouche_alerts],
+            "pending_retouche_actions": [a.to_dict() for a in self.pending_retouche_actions],
             "ai_summary": self.ai_summary,
             "key_decisions": self.key_decisions,
             "total_items": self.total_items,
@@ -200,6 +259,7 @@ class MorningBriefing:
             "meetings_today": self.meetings_today,
             "orphan_questions_count": self.orphan_questions_count,
             "retouche_alerts_count": self.retouche_alerts_count,
+            "pending_retouche_count": self.pending_retouche_count,
         }
 
     def to_markdown(self) -> str:
@@ -222,6 +282,7 @@ class MorningBriefing:
             f"- **Unread Teams**: {len(self.teams_unread)}",
             f"- **Questions stratégiques**: {self.orphan_questions_count}",
             f"- **Alertes retouche**: {self.retouche_alerts_count}",
+            f"- **Actions à approuver**: {self.pending_retouche_count}",
             "",
         ]
 
@@ -323,6 +384,35 @@ class MorningBriefing:
                 lines.append(f"- {alert_icon} **[[{alert.note_title}]]**")
                 lines.append(f"  - {alert.message}")
                 lines.append(f"  - Confiance: {alert.confidence:.0%}")
+            lines.append("")
+
+        # Pending retouche actions (v3.3 - Lifecycle)
+        if self.pending_retouche_actions:
+            lines.extend([
+                "## Actions à Approuver",
+                "",
+                "*Actions de gestion du cycle de vie des notes en attente:*",
+                "",
+            ])
+            for action in self.pending_retouche_actions:
+                action_icon = {
+                    "flag_obsolete": "🗑️",
+                    "merge_into": "🔀",
+                    "move_to_folder": "📁",
+                }.get(action.action_type, "⚙️")
+
+                lines.append(f"- {action_icon} **[[{action.note_title}]]**")
+
+                if action.action_type == "flag_obsolete":
+                    lines.append("  - Action: Marquer comme obsolète")
+                elif action.action_type == "merge_into":
+                    target = action.target_note_title or action.target_note_id
+                    lines.append(f"  - Action: Fusionner dans [[{target}]]")
+                elif action.action_type == "move_to_folder":
+                    lines.append(f"  - Action: Déplacer vers {action.target_folder}")
+
+                lines.append(f"  - Raison: {action.reasoning}")
+                lines.append(f"  - Confiance: {action.confidence:.0%}")
             lines.append("")
 
         # Key decisions

@@ -19,6 +19,7 @@ from src.frontin.briefing.models import (
     BriefingItem,
     MorningBriefing,
     OrphanQuestionItem,
+    PendingRetoucheAction,
     PreMeetingBriefing,
     RetoucheAlertItem,
 )
@@ -242,6 +243,9 @@ class BriefingGenerator:
         # Load retouche alerts (v3.3 - Phase 6)
         retouche_alert_items = self._load_retouche_alerts()
 
+        # Load pending retouche actions awaiting approval (v3.3 - Lifecycle)
+        pending_action_items = self._load_pending_retouche_actions()
+
         # Build briefing
         briefing = MorningBriefing(
             date=target_date,
@@ -258,11 +262,13 @@ class BriefingGenerator:
             ),
             orphan_questions=orphan_question_items,
             retouche_alerts=retouche_alert_items,
+            pending_retouche_actions=pending_action_items,
             total_items=len(all_events),
             urgent_count=len(urgent_items),
             meetings_today=meetings_count,
             orphan_questions_count=len(orphan_question_items),
             retouche_alerts_count=len(retouche_alert_items),
+            pending_retouche_count=len(pending_action_items),
         )
 
         # Generate AI summary if enabled
@@ -524,6 +530,61 @@ class BriefingGenerator:
 
         except Exception as e:
             logger.warning(f"Failed to load retouche alerts: {e}")
+            return []
+
+    def _load_pending_retouche_actions(self) -> list[PendingRetoucheAction]:
+        """
+        Load pending retouche actions awaiting human approval.
+
+        These are lifecycle actions (FLAG_OBSOLETE, MERGE_INTO, MOVE_TO_FOLDER)
+        that require explicit human decision in the Filage before being applied.
+
+        Returns:
+            List of PendingRetoucheAction for display in the briefing
+        """
+        try:
+            from pathlib import Path
+
+            from src.passepartout.note_manager import NoteManager
+            from src.passepartout.note_metadata import NoteMetadataStore
+
+            # Get metadata store
+            data_dir = Path("data")
+            meta_store = NoteMetadataStore(data_dir / "notes_meta.db")
+            note_manager = NoteManager(data_dir / "notes_cache.db")
+
+            actions: list[PendingRetoucheAction] = []
+
+            # Get notes with pending actions
+            notes_with_pending = meta_store.get_notes_with_pending_actions(limit=50)
+
+            for meta in notes_with_pending:
+                # Get note info
+                note = note_manager.get_note(meta.note_id)
+                if note is None:
+                    continue
+
+                for action_data in meta.pending_actions:
+                    action = PendingRetoucheAction(
+                        action_id=action_data.get("id", ""),
+                        note_id=meta.note_id,
+                        note_title=note.title,
+                        note_path=note.path or "",
+                        action_type=action_data.get("type", "unknown"),
+                        confidence=action_data.get("confidence", 0.0),
+                        reasoning=action_data.get("reasoning", ""),
+                        target_note_id=action_data.get("target_note_id"),
+                        target_note_title=action_data.get("target_note_title"),
+                        target_folder=action_data.get("target_folder"),
+                        created_at=action_data.get("created_at"),
+                    )
+                    actions.append(action)
+
+            logger.debug(f"Loaded {len(actions)} pending retouche actions for briefing")
+            return actions[:20]  # Limit to 20 actions
+
+        except Exception as e:
+            logger.warning(f"Failed to load pending retouche actions: {e}")
             return []
 
     def _extract_urgent(

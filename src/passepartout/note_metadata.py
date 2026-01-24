@@ -33,7 +33,7 @@ WAL_CHECKPOINT_THRESHOLD = 1000  # Checkpoint after this many operations
 logger = get_logger("passepartout.note_metadata")
 
 # Database schema version for migrations
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # Importance level ordering for priority sorting (lower value = higher priority)
 IMPORTANCE_ORDER: dict[ImportanceLevel, int] = {
@@ -146,6 +146,12 @@ class NoteMetadata:
     quality_score: Optional[int] = None  # 0-100, overall quality score
     questions_pending: bool = False  # Has unanswered questions for Johan
     questions_count: int = 0  # Number of pending questions
+
+    # === Cycle de vie des notes (v3) ===
+    pending_actions: list[dict] = field(default_factory=list)  # Actions en attente de confirmation Filage
+    obsolete_flag: bool = False  # Note marquée comme obsolète
+    obsolete_reason: str = ""  # Raison de l'obsolescence
+    merge_target_id: Optional[str] = None  # ID de la note cible pour fusion
 
     def is_due_for_review(self, now: Optional[datetime] = None) -> bool:
         """Check if note is due for review"""
@@ -401,6 +407,8 @@ class NoteMetadataStore:
             # Run migrations if needed
             if current_version < 2:
                 self._migrate_v1_to_v2(cursor)
+            if current_version < 3:
+                self._migrate_v2_to_v3(cursor)
 
             # Create indexes for common queries
             cursor.execute("""
@@ -541,6 +549,54 @@ class NoteMetadataStore:
 
         logger.info("Migration v1 to v2 completed successfully")
 
+    def _migrate_v2_to_v3(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Migrate from schema v2 to v3: Add lifecycle fields (pending_actions, obsolete).
+
+        Migration strategy:
+        - Add pending_actions as JSON text (default '[]')
+        - Add obsolete_flag, obsolete_reason, merge_target_id
+        """
+        logger.info("Migrating database schema from v2 to v3 (lifecycle support)")
+
+        # Check which columns already exist
+        cursor.execute("PRAGMA table_info(note_metadata)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+
+        # Lifecycle columns
+        new_columns = [
+            ("pending_actions", "TEXT NOT NULL DEFAULT '[]'"),
+            ("obsolete_flag", "INTEGER NOT NULL DEFAULT 0"),
+            ("obsolete_reason", "TEXT NOT NULL DEFAULT ''"),
+            ("merge_target_id", "TEXT"),
+        ]
+
+        for col_name, col_type in new_columns:
+            if col_name not in existing_columns:
+                cursor.execute(
+                    f"ALTER TABLE note_metadata ADD COLUMN {col_name} {col_type}"
+                )
+                logger.debug(f"Added column {col_name}")
+
+        # Create index for pending actions queries
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pending_actions
+            ON note_metadata(pending_actions)
+            WHERE pending_actions != '[]'
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_obsolete_flag
+            ON note_metadata(obsolete_flag)
+            WHERE obsolete_flag = 1
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_merge_target
+            ON note_metadata(merge_target_id)
+            WHERE merge_target_id IS NOT NULL
+        """)
+
+        logger.info("Migration v2 to v3 completed successfully")
+
     def _parse_datetime_safe(self, val: Optional[str], field_name: str = "") -> Optional[datetime]:
         """
         Safely parse datetime string with error handling
@@ -632,6 +688,11 @@ class NoteMetadataStore:
             quality_score=get_row_value("quality_score", None),
             questions_pending=bool(get_row_value("questions_pending", False)),
             questions_count=get_row_value("questions_count", 0),
+            # v3: Lifecycle fields
+            pending_actions=json.loads(get_row_value("pending_actions", "[]")),
+            obsolete_flag=bool(get_row_value("obsolete_flag", False)),
+            obsolete_reason=get_row_value("obsolete_reason", ""),
+            merge_target_id=get_row_value("merge_target_id", None),
         )
 
     def save(self, metadata: NoteMetadata) -> None:
@@ -647,6 +708,9 @@ class NoteMetadataStore:
             # Serialize enrichment history
             history_json = json.dumps([h.to_dict() for h in metadata.enrichment_history])
 
+            # Serialize pending_actions JSON
+            pending_actions_json = json.dumps(metadata.pending_actions)
+
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO note_metadata (
@@ -659,8 +723,9 @@ class NoteMetadataStore:
                     retouche_next, retouche_last, retouche_count,
                     lecture_ef, lecture_rep, lecture_interval,
                     lecture_next, lecture_last, lecture_count,
-                    quality_score, questions_pending, questions_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    quality_score, questions_pending, questions_count,
+                    pending_actions, obsolete_flag, obsolete_reason, merge_target_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     metadata.note_id,
@@ -695,6 +760,11 @@ class NoteMetadataStore:
                     metadata.quality_score,
                     int(metadata.questions_pending),
                     metadata.questions_count,
+                    # v3: Lifecycle fields
+                    pending_actions_json,
+                    int(metadata.obsolete_flag),
+                    metadata.obsolete_reason,
+                    metadata.merge_target_id,
                 ),
             )
 
@@ -723,6 +793,7 @@ class NoteMetadataStore:
             data_tuples = []
             for metadata in metadata_list:
                 history_json = json.dumps([h.to_dict() for h in metadata.enrichment_history])
+                pending_actions_json = json.dumps(metadata.pending_actions)
                 data_tuples.append(
                     (
                         metadata.note_id,
@@ -757,6 +828,11 @@ class NoteMetadataStore:
                         metadata.quality_score,
                         int(metadata.questions_pending),
                         metadata.questions_count,
+                        # v3: Lifecycle fields
+                        pending_actions_json,
+                        int(metadata.obsolete_flag),
+                        metadata.obsolete_reason,
+                        metadata.merge_target_id,
                     )
                 )
 
@@ -772,8 +848,9 @@ class NoteMetadataStore:
                     retouche_next, retouche_last, retouche_count,
                     lecture_ef, lecture_rep, lecture_interval,
                     lecture_next, lecture_last, lecture_count,
-                    quality_score, questions_pending, questions_count
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    quality_score, questions_pending, questions_count,
+                    pending_actions, obsolete_flag, obsolete_reason, merge_target_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 data_tuples,
             )
@@ -1310,3 +1387,156 @@ class NoteMetadataStore:
             rows = cursor.fetchall()
 
             return [self._row_to_metadata(row) for row in rows]
+
+    # === v3: Lifecycle queries ===
+
+    def get_notes_with_pending_actions(
+        self,
+        limit: int = 50,
+    ) -> list[NoteMetadata]:
+        """
+        Get notes that have pending retouche actions awaiting approval (Filage)
+
+        Args:
+            limit: Maximum number of notes to return
+
+        Returns:
+            List of NoteMetadata with pending actions
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT * FROM note_metadata
+                WHERE pending_actions != '[]'
+                AND obsolete_flag = 0
+                AND importance != 'archive'
+                ORDER BY
+                    CASE importance
+                        WHEN 'critical' THEN 1
+                        WHEN 'high' THEN 2
+                        WHEN 'normal' THEN 3
+                        WHEN 'low' THEN 4
+                        ELSE 5
+                    END,
+                    updated_at DESC
+                LIMIT ?
+            """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+
+            return [self._row_to_metadata(row) for row in rows]
+
+    def get_obsolete_notes(
+        self,
+        limit: int = 50,
+    ) -> list[NoteMetadata]:
+        """
+        Get notes flagged as obsolete
+
+        Args:
+            limit: Maximum number of notes to return
+
+        Returns:
+            List of NoteMetadata flagged as obsolete
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT * FROM note_metadata
+                WHERE obsolete_flag = 1
+                ORDER BY updated_at DESC
+                LIMIT ?
+            """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+
+            return [self._row_to_metadata(row) for row in rows]
+
+    def get_merge_candidates(
+        self,
+        target_note_id: str,
+    ) -> list[NoteMetadata]:
+        """
+        Get notes that are candidates for merging into a target note
+
+        Args:
+            target_note_id: ID of the target note for merge
+
+        Returns:
+            List of NoteMetadata that have this note as merge target
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT * FROM note_metadata
+                WHERE merge_target_id = ?
+                ORDER BY updated_at DESC
+            """,
+                (target_note_id,),
+            )
+            rows = cursor.fetchall()
+
+            return [self._row_to_metadata(row) for row in rows]
+
+    def clear_pending_action(
+        self,
+        note_id: str,
+        action_id: str,
+    ) -> bool:
+        """
+        Remove a specific pending action from a note
+
+        Args:
+            note_id: Note identifier
+            action_id: ID of the action to remove
+
+        Returns:
+            True if action was removed, False if not found
+        """
+        metadata = self.get(note_id)
+        if metadata is None:
+            return False
+
+        original_count = len(metadata.pending_actions)
+        metadata.pending_actions = [
+            a for a in metadata.pending_actions if a.get("id") != action_id
+        ]
+
+        if len(metadata.pending_actions) == original_count:
+            return False
+
+        metadata.updated_at = datetime.now(timezone.utc)
+        self.save(metadata)
+        return True
+
+    def add_pending_action(
+        self,
+        note_id: str,
+        action: dict,
+    ) -> bool:
+        """
+        Add a pending action to a note
+
+        Args:
+            note_id: Note identifier
+            action: Action dictionary with id, type, confidence, etc.
+
+        Returns:
+            True if added, False if note not found
+        """
+        metadata = self.get(note_id)
+        if metadata is None:
+            return False
+
+        metadata.pending_actions.append(action)
+        metadata.updated_at = datetime.now(timezone.utc)
+        self.save(metadata)
+        return True
