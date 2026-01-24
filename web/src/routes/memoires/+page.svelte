@@ -127,13 +127,30 @@
 	const ALL_NOTES_PATH = '__all__';
 	const DELETED_NOTES_PATH = '__deleted__';
 
+	// Sort folders with Canevas/Briefing first, then alphabetically
+	function sortFoldersWithCanevasFirst(foldersToSort: FolderNode[]): FolderNode[] {
+		return [...foldersToSort]
+			.sort((a, b) => {
+				const aIsCanevas = a.name === 'Canevas' || a.name === 'Briefing';
+				const bIsCanevas = b.name === 'Canevas' || b.name === 'Briefing';
+				if (aIsCanevas && !bIsCanevas) return -1;
+				if (!aIsCanevas && bIsCanevas) return 1;
+				return a.name.localeCompare(b.name);
+			})
+			.map(f => ({
+				...f,
+				children: sortFoldersWithCanevasFirst(f.children)
+			}));
+	}
+
 	async function loadTree() {
 		isLoading = true;
 		loadError = null;
 		try {
 			// Critical: Load tree structure first (fast with metadata index)
 			notesData = await getNotesTree(10);
-			folders = notesData.folders;
+			// Sort folders: Canevas/Briefing first, then alphabetically
+			folders = sortFoldersWithCanevasFirst(notesData.folders);
 
 			// Auto-select "All Notes" immediately so UI renders
 			if (!selectedFolderPath) {
@@ -1386,10 +1403,13 @@
 	{@const hasChildren = folder.children.length > 0}
 	{@const isExpanded = expandedFolders.has(folder.path)}
 	{@const isSelected = selectedFolderPath === folder.path}
+	{@const isCanevas = folder.name === 'Canevas' || folder.name === 'Briefing'}
+	{@const folderIcon = isCanevas ? '📜' : (isSelected ? '📂' : '📁')}
 
 	<div>
 		<div
 			class="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left transition-colors text-sm cursor-pointer
+				{isCanevas && !isSelected ? 'bg-amber-500/10 border border-amber-500/20' : ''}
 				{isSelected
 					? 'bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100'
 					: 'hover:bg-[var(--color-bg-tertiary)]'}"
@@ -1412,8 +1432,11 @@
 			{:else}
 				<span class="w-4"></span>
 			{/if}
-			<span class="text-sm">{isSelected ? '📂' : '📁'}</span>
+			<span class="text-sm">{folderIcon}</span>
 			<span class="flex-1 truncate">{folder.name}</span>
+			{#if isCanevas}
+				<span class="text-[10px] px-1 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400">Contexte</span>
+			{/if}
 			<span class="text-xs text-[var(--color-text-tertiary)] tabular-nums">{folder.note_count}</span>
 		</div>
 
