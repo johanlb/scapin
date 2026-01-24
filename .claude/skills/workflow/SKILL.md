@@ -110,12 +110,14 @@ scapin/
 
 ---
 
-## Patterns de Code
+## Patterns de Code (Best Practices 2025)
+
+> Sources : [FastAPI Best Practices](https://github.com/zhanymkanov/fastapi-best-practices), [Real Python Asyncio](https://realpython.com/async-io-python/), [Svelte 5 Runes](https://mainmatter.com/blog/2025/03/11/global-state-in-svelte-5/)
 
 ### 1. Nouvel Endpoint API
 
 ```python
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from src.monitoring.logger import get_logger
 
 logger = get_logger("frontin.api.mymodule")
@@ -123,17 +125,24 @@ router = APIRouter()
 
 @router.get("/items", response_model=APIResponse[ItemsResponse])
 async def get_items(
+    request: Request,  # Pour correlation ID
     limit: int = Query(10, ge=1, le=100),
-    service: MyService = Depends(get_my_service),
+    service: MyService = Depends(get_my_service),  # Async dependency
 ) -> APIResponse[ItemsResponse]:
     """Get items with pagination."""
+    correlation_id = request.headers.get("X-Correlation-ID", "unknown")
     try:
         items = await service.get_items(limit=limit)
         return APIResponse(success=True, data=items, timestamp=datetime.now(timezone.utc))
     except ScapinError as e:
-        logger.error(f"Failed: {e}", exc_info=True)
+        logger.error(f"Failed: {e}", extra={"correlation_id": correlation_id}, exc_info=True)
         raise HTTPException(status_code=400, detail=e.message) from e
 ```
+
+**Best practices appliquées :**
+- Toujours `async def` pour les dependencies (évite threadpool overhead)
+- Correlation ID pour traçabilité
+- Service Layer Pattern (logique dans service, pas dans endpoint)
 
 ### 2. Logger avec Extra Fields
 
@@ -216,11 +225,18 @@ class TestGetItems:
 
     let { title, variant = 'primary', loading = false, onclick, children }: Props = $props();
 
-    // État réactif
+    // État réactif local
     let count = $state(0);
 
-    // Computed
+    // $derived = valeurs calculées (PURE, pas d'effets de bord)
     const doubled = $derived(count * 2);
+    const isValid = $derived(count > 0 && count < 100);
+
+    // $effect = effets de bord UNIQUEMENT (API calls, localStorage, logs)
+    $effect(() => {
+        // Ne PAS utiliser $effect pour des calculs - utiliser $derived
+        console.log(`Count changed to ${count}`);
+    });
 </script>
 
 <button class="btn-{variant}" disabled={loading} {onclick}>
@@ -231,6 +247,11 @@ class TestGetItems:
     {#if children}{@render children()}{/if}
 </button>
 ```
+
+**Best practices Svelte 5 :**
+- `$derived` pour calculs (pur, retourne une valeur)
+- `$effect` pour side effects UNIQUEMENT (impur, pas de return)
+- Ne jamais mélanger les deux
 
 ### 6. EventBus (Événements)
 
@@ -253,14 +274,104 @@ bus.emit(ProcessingEvent(
 ))
 ```
 
+### 7. Shared State Svelte (fichier .svelte.ts)
+
+```typescript
+// stores/counter.svelte.ts
+// IMPORTANT: Exporter un OBJET, pas une variable reassignable
+
+function createCounterStore() {
+    let count = $state(0);
+
+    return {
+        get count() { return count; },  // Getter, pas export direct
+        increment: () => count++,
+        reset: () => count = 0
+    };
+}
+
+export const counter = createCounterStore();
+
+// Usage dans composant:
+// import { counter } from './stores/counter.svelte.ts';
+// <p>{counter.count}</p>
+// <button onclick={counter.increment}>+</button>
+```
+
+**Pourquoi ?** On ne peut pas exporter directement `$state` reassignable. Exporter un objet avec getters.
+
+### 8. Async Concurrent (TaskGroup Python 3.11+)
+
+```python
+import asyncio
+
+# ❌ Ancien pattern (moins sûr)
+tasks = [asyncio.create_task(fetch(url)) for url in urls]
+results = await asyncio.gather(*tasks)
+
+# ✅ Nouveau pattern (Python 3.11+) - gestion d'erreurs automatique
+async with asyncio.TaskGroup() as tg:
+    tasks = [tg.create_task(fetch(url)) for url in urls]
+# Si une tâche échoue, toutes sont annulées proprement
+
+# Récupérer les résultats
+results = [task.result() for task in tasks]
+```
+
+**Avantage :** Annulation propre de toutes les tâches si une échoue.
+
+### 9. Graceful Shutdown
+
+```python
+import asyncio
+import signal
+
+class GracefulShutdown:
+    def __init__(self):
+        self.shutdown_event = asyncio.Event()
+
+    def setup(self):
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            asyncio.get_event_loop().add_signal_handler(
+                sig, self.shutdown_event.set
+            )
+
+    async def wait_for_shutdown(self):
+        await self.shutdown_event.wait()
+
+# Usage
+shutdown = GracefulShutdown()
+shutdown.setup()
+
+async def main():
+    while not shutdown.shutdown_event.is_set():
+        await process_next_item()
+        await asyncio.sleep(0.1)
+
+    # Cleanup propre
+    await cleanup_resources()
+```
+
 ---
 
-## Résumé des Conventions
+## Résumé des Conventions (Best Practices 2025)
 
 | Domaine | Convention |
 |---------|-----------|
-| **Logger** | `get_logger("module.name")` au top, `extra={}` pour contexte |
+| **Logger** | `get_logger("module.name")` + `extra={"correlation_id": ...}` |
 | **Erreurs** | Hériter `ScapinError`, inclure `details` dict |
-| **API** | `APIResponse[T]`, `Depends()` pour injection |
+| **API** | `async def` dependencies, `Depends()`, correlation ID |
+| **Async** | `TaskGroup` (3.11+) au lieu de `gather()`, graceful shutdown |
 | **Tests** | `@pytest.fixture` + `AsyncMock` + `TestClient` |
-| **Svelte** | `interface Props` + `$props()` + `$state` + `$derived` |
+| **Svelte State** | `$derived` pour calculs, `$effect` pour side effects SEULEMENT |
+| **Svelte Shared** | Exporter objets avec getters, pas de `$state` direct |
+
+## Anti-patterns à Éviter
+
+| ❌ Ne pas faire | ✅ Faire à la place |
+|-----------------|---------------------|
+| `def` pour dependencies FastAPI | `async def` (évite threadpool) |
+| `$effect` pour calculs | `$derived` (pur) |
+| Export `$state` direct | Export objet avec getter |
+| `asyncio.gather()` sans gestion erreurs | `TaskGroup` (Python 3.11+) |
+| Health check unique | Séparer liveness/readiness |
