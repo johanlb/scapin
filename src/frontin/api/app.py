@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 
 from src.core.config_manager import get_config
@@ -218,6 +219,10 @@ def create_app() -> FastAPI:
         allow_methods=config.api.cors_methods,
         allow_headers=config.api.cors_headers,
     )
+
+    # Gzip compression for responses > 500 bytes
+    # Reduces payload size for JSON responses (notes, analyses, queue)
+    app.add_middleware(GZipMiddleware, minimum_size=500)
 
     # Register centralized exception handlers
     register_exception_handlers(app)

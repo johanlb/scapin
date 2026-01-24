@@ -1594,6 +1594,76 @@ class NoteManager:
 
         return notes_result
 
+    def search_notes_batch(
+        self,
+        queries: list[str],
+        top_k: int = 10,
+        tags: Optional[list[str]] = None,
+        return_scores: bool = False,
+    ) -> list[Union[list[Note], list[tuple[Note, float]]]]:
+        """
+        Batch semantic search for notes (more efficient than multiple search_notes calls)
+
+        Generates embeddings for all queries in a single batch, reducing overhead.
+
+        Args:
+            queries: List of search queries
+            top_k: Number of results per query
+            tags: Optional tag filter (applied to all queries)
+            return_scores: If True, return tuples of (Note, similarity_score)
+
+        Returns:
+            List of results per query. Each result is a list of Note objects
+            (or (Note, score) tuples if return_scores=True), sorted by relevance.
+        """
+        if not queries:
+            return []
+
+        # Define filter function for tags
+        def tag_filter(metadata: dict[str, Any]) -> bool:
+            if not tags:
+                return True
+            note_tags = set(metadata.get("tags", []))
+            return bool(note_tags.intersection(tags))
+
+        # Batch search in vector store
+        all_results = self.vector_store.search_batch(
+            queries=queries, top_k=top_k, filter_fn=tag_filter if tags else None
+        )
+
+        # Collect all unique doc_ids for batch loading
+        all_doc_ids = set()
+        for results in all_results:
+            for doc_id, _, _ in results:
+                all_doc_ids.add(doc_id)
+
+        # Batch load all notes
+        notes_map = self._batch_get_notes(list(all_doc_ids))
+
+        # Build result lists preserving order and scores
+        final_results: list[Any] = []
+        for results in all_results:
+            notes_result: list[Any] = []
+            for doc_id, score, _metadata in results:
+                note = notes_map.get(doc_id)
+                if note:
+                    if return_scores:
+                        notes_result.append((note, score))
+                    else:
+                        notes_result.append(note)
+            final_results.append(notes_result)
+
+        logger.debug(
+            "Batch search completed",
+            extra={
+                "num_queries": len(queries),
+                "total_results": sum(len(r) for r in final_results),
+                "tags": tags,
+            },
+        )
+
+        return final_results
+
     def get_notes_by_entity(
         self, entity: Entity, top_k: int = 10, return_scores: bool = False
     ) -> Union[list[Note], list[tuple[Note, float]]]:
