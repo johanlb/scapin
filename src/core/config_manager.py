@@ -765,6 +765,18 @@ class AutoFetchConfig(BaseModel):
         description="Maximum items to fetch per source per trigger",
     )
 
+    # Confidence-based routing (Phase 3)
+    auto_apply_threshold: int = Field(
+        85,
+        ge=50,
+        le=100,
+        description="Confidence threshold for auto-apply (>= this value = auto-execute)",
+    )
+    auto_apply_enabled: bool = Field(
+        True,
+        description="Enable auto-apply for high-confidence items",
+    )
+
 
 class ScapinConfig(BaseSettings):
     """

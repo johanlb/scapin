@@ -21,6 +21,7 @@ from src.core.config_manager import get_config
 from src.monitoring.logger import get_logger
 
 if TYPE_CHECKING:
+    from src.core.schemas import EmailAnalysis
     from src.frontin.api.services.queue_service import QueueService
     from src.integrations.email.models import EmailContent, EmailMetadata
 
@@ -277,10 +278,11 @@ class AutoFetchManager:
 
                 if result.success and result.analysis:
                     # Convert to EmailAnalysis
+                    confidence_pct = int(result.analysis.effective_confidence * 100)
                     analysis = EmailAnalysis(
                         action=result.analysis.action,
                         category=EmailCategory.WORK,  # TODO: extract from result
-                        confidence=int(result.analysis.effective_confidence * 100),
+                        confidence=confidence_pct,
                         reasoning=result.analysis.raisonnement or "",
                     )
 
@@ -291,17 +293,37 @@ class AutoFetchManager:
                             result.multi_pass_result
                         )
 
-                    # Update queue item with analysis
-                    await queue_service.complete_analysis(
-                        item_id=item_id,
-                        analysis=analysis,
-                        multi_pass_data=multi_pass_data,
+                    # Phase 3: Confidence-based routing
+                    should_auto_apply = (
+                        config.autofetch.auto_apply_enabled
+                        and confidence_pct >= config.autofetch.auto_apply_threshold
+                        and result.analysis.action.value
+                        not in ("queue", "QUEUE")  # Don't auto-apply "queue" action
                     )
 
-                    logger.debug(
-                        f"Analysis complete for {item_id}: {analysis.action.value} "
-                        f"({analysis.confidence}%)"
-                    )
+                    if should_auto_apply:
+                        # High confidence: auto-apply without user review
+                        await self._auto_apply_item(
+                            item_id=item_id,
+                            analysis=analysis,
+                            multi_pass_data=multi_pass_data,
+                            queue_service=queue_service,
+                        )
+                        logger.info(
+                            f"Auto-applied {item_id}: {analysis.action.value} "
+                            f"({confidence_pct}% >= {config.autofetch.auto_apply_threshold}%)"
+                        )
+                    else:
+                        # Lower confidence: queue for user review
+                        await queue_service.complete_analysis(
+                            item_id=item_id,
+                            analysis=analysis,
+                            multi_pass_data=multi_pass_data,
+                        )
+                        logger.debug(
+                            f"Queued for review {item_id}: {analysis.action.value} "
+                            f"({confidence_pct}%)"
+                        )
                 else:
                     # Analysis failed - create fallback
                     fallback = EmailAnalysis(
@@ -331,6 +353,77 @@ class AutoFetchManager:
                     )
                 except Exception:
                     pass
+
+    async def _auto_apply_item(
+        self,
+        item_id: str,
+        analysis: EmailAnalysis,
+        multi_pass_data: dict | None,
+        queue_service: QueueService,
+    ) -> bool:
+        """
+        Auto-apply a high-confidence item without user review.
+
+        This executes the recommended action (archive, delete, etc.)
+        and any associated enrichments automatically.
+
+        Args:
+            item_id: Queue item ID
+            analysis: The analysis result
+            multi_pass_data: Multi-pass analysis metadata
+            queue_service: Queue service instance
+
+        Returns:
+            True if auto-apply succeeded
+        """
+        from src.frontin.api.websocket.queue_events import QueueEventEmitter
+
+        try:
+            # First, complete the analysis to store the result
+            await queue_service.complete_analysis(
+                item_id=item_id,
+                analysis=analysis,
+                multi_pass_data=multi_pass_data,
+            )
+
+            # Then approve the item with the analyzed action
+            # This will execute IMAP action + enrichments
+            result = await queue_service.approve_item(
+                item_id=item_id,
+                modified_action=analysis.action.value,
+                execute_enrichments=True,
+            )
+
+            if result:
+                # Mark as auto-approved (update resolution type)
+                queue_service._storage.update_item(
+                    item_id,
+                    {
+                        "resolution": {
+                            "type": "auto_approved",
+                            "resolved_by": "scapin",
+                            "confidence": analysis.confidence,
+                            "threshold": get_config().autofetch.auto_apply_threshold,
+                        }
+                    },
+                )
+
+                # Emit WebSocket event for UI feedback
+                emitter = QueueEventEmitter()
+                await emitter.emit_item_updated(
+                    result,
+                    changes=["status", "resolution"],
+                    previous_state="analyzing",
+                )
+
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Auto-apply failed for {item_id}: {e}")
+            # Item stays in queue for manual review
+            return False
 
     def _build_multi_pass_data(self, multi_pass_result) -> dict | None:
         """Build multi-pass metadata for storage."""
