@@ -15,7 +15,7 @@ This module implements:
 
 Usage:
     from src.passepartout import EmbeddingGenerator, VectorStore, NoteManager, ContextEngine
-    from src.passepartout import NoteScheduler, NoteReviewer, BackgroundWorker
+    from src.passepartout import NoteScheduler, RetoucheReviewer, BackgroundWorker
     from src.passepartout import CrossSourceEngine, CrossSourceConfig
 """
 
@@ -82,6 +82,14 @@ from src.passepartout.note_types import (
     ReviewConfig,
     get_review_config,
 )
+from src.passepartout.retouche_reviewer import (
+    HygieneMetrics,
+    RetoucheAction,
+    RetoucheActionResult,
+    RetoucheContext,
+    RetoucheResult,
+    RetoucheReviewer,
+)
 from src.passepartout.vector_store import VectorStore
 
 __all__ = [
@@ -110,13 +118,20 @@ __all__ = [
     "NoteScheduler",
     "SchedulingResult",
     "create_scheduler",
-    # Reviewer
+    # Reviewer (legacy - use RetoucheReviewer)
     "NoteReviewer",
     "ReviewAction",
     "ReviewAnalysis",
     "ReviewContext",
     "ReviewResult",
     "ActionType",
+    # Retouche Reviewer (unified)
+    "RetoucheReviewer",
+    "RetoucheAction",
+    "RetoucheActionResult",
+    "RetoucheContext",
+    "RetoucheResult",
+    "HygieneMetrics",
     # Enricher (v2.1 PKM)
     "PKMEnricher",
     "EnricherError",
