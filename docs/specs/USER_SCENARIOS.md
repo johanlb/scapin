@@ -570,7 +570,10 @@ Chaque scénario suit ce format :
   - `fetch_completed` `{ source: "email", count: 3 }`
   - `queue_updated` `{ pending: 12, processed: 45 }`
 - Backend: `AutoFetchManager` singleton avec `last_fetch: Dict[source, datetime]`
-- Trigger: Event-driven (après approve/reject) + polling de sécurité (toutes les 30s)
+- Trigger: **Polling seul** (toutes les 2 minutes) - simplifié vs spec originale
+  - Pas d'event-driven après approve/reject (le polling suffit)
+  - Debounce si fetch déjà en cours
+  - Voir `docs/plans/workflow-cleanup-autofetch.md` pour les décisions d'architecture
 
 ---
 

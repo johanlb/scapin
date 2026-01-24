@@ -3,13 +3,20 @@ Unit Tests for SC-20: AutoFetchManager
 
 Tests the AutoFetchManager singleton that handles automatic fetching
 of emails, Teams messages, and calendar events.
+
+Architecture decisions (2026-01-24):
+- Trigger: Polling seul (pas d'event-driven après approve/reject)
+- Intervalle: 2 minutes
+- Concurrence: Debounce (ignorer si fetch en cours)
+- Startup: Fetch immédiat si queue < 20
+- Default: Activé par défaut
+
+See: docs/plans/workflow-cleanup-autofetch.md
 """
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional
+
+import pytest
 
 # These tests are placeholders for when AutoFetchManager is implemented
 # The implementation should be in src/frontin/api/services/autofetch_manager.py
@@ -26,8 +33,9 @@ class Source(Enum):
 class AutoFetchConfig:
     """Configuration for auto-fetch behavior."""
     enabled: bool = True
-    low_threshold: int = 5
-    max_threshold: int = 20
+    polling_interval_seconds: int = 120  # 2 minutes
+    low_threshold: int = 5               # Fetch if queue < 5
+    max_threshold: int = 20              # No startup fetch if queue >= 20
     email_enabled: bool = True
     email_cooldown_minutes: int = 2
     teams_enabled: bool = True

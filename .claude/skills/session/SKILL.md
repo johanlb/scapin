@@ -35,7 +35,19 @@ Historique des travaux récents sur le projet.
 **Infrastructure :**
 - Hook pre-commit Git (Ruff, TypeScript, console.log, TODO)
 
+**Plan Workflow Cleanup + AutoFetch :**
+- Plan complet : `docs/plans/workflow-cleanup-autofetch.md`
+- 4 phases planifiées :
+  1. Nettoyage workflow (supprimer V1, garder Four Valets)
+  2. AutoFetch (polling 2 min, debounce, cooldowns)
+  3. Routage confiance (3 seuils : action 90%, required 90%, optional 70%)
+  4. Documentation (restructurer `docs/architecture/`, Mermaid, français)
+- Décisions d'architecture validées
+- Plan aligné avec CLAUDE.md v3.3 (tests, logs, checklist, fichiers critiques)
+
 ### En attente
+- **Workflow Cleanup + AutoFetch** : Prêt à implémenter (4 phases)
+  - Plan : `docs/plans/workflow-cleanup-autofetch.md`
 - **Refactoring UI** : Plan de refactoring des composants volumineux
   - `QueueItemFocusView.svelte` (620 lignes → 9 sous-composants)
   - `FolderSelector.svelte` (675 lignes → 7 sous-composants)
