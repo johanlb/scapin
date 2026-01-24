@@ -39,6 +39,9 @@ from src.frontin.api.models.notes import (
     RecordReviewResponse,
     RetoucheApplyRequest,
     RetouchePreviewResponse,
+    RetoucheQueueResponse,
+    RetoucheRollbackRequest,
+    RetoucheRollbackResponse,
     ReviewConfigResponse,
     ReviewStatsResponse,
     ReviewWorkloadResponse,
@@ -1101,4 +1104,72 @@ async def apply_retouche(
         logger.error(f"Failed to apply retouche for note {note_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to apply retouche"
+        ) from e
+
+
+@router.post("/{note_id}/retouche/rollback", response_model=APIResponse[RetoucheRollbackResponse])
+async def rollback_retouche(
+    note_id: str,
+    request: RetoucheRollbackRequest,
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[RetoucheRollbackResponse]:
+    """
+    Rollback a retouche action on a note
+
+    Either specify record_index to rollback a specific action from history,
+    or git_commit to restore the note to a specific git version.
+    """
+    try:
+        result = await service.rollback_retouche(
+            note_id,
+            record_index=request.record_index,
+            git_commit=request.git_commit,
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="Note or record not found")
+        return APIResponse(
+            success=True,
+            data=result,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Failed to rollback retouche for note {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to rollback retouche"
+        ) from e
+
+
+# =============================================================================
+# RETOUCHE QUEUE ENDPOINTS (Phase 5)
+# =============================================================================
+
+
+@router.get("/retouche/queue", response_model=APIResponse[RetoucheQueueResponse])
+async def get_retouche_queue(
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[RetoucheQueueResponse]:
+    """
+    Get queue of notes with pending retouche actions
+
+    Returns notes grouped by confidence level:
+    - high_confidence: Actions with >= 85% confidence (auto-applicable)
+    - pending_review: Actions requiring user validation
+    """
+    try:
+        queue = await service.get_retouche_queue()
+        return APIResponse(
+            success=True,
+            data=queue,
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(f"Failed to get retouche queue: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to get retouche queue"
         ) from e

@@ -2098,6 +2098,36 @@ export interface RetoucheApplyRequest {
 	apply_all?: boolean;
 }
 
+export interface RetoucheRollbackRequest {
+	record_index?: number;
+	git_commit?: string;
+}
+
+export interface RetoucheRollbackResponse {
+	note_id: string;
+	rolled_back: boolean;
+	action_type: string;
+	restored_from: string;
+	new_content_preview: string;
+}
+
+export interface RetoucheQueueItem {
+	note_id: string;
+	note_title: string;
+	note_path: string;
+	action_count: number;
+	avg_confidence: number;
+	quality_score: number | null;
+	last_retouche: string | null;
+	high_confidence: boolean;
+}
+
+export interface RetoucheQueue {
+	high_confidence: RetoucheQueueItem[];
+	pending_review: RetoucheQueueItem[];
+	stats: Record<string, number>;
+}
+
 /**
  * Preview proposed retouche changes for a note
  */
@@ -2121,6 +2151,29 @@ export async function applyRetouche(
 			body: JSON.stringify(request)
 		}
 	);
+}
+
+/**
+ * Rollback a retouche action on a note
+ */
+export async function rollbackRetouche(
+	noteId: string,
+	request: RetoucheRollbackRequest
+): Promise<RetoucheRollbackResponse> {
+	return fetchApi<RetoucheRollbackResponse>(
+		`/notes/${encodeURIComponent(noteId)}/retouche/rollback`,
+		{
+			method: 'POST',
+			body: JSON.stringify(request)
+		}
+	);
+}
+
+/**
+ * Get queue of notes with pending retouche actions
+ */
+export async function getRetoucheQueue(): Promise<RetoucheQueue> {
+	return fetchApi<RetoucheQueue>('/notes/retouche/queue');
 }
 
 // ============================================================================
