@@ -61,36 +61,6 @@ cd web && npm run check               # Types TypeScript
 python scapin.py --help
 ```
 
-## Structure du Projet
-
-```
-scapin/
-├── src/
-│   ├── trivelin/       # Perception & triage
-│   ├── sancho/         # Raisonnement IA
-│   ├── passepartout/   # Base de connaissances
-│   ├── planchet/       # Planification
-│   ├── figaro/         # Orchestration
-│   ├── sganarelle/     # Apprentissage
-│   ├── frontin/        # API & CLI
-│   └── core/           # Infrastructure partagée
-├── web/                # Frontend SvelteKit
-├── tests/              # Tests backend
-└── docs/               # Documentation
-    └── user-guide/     # Guide utilisateur (specs)
-```
-
-## Fichiers Critiques
-
-**Ne pas modifier sans review (demander à Johan) :**
-
-| Fichier | Rôle |
-|---------|------|
-| `src/trivelin/v2_processor.py` | Pipeline Multi-Pass v2.2 |
-| `src/sancho/multi_pass_analyzer.py` | Convergence IA |
-| `src/passepartout/note_manager.py` | Gestion notes |
-| `src/core/config_manager.py` | Configuration globale |
-
 ## Qualité du Code
 
 ### Python (Ruff)
@@ -114,37 +84,11 @@ scapin/
 
 > Sources : [FastAPI Best Practices](https://github.com/zhanymkanov/fastapi-best-practices), [Real Python Asyncio](https://realpython.com/async-io-python/), [Svelte 5 Runes](https://mainmatter.com/blog/2025/03/11/global-state-in-svelte-5/)
 
-### 1. Nouvel Endpoint API
+> **Pour les patterns API détaillés** → `/api`
+> **Pour les patterns UI détaillés** → `/ui`
+> **Pour les optimisations performance** → `/perf`
 
-```python
-from fastapi import APIRouter, Depends, Query, HTTPException, Request
-from src.monitoring.logger import get_logger
-
-logger = get_logger("frontin.api.mymodule")
-router = APIRouter()
-
-@router.get("/items", response_model=APIResponse[ItemsResponse])
-async def get_items(
-    request: Request,  # Pour correlation ID
-    limit: int = Query(10, ge=1, le=100),
-    service: MyService = Depends(get_my_service),  # Async dependency
-) -> APIResponse[ItemsResponse]:
-    """Get items with pagination."""
-    correlation_id = request.headers.get("X-Correlation-ID", "unknown")
-    try:
-        items = await service.get_items(limit=limit)
-        return APIResponse(success=True, data=items, timestamp=datetime.now(timezone.utc))
-    except ScapinError as e:
-        logger.error(f"Failed: {e}", extra={"correlation_id": correlation_id}, exc_info=True)
-        raise HTTPException(status_code=400, detail=e.message) from e
-```
-
-**Best practices appliquées :**
-- Toujours `async def` pour les dependencies (évite threadpool overhead)
-- Correlation ID pour traçabilité
-- Service Layer Pattern (logique dans service, pas dans endpoint)
-
-### 2. Logger avec Extra Fields
+### Logger avec Extra Fields
 
 ```python
 from src.monitoring.logger import get_logger
@@ -161,7 +105,7 @@ logger.info("Email processed", extra={"email_id": "abc", "action": "archive", "c
 logger.error("Failed to process", extra={"email_id": "def"}, exc_info=True)
 ```
 
-### 3. Gestion des Erreurs
+### Gestion des Erreurs
 
 ```python
 from src.core.exceptions import ScapinError, ValidationError
@@ -178,7 +122,7 @@ except ScapinError as e:
     # e.message, e.details disponibles
 ```
 
-### 4. Test Unitaire pytest
+### Test Unitaire pytest
 
 ```python
 import pytest
@@ -209,7 +153,7 @@ class TestGetItems:
         assert response.json()["success"] is True
 ```
 
-### 5. Composant Svelte 5
+### Composant Svelte 5
 
 ```svelte
 <script lang="ts">
@@ -253,7 +197,7 @@ class TestGetItems:
 - `$effect` pour side effects UNIQUEMENT (impur, pas de return)
 - Ne jamais mélanger les deux
 
-### 6. EventBus (Événements)
+### EventBus (Événements)
 
 ```python
 from src.core.processing_events import EventBus, ProcessingEvent, ProcessingEventType
@@ -274,7 +218,7 @@ bus.emit(ProcessingEvent(
 ))
 ```
 
-### 7. Shared State Svelte (fichier .svelte.ts)
+### Shared State Svelte (fichier .svelte.ts)
 
 ```typescript
 // stores/counter.svelte.ts
@@ -300,7 +244,7 @@ export const counter = createCounterStore();
 
 **Pourquoi ?** On ne peut pas exporter directement `$state` reassignable. Exporter un objet avec getters.
 
-### 8. Async Concurrent (TaskGroup Python 3.11+)
+### Async Concurrent (TaskGroup Python 3.11+)
 
 ```python
 import asyncio
@@ -320,7 +264,7 @@ results = [task.result() for task in tasks]
 
 **Avantage :** Annulation propre de toutes les tâches si une échoue.
 
-### 9. Graceful Shutdown
+### Graceful Shutdown
 
 ```python
 import asyncio

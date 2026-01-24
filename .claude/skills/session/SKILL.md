@@ -10,18 +10,32 @@ Historique des travaux récents sur le projet.
 
 ## Session Actuelle - 24 Janvier 2026
 
-### Travaux en cours
+### Travaux complétés
+
+**Amélioration CLAUDE.md :**
+- Structure du Projet (arbre complet des dossiers)
+- APIs Externes & Secrets (Gmail, iCloud, Anthropic, Keychain)
+- Debug Rapide (commandes de diagnostic essentielles)
+- Glossaire (17 termes Scapin)
+- Discipline de Livraison (checklist bloquante 9 points)
+- Anti-patterns (8 interdits)
+- Gestion de Session (prévenir dégradation)
+
+**Nouveaux Skills créés :**
+- `/api` — Conventions FastAPI, endpoints existants, client TypeScript
+- `/perf` — Métriques, profiling, optimisations backend/frontend
+- `/debug` — Guide de troubleshooting complet
+- `/ui` — Best practices frontend, Liquid Glass Apple
+
+**Améliorations Skills existants :**
+- `/ui` : Ajout guidelines Apple Liquid Glass (WWDC 2025)
+- `/workflow` : Suppression redondances, références croisées vers /api, /ui, /perf
+
+### En attente
 - **Refactoring UI** : Plan de refactoring des composants volumineux
   - `QueueItemFocusView.svelte` (620 lignes → 9 sous-composants)
   - `FolderSelector.svelte` (675 lignes → 7 sous-composants)
-  - Création de composants génériques : `GenericTimeline`, `BaseCard`
   - Plan complet : `docs/plans/2026-01-24-ui-refactoring.md`
-
-- **Amélioration CLAUDE.md** :
-  - Ajout section "Discipline de Livraison" avec checklist bloquante
-  - Ajout section "Anti-patterns"
-  - Ajout "Fichiers Critiques"
-  - Synchronisation avec skills
 
 ---
 

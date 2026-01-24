@@ -85,19 +85,36 @@ Architecture cognitive inspirée des valets de la comédie classique française.
 ### Frontin - Interface (`src/frontin/`)
 - **Rôle** : Interface API REST et CLI
 - **Fichiers clés** :
-  - `api/routers/` : Endpoints FastAPI
-  - `api/services/` : Services métier
-  - `cli.py` : Interface ligne de commande
+  - `api/routers/` : Endpoints FastAPI (queue, notes, briefing, valets...)
+  - `api/services/` : Services métier (queue_service, notes_service...)
+  - `api/models/` : Modèles Pydantic (requests/responses)
+  - `api/websocket/` : WebSocket pour temps réel
+  - `cli.py` : Interface ligne de commande (Typer)
+  - `briefing/` : Génération de briefings
+  - `journal/` : Journaling et reviews
 - **Capacités** : REST API, WebSockets, CLI Typer
+
+→ Détails des endpoints et patterns : `/api`
 
 ## Où implémenter ?
 
-| Type de fonctionnalité | Valet cible |
-|------------------------|-------------|
-| Nouvelle source de données | Trivelin |
-| Logique IA / prompts | Sancho |
-| Stockage / recherche | Passepartout |
-| Planification d'actions | Planchet |
-| Exécution / intégrations | Figaro |
-| Feedback / métriques | Sganarelle |
-| API / UI | Frontin |
+| Type de fonctionnalité | Valet cible | Skill associé |
+|------------------------|-------------|---------------|
+| Nouvelle source de données | Trivelin | `/debug` (logs) |
+| Logique IA / prompts | Sancho | `/perf` (optimisation) |
+| Stockage / recherche | Passepartout | `/perf` (FAISS) |
+| Planification d'actions | Planchet | — |
+| Exécution / intégrations | Figaro | — |
+| Feedback / métriques | Sganarelle | `/perf` (métriques) |
+| API backend | Frontin | `/api` |
+| UI frontend | web/ | `/ui` |
+
+---
+
+## Skills Connexes
+
+- `/api` — Conventions FastAPI, endpoints, client TypeScript
+- `/ui` — Composants Svelte, Liquid Glass, accessibilité
+- `/perf` — Optimisations backend/frontend, profiling
+- `/debug` — Diagnostic, logs, erreurs communes
+- `/workflow` — Qualité code, conventions commit

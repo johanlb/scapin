@@ -1,6 +1,6 @@
 # CLAUDE.md — Scapin
 
-**Version** : v3.2 | **Stack** : Python 3.13 · Svelte 5 · SQLite · FAISS
+**Version** : v3.3 | **Stack** : Python 3.13 · Svelte 5 · SQLite · FAISS
 
 ---
 
