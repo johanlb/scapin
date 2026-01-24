@@ -66,6 +66,15 @@ export {
 	markChatAsRead,
 	markChatAsUnread,
 	listRecentTeamsMessages,
+	// Notes
+	getNote,
+	// Retouche
+	getPendingRetoucheActions,
+	approveRetoucheAction,
+	rejectRetoucheAction,
+	rollbackRetoucheAction,
+	batchApproveRetoucheActions,
+	getNoteLifecycleStatus,
 	// Error
 	ApiError
 } from './client';
@@ -136,5 +145,14 @@ export type {
 	FolderTreeNode,
 	FolderSuggestion,
 	FolderSuggestions,
-	CreateFolderResult
+	CreateFolderResult,
+	// Notes types
+	Note,
+	// Retouche types
+	PendingRetoucheAction,
+	RetoucheActionsQueue,
+	RetoucheActionResult,
+	RetoucheRollbackResult,
+	RetoucheBatchResult,
+	NoteLifecycleStatus
 } from './client';
