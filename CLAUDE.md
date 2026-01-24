@@ -21,7 +21,9 @@ en connaissances organisées via analyse IA multi-pass et mémoire contextuelle.
 | **Session** | `/session` | "Qu'est-ce qui a été fait ?", début de session |
 | **Workflow** | `/workflow` | Conventions de commit, commandes, patterns code |
 | **Debug** | `/debug` | "Ça ne marche pas", erreurs, diagnostic, logs |
-| **UI** | `/ui` | Composants, accessibilité, performance frontend |
+| **UI** | `/ui` | Composants Svelte, accessibilité, Liquid Glass |
+| **API** | `/api` | Endpoints FastAPI, client TypeScript, REST |
+| **Perf** | `/perf` | Lenteur, profiling, optimisations, métriques |
 
 ---
 
@@ -47,6 +49,104 @@ en connaissances organisées via analyse IA multi-pass et mémoire contextuelle.
 | Vectors | FAISS | `data/faiss/` |
 | IA | Claude (Haiku → Sonnet → Opus) | Escalade automatique |
 | Tests | pytest, Playwright | 95%+ backend, E2E |
+
+---
+
+## Structure du Projet
+
+```
+scapin/
+├── src/                    # Backend Python
+│   ├── trivelin/           # Perception & triage
+│   ├── sancho/             # Raisonnement IA
+│   ├── passepartout/       # Base de connaissances
+│   ├── planchet/           # Planification
+│   ├── figaro/             # Orchestration
+│   ├── sganarelle/         # Apprentissage
+│   ├── frontin/            # API & CLI
+│   │   └── api/            # Endpoints FastAPI
+│   ├── core/               # Infrastructure partagée
+│   └── monitoring/         # Logging, métriques
+├── web/                    # Frontend SvelteKit
+│   ├── src/
+│   │   ├── routes/         # Pages
+│   │   └── lib/
+│   │       ├── api/        # Client API TypeScript
+│   │       ├── components/ # Composants UI
+│   │       └── stores/     # État global
+│   └── e2e/                # Tests Playwright
+├── tests/                  # Tests backend pytest
+├── data/                   # Données runtime (gitignored)
+│   ├── scapin.db           # SQLite
+│   ├── faiss/              # Index vectoriels
+│   └── logs/               # Logs JSON
+├── docs/
+│   ├── user-guide/         # Documentation utilisateur
+│   └── plans/              # Plans d'implémentation
+└── scripts/                # Scripts utilitaires
+```
+
+---
+
+## APIs Externes & Secrets
+
+### Services Connectés
+
+| Service | Usage | Authentification |
+|---------|-------|------------------|
+| **Anthropic** | Analyse IA (Claude) | API Key dans Keychain |
+| **Gmail/IMAP** | Lecture emails | OAuth2 ou App Password |
+| **Apple Notes** | Sync notes PKM | AppleScript (local) |
+| **iCloud Calendar** | Événements | AppleScript (local) |
+
+### Gestion des Secrets
+
+**Tous les secrets sont dans macOS Keychain** — jamais en fichier.
+
+```bash
+# Lister les secrets Scapin
+pkm secrets --list
+
+# Ajouter un secret
+pkm secrets --set ANTHROPIC_API_KEY
+
+# Debug connexion
+pkm health                    # Vérifie tous les services
+python scripts/debug_imap.py  # Test IMAP spécifique
+```
+
+### Variables d'Environnement
+
+| Variable | Usage | Default |
+|----------|-------|---------|
+| `SCAPIN_ENV` | Environment (dev/prod) | `dev` |
+| `SCAPIN_LOG_LEVEL` | Niveau de log | `INFO` |
+| `SCAPIN_DATA_DIR` | Dossier data | `./data` |
+
+---
+
+## Debug Rapide
+
+**Commandes de diagnostic essentielles :**
+
+```bash
+# Santé globale
+pkm health
+
+# Erreurs récentes
+python scripts/view_errors.py --stats
+
+# Logs en temps réel
+pkm --verbose --log-format json process --limit 1
+
+# État de la queue
+pkm queue && pkm stats
+
+# Test API
+curl -s http://localhost:8000/api/health | jq .
+```
+
+→ Guide complet de debugging : `/debug`
 
 ---
 
