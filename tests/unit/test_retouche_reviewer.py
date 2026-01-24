@@ -935,3 +935,111 @@ class TestRetouchePhase7ErrorCases:
         ]
         # Rule-based should suggest splitting for very long notes
         assert len(restructure_actions) > 0 or result.quality_after < 70
+
+
+class TestDetermineMergeMaster:
+    """Tests for _determine_merge_master method."""
+
+    def test_pkm_note_becomes_master(self, reviewer):
+        """Test that note in PKM folder is chosen as master."""
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        # Note A: in PKM (recent)
+        note_a = MagicMock()
+        note_a.file_path = Path("/notes/Personal Knowledge Management/Entités/Note-A.md")
+        note_a.created_at = datetime(2025, 1, 15, tzinfo=timezone.utc)
+
+        # Note B: outside PKM (older)
+        note_b = MagicMock()
+        note_b.file_path = Path("/notes/Projets/Note-B.md")
+        note_b.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+        master, follower = reviewer._determine_merge_master(note_a, note_b)
+
+        # PKM note should be master regardless of age
+        assert master is note_a
+        assert follower is note_b
+
+    def test_pkm_note_becomes_master_reverse_order(self, reviewer):
+        """Test PKM priority works regardless of argument order."""
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        # Note A: outside PKM (older)
+        note_a = MagicMock()
+        note_a.file_path = Path("/notes/Projets/Note-A.md")
+        note_a.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+        # Note B: in PKM (recent)
+        note_b = MagicMock()
+        note_b.file_path = Path("/notes/Personal Knowledge Management/Note-B.md")
+        note_b.created_at = datetime(2025, 1, 15, tzinfo=timezone.utc)
+
+        master, follower = reviewer._determine_merge_master(note_a, note_b)
+
+        # PKM note should be master regardless of order
+        assert master is note_b
+        assert follower is note_a
+
+    def test_both_in_pkm_oldest_wins(self, reviewer):
+        """Test that when both notes are in PKM, oldest becomes master."""
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        # Note A: in PKM (older)
+        note_a = MagicMock()
+        note_a.file_path = Path("/notes/Personal Knowledge Management/Note-A.md")
+        note_a.created_at = datetime(2024, 6, 1, tzinfo=timezone.utc)
+
+        # Note B: in PKM (newer)
+        note_b = MagicMock()
+        note_b.file_path = Path("/notes/Personal Knowledge Management/Note-B.md")
+        note_b.created_at = datetime(2025, 1, 15, tzinfo=timezone.utc)
+
+        master, follower = reviewer._determine_merge_master(note_a, note_b)
+
+        # Older note should be master when both in PKM
+        assert master is note_a
+        assert follower is note_b
+
+    def test_neither_in_pkm_oldest_wins(self, reviewer):
+        """Test that when neither note is in PKM, oldest becomes master."""
+        from datetime import datetime, timezone
+        from pathlib import Path
+
+        # Note A: older
+        note_a = MagicMock()
+        note_a.file_path = Path("/notes/Projets/Note-A.md")
+        note_a.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+        # Note B: newer
+        note_b = MagicMock()
+        note_b.file_path = Path("/notes/Clients/Note-B.md")
+        note_b.created_at = datetime(2025, 1, 15, tzinfo=timezone.utc)
+
+        master, follower = reviewer._determine_merge_master(note_a, note_b)
+
+        # Older note should be master
+        assert master is note_a
+        assert follower is note_b
+
+    def test_handles_none_file_path(self, reviewer):
+        """Test handling of notes without file_path."""
+        from datetime import datetime, timezone
+
+        # Note A: no path but older
+        note_a = MagicMock()
+        note_a.file_path = None
+        note_a.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+        # Note B: no path but newer
+        note_b = MagicMock()
+        note_b.file_path = None
+        note_b.created_at = datetime(2025, 1, 15, tzinfo=timezone.utc)
+
+        master, follower = reviewer._determine_merge_master(note_a, note_b)
+
+        # Older note should be master
+        assert master is note_a
+        assert follower is note_b

@@ -38,6 +38,16 @@ DEFAULT_CACHE_MAX_SIZE = 2000  # Maximum notes to keep in memory
 # Trash folder for soft-deleted notes
 TRASH_FOLDER = "_Supprimées"
 
+
+def _is_visible_note_path(file_path: Path) -> bool:
+    """Check if a note path is visible (not hidden, not in trash)."""
+    parts = file_path.parts
+    return (
+        not any(part.startswith(".") for part in parts)
+        and TRASH_FOLDER not in parts
+    )
+
+
 # Pre-compiled regex for frontmatter parsing (performance optimization)
 FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)
 # Pre-compiled regex for wikilinks: [[target]] or [[target|label]]
@@ -478,7 +488,7 @@ class NoteManager:
             Number of notes indexed
         """
         files = list(self.notes_dir.rglob("*.md"))
-        visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+        visible_files = [f for f in files if _is_visible_note_path(f)]
 
         self._notes_metadata.clear()
         count = 0
@@ -540,8 +550,8 @@ class NoteManager:
         max_workers = min(8, len(files) + 1)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Filter hidden files
-            visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+            # Filter hidden files and trash folder
+            visible_files = [f for f in files if _is_visible_note_path(f)]
 
             for note in executor.map(self._read_note_file, visible_files):
                 if note:
@@ -1765,7 +1775,7 @@ class NoteManager:
         """
         # Get all file paths first
         files = list(self.notes_dir.rglob("*.md"))
-        visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+        visible_files = [f for f in files if _is_visible_note_path(f)]
 
         notes: list[Note] = []
         files_to_load: list[Path] = []
@@ -1819,8 +1829,10 @@ class NoteManager:
         modified_notes = []
         since_ts = since.timestamp()
 
-        # Iterate through all markdown files
+        # Iterate through all visible markdown files
         for file_path in self.notes_dir.rglob("*.md"):
+            if not _is_visible_note_path(file_path):
+                continue
             try:
                 # Check metrics fast first
                 mtime = file_path.stat().st_mtime
@@ -1849,8 +1861,8 @@ class NoteManager:
         if not files:
             return 0
 
-        # Filter hidden files
-        visible_files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
+        # Filter hidden files and trash folder
+        visible_files = [f for f in files if _is_visible_note_path(f)]
 
         # Batch size for vector store operations
         BATCH_SIZE = 50

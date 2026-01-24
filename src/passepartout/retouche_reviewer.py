@@ -161,13 +161,29 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
 - cleanup : Identifier le contenu obsolète à supprimer
 
 ### Actions de cycle de vie
+
+#### Critères de fragmentarité
+Note **fragmentaire** = TOUTES ces conditions :
+- Moins de 200 mots
+- Moins de 2 sections (##)
+
+#### Règle MERGE > DELETE
+**IMPORTANT** : Pour une note fragmentaire :
+1. D'abord chercher une note cible pertinente pour merge_into
+2. Proposer merge_into si cible existe
+3. flag_obsolete SEULEMENT si aucune cible pertinente
+
+Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
+
 - flag_obsolete : Marquer la note comme obsolète.
   TOUJOURS nécessite validation humaine (Filage). Fournir "reasoning" détaillé.
   Utiliser si : contenu périmé, note dupliquée sans valeur, contenu incompréhensible.
+  **NE PAS utiliser pour notes fragmentaires sans avoir évalué merge_into.**
 - merge_into : Fusionner cette note dans une autre.
   Auto si confiance >= 0.85, sinon Filage.
   Fournir "target_note_title" (titre de la note cible) dans le JSON.
   Utiliser si : contenu redondant avec une autre note, fragment à consolider.
+  **PRIVILÉGIER cette action pour les notes fragmentaires.**
 - move_to_folder : Classer la note dans le bon dossier.
   Auto si confiance >= 0.85.
   Fournir le dossier cible dans "content".
@@ -957,24 +973,66 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
 
         return content
 
+    def _determine_merge_master(
+        self, note_a: Note, note_b: Note
+    ) -> tuple[Note, Note]:
+        """
+        Determine which note should be the master in a merge.
+
+        Rules:
+        1. Note in "Personal Knowledge Management" folder = master
+        2. Otherwise, oldest note = master
+
+        Args:
+            note_a: First note
+            note_b: Second note
+
+        Returns:
+            Tuple of (master, follower) notes
+        """
+        a_in_pkm = "Personal Knowledge Management" in str(note_a.file_path or "")
+        b_in_pkm = "Personal Knowledge Management" in str(note_b.file_path or "")
+
+        if a_in_pkm and not b_in_pkm:
+            return (note_a, note_b)
+        if b_in_pkm and not a_in_pkm:
+            return (note_b, note_a)
+
+        # Same PKM status: oldest wins
+        if note_a.created_at <= note_b.created_at:
+            return (note_a, note_b)
+        return (note_b, note_a)
+
     async def _execute_merge(
         self,
         source_note_id: str,
         target_note_title: str,
-        source_content: str,
+        _source_content: str,
     ) -> bool:
         """
         Execute automatic merge of source note into target note.
 
+        Uses _determine_merge_master to decide which note becomes the master:
+        - Note in PKM folder takes priority
+        - Otherwise, oldest note is master
+
         Args:
-            source_note_id: ID of the note to merge (will be archived)
-            target_note_title: Title of the note to merge into
-            source_content: Content of the source note
+            source_note_id: ID of the note requesting merge
+            target_note_title: Title of the suggested target note
+            _source_content: Unused, kept for API compatibility
 
         Returns:
             True if merge was successful
         """
         try:
+            # Get source note
+            source_note = self.notes.get_note(source_note_id)
+            if not source_note:
+                logger.warning(
+                    f"Merge source not found: {source_note_id}",
+                )
+                return False
+
             # Find target note by title
             target_results = self.notes.search_notes(query=target_note_title, top_k=1)
             if not target_results:
@@ -988,22 +1046,30 @@ Mission : Améliorer la qualité des notes de sa base de connaissances personnel
             if isinstance(target_note, tuple):
                 target_note = target_note[0]
 
-            # Append source content to target
-            merged_content = f"{target_note.content.rstrip()}\n\n---\n\n## Contenu fusionné\n\n{source_content}"
+            # Determine master/follower based on PKM priority and age
+            master, follower = self._determine_merge_master(source_note, target_note)
+
+            # Merge follower content into master
+            merged_content = (
+                f"{master.content.rstrip()}\n\n---\n\n"
+                f"## Contenu fusionné depuis [[{follower.title}]]\n\n"
+                f"{follower.content}"
+            )
             self.notes.update_note(
-                note_id=target_note.note_id,
+                note_id=master.note_id,
                 content=merged_content,
             )
 
-            # Soft delete source note (move to _Supprimées)
-            self.notes.delete_note(source_note_id)
+            # Soft delete follower note (move to _Supprimées)
+            self.notes.delete_note(follower.note_id)
 
             logger.info(
-                f"Merge completed: {source_note_id} → {target_note.note_id}",
+                f"Merge completed: {follower.note_id} → {master.note_id}",
                 extra={
-                    "source_id": source_note_id,
-                    "target_id": target_note.note_id,
-                    "target_title": target_note_title,
+                    "follower_id": follower.note_id,
+                    "follower_title": follower.title,
+                    "master_id": master.note_id,
+                    "master_title": master.title,
                 },
             )
             return True

@@ -499,3 +499,32 @@ class RetoucheQueueResponse(BaseModel):
         default_factory=dict,
         description="Queue statistics (total, auto_applied, pending, etc.)",
     )
+
+
+# =============================================================================
+# Pending Questions Models
+# =============================================================================
+
+
+class PendingQuestionResponse(BaseModel):
+    """A pending question for Johan"""
+
+    question_id: str = Field(..., description="Unique question identifier")
+    note_id: str = Field(..., description="Note containing the question")
+    note_title: str = Field(..., description="Title of the note")
+    question_text: str = Field(..., description="The question text")
+    category: str = Field("decision", description="Question category")
+    created_at: str = Field("", description="When the question was added")
+    answered: bool = Field(False, description="Whether question is resolved")
+
+
+class QuestionsListResponse(BaseModel):
+    """List of pending questions"""
+
+    questions: list[PendingQuestionResponse] = Field(
+        default_factory=list, description="Pending questions"
+    )
+    total: int = Field(0, description="Total number of pending questions")
+    by_note: dict[str, int] = Field(
+        default_factory=dict, description="Question count by note ID"
+    )

@@ -33,8 +33,10 @@ from src.frontin.api.models.notes import (
     NoteUpdateRequest,
     NoteVersionContentResponse,
     NoteVersionsResponse,
+    PendingQuestionResponse,
     PostponeReviewRequest,
     PostponeReviewResponse,
+    QuestionsListResponse,
     RecordReviewRequest,
     RecordReviewResponse,
     RetoucheApplyRequest,
@@ -474,6 +476,74 @@ async def get_review_configs(
         logger.error(f"Failed to get review configs: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to get review configurations"
+        ) from e
+
+
+# =============================================================================
+# Questions Endpoints (MUST be before /{note_id} routes)
+# =============================================================================
+
+
+@router.get("/questions/pending", response_model=APIResponse[QuestionsListResponse])
+async def get_pending_questions(
+    limit: int = Query(50, ge=1, le=200, description="Maximum questions to return"),
+    review_service: NotesReviewService = Depends(get_notes_review_service),
+    notes_service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[QuestionsListResponse]:
+    """
+    Get all pending questions for Johan
+
+    Returns questions marked with emoji in notes,
+    grouped by note and sorted by importance.
+    """
+    try:
+        store = review_service._get_store()
+        notes_with_questions = store.get_notes_with_pending_questions(limit=limit)
+
+        questions: list[PendingQuestionResponse] = []
+        by_note: dict[str, int] = {}
+
+        for metadata in notes_with_questions:
+            note = await notes_service.get_note(metadata.note_id)
+            if not note:
+                continue
+
+            note_questions = notes_service.manager.get_strategic_questions(metadata.note_id)
+
+            for i, q in enumerate(note_questions):
+                if q.get("resolved", False):
+                    continue
+
+                questions.append(
+                    PendingQuestionResponse(
+                        question_id=f"{metadata.note_id}_{i}",
+                        note_id=metadata.note_id,
+                        note_title=note.title,
+                        question_text=q.get("question", ""),
+                        category=q.get("category", "decision"),
+                        created_at=q.get("added_date", ""),
+                        answered=False,
+                    )
+                )
+
+            pending_count = len([q for q in note_questions if not q.get("resolved", False)])
+            if pending_count > 0:
+                by_note[metadata.note_id] = pending_count
+
+        return APIResponse(
+            success=True,
+            data=QuestionsListResponse(
+                questions=questions[:limit],
+                total=len(questions),
+                by_note=by_note,
+            ),
+            timestamp=datetime.now(timezone.utc),
+        )
+    except Exception as e:
+        logger.error(f"Failed to get pending questions: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to get pending questions"
         ) from e
 
 

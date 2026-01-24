@@ -317,14 +317,14 @@ class TestSearchNotes:
 
     def test_search_notes_basic(self, manager_with_notes):
         """Test basic note search"""
-        results = manager_with_notes.search_notes("python", top_k=5)
+        manager_with_notes.search_notes("python", top_k=5)
 
         # Should call vector_store.search
         manager_with_notes.vector_store.search.assert_called()
 
     def test_search_notes_with_tags(self, manager_with_notes):
         """Test search with tag filter"""
-        results = manager_with_notes.search_notes(
+        manager_with_notes.search_notes(
             "python",
             top_k=5,
             tags=["python"]
@@ -358,7 +358,7 @@ class TestGetNotesbyEntity:
         """Test getting notes by entity"""
         entity = Entity(type="person", value="John Doe", confidence=0.9)
 
-        results = manager.get_notes_by_entity(entity, top_k=10)
+        manager.get_notes_by_entity(entity, top_k=10)
 
         # Should search with entity value
         manager.vector_store.search.assert_called()
@@ -650,3 +650,41 @@ class TestTrashFunctionality:
         """Test emptying an already empty trash returns 0"""
         count = manager.empty_trash()
         assert count == 0
+
+    def test_trash_folder_excluded_from_get_all_notes(self, manager):
+        """Test that notes in trash are not returned by get_all_notes"""
+        # Create some notes
+        note1_id = manager.create_note("Active Note 1", "Content 1")
+        note2_id = manager.create_note("Active Note 2", "Content 2")
+        note3_id = manager.create_note("To Delete", "Will be deleted")
+
+        # Delete one note (moves to _Supprimées)
+        manager.delete_note(note3_id)
+
+        # Get all notes - should only return active notes
+        all_notes = manager.get_all_notes()
+        assert len(all_notes) == 2
+
+        note_ids = [n.note_id for n in all_notes]
+        assert note1_id in note_ids
+        assert note2_id in note_ids
+        assert note3_id not in note_ids
+
+    def test_trash_folder_excluded_from_metadata_index(self, manager):
+        """Test that trash folder is excluded from metadata index rebuild"""
+        # Create and delete notes
+        note1_id = manager.create_note("Active", "Content")
+        note2_id = manager.create_note("Deleted", "Content")
+        manager.delete_note(note2_id)
+
+        # Rebuild metadata index
+        count = manager._rebuild_metadata_index()
+
+        # Should only count active notes
+        assert count == 1
+
+        # Verify only active note in metadata
+        summaries = manager.get_notes_summary()
+        summary_ids = [s["note_id"] for s in summaries]
+        assert note1_id in summary_ids
+        assert note2_id not in summary_ids
