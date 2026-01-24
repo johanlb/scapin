@@ -708,6 +708,9 @@ class AppleNotesSync:
             # Move the file
             old_scapin_path.rename(new_scapin_path)
 
+            # Update apple_folder in the file's frontmatter
+            self._update_frontmatter_folder(new_scapin_path, new_folder)
+
             # Update the mapping
             new_rel_path = str(new_scapin_path.relative_to(self.notes_dir))
             self._mappings[apple_id].scapin_path = new_rel_path
@@ -722,6 +725,38 @@ class AppleNotesSync:
         except Exception as e:
             logger.error(f"Failed to move note {apple_note.name}: {e}")
             result.errors.append(f"Move failed: {apple_note.name}: {e}")
+
+    def _update_frontmatter_folder(self, file_path: Path, new_folder: str) -> None:
+        """Update the apple_folder field in a note's YAML frontmatter."""
+        try:
+            content = file_path.read_text(encoding="utf-8")
+            if not content.startswith("---"):
+                return
+
+            end_idx = content.find("\n---", 3)
+            if end_idx == -1:
+                return
+
+            frontmatter_str = content[4:end_idx]
+            body = content[end_idx + 4:]
+
+            frontmatter = yaml.safe_load(frontmatter_str)
+            if not frontmatter or not isinstance(frontmatter, dict):
+                return
+
+            frontmatter["apple_folder"] = new_folder
+
+            # Rebuild the file
+            new_frontmatter = yaml.dump(
+                frontmatter, default_flow_style=False, allow_unicode=True, sort_keys=False
+            )
+            new_content = f"---\n{new_frontmatter}---{body}"
+            file_path.write_text(new_content, encoding="utf-8")
+
+            logger.debug(f"Updated apple_folder in frontmatter: {file_path.name}")
+
+        except Exception as e:
+            logger.warning(f"Failed to update frontmatter for {file_path}: {e}")
 
     def _extract_title_from_content(self, content: str, fallback_stem: str) -> str:
         """
