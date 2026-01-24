@@ -218,6 +218,35 @@ Termes spécifiques au projet Scapin.
 
 Si tu ne sais pas où documenter → **demande avant de coder**.
 
+### Conventions Documentation
+
+| Aspect | Convention |
+|--------|------------|
+| **Langue** | Français (doc, commentaires, commits) |
+| **Structure** | Fichiers dédiés dans `docs/` plutôt que tout dans un seul fichier |
+| **Diagrammes** | Mermaid (rendu GitHub) plutôt qu'ASCII art |
+| **Mise à jour** | Remplacer l'obsolète, ne pas accumuler les versions |
+
+**Arborescence docs recommandée :**
+```
+docs/
+├── user-guide/           # Documentation utilisateur
+├── architecture/         # Documentation technique détaillée
+│   ├── workflow.md       # Pipeline Multi-Pass
+│   ├── autofetch.md      # Système de fetch automatique
+│   └── ...
+├── specs/                # Spécifications fonctionnelles
+└── plans/                # Plans d'implémentation
+```
+
+**Diagrammes Mermaid** (exemple) :
+```mermaid
+flowchart LR
+    A[Trivelin] --> B[Sancho]
+    B --> C[Passepartout]
+    B --> D[Planchet]
+```
+
 ### Tests Obligatoires
 
 **RÈGLE : Tester comme un utilisateur, pas comme un développeur.**
