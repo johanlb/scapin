@@ -139,14 +139,23 @@ class NoteEnricher:
         gaps = []
         sources_used = []
 
-        # 1. AI-based gap analysis (with timeout)
+        # 1. Rule-based gap analysis (always runs)
+        try:
+            rule_enrichments = await self._rule_based_gap_analysis(context)
+            enrichments.extend(rule_enrichments)
+            if rule_enrichments:
+                sources_used.append(EnrichmentSource.AI_ANALYSIS)
+        except Exception as e:
+            logger.warning("Rule-based gap analysis failed", extra={"error": str(e)})
+
+        # 1b. AI-enhanced gap analysis (if available, with timeout)
         if self.ai_router and metadata.auto_enrich:
             try:
                 ai_enrichments = await asyncio.wait_for(
                     self._ai_gap_analysis(context), timeout=self.ai_timeout
                 )
                 enrichments.extend(ai_enrichments)
-                if ai_enrichments:
+                if ai_enrichments and EnrichmentSource.AI_ANALYSIS not in sources_used:
                     sources_used.append(EnrichmentSource.AI_ANALYSIS)
             except asyncio.TimeoutError:
                 logger.warning(
@@ -207,6 +216,122 @@ class NoteEnricher:
             sources_used=sources_used,
             analysis_summary=summary,
         )
+
+    async def _rule_based_gap_analysis(
+        self,
+        context: EnrichmentContext,
+    ) -> list[Enrichment]:
+        """
+        Rule-based gap analysis without AI.
+        Detects missing sections and suggests improvements based on note type.
+        """
+        enrichments = []
+        note = context.note
+        metadata = context.metadata
+        content = note.content
+        content_lower = content.lower()
+
+        # 1. Check for empty or minimal sections
+        sections = self._parse_sections(content)
+        for section_name, section_content in sections.items():
+            if len(section_content.strip()) < 20:
+                enrichments.append(
+                    Enrichment(
+                        source=EnrichmentSource.AI_ANALYSIS,
+                        section=section_name,
+                        content="[Section nécessite plus de contenu]",
+                        confidence=CONFIDENCE_ENTITY_REFERENCE,
+                        reasoning=f"La section '{section_name}' semble incomplète",
+                    )
+                )
+
+        # 2. Suggest missing sections based on note type
+        type_sections = self._get_required_sections_for_type(metadata.note_type)
+        existing_sections_lower = {s.lower() for s in sections}
+
+        for required, description in type_sections:
+            if required.lower() not in existing_sections_lower and required.lower() not in content_lower:
+                enrichments.append(
+                    Enrichment(
+                        source=EnrichmentSource.AI_ANALYSIS,
+                        section=required,
+                        content=f"## {required}\n\n[À compléter]",
+                        confidence=CONFIDENCE_NEW_SECTION,
+                        reasoning=f"Section recommandée pour une note de type "
+                        f"{metadata.note_type.value}: {description}",
+                    )
+                )
+
+        # 3. Check note length - very short notes need content
+        if len(content.strip()) < 100:
+            enrichments.append(
+                Enrichment(
+                    source=EnrichmentSource.AI_ANALYSIS,
+                    section="Contenu",
+                    content="[Note trop courte - enrichir le contenu principal]",
+                    confidence=CONFIDENCE_NEW_SECTION,
+                    reasoning="La note contient très peu de contenu",
+                )
+            )
+
+        # 4. Check for outdated content markers
+        outdated_markers = ["à mettre à jour", "obsolète", "ancien", "TODO", "FIXME"]
+        for marker in outdated_markers:
+            if marker.lower() in content_lower:
+                enrichments.append(
+                    Enrichment(
+                        source=EnrichmentSource.AI_ANALYSIS,
+                        section="Mise à jour",
+                        content="[Contenu potentiellement obsolète détecté]",
+                        confidence=CONFIDENCE_EXISTING_SECTION,
+                        reasoning=f"Marqueur '{marker}' trouvé dans le contenu",
+                    )
+                )
+                break  # Only one warning
+
+        return enrichments
+
+    def _get_required_sections_for_type(
+        self, note_type: NoteType
+    ) -> list[tuple[str, str]]:
+        """Return required sections for a note type."""
+        sections_by_type = {
+            NoteType.PERSONNE: [
+                ("Contact", "Coordonnées et moyens de contact"),
+                ("Rôle", "Fonction et responsabilités"),
+                ("Contexte", "Comment vous vous êtes rencontrés"),
+                ("Notes", "Observations et points importants"),
+            ],
+            NoteType.PROJET: [
+                ("Objectifs", "But et résultats attendus"),
+                ("Statut", "État actuel du projet"),
+                ("Prochaines étapes", "Actions à venir"),
+                ("Parties prenantes", "Personnes impliquées"),
+            ],
+            NoteType.ENTITE: [
+                ("Description", "Présentation de l'organisation"),
+                ("Contacts", "Personnes clés"),
+                ("Historique", "Interactions passées"),
+            ],
+            NoteType.REUNION: [
+                ("Participants", "Liste des participants"),
+                ("Ordre du jour", "Sujets abordés"),
+                ("Décisions", "Décisions prises"),
+                ("Actions", "Prochaines étapes"),
+            ],
+            NoteType.PROCESSUS: [
+                ("Étapes", "Description des étapes du processus"),
+                ("Prérequis", "Conditions nécessaires"),
+                ("Ressources", "Outils et documents utiles"),
+            ],
+            NoteType.EVENEMENT: [
+                ("Date", "Date et heure de l'événement"),
+                ("Lieu", "Localisation"),
+                ("Participants", "Personnes présentes"),
+                ("Notes", "Points importants"),
+            ],
+        }
+        return sections_by_type.get(note_type, [])
 
     async def _ai_gap_analysis(
         self,

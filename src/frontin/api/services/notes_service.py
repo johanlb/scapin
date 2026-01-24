@@ -698,7 +698,7 @@ class NotesService:
             for title in linked_titles[:10]:
                 # Search for note by title
                 search_results = await asyncio.to_thread(
-                    manager.search_notes, title, limit=1
+                    manager.search_notes, title, top_k=1, return_scores=True
                 )
                 if search_results:
                     linked_note, _ = search_results[0]
@@ -1528,7 +1528,7 @@ class NotesService:
             clean_name = note_name.split(" (")[0].strip()
 
             # Search for the note by title
-            results = manager.search_notes(clean_name, limit=5)
+            results = manager.search_notes(clean_name, top_k=5, return_scores=True)
             for note, _score in results:
                 # Check if title matches closely
                 if note.title.lower() == clean_name.lower() or clean_name.lower() in note.title.lower():
