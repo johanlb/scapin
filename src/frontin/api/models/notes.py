@@ -397,6 +397,8 @@ class EnrichmentItemResponse(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score")
     reasoning: str = Field(..., description="Why this enrichment is suggested")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    applied: bool = Field(default=False, description="Whether this enrichment was auto-applied")
+    index: int = Field(default=0, description="Index for manual application")
 
 
 class EnrichmentResultResponse(BaseModel):
@@ -404,7 +406,10 @@ class EnrichmentResultResponse(BaseModel):
 
     note_id: str = Field(..., description="Note identifier")
     enrichments: list[EnrichmentItemResponse] = Field(
-        default_factory=list, description="Suggested enrichments"
+        default_factory=list, description="Suggested enrichments (not yet applied)"
+    )
+    auto_applied: list[EnrichmentItemResponse] = Field(
+        default_factory=list, description="Enrichments auto-applied (high confidence)"
     )
     gaps_identified: list[str] = Field(
         default_factory=list, description="Missing information identified"

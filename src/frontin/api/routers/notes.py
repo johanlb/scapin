@@ -1024,6 +1024,45 @@ async def enrich_note(
         ) from e
 
 
+@router.post("/{note_id}/apply-enrichment", response_model=APIResponse[dict])
+async def apply_enrichment(
+    note_id: str,
+    section: str = Query(..., description="Target section name"),
+    content: str = Query(..., description="Content to add"),
+    url: str = Query(None, description="Source URL"),
+    service: NotesService = Depends(get_notes_service),
+    _user: Optional[TokenData] = Depends(get_current_user),
+) -> APIResponse[dict]:
+    """
+    Apply a suggested enrichment to a note.
+
+    This endpoint is used to manually apply an enrichment suggestion
+    that wasn't auto-applied due to lower confidence score.
+    """
+    try:
+        success = await service.apply_enrichment(
+            note_id=note_id,
+            section=section,
+            content=content,
+            metadata={"url": url} if url else {},
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Note not found")
+
+        return APIResponse(
+            success=True,
+            data={"applied": True, "section": section},
+            timestamp=datetime.now(timezone.utc),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to apply enrichment to {note_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to apply enrichment"
+        ) from e
+
+
 @router.post("/{note_id}/hygiene", response_model=APIResponse[HygieneResultResponse])
 async def run_note_hygiene(
     note_id: str,

@@ -1896,11 +1896,14 @@ export interface EnrichmentItem {
 	confidence: number;
 	reasoning: string;
 	metadata: Record<string, unknown>;
+	applied: boolean; // Whether this was auto-applied
+	index: number; // Index for manual application
 }
 
 export interface EnrichmentResult {
 	note_id: string;
-	enrichments: EnrichmentItem[];
+	enrichments: EnrichmentItem[]; // Suggestions not yet applied
+	auto_applied: EnrichmentItem[]; // Auto-applied (high confidence)
 	gaps_identified: string[];
 	sources_used: string[];
 	analysis_summary: string;
@@ -1922,6 +1925,27 @@ export async function enrichNote(
 	sources.forEach((s) => params.append('sources', s));
 	return fetchApi<EnrichmentResult>(
 		`/notes/${encodeURIComponent(noteId)}/enrich?${params.toString()}`,
+		{ method: 'POST' }
+	);
+}
+
+/**
+ * Apply an enrichment suggestion to a note
+ */
+export async function applyEnrichment(
+	noteId: string,
+	section: string,
+	content: string,
+	url?: string
+): Promise<{ applied: boolean; section: string }> {
+	const params = new URLSearchParams();
+	params.append('section', section);
+	params.append('content', content);
+	if (url) {
+		params.append('url', url);
+	}
+	return fetchApi<{ applied: boolean; section: string }>(
+		`/notes/${encodeURIComponent(noteId)}/apply-enrichment?${params.toString()}`,
 		{ method: 'POST' }
 	);
 }

@@ -26,6 +26,7 @@
 		getMergePendingNotes,
 		runNoteHygiene,
 		enrichNote,
+		applyEnrichment,
 		type Note,
 		type FolderNode,
 		type NotesTree,
@@ -609,6 +610,25 @@
 			...enrichmentResult,
 			enrichments: enrichmentResult.enrichments.filter((_, i) => i !== index)
 		};
+	}
+
+	async function handleApplyEnrichment(enrichment: { section: string; content: string; metadata: Record<string, unknown> }, index: number) {
+		if (!selectedNote) return;
+
+		try {
+			const url = enrichment.metadata?.url as string | undefined;
+			await applyEnrichment(selectedNote.note_id, enrichment.section, enrichment.content, url);
+			toastStore.success(`Enrichissement appliqué à la section "${enrichment.section}"`);
+
+			// Recharger la note pour voir les changements
+			await selectNote(selectedNote);
+
+			// Supprimer de la liste des suggestions
+			dismissEnrichment(index);
+		} catch (error) {
+			console.error('Failed to apply enrichment:', error);
+			toastStore.error("Erreur lors de l'application de l'enrichissement");
+		}
 	}
 
 	function getIssueTypeLabel(type: string): string {
@@ -1331,11 +1351,19 @@
 						>
 							{#if isEnriching}
 								<span class="inline-block animate-spin">⟳</span>
-							{:else if enrichmentResult && enrichmentResult.enrichments.length > 0}
+							{:else if enrichmentResult && (enrichmentResult.enrichments.length > 0 || (enrichmentResult.auto_applied && enrichmentResult.auto_applied.length > 0))}
 								🌐
-								<span class="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[10px] rounded-full flex items-center justify-center">
-									{enrichmentResult.enrichments.length}
-								</span>
+								{#if enrichmentResult.enrichments.length > 0}
+									<!-- Suggestions pending -->
+									<span class="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[10px] rounded-full flex items-center justify-center">
+										{enrichmentResult.enrichments.length}
+									</span>
+								{:else}
+									<!-- All auto-applied -->
+									<span class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 text-white text-[10px] rounded-full flex items-center justify-center">
+										✓
+									</span>
+								{/if}
 							{:else}
 								🌐
 							{/if}
@@ -1558,7 +1586,25 @@
 
 							<!-- Content -->
 							<div class="p-4 space-y-3">
-								{#if enrichmentResult.enrichments.length === 0}
+								<!-- Auto-applied enrichments -->
+								{#if enrichmentResult.auto_applied && enrichmentResult.auto_applied.length > 0}
+									<div class="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+										<div class="flex items-center gap-2 mb-2">
+											<span class="text-green-600 dark:text-green-400">✓</span>
+											<span class="text-sm font-medium text-green-700 dark:text-green-300">
+												{enrichmentResult.auto_applied.length} enrichissement(s) appliqué(s) automatiquement
+											</span>
+										</div>
+										<ul class="text-xs text-green-600 dark:text-green-400 space-y-1">
+											{#each enrichmentResult.auto_applied as applied}
+												<li>• {applied.section}: {applied.content.slice(0, 60)}...</li>
+											{/each}
+										</ul>
+									</div>
+								{/if}
+
+								<!-- Suggestions -->
+								{#if enrichmentResult.enrichments.length === 0 && (!enrichmentResult.auto_applied || enrichmentResult.auto_applied.length === 0)}
 									<div class="text-center py-4 text-[var(--color-text-tertiary)]">
 										<span class="text-2xl">🔍</span>
 										<p class="mt-2">Aucun enrichissement trouvé</p>
@@ -1573,7 +1619,10 @@
 											</div>
 										{/if}
 									</div>
-								{:else}
+								{:else if enrichmentResult.enrichments.length > 0}
+									<p class="text-xs text-[var(--color-text-secondary)] mb-2">
+										{enrichmentResult.enrichments.length} suggestion(s) à valider :
+									</p>
 									{#each enrichmentResult.enrichments as enrichment, index}
 										<div class="p-3 rounded-lg bg-[var(--color-bg-primary)] border border-[var(--color-border)]">
 											<div class="flex items-center justify-between mb-2">
@@ -1601,6 +1650,7 @@
 											<div class="flex items-center gap-2 mt-2">
 												<button
 													type="button"
+													onclick={() => handleApplyEnrichment(enrichment, index)}
 													class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50"
 												>
 													Appliquer

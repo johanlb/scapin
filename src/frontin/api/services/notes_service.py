@@ -725,24 +725,155 @@ class NotesService:
             f"Enrichment complete for note {note_id}: {len(result.enrichments)} suggestions"
         )
 
-        # Convert to response
+        # Seuil d'auto-application
+        AUTO_APPLY_THRESHOLD = 0.85
+
+        # Séparer les enrichissements par confiance
+        auto_applied = []
+        suggestions = []
+
+        for idx, e in enumerate(result.enrichments):
+            item = EnrichmentItemResponse(
+                source=e.source.value,
+                section=e.section,
+                content=e.content,
+                confidence=e.confidence,
+                reasoning=e.reasoning,
+                metadata=e.metadata,
+                applied=False,
+                index=idx,
+            )
+
+            if e.confidence >= AUTO_APPLY_THRESHOLD:
+                # Appliquer automatiquement
+                try:
+                    await self._apply_enrichment_to_note(
+                        manager, note, e.section, e.content, e.metadata
+                    )
+                    item.applied = True
+                    auto_applied.append(item)
+                    logger.info(
+                        f"Auto-applied enrichment to note {note_id}",
+                        extra={"section": e.section, "confidence": e.confidence},
+                    )
+                except Exception as ex:
+                    logger.warning(
+                        f"Failed to auto-apply enrichment: {ex}",
+                        extra={"note_id": note_id, "section": e.section},
+                    )
+                    suggestions.append(item)
+            else:
+                suggestions.append(item)
+
+        # Construire le résumé
+        summary = result.analysis_summary
+        if auto_applied:
+            summary = f"{len(auto_applied)} enrichissements appliqués automatiquement. {summary}"
+
         return EnrichmentResultResponse(
             note_id=result.note_id,
-            enrichments=[
-                EnrichmentItemResponse(
-                    source=e.source.value,
-                    section=e.section,
-                    content=e.content,
-                    confidence=e.confidence,
-                    reasoning=e.reasoning,
-                    metadata=e.metadata,
-                )
-                for e in result.enrichments
-            ],
+            enrichments=suggestions,
+            auto_applied=auto_applied,
             gaps_identified=result.gaps_identified,
             sources_used=[s.value for s in result.sources_used],
-            analysis_summary=result.analysis_summary,
+            analysis_summary=summary,
         )
+
+    async def _apply_enrichment_to_note(
+        self,
+        manager: Any,
+        note: Any,
+        section: str,
+        content: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        """
+        Apply an enrichment to a note's content.
+
+        Adds the content to the specified section, or creates a new section
+        at the end of the note if it doesn't exist.
+        """
+        current_content = note.content
+
+        # Chercher la section dans le contenu
+        section_pattern = re.compile(
+            rf"^(#+\s*{re.escape(section)})\s*$",
+            re.MULTILINE | re.IGNORECASE,
+        )
+        match = section_pattern.search(current_content)
+
+        if match:
+            # Ajouter après le titre de section
+            insert_pos = match.end()
+            # Trouver la fin de la section (prochain titre ou fin de fichier)
+            next_section = re.search(r"^#+\s+", current_content[insert_pos:], re.MULTILINE)
+            if next_section:
+                insert_pos = insert_pos + next_section.start()
+
+            # Insérer le contenu avant la prochaine section
+            new_content = (
+                current_content[:insert_pos].rstrip()
+                + "\n\n"
+                + content
+                + "\n\n"
+                + current_content[insert_pos:].lstrip()
+            )
+        else:
+            # Créer une nouvelle section à la fin
+            url = metadata.get("url", "")
+            source_note = f"\n\n> Source: {url}" if url else ""
+            new_content = (
+                current_content.rstrip()
+                + f"\n\n## {section}\n\n"
+                + content
+                + source_note
+                + "\n"
+            )
+
+        # Sauvegarder la note modifiée
+        await asyncio.to_thread(
+            manager.update_note,
+            note.note_id,
+            content=new_content,
+        )
+
+    async def apply_enrichment(
+        self,
+        note_id: str,
+        section: str,
+        content: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> bool:
+        """
+        Manually apply an enrichment to a note.
+
+        Args:
+            note_id: Note identifier
+            section: Target section name
+            content: Content to add
+            metadata: Optional metadata (e.g., source URL)
+
+        Returns:
+            True if successful, False if note not found
+        """
+        manager = self._get_manager()
+
+        # Get note
+        note = await asyncio.to_thread(manager.get_note, note_id)
+        if note is None:
+            return False
+
+        # Apply the enrichment
+        await self._apply_enrichment_to_note(
+            manager, note, section, content, metadata or {}
+        )
+
+        logger.info(
+            f"Manually applied enrichment to note {note_id}",
+            extra={"section": section},
+        )
+
+        return True
 
     async def run_hygiene(
         self, note_id: str
