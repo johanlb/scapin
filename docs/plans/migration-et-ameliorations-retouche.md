@@ -694,6 +694,228 @@ def render_retouche(
 
 ---
 
+### Commit 4d : Implémenter le scoring v3 basé sur l'alignement PKM
+
+**Objectif** : Remplacer le scoring générique (v2) par un scoring qui évalue l'alignement avec les modèles PKM.
+
+**Fichiers modifiés :**
+- `src/passepartout/retouche_reviewer.py`
+- `src/passepartout/note_metadata.py` (étendre NoteMetadata)
+
+#### 4d.1 Nouvelles dataclasses
+
+```python
+@dataclass
+class SectionDef:
+    """Définition d'une section attendue"""
+    name: str
+    weight: float
+    required: bool
+    patterns: list[str] = field(default_factory=list)
+    min_words: int = 0
+
+@dataclass
+class SectionScore:
+    """Score d'une section individuelle"""
+    name: str
+    present: bool
+    completeness: float  # 0.0-1.0
+    weight: float
+    required: bool
+
+@dataclass
+class QualityScoreV3:
+    """Score de qualité détaillé v3"""
+    total: int                   # 0-100
+    alignment: float             # 0.0-1.0
+    sections: list[SectionScore]
+    missing_required: list[str]
+    missing_optional: list[str]
+    suggestions: list[str]
+```
+
+#### 4d.2 Définitions des sections par type
+
+```python
+SECTION_DEFINITIONS = {
+    "personne": [
+        SectionDef("👤 COORDONNÉES", weight=25, required=True,
+                   patterns=[r"email|e-mail", r"mobile|téléphone|tél", r"linkedin"]),
+        SectionDef("🏢 ORGANISATION", weight=15, required=False,
+                   patterns=[r"société|entreprise", r"poste|fonction"]),
+        SectionDef("🧠 PROFIL RELATIONNEL", weight=20, required=False,
+                   patterns=[r"style.*communication", r"points? forts?", r"points? d'attention"]),
+        SectionDef("🤝 RELATION", weight=15, required=True,
+                   patterns=[r"type\s*:", r"contexte\s*:", r"premier contact"]),
+        SectionDef("🔗 FICHES CONNEXES", weight=10, required=False,
+                   patterns=[r"\[\[.+\]\]"]),
+        SectionDef("_contenu", weight=15, required=True, min_words=100),
+    ],
+    "projet": [
+        SectionDef("🎯 OBJECTIF", weight=20, required=True, min_words=50),
+        SectionDef("📅 CALENDRIER", weight=15, required=True,
+                   patterns=[r"début\s*:", r"échéance|fin\s*:", r"jalons?"]),
+        SectionDef("📋 CONTEXTE", weight=10, required=False, min_words=30),
+        SectionDef("✅ TÂCHES", weight=15, required=False,
+                   patterns=[r"[☐☑✅❌\[\]]"]),
+        SectionDef("👥 CONTACTS", weight=10, required=False,
+                   patterns=[r"—.*\d|:.*@"]),
+        SectionDef("📜 HISTORIQUE", weight=10, required=False,
+                   patterns=[r"\d{4}.*:"]),
+        SectionDef("🔗 FICHES CONNEXES", weight=10, required=False,
+                   patterns=[r"\[\[.+\]\]"]),
+        SectionDef("_omnifocus", weight=10, required=False,
+                   patterns=[r"omnifocus:///"]),
+    ],
+    "reunion": [
+        SectionDef("👥 PARTICIPANTS", weight=20, required=True,
+                   patterns=[r"présents?\s*:", r"•.*—"]),
+        SectionDef("📋 ORDRE DU JOUR", weight=15, required=False,
+                   patterns=[r"\d+\.\s"]),
+        SectionDef("💬 ÉCHANGES CLÉS", weight=15, required=False, min_words=50),
+        SectionDef("✅ DÉCISIONS", weight=20, required=True,
+                   patterns=[r"décision|décidé|adopté"]),
+        SectionDef("🎯 ACTIONS", weight=20, required=True,
+                   patterns=[r"[☐→].*→.*—|action.*responsable"]),
+        SectionDef("🔗 FICHES CONNEXES", weight=10, required=False,
+                   patterns=[r"\[\[.+\]\]"]),
+    ],
+    "entite": [
+        SectionDef("📍 INFORMATIONS GÉNÉRALES", weight=25, required=True,
+                   patterns=[r"type\s*:", r"adresse\s*:", r"brn|rcs"]),
+        SectionDef("🏢 ADMINISTRATION", weight=20, required=False,
+                   patterns=[r"gérant|syndic", r"contact.*principal"]),
+        SectionDef("📋 CARACTÉRISTIQUES", weight=15, required=False,
+                   patterns=[r"•.*:"]),
+        SectionDef("📁 DOCUMENTS", weight=10, required=False,
+                   patterns=[r"dossier\s*:", r"\.pdf|\.docx?"]),
+        SectionDef("🔗 FICHES CONNEXES", weight=20, required=False,
+                   patterns=[r"\[\[.+\]\]"]),
+    ],
+    "evenement": [
+        SectionDef("📅 DATES", weight=20, required=True,
+                   patterns=[r"du\s+\d|date\s*:", r"\d{1,2}.*202\d"]),
+        SectionDef("👥 PARTICIPANTS", weight=20, required=True,
+                   patterns=[r"présents?|participants?"]),
+        SectionDef("✅ RÉSOLUTIONS", weight=25, required=False,
+                   patterns=[r"résolution|adopté|rejeté|voté"]),
+        SectionDef("📝 NOTES", weight=15, required=False, min_words=30),
+        SectionDef("🔗 FICHES CONNEXES", weight=20, required=False,
+                   patterns=[r"\[\[.+\]\]"]),
+    ],
+}
+```
+
+#### 4d.3 Méthode de calcul
+
+```python
+def _calculate_quality_score_v3(
+    self,
+    context: RetoucheContext,
+) -> QualityScoreV3:
+    """Calculate quality score based on PKM model alignment."""
+    note_type = context.metadata.note_type.value if context.metadata.note_type else None
+    content = context.note.content.lower()
+
+    if note_type not in SECTION_DEFINITIONS:
+        # Fallback: convert v2 to v3 format
+        v2_score = self._calculate_quality_score_v2(context)
+        return QualityScoreV3(
+            total=v2_score,
+            alignment=0.5,
+            sections=[],
+            missing_required=[],
+            missing_optional=[],
+            suggestions=["Type de note non défini, scoring générique appliqué"],
+        )
+
+    sections_def = SECTION_DEFINITIONS[note_type]
+    section_scores = []
+    missing_required = []
+    missing_optional = []
+
+    for section_def in sections_def:
+        # Skip internal markers
+        if section_def.name.startswith("_"):
+            present = self._check_internal_criterion(content, section_def)
+            completeness = 1.0 if present else 0.0
+        else:
+            present = self._detect_section_header(content, section_def.name)
+            completeness = self._calculate_section_completeness(content, section_def) if present else 0.0
+
+        section_scores.append(SectionScore(
+            name=section_def.name,
+            present=present,
+            completeness=completeness,
+            weight=section_def.weight,
+            required=section_def.required,
+        ))
+
+        if not present:
+            if section_def.required:
+                missing_required.append(section_def.name)
+            else:
+                missing_optional.append(section_def.name)
+
+    # Calculate weighted score
+    total_weighted = sum(
+        s.completeness * s.weight for s in section_scores if s.present
+    )
+    total_weight = sum(s.weight for s in section_scores)
+    base_score = (total_weighted / total_weight) * 100 if total_weight > 0 else 0
+
+    # Penalties
+    penalty = len(missing_required) * 15  # -15 per missing required section
+
+    # Alignment
+    present_count = sum(1 for s in section_scores if s.present)
+    alignment = present_count / len(section_scores)
+
+    # Final score
+    total = max(0, min(100, int(base_score - penalty)))
+
+    # Suggestions
+    suggestions = [f"Ajouter : {s}" for s in missing_required]
+    suggestions.extend([f"Enrichir avec : {s}" for s in missing_optional[:2]])
+
+    return QualityScoreV3(
+        total=total,
+        alignment=alignment,
+        sections=section_scores,
+        missing_required=missing_required,
+        missing_optional=missing_optional,
+        suggestions=suggestions,
+    )
+```
+
+#### 4d.4 Étendre NoteMetadata pour stocker le détail
+
+```python
+# Dans note_metadata.py
+
+@dataclass
+class NoteMetadata:
+    # ... champs existants ...
+
+    # NOUVEAU: Score v3 détaillé
+    quality_alignment: Optional[float] = None  # 0.0-1.0
+    quality_sections: Optional[dict] = None    # {section_name: completeness}
+    quality_missing: Optional[list[str]] = None  # Sections manquantes
+```
+
+**Vérification :**
+```bash
+.venv/bin/pytest tests/unit/test_retouche_reviewer.py -v
+# Test comparatif v2 vs v3
+.venv/bin/python -c "
+from src.passepartout.retouche_reviewer import SECTION_DEFINITIONS
+for note_type, sections in SECTION_DEFINITIONS.items():
+    print(f'{note_type}: {len(sections)} sections, {sum(s.weight for s in sections)} pts')
+"
+```
+
+---
+
 ### Commit 5 : Adapter background_worker.py
 
 **Fichiers modifiés :**
@@ -828,14 +1050,324 @@ self._reviewer: Optional[NoteReviewer] = None
 
 ---
 
+## Score de Qualité v3 — Alignement PKM
+
+### Problème du scoring v2
+
+Le scoring actuel (v2) est générique et ignore les modèles PKM :
+
+```
+Contenu      : 30 pts (seuils mots: 50/200/500)
+Structure    : 25 pts (résumé + nb sections)
+Liens        : 15 pts (wikilinks)
+Complétude IA: 30 pts (bonus si peu d'actions)
+```
+
+**Résultat** : Une fiche Personne sans coordonnées ni profil relationnel peut avoir 100/100.
+
+### Nouveau scoring v3 — Par type de note
+
+Le score v3 est calculé différemment selon le type de note, en fonction des sections définies dans les modèles PKM.
+
+#### Architecture du scoring v3
+
+```python
+@dataclass
+class SectionScore:
+    """Score d'une section individuelle"""
+    name: str                    # Nom de la section (ex: "👤 COORDONNÉES")
+    present: bool                # Section existe dans la note
+    completeness: float          # 0.0-1.0 : % de champs remplis
+    quality: float               # 0.0-1.0 : qualité du contenu
+    weight: float                # Poids dans le score final (importance)
+    required: bool               # Section obligatoire ou optionnelle
+
+@dataclass
+class QualityScore:
+    """Score de qualité complet d'une note"""
+    total: int                   # Score final 0-100
+    alignment: float             # 0.0-1.0 : alignement avec modèle PKM
+    sections: list[SectionScore] # Détail par section
+    missing_required: list[str]  # Sections obligatoires manquantes
+    missing_optional: list[str]  # Sections optionnelles manquantes
+    suggestions: list[str]       # Suggestions d'amélioration
+```
+
+#### Sections et poids par type de note
+
+##### Fiche Personne (100 pts)
+
+| Section | Poids | Obligatoire | Critères de complétude |
+|---------|-------|-------------|------------------------|
+| 👤 COORDONNÉES | 25 | ✅ | Email OU Mobile présent |
+| 🏢 ORGANISATION | 15 | ❌ | Société + Poste |
+| 🧠 PROFIL RELATIONNEL | 20 | ❌ | Style + 1 point fort/attention |
+| 🤝 RELATION | 15 | ✅ | Type + Contexte |
+| 🔗 FICHES CONNEXES | 10 | ❌ | ≥1 lien |
+| Contenu général | 15 | ✅ | ≥100 mots hors sections |
+
+**Calcul** :
+```
+Score = Σ (section.present × section.completeness × section.weight)
+
+Pénalités :
+- Section obligatoire manquante : -20 pts
+- Aucune section optionnelle : -10 pts
+```
+
+##### Fiche Projet (100 pts)
+
+| Section | Poids | Obligatoire | Critères de complétude |
+|---------|-------|-------------|------------------------|
+| 🎯 OBJECTIF | 20 | ✅ | ≥50 mots |
+| 📅 CALENDRIER | 15 | ✅ | Début + Échéance |
+| 📋 CONTEXTE | 10 | ❌ | ≥30 mots |
+| ✅ TÂCHES | 15 | ❌ | ≥1 tâche listée |
+| 👥 CONTACTS | 10 | ❌ | ≥1 contact avec rôle |
+| 📜 HISTORIQUE | 10 | ❌ | ≥1 entrée datée |
+| 🔗 FICHES CONNEXES | 10 | ❌ | ≥1 lien |
+| Lien OmniFocus | 10 | ❌ | URL omnifocus:/// présente |
+
+##### Fiche Réunion (100 pts)
+
+| Section | Poids | Obligatoire | Critères de complétude |
+|---------|-------|-------------|------------------------|
+| 👥 PARTICIPANTS | 20 | ✅ | ≥2 noms |
+| 📋 ORDRE DU JOUR | 15 | ❌ | ≥1 point |
+| 💬 ÉCHANGES CLÉS | 15 | ❌ | ≥50 mots |
+| ✅ DÉCISIONS | 20 | ✅ | ≥1 décision |
+| 🎯 ACTIONS | 20 | ✅ | ≥1 action avec responsable |
+| 🔗 FICHES CONNEXES | 10 | ❌ | ≥1 lien |
+
+##### Fiche Entité (100 pts)
+
+| Section | Poids | Obligatoire | Critères de complétude |
+|---------|-------|-------------|------------------------|
+| 📍 INFORMATIONS GÉNÉRALES | 25 | ✅ | Type + Adresse |
+| 🏢 ADMINISTRATION | 20 | ❌ | Contact principal |
+| 📋 CARACTÉRISTIQUES | 15 | ❌ | ≥2 caractéristiques |
+| 👥 PROPRIÉTAIRES | 10 | ❌ | Si applicable |
+| 📁 DOCUMENTS | 10 | ❌ | ≥1 document |
+| 🔗 FICHES CONNEXES | 20 | ❌ | ≥1 lien personne + ≥1 lien projet |
+
+##### Fiche Événement (100 pts)
+
+| Section | Poids | Obligatoire | Critères de complétude |
+|---------|-------|-------------|------------------------|
+| 📅 DATES | 20 | ✅ | Date début |
+| 👥 PARTICIPANTS | 20 | ✅ | ≥1 nom |
+| ✅ RÉSOLUTIONS/DÉCISIONS | 25 | ❌ | ≥1 résolution (si AG) |
+| 📝 NOTES | 15 | ❌ | ≥30 mots |
+| 🔗 FICHES CONNEXES | 20 | ❌ | ≥1 lien |
+
+#### Implémentation
+
+```python
+# Dans retouche_reviewer.py
+
+# Définition des sections attendues par type
+SECTION_DEFINITIONS = {
+    "personne": [
+        SectionDef("👤 COORDONNÉES", weight=25, required=True,
+                   patterns=["email", "mobile", "téléphone", "linkedin"]),
+        SectionDef("🏢 ORGANISATION", weight=15, required=False,
+                   patterns=["société", "poste", "entreprise"]),
+        SectionDef("🧠 PROFIL RELATIONNEL", weight=20, required=False,
+                   patterns=["style", "points forts", "points d'attention"]),
+        SectionDef("🤝 RELATION", weight=15, required=True,
+                   patterns=["type", "contexte", "premier contact"]),
+        SectionDef("🔗 FICHES CONNEXES", weight=10, required=False,
+                   patterns=[r"\[\[.*\]\]"]),
+    ],
+    "projet": [
+        SectionDef("🎯 OBJECTIF", weight=20, required=True, min_words=50),
+        SectionDef("📅 CALENDRIER", weight=15, required=True,
+                   patterns=["début", "échéance", "jalons"]),
+        SectionDef("✅ TÂCHES", weight=15, required=False,
+                   patterns=[r"☐|☑️|\[.\]"]),
+        # ... etc
+    ],
+    # ... autres types
+}
+
+def _calculate_quality_score_v3(
+    self,
+    context: RetoucheContext,
+    pkm_model: Optional[str],
+) -> QualityScore:
+    """
+    Calculate quality score based on PKM model alignment.
+    """
+    note_type = context.metadata.note_type.value if context.metadata.note_type else None
+    content = context.note.content
+
+    # Fallback to v2 if no model
+    if note_type not in SECTION_DEFINITIONS:
+        return self._calculate_quality_score_v2_as_v3(context)
+
+    sections_def = SECTION_DEFINITIONS[note_type]
+    section_scores = []
+    total_weighted = 0
+    total_weight = 0
+    missing_required = []
+    missing_optional = []
+
+    for section_def in sections_def:
+        # Detect section presence
+        section_present = self._detect_section(content, section_def)
+
+        # Calculate completeness
+        completeness = 0.0
+        if section_present:
+            completeness = self._calculate_section_completeness(
+                content, section_def
+            )
+
+        # Build section score
+        section_score = SectionScore(
+            name=section_def.name,
+            present=section_present,
+            completeness=completeness,
+            quality=completeness,  # Simplified: quality = completeness
+            weight=section_def.weight,
+            required=section_def.required,
+        )
+        section_scores.append(section_score)
+
+        # Accumulate weighted score
+        if section_present:
+            total_weighted += completeness * section_def.weight
+        else:
+            if section_def.required:
+                missing_required.append(section_def.name)
+            else:
+                missing_optional.append(section_def.name)
+
+        total_weight += section_def.weight
+
+    # Calculate alignment (how many sections are present)
+    present_count = sum(1 for s in section_scores if s.present)
+    alignment = present_count / len(sections_def)
+
+    # Base score from weighted sections
+    base_score = (total_weighted / total_weight) * 100 if total_weight > 0 else 0
+
+    # Penalties
+    penalty = 0
+    penalty += len(missing_required) * 20  # -20 per missing required
+    if len(missing_optional) == len([s for s in sections_def if not s.required]):
+        penalty += 10  # -10 if ALL optional sections missing
+
+    total = max(0, min(100, int(base_score - penalty)))
+
+    # Generate suggestions
+    suggestions = []
+    for section in missing_required:
+        suggestions.append(f"Ajouter la section obligatoire : {section}")
+    for section in missing_optional[:2]:  # Limit to 2 suggestions
+        suggestions.append(f"Enrichir avec : {section}")
+
+    return QualityScore(
+        total=total,
+        alignment=alignment,
+        sections=section_scores,
+        missing_required=missing_required,
+        missing_optional=missing_optional,
+        suggestions=suggestions,
+    )
+
+def _detect_section(self, content: str, section_def: SectionDef) -> bool:
+    """Detect if a section is present in content"""
+    # Check for section header
+    header_patterns = [
+        section_def.name,
+        section_def.name.replace("👤 ", "").replace("🏢 ", ""),  # Without emoji
+    ]
+    for pattern in header_patterns:
+        if pattern.lower() in content.lower():
+            return True
+    return False
+
+def _calculate_section_completeness(
+    self,
+    content: str,
+    section_def: SectionDef,
+) -> float:
+    """Calculate how complete a section is (0.0-1.0)"""
+    if not section_def.patterns:
+        # No specific patterns: check word count
+        return min(1.0, len(content.split()) / (section_def.min_words or 50))
+
+    # Count how many patterns are matched
+    matches = 0
+    for pattern in section_def.patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            matches += 1
+
+    return matches / len(section_def.patterns)
+```
+
+#### Affichage du score dans l'UI
+
+Le score détaillé peut être affiché dans la page de détail de la note :
+
+```
+Score de qualité : 68/100
+
+📊 Alignement modèle PKM : 75%
+┌─────────────────────────────┬──────────┬─────────────┐
+│ Section                     │ Présente │ Complétude  │
+├─────────────────────────────┼──────────┼─────────────┤
+│ 👤 COORDONNÉES (obligatoire)│    ✅    │ ████████░░ 80% │
+│ 🏢 ORGANISATION             │    ✅    │ ██████░░░░ 60% │
+│ 🧠 PROFIL RELATIONNEL       │    ❌    │ ░░░░░░░░░░  0% │
+│ 🤝 RELATION (obligatoire)   │    ✅    │ ██████████100% │
+│ 🔗 FICHES CONNEXES          │    ❌    │ ░░░░░░░░░░  0% │
+└─────────────────────────────┴──────────┴─────────────┘
+
+⚠️ Sections à améliorer :
+• Ajouter 🧠 PROFIL RELATIONNEL (style de communication, points forts)
+• Ajouter des liens vers projets ou entités connexes
+```
+
+#### Migration du score v2 → v3
+
+La migration se fait progressivement :
+1. **Phase 1** : Calculer v3 en parallèle, logger les différences
+2. **Phase 2** : Afficher v3 dans l'UI, garder v2 comme fallback
+3. **Phase 3** : Remplacer v2 par v3, recalculer tous les scores
+
+```python
+def _calculate_quality_score(self, context, analysis) -> int:
+    """Wrapper qui utilise v3 si disponible, sinon v2"""
+    if context.pkm_model and context.metadata.note_type:
+        v3_score = self._calculate_quality_score_v3(context, context.pkm_model)
+        logger.info(
+            "Quality score calculated",
+            extra={
+                "note_id": context.note.note_id,
+                "score_v3": v3_score.total,
+                "alignment": v3_score.alignment,
+                "missing_required": v3_score.missing_required,
+            }
+        )
+        return v3_score.total
+    else:
+        # Fallback v2
+        return self._calculate_quality_score_v2(context, analysis)
+```
+
+---
+
 ## Estimation
 
-- **11 commits atomiques** (9 + 4b + 4c)
-- ~450 lignes ajoutées à retouche_reviewer.py
+- **12 commits atomiques** (9 + 4b + 4c + 4d)
+- ~600 lignes ajoutées à retouche_reviewer.py (incluant scoring v3)
 - ~60 lignes ajoutées à template_renderer.py
 - ~150 lignes ajoutées à retouche_user.j2
+- ~30 lignes ajoutées à note_metadata.py
 - ~1000 lignes supprimées (note_reviewer.py)
-- Bilan net : -340 lignes
+- Bilan net : -160 lignes
 
 ---
 
