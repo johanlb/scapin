@@ -51,7 +51,21 @@ Voici la structure type pour une fiche **{{ note_type }}**. Utilise ce modèle c
 
 ## Instructions spécifiques
 
-{% if note_type == 'personne' %}
+{% if note_type == 'inconnu' %}
+**⚠️ PRIORITÉ : Cette note n'a pas de type défini.**
+
+Analyse le contenu et propose une action `assign_type` avec le type le plus approprié parmi :
+- personne (fiche contact, informations sur une personne)
+- projet (projet en cours ou terminé)
+- reunion (compte-rendu de réunion, notes de meeting)
+- entite (entreprise, organisation, copropriété, concept abstrait)
+- processus (procédure, workflow, méthode)
+- evenement (événement ponctuel, anniversaire, voyage)
+- souvenir (mémoire personnelle, anecdote)
+- autre (si aucun type ci-dessus ne convient)
+
+{% include 'retouche/generique.j2' %}
+{% elif note_type == 'personne' %}
 {% include 'retouche/personne.j2' %}
 {% elif note_type == 'projet' %}
 {% include 'retouche/projet.j2' %}

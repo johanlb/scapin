@@ -100,6 +100,7 @@ class RetoucheAction(str, Enum):
     FLAG_OBSOLETE = "flag_obsolete"  # Marquer note obsolète → Filage (toujours)
     MERGE_INTO = "merge_into"  # Fusionner dans une autre note → Auto/Filage
     MOVE_TO_FOLDER = "move_to_folder"  # Classer dans le bon dossier → Auto
+    ASSIGN_TYPE = "assign_type"  # Attribuer un type à une note sans type
     # Hygiene actions (migré de NoteReviewer)
     FORMAT = "format"  # Corrections formatage (espaces, headers)
     VALIDATE = "validate"  # Validation frontmatter
@@ -231,6 +232,11 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
   Auto si confiance >= 0.85.
   Fournir le dossier cible dans "content".
   Dossiers possibles : Personnes, Projets, Entités, Réunions, Processus, Événements, Souvenirs
+- assign_type : Attribuer un type à une note sans type.
+  Auto si confiance >= 0.85.
+  Fournir le type dans "content".
+  Types possibles : personne, projet, reunion, entite, processus, evenement, souvenir, autre
+  **PRIORITAIRE** si la note n'a pas de type défini.
 
 ### Actions avancées
 - restructure_graph : Proposer split/merge (confiance 0.95 requise)
@@ -438,6 +444,24 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
                         logger.warning(
                             f"Failed to move note: {e}",
                             extra={"note_id": note_id, "folder": action.content},
+                        )
+
+            elif action.action_type == RetoucheAction.ASSIGN_TYPE:
+                # Attribuer un type à une note sans type
+                if action.content and action.applied:
+                    from src.passepartout.note_types import NoteType
+
+                    try:
+                        new_type = NoteType(action.content.lower())
+                        metadata.note_type = new_type
+                        logger.info(
+                            f"Type assigned: {new_type.value}",
+                            extra={"note_id": note_id, "type": new_type.value},
+                        )
+                    except ValueError:
+                        logger.warning(
+                            f"Invalid type: {action.content}",
+                            extra={"note_id": note_id, "type": action.content},
                         )
 
             elif action.action_type == RetoucheAction.MERGE_INTO:
@@ -1497,6 +1521,12 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             # MOVE_TO_FOLDER ne modifie pas le contenu
             # Le déplacement est géré par NoteManager.move_note() dans review_note
             logger.info(f"Move to folder requested: {action.content}")
+            return content
+
+        if action.action_type == RetoucheAction.ASSIGN_TYPE:
+            # ASSIGN_TYPE ne modifie pas le contenu
+            # La mise à jour du type est gérée dans review_note via metadata.note_type
+            logger.info(f"Type assignment requested: {action.content}")
             return content
 
         return content
