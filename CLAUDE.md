@@ -24,6 +24,8 @@ en connaissances organisées via analyse IA multi-pass et mémoire contextuelle.
 | **UI** | `/ui` | Composants Svelte, accessibilité, Liquid Glass |
 | **API** | `/api` | Endpoints FastAPI, client TypeScript, REST |
 | **Perf** | `/perf` | Lenteur, profiling, optimisations, métriques |
+| **Tests** | `/tests` | Écrire des tests, pytest, Playwright, mocks |
+| **DB** | `/db` | SQLite, FAISS, schéma, migrations, requêtes |
 
 ---
 
@@ -274,6 +276,21 @@ tail -f data/logs/processing_$(date +%Y-%m-%d).json
 ```
 
 **Si un point n'est pas coché, je dois l'expliquer et obtenir l'accord de Johan.**
+
+### Hook Pre-commit
+
+Un hook Git vérifie automatiquement les points automatisables :
+- ✓ Ruff (Python linting)
+- ✓ TypeScript (type checking)
+- ✓ Absence de `console.log`
+- ⚠ Détection de TODO/FIXME (warning)
+
+Le hook affiche aussi un rappel des vérifications manuelles.
+
+```bash
+# Bypass si vraiment nécessaire (non recommandé)
+git commit --no-verify
+```
 
 ---
 

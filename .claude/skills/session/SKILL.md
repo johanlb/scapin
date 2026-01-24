@@ -30,6 +30,10 @@ Historique des travaux récents sur le projet.
 **Améliorations Skills existants :**
 - `/ui` : Ajout guidelines Apple Liquid Glass (WWDC 2025)
 - `/workflow` : Suppression redondances, références croisées vers /api, /ui, /perf
+- `/valets` : Structure Frontin détaillée, skills connexes
+
+**Infrastructure :**
+- Hook pre-commit Git (Ruff, TypeScript, console.log, TODO)
 
 ### En attente
 - **Refactoring UI** : Plan de refactoring des composants volumineux
