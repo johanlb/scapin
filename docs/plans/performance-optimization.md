@@ -15,8 +15,8 @@
 | Phase 0 — Setup | ✅ COMPLÉTÉ |
 | Phase 1 — Profiling & Baseline | ✅ COMPLÉTÉ |
 | Phase 2 — Quick Wins Backend | ✅ COMPLÉTÉ |
-| Phase 3 — Tests & Validation | ⏳ EN COURS |
-| Phase 4 — Documentation | ⏳ À FAIRE |
+| Phase 3 — Tests & Validation | ✅ COMPLÉTÉ |
+| Phase 4 — Documentation | ✅ COMPLÉTÉ |
 | Phase 5 — Frontend | 🔜 REPORTÉ |
 
 ---
@@ -171,7 +171,7 @@ py-spy --version  # 0.4.1
 
 ---
 
-## Phase 4 — Documentation ✅ PARTIEL
+## Phase 4 — Documentation ✅ COMPLÉTÉ
 
 ### #14 Documentation technique performance ✅
 
@@ -185,15 +185,16 @@ py-spy --version  # 0.4.1
 
 ---
 
-### #15 Guide utilisateur performance ⏳ À FAIRE
+### #15 Guide utilisateur performance ✅
 
-**Fichier à créer** : `docs/user-guide/performance.md`
+**Fichier** : `docs/user-guide/10-performance.md`
 
-**Contenu prévu** :
-1. Comportement normal (temps attendus)
-2. Troubleshooting si lent
-3. Optimiser son usage
-4. Diagnostic (logs, métriques)
+**Contenu** :
+- ✅ Comportement normal (temps attendus)
+- ✅ Troubleshooting si lent
+- ✅ Optimiser son usage
+- ✅ Diagnostic (logs, métriques)
+- ✅ Ajouté à la table des matières README.md
 
 ---
 
@@ -309,13 +310,13 @@ flowchart TD
   ✅ #3 — Early-stop is_ephemeral
   ✅ #5 — Batch search VectorStore
 
-⏳ Phase 3 — Validation
+✅ Phase 3 — Validation
   ✅ #16 — Tests non-régression (partiel)
   ✅ #13 — Tests performance
 
-⏳ Phase 4 — Documentation
+✅ Phase 4 — Documentation
   ✅ #14 — Doc technique
-  ⏳ #15 — Guide utilisateur
+  ✅ #15 — Guide utilisateur
 
 🔜 Phase 5 — Optionnel
   ⏳ #8 — Gzip (si temps)
@@ -347,7 +348,7 @@ flowchart TD
 | Flamegraphs CPU | `data/profiling/*.svg` | ✅ |
 | Doc technique | `docs/architecture/performance.md` | ✅ |
 | Tests performance | `tests/performance/*.py` | ✅ 8 nouveaux tests |
-| Guide utilisateur | `docs/user-guide/performance.md` | ⏳ À créer |
+| Guide utilisateur | `docs/user-guide/10-performance.md` | ✅ |
 
 ---
 
@@ -363,3 +364,4 @@ flowchart TD
 | 2026-01-24 | Mise à jour plan : Phases 0-2 complétées, 3-4 en cours |
 | 2026-01-24 | #5 Batch search VectorStore implémenté |
 | 2026-01-24 | #13 Tests performance enrichis (8 nouveaux tests) |
+| 2026-01-24 | #15 Guide utilisateur performance créé |

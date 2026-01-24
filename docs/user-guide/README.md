@@ -71,6 +71,7 @@ Inspiré du valet rusé de Molière, Scapin anticipe vos besoins, organise vos i
 | [7. Configuration](07-configuration.md) | Réglages, intégrations |
 | [8. Dépannage](08-troubleshooting.md) | Diagnostic erreurs, script `view_errors.py` |
 | [9. Canevas](09-canevas.md) | Contexte permanent (Profile, Goals, Projects) |
+| [10. Performance](10-performance.md) | Temps de réponse, diagnostic lenteurs |
 
 ---
 
