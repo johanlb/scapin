@@ -373,7 +373,7 @@ class DuckDuckGoAdapter(BaseAdapter):
         """Check if duckduckgo-search is installed."""
         if self._duckduckgo_available is None:
             try:
-                from duckduckgo_search import DDGS  # noqa: F401
+                from ddgs import DDGS  # noqa: F401
                 self._duckduckgo_available = True
             except ImportError:
                 self._duckduckgo_available = False
@@ -422,8 +422,8 @@ class DuckDuckGoAdapter(BaseAdapter):
 
         # Import here to handle optional dependency
         try:
-            from duckduckgo_search import DDGS
-            from duckduckgo_search.exceptions import RatelimitException
+            from ddgs import DDGS
+            from ddgs.exceptions import RatelimitException
         except ImportError:
             logger.warning("duckduckgo-search not installed")
             return []

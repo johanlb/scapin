@@ -683,11 +683,9 @@ class NotesService:
             from src.passepartout.note_metadata import NoteMetadata
             metadata = NoteMetadata(note_id=note_id)
 
-        # Check if web search is allowed
-        web_search_enabled = (
-            "web_search" in sources
-            and metadata.web_search_enabled
-        )
+        # Web search is enabled if explicitly requested in sources
+        # (metadata.web_search_enabled controls automatic enrichment, not explicit requests)
+        web_search_enabled = "web_search" in sources
 
         # Get linked notes for cross-reference
         linked_notes = []

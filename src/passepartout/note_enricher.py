@@ -169,8 +169,8 @@ class NoteEnricher:
             if email_enrichments:
                 sources_used.append(EnrichmentSource.EMAIL_CONTEXT)
 
-        # 4. Web search (if enabled for this note, with timeout)
-        if self.web_search_enabled and metadata.web_search_enabled:
+        # 4. Web search (if enabled via constructor, with timeout)
+        if self.web_search_enabled:
             try:
                 web_enrichments = await asyncio.wait_for(
                     self._web_research(context), timeout=self.web_timeout
@@ -287,12 +287,67 @@ class NoteEnricher:
 
     async def _web_research(
         self,
-        _context: EnrichmentContext,
+        context: EnrichmentContext,
     ) -> list[Enrichment]:
-        """Search web for relevant information"""
-        # This will be implemented with web search integration
-        # For now, return empty list
-        return []
+        """Search web for relevant information using Tavily or DuckDuckGo."""
+        from src.passepartout.cross_source.adapters.web_adapter import create_web_adapter
+
+        enrichments = []
+        note = context.note
+
+        # Create web adapter (Tavily if available, else DuckDuckGo)
+        adapter = create_web_adapter()
+        if not adapter.is_available:
+            logger.warning("No web adapter available for enrichment")
+            return []
+
+        # Build search query from note title and key entities
+        query = note.title
+        if context.metadata.note_type == NoteType.PERSONNE:
+            query = f"{note.title} personne profil"
+        elif context.metadata.note_type == NoteType.ENTITE:
+            query = f"{note.title} entreprise organisation"
+        elif context.metadata.note_type == NoteType.PROJET:
+            query = f"{note.title} projet"
+
+        logger.info(
+            "Running web search for enrichment",
+            extra={"note_id": note.note_id, "query": query},
+        )
+
+        # Search the web
+        results = await adapter.search(query, max_results=5)
+
+        if not results:
+            logger.info("No web results found", extra={"note_id": note.note_id})
+            return []
+
+        # Convert results to enrichments
+        for result in results:
+            # Skip low relevance results
+            if result.relevance_score < 0.5:
+                continue
+
+            enrichments.append(
+                Enrichment(
+                    source=EnrichmentSource.WEB_SEARCH,
+                    section="Recherche Web",
+                    content=f"**{result.title}**\n\n{result.content[:500]}",
+                    confidence=min(result.relevance_score, CONFIDENCE_NEW_SECTION),
+                    reasoning=f"Résultat web pertinent (score: {result.relevance_score:.2f})",
+                    metadata={
+                        "url": result.url,
+                        "domain": result.metadata.get("domain", ""),
+                    },
+                )
+            )
+
+        logger.info(
+            "Web search enrichment complete",
+            extra={"note_id": note.note_id, "results": len(enrichments)},
+        )
+
+        return enrichments
 
     def _identify_gaps(self, context: EnrichmentContext) -> list[str]:
         """Identify missing information based on note type"""
