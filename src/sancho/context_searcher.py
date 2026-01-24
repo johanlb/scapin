@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
+from cachetools import TTLCache
+
 from src.monitoring.logger import get_logger
 
 
@@ -314,6 +316,10 @@ class ContextSearcher:
         # Lazy-load EntitySearcher if note_manager is available but no searcher provided
         self._entity_searcher_loaded = entity_searcher is not None
 
+        # Cache pour les recherches sémantiques FAISS (TTL 60s)
+        # Clé: (entity, top_k), Valeur: list[(Note, float)]
+        self._search_cache: TTLCache = TTLCache(maxsize=100, ttl=60)
+
         logger.info(
             "ContextSearcher initialized (notes=%s, cross_source=%s, entity_search=%s)",
             note_manager is not None,
@@ -348,6 +354,17 @@ class ContextSearcher:
                 self._entity_searcher_loaded = True  # Don't retry
 
         return self._entity_searcher
+
+    def invalidate_cache(self) -> None:
+        """
+        Invalide le cache des recherches sémantiques.
+
+        Doit être appelé lors du rebuild de l'index FAISS pour éviter
+        des résultats stale.
+        """
+        cache_size = len(self._search_cache)
+        self._search_cache.clear()
+        logger.debug("Context search cache invalidated", extra={"cleared_entries": cache_size})
 
     async def search_for_entities(
         self,
@@ -516,12 +533,30 @@ class ContextSearcher:
         if remaining_slots > 0:
             for entity in entities:
                 try:
-                    # Semantic search for notes matching this entity
-                    results = self._note_manager.search_notes(
-                        query=entity,
-                        top_k=remaining_slots,
-                        return_scores=True,
-                    )
+                    # Check cache first
+                    cache_key = (entity, remaining_slots)
+                    cache_hit = cache_key in self._search_cache
+
+                    if cache_hit:
+                        results = self._search_cache[cache_key]
+                        logger.debug(
+                            "Cache hit for semantic search",
+                            extra={"entity": entity, "top_k": remaining_slots},
+                        )
+                    else:
+                        # Semantic search for notes matching this entity
+                        results = self._note_manager.search_notes(
+                            query=entity,
+                            top_k=remaining_slots,
+                            return_scores=True,
+                        )
+                        # Store in cache
+                        self._search_cache[cache_key] = list(results)
+                        results = self._search_cache[cache_key]
+                        logger.debug(
+                            "Cache miss for semantic search",
+                            extra={"entity": entity, "top_k": remaining_slots, "results": len(results)},
+                        )
 
                     for note, l2_distance in results:
                         if note.note_id in seen_ids:
