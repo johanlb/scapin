@@ -25,13 +25,15 @@
 		getObsoleteNotes,
 		getMergePendingNotes,
 		runNoteHygiene,
+		enrichNote,
 		type Note,
 		type FolderNode,
 		type NotesTree,
 		type NoteSyncStatus,
 		type NoteReviewMetadata,
 		type NoteSearchResult,
-		type HygieneResult
+		type HygieneResult,
+		type EnrichmentResult
 	} from '$lib/api/client';
 	import { memoryCyclesStore } from '$lib/stores/memory-cycles.svelte';
 	import { orphanQuestionsStore } from '$lib/stores/orphan-questions.svelte';
@@ -97,6 +99,11 @@
 	let isRunningHygiene = $state(false);
 	let hygieneResult = $state<HygieneResult | null>(null);
 	let showHygienePanel = $state(false);
+
+	// Enrichment state
+	let isEnriching = $state(false);
+	let enrichmentResult = $state<EnrichmentResult | null>(null);
+	let showEnrichmentPanel = $state(false);
 
 	// Expanded folders tracking
 	let expandedFolders = $state<Set<string>>(new Set());
@@ -268,6 +275,10 @@
 		// Reset hygiene state
 		hygieneResult = null;
 		showHygienePanel = false;
+
+		// Reset enrichment state
+		enrichmentResult = null;
+		showEnrichmentPanel = false;
 
 		isLoadingNote = true;
 		noteReviewMetadata = null;
@@ -559,6 +570,45 @@
 			case 'info': return 'ℹ️';
 			default: return '•';
 		}
+	}
+
+	async function runEnrichment() {
+		if (!selectedNote || isEnriching) return;
+
+		isEnriching = true;
+		enrichmentResult = null;
+
+		try {
+			// Determine which sources to use based on metadata
+			const sources = ['cross_reference'];
+			if (noteReviewMetadata?.auto_enrich) {
+				sources.push('ai_analysis');
+			}
+			if (noteReviewMetadata?.web_search_enabled) {
+				sources.push('web_search');
+			}
+
+			enrichmentResult = await enrichNote(selectedNote.note_id, sources);
+			showEnrichmentPanel = true;
+
+			if (enrichmentResult.enrichments.length === 0) {
+				toastStore.info('Aucun enrichissement trouvé');
+			} else {
+				toastStore.success(`${enrichmentResult.enrichments.length} enrichissement(s) suggéré(s)`);
+			}
+		} catch (error) {
+			toastStore.error('Échec de l\'enrichissement');
+		} finally {
+			isEnriching = false;
+		}
+	}
+
+	function dismissEnrichment(index: number) {
+		if (!enrichmentResult) return;
+		enrichmentResult = {
+			...enrichmentResult,
+			enrichments: enrichmentResult.enrichments.filter((_, i) => i !== index)
+		};
 	}
 
 	function getIssueTypeLabel(type: string): string {
@@ -1271,6 +1321,25 @@
 								🧹
 							{/if}
 						</button>
+						<!-- Enrich Button -->
+						<button
+							type="button"
+							onclick={runEnrichment}
+							disabled={isEnriching}
+							class="p-2 rounded-lg hover:bg-[var(--color-bg-tertiary)] transition-colors text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] relative"
+							title="Enrichir la note (recherche web si activée)"
+						>
+							{#if isEnriching}
+								<span class="inline-block animate-spin">⟳</span>
+							{:else if enrichmentResult && enrichmentResult.enrichments.length > 0}
+								🌐
+								<span class="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[10px] rounded-full flex items-center justify-center">
+									{enrichmentResult.enrichments.length}
+								</span>
+							{:else}
+								🌐
+							{/if}
+						</button>
 						<!-- Trigger Review Button -->
 						<button
 							type="button"
@@ -1456,6 +1525,101 @@
 									<span>
 										{hygieneResult.context_notes_count} notes contextuelles
 									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Enrichment Panel -->
+				{#if enrichmentResult && showEnrichmentPanel}
+					<div class="mt-6 pt-4 border-t border-[var(--color-border)]">
+						<div class="bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)]">
+							<!-- Header -->
+							<div class="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
+								<div class="flex items-center gap-2">
+									<span>🌐</span>
+									<span class="font-semibold text-[var(--color-text-primary)]">Enrichissement</span>
+								</div>
+								<div class="flex items-center gap-3">
+									<span class="text-xs text-[var(--color-text-tertiary)]">
+										Sources: {enrichmentResult.sources_used.join(', ')}
+									</span>
+									<button
+										type="button"
+										onclick={() => showEnrichmentPanel = false}
+										class="p-1 rounded hover:bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)]"
+										title="Fermer"
+									>
+										✕
+									</button>
+								</div>
+							</div>
+
+							<!-- Content -->
+							<div class="p-4 space-y-3">
+								{#if enrichmentResult.enrichments.length === 0}
+									<div class="text-center py-4 text-[var(--color-text-tertiary)]">
+										<span class="text-2xl">🔍</span>
+										<p class="mt-2">Aucun enrichissement trouvé</p>
+										{#if enrichmentResult.gaps_identified.length > 0}
+											<div class="mt-3 text-left">
+												<p class="text-sm font-medium text-[var(--color-text-secondary)] mb-2">Lacunes identifiées :</p>
+												<ul class="text-sm text-[var(--color-text-tertiary)] space-y-1">
+													{#each enrichmentResult.gaps_identified as gap}
+														<li>• {gap}</li>
+													{/each}
+												</ul>
+											</div>
+										{/if}
+									</div>
+								{:else}
+									{#each enrichmentResult.enrichments as enrichment, index}
+										<div class="p-3 rounded-lg bg-[var(--color-bg-primary)] border border-[var(--color-border)]">
+											<div class="flex items-center justify-between mb-2">
+												<div class="flex items-center gap-2">
+													<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+														{enrichment.source}
+													</span>
+													<span class="text-xs px-2 py-0.5 rounded-full bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
+														→ {enrichment.section}
+													</span>
+													<span class="text-xs text-[var(--color-text-tertiary)]">
+														{Math.round(enrichment.confidence * 100)}%
+													</span>
+												</div>
+												<button
+													type="button"
+													onclick={() => dismissEnrichment(index)}
+													class="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
+												>
+													✕
+												</button>
+											</div>
+											<p class="text-sm text-[var(--color-text-primary)] mb-2">{enrichment.content}</p>
+											<p class="text-xs text-[var(--color-text-tertiary)] italic">{enrichment.reasoning}</p>
+											<div class="flex items-center gap-2 mt-2">
+												<button
+													type="button"
+													class="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50"
+												>
+													Appliquer
+												</button>
+												<button
+													type="button"
+													onclick={() => dismissEnrichment(index)}
+													class="text-xs px-2 py-1 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]/80"
+												>
+													Ignorer
+												</button>
+											</div>
+										</div>
+									{/each}
+								{/if}
+
+								<!-- Summary -->
+								<div class="text-xs text-[var(--color-text-tertiary)] pt-2 border-t border-[var(--color-border)]">
+									<p>{enrichmentResult.analysis_summary}</p>
 								</div>
 							</div>
 						</div>

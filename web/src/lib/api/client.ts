@@ -1674,6 +1674,7 @@ interface NoteReviewMetadata {
 	last_quality: number | null;
 	review_count: number;
 	auto_enrich: boolean;
+	web_search_enabled: boolean;
 	importance: string;
 	quality_score?: number | null;
 	last_synced_at?: string | null;
@@ -1882,6 +1883,47 @@ export async function runNoteHygiene(noteId: string): Promise<HygieneResult> {
 	return fetchApi<HygieneResult>(`/notes/${encodeURIComponent(noteId)}/hygiene`, {
 		method: 'POST'
 	});
+}
+
+// ============================================================================
+// NOTES ENRICHMENT TYPES
+// ============================================================================
+
+export interface EnrichmentItem {
+	source: string; // ai_analysis, cross_reference, email_context, web_search
+	section: string;
+	content: string;
+	confidence: number;
+	reasoning: string;
+	metadata: Record<string, unknown>;
+}
+
+export interface EnrichmentResult {
+	note_id: string;
+	enrichments: EnrichmentItem[];
+	gaps_identified: string[];
+	sources_used: string[];
+	analysis_summary: string;
+}
+
+/**
+ * Enrich a note with additional information
+ *
+ * Sources available:
+ * - cross_reference: Links from other PKM notes
+ * - ai_analysis: AI-powered gap analysis (requires auto_enrich=true)
+ * - web_search: Web search (requires web_search_enabled=true in metadata)
+ */
+export async function enrichNote(
+	noteId: string,
+	sources: string[] = ['cross_reference']
+): Promise<EnrichmentResult> {
+	const params = new URLSearchParams();
+	sources.forEach((s) => params.append('sources', s));
+	return fetchApi<EnrichmentResult>(
+		`/notes/${encodeURIComponent(noteId)}/enrich?${params.toString()}`,
+		{ method: 'POST' }
+	);
 }
 
 export async function getDeletedNotes(): Promise<Note[]> {
