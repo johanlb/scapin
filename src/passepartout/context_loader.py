@@ -129,9 +129,8 @@ class ContextLoader:
             self.notes_dir = config.storage.notes_dir
 
         # Determine where canevas files live.
-        # We look in a 'Briefing' subdirectory (will be renamed to 'Canevas' later).
-        # Strategy: explicit folder is cleaner.
-        self.canevas_dir = self.notes_dir / "Briefing"
+        # The Canevas folder contains permanent user context (profile, goals, projects).
+        self.canevas_dir = self.notes_dir / "Canevas"
 
         # Cache structure: {filename: {'content': str, 'mtime': float}}
         self._cache: dict[str, dict] = {}
