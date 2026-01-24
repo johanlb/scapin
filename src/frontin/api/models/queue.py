@@ -235,6 +235,37 @@ class PassHistoryEntryResponse(BaseModel):
     )
 
 
+class BriefingFileStatusResponse(BaseModel):
+    """Status of a single briefing file (v3.2)"""
+
+    name: str = Field(..., description="File name without extension (e.g., 'Profile')")
+    status: str = Field(..., description="File status: present, partial, missing, empty")
+    char_count: int = Field(0, description="Character count of file content")
+    line_count: int = Field(0, description="Line count of file content")
+    required: bool = Field(True, description="Whether this file is required for complete briefing")
+    loaded_from: str | None = Field(None, description="Actual filename loaded (primary or alternative)")
+
+
+class BriefingStatusResponse(BaseModel):
+    """Briefing completeness status (v3.2)
+
+    Shows the status of briefing files used to personalize AI analysis.
+    Files: Profile.md, Projects.md, Goals.md (required), Preferences.md (optional).
+    """
+
+    completeness: str = Field(
+        ..., description="Overall completeness: complete, partial, incomplete"
+    )
+    files: list[BriefingFileStatusResponse] = Field(
+        default_factory=list, description="Status of each briefing file"
+    )
+    total_chars: int = Field(0, description="Total characters across all present files")
+    files_present: int = Field(0, description="Count of files with substantial content")
+    files_missing: int = Field(0, description="Count of missing required files")
+    files_partial: int = Field(0, description="Count of files with insufficient content")
+    loaded_at: str | None = Field(None, description="Timestamp when briefing was loaded (ISO format)")
+
+
 class MultiPassMetadataResponse(BaseModel):
     """Metadata from multi-pass analysis (v2.3)"""
 
@@ -250,6 +281,10 @@ class MultiPassMetadataResponse(BaseModel):
     total_duration_ms: float = Field(0.0, description="Total analysis duration in milliseconds")
     pass_history: list[PassHistoryEntryResponse] = Field(
         default_factory=list, description="Detailed history of each pass"
+    )
+    # v3.2: Briefing status visibility
+    briefing_status: BriefingStatusResponse | None = Field(
+        None, description="Status of briefing context used for personalization"
     )
 
 

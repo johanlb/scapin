@@ -1776,6 +1776,11 @@ class QueueService:
 
             prev_confidence = float(confidence_after) if confidence_after else prev_confidence
 
+        # v3.2: Include briefing status
+        briefing_status = None
+        if hasattr(result, "briefing_status") and result.briefing_status:
+            briefing_status = result.briefing_status
+
         return {
             "passes_count": result.passes_count,
             "final_model": result.final_model,
@@ -1786,6 +1791,7 @@ class QueueService:
             "total_tokens": result.total_tokens,
             "total_duration_ms": result.total_duration_ms,
             "pass_history": pass_history,
+            "briefing_status": briefing_status,
         }
 
     async def reanalyze_all_pending(self) -> dict[str, Any]:

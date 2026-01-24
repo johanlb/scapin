@@ -190,7 +190,8 @@
 											notes_found: 2,
 											escalation_triggered: true
 										}
-									]
+									],
+									briefing_status: null
 								}
 							: null
 				},

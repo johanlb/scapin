@@ -126,6 +126,26 @@
 						{#if badges.usedOpus}
 							<span class="text-base" title="Analyse avec Opus (modèle le plus puissant)" data-testid="badge-opus">🏆</span>
 						{/if}
+						<!-- v3.2: Briefing status badge -->
+						{#if item.analysis.multi_pass.briefing_status}
+							{@const bs = item.analysis.multi_pass.briefing_status}
+							{#if bs.completeness === 'complete'}
+								<span class="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400"
+									title="Briefing complet: {bs.files_present} fichiers ({bs.total_chars} chars)">
+									📋 Complet
+								</span>
+							{:else if bs.completeness === 'partial'}
+								<span class="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-400"
+									title="Fichiers partiels: {bs.files.filter(f => f.status !== 'present').map(f => f.name).join(', ')}">
+									⚠️ Partiel ({bs.files_present}/{bs.files.length})
+								</span>
+							{:else}
+								<span class="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400"
+									title="Fichiers manquants: {bs.files.filter(f => f.status === 'missing').map(f => f.name).join(', ')}">
+									❌ Manquant
+								</span>
+							{/if}
+						{/if}
 					</div>
 				{/if}
 			</div>

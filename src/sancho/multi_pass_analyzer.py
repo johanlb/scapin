@@ -46,6 +46,7 @@ from src.sancho.router import AIModel, AIRouter, _repair_json_with_library, clea
 from src.sancho.template_renderer import TemplateRenderer, get_template_renderer
 
 if TYPE_CHECKING:
+    from src.passepartout.context_loader import BriefingStatus
     from src.passepartout.entity_search import EntitySearcher
     from src.passepartout.note_manager import NoteManager
     from src.sancho.coherence_validator import CoherenceResult, CoherenceService
@@ -129,6 +130,23 @@ class MaxPassesReachedError(MultiPassAnalyzerError):
     pass
 
 
+class BriefingIncompleteError(MultiPassAnalyzerError):
+    """Briefing is incomplete and restriction is enabled (v3.2)."""
+
+    def __init__(self, status: "BriefingStatus"):
+        self.status = status
+        from src.passepartout.context_loader import BriefingFileStatus
+
+        missing = [f.name for f in status.files if f.status == BriefingFileStatus.MISSING]
+        partial = [f.name for f in status.files if f.status in (BriefingFileStatus.PARTIAL, BriefingFileStatus.EMPTY)]
+        msg_parts = []
+        if missing:
+            msg_parts.append(f"fichiers manquants: {missing}")
+        if partial:
+            msg_parts.append(f"fichiers partiels: {partial}")
+        super().__init__(f"Briefing incomplet: {', '.join(msg_parts)}")
+
+
 @dataclass
 class MultiPassResult:
     """Final result of multi-pass analysis"""
@@ -181,6 +199,9 @@ class MultiPassResult:
     # Strategic questions accumulated from all valets (v3.1)
     # Questions requiring human decision, organized by source valet and target note
     strategic_questions: list[dict[str, Any]] = field(default_factory=list)
+
+    # Briefing status for visibility (v3.2)
+    briefing_status: Optional[dict[str, Any]] = None
 
     @property
     def four_valets_mode(self) -> bool:
@@ -240,6 +261,8 @@ class MultiPassResult:
             "four_valets_mode": self.four_valets_mode,
             # Strategic questions v3.1
             "strategic_questions": self.strategic_questions,
+            # Briefing status v3.2
+            "briefing_status": self.briefing_status,
         }
 
 
@@ -2109,6 +2132,13 @@ class MultiPassAnalyzer:
                 ],
             }
 
+        # Get briefing status from template renderer (v3.2)
+        briefing_status_dict = None
+        if self.template_renderer:
+            briefing_status = self.template_renderer.get_briefing_status()
+            if briefing_status:
+                briefing_status_dict = briefing_status.to_dict()
+
         return MultiPassResult(
             extractions=adjusted_extractions,
             action=adjusted_action,
@@ -2131,6 +2161,8 @@ class MultiPassAnalyzer:
             # Retrieved context for transparency (v2.2.2+)
             retrieved_context=serialized_context,
             context_influence=last_context_influence,
+            # Briefing status v3.2
+            briefing_status=briefing_status_dict,
         )
 
     # ==================== Four Valets v3.0 ====================
@@ -2632,6 +2664,13 @@ class MultiPassAnalyzer:
         # Extract context_influence from last pass
         last_context_influence = last_pass.context_influence
 
+        # Get briefing status from template renderer (v3.2)
+        briefing_status_dict = None
+        if self.template_renderer:
+            briefing_status = self.template_renderer.get_briefing_status()
+            if briefing_status:
+                briefing_status_dict = briefing_status.to_dict()
+
         return MultiPassResult(
             extractions=adjusted_extractions,
             action=adjusted_action,
@@ -2662,6 +2701,8 @@ class MultiPassAnalyzer:
             confidence_assessment=last_pass.confidence_assessment,
             # Strategic questions v3.1
             strategic_questions=all_strategic_questions,
+            # Briefing status v3.2
+            briefing_status=briefing_status_dict,
         )
 
 

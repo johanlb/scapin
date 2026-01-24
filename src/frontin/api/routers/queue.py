@@ -15,6 +15,8 @@ from src.frontin.api.models.queue import (
     ActionOptionResponse,
     ApproveRequest,
     AttachmentResponse,
+    BriefingFileStatusResponse,
+    BriefingStatusResponse,
     BulkReanalyzeResponse,
     ContextCalendarResponse,
     ContextInfluenceResponse,
@@ -900,6 +902,30 @@ def _convert_multi_pass_metadata(
             )
         )
 
+    # v3.2: Convert briefing_status
+    briefing_status = None
+    raw_briefing = multi_pass.get("briefing_status")
+    if raw_briefing:
+        briefing_status = BriefingStatusResponse(
+            completeness=raw_briefing.get("completeness", "incomplete"),
+            files=[
+                BriefingFileStatusResponse(
+                    name=f.get("name", ""),
+                    status=f.get("status", "missing"),
+                    char_count=f.get("char_count", 0),
+                    line_count=f.get("line_count", 0),
+                    required=f.get("required", True),
+                    loaded_from=f.get("loaded_from"),
+                )
+                for f in raw_briefing.get("files", [])
+            ],
+            total_chars=raw_briefing.get("total_chars", 0),
+            files_present=raw_briefing.get("files_present", 0),
+            files_missing=raw_briefing.get("files_missing", 0),
+            files_partial=raw_briefing.get("files_partial", 0),
+            loaded_at=raw_briefing.get("loaded_at"),
+        )
+
     return MultiPassMetadataResponse(
         passes_count=multi_pass.get("passes_count", 0),
         final_model=multi_pass.get("final_model", "unknown"),
@@ -910,6 +936,7 @@ def _convert_multi_pass_metadata(
         total_tokens=multi_pass.get("total_tokens", 0),
         total_duration_ms=multi_pass.get("total_duration_ms", 0.0),
         pass_history=pass_history,
+        briefing_status=briefing_status,
     )
 
 

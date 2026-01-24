@@ -11,11 +11,14 @@ See ADR-005 in MULTI_PASS_SPEC.md for design decisions.
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
 from src.monitoring.logger import get_logger
+
+if TYPE_CHECKING:
+    from src.passepartout.context_loader import BriefingStatus
 
 logger = get_logger("template_renderer")
 
@@ -85,14 +88,20 @@ class TemplateRenderer:
         self._env.filters["format_confidence"] = self._format_confidence
 
         # Initialize ContextLoader for briefing injection (v2.5)
+        # v3.2: Also store briefing status for visibility
         self._briefing_context: Optional[str] = None
+        self._briefing_status: Optional[BriefingStatus] = None
         try:
             from src.passepartout.context_loader import ContextLoader
 
             context_loader = ContextLoader()
-            self._briefing_context = context_loader.load_context()
+            self._briefing_context, self._briefing_status = context_loader.load_context_with_status()
             if self._briefing_context:
-                logger.info("Briefing context loaded (%d chars)", len(self._briefing_context))
+                logger.info(
+                    "Briefing context loaded (%d chars, status: %s)",
+                    len(self._briefing_context),
+                    self._briefing_status.completeness.value if self._briefing_status else "unknown",
+                )
             else:
                 logger.warning("No briefing context found")
         except Exception as e:
@@ -165,6 +174,15 @@ class TemplateRenderer:
             Briefing string or empty string if not available.
         """
         return self._briefing_context or ""
+
+    def get_briefing_status(self) -> Optional["BriefingStatus"]:
+        """
+        Get the briefing status (v3.2).
+
+        Returns:
+            BriefingStatus with completeness and file details, or None if not loaded.
+        """
+        return self._briefing_status
 
     def render_grimaud(
         self,
