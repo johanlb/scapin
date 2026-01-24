@@ -11,6 +11,8 @@ Actions:
 4. score — Calculate quality score (0-100)
 5. inject_questions — Add questions for Johan
 6. restructure_graph — Suggest splitting/merging (high confidence only)
+
+Phase 1 of Retouche implementation uses AnalysisEngine for AI calls.
 """
 
 import re
@@ -28,6 +30,13 @@ from src.passepartout.note_metadata import (
 )
 from src.passepartout.note_scheduler import NoteScheduler
 from src.passepartout.note_types import CycleType
+from src.sancho.analysis_engine import (
+    AICallError,
+    AICallResult,
+    AnalysisEngine,
+    JSONParseError,
+    ModelTier,
+)
 
 if TYPE_CHECKING:
     from src.sancho.router import AIRouter
@@ -100,6 +109,8 @@ class RetoucheReviewer:
     4. Escalates to Opus if confidence < 0.5
     5. Applies improvement actions
     6. Updates SM-2 retouche scheduling
+
+    Uses AnalysisEngine for AI calls with automatic escalation and JSON parsing.
     """
 
     # Confidence thresholds for model escalation
@@ -130,6 +141,17 @@ class RetoucheReviewer:
         self.store = metadata_store
         self.scheduler = scheduler
         self.ai_router = ai_router
+
+        # Initialize AnalysisEngine for AI calls if router available
+        self._analysis_engine: Optional[AnalysisEngine] = None
+        if ai_router:
+            self._analysis_engine = _RetoucheAnalysisEngine(
+                ai_router=ai_router,
+                escalation_thresholds={
+                    "sonnet": self.ESCALATE_TO_SONNET_THRESHOLD,
+                    "opus": self.ESCALATE_TO_OPUS_THRESHOLD,
+                },
+            )
 
     async def review_note(self, note_id: str) -> RetoucheResult:
         """
@@ -474,13 +496,54 @@ Réponds en JSON avec ce format:
 
     async def _call_ai_router(
         self,
-        prompt: str,  # noqa: ARG002
-        model: str,  # noqa: ARG002
+        prompt: str,
+        model: str,
     ) -> dict[str, Any]:
-        """Call AI router with specified model"""
-        # This is a placeholder - actual implementation depends on AIRouter interface
-        # For now, return empty response to trigger rule-based fallback
-        return {"reasoning": "AI response", "actions": []}
+        """
+        Call AI router with specified model using AnalysisEngine.
+
+        Args:
+            prompt: Rendered prompt for the analysis
+            model: Model name ("haiku", "sonnet", "opus")
+
+        Returns:
+            Parsed JSON response dict
+
+        Raises:
+            Exception: If AI call fails (triggers rule-based fallback)
+        """
+        if self._analysis_engine is None:
+            logger.warning("No analysis engine available, returning empty response")
+            return {"reasoning": "AI unavailable", "actions": []}
+
+        # Map model string to ModelTier
+        model_map = {
+            "haiku": ModelTier.HAIKU,
+            "sonnet": ModelTier.SONNET,
+            "opus": ModelTier.OPUS,
+        }
+        model_tier = model_map.get(model.lower(), ModelTier.HAIKU)
+
+        try:
+            # Call AI using AnalysisEngine
+            result = await self._analysis_engine.call_ai(
+                prompt=prompt,
+                model=model_tier,
+                max_tokens=2048,
+            )
+
+            # Parse JSON response
+            data = self._analysis_engine.parse_json_response(result.response)
+
+            logger.debug(
+                f"Retouche AI call successful: model={model}, tokens={result.tokens_used}"
+            )
+
+            return data
+
+        except (AICallError, JSONParseError) as e:
+            logger.warning(f"Retouche AI call failed: {e}")
+            raise
 
     def _parse_ai_response(
         self,
@@ -613,3 +676,21 @@ class AnalysisResult:
     model_used: str
     escalated: bool
     reasoning: str
+
+
+class _RetoucheAnalysisEngine(AnalysisEngine):
+    """
+    Internal AnalysisEngine implementation for Retouche.
+
+    Provides AI call functionality with escalation and JSON parsing.
+    This is a minimal implementation - the actual prompt building and
+    result processing are handled by RetoucheReviewer.
+    """
+
+    def _build_prompt(self, context: Any) -> str:
+        """Not used - prompts are built by RetoucheReviewer."""
+        raise NotImplementedError("Use RetoucheReviewer._build_retouche_prompt()")
+
+    def _process_result(self, result: dict[str, Any], call_result: AICallResult) -> Any:
+        """Not used - results are processed by RetoucheReviewer."""
+        raise NotImplementedError("Use RetoucheReviewer._parse_ai_response()")
