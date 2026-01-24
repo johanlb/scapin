@@ -135,8 +135,10 @@ class QueueService:
             Tuple of (items, total_count)
         """
         # v2.4: Use new filtering if state or tab is provided
+        # Run in thread to avoid blocking event loop during I/O
         if state or tab:
-            all_items = self._storage.load_queue_by_state(
+            all_items = await asyncio.to_thread(
+                self._storage.load_queue_by_state,
                 state=state,
                 tab=tab,
                 account_id=account_id,
@@ -144,7 +146,11 @@ class QueueService:
             )
         else:
             # Legacy filtering by status
-            all_items = self._storage.load_queue(account_id=account_id, status=status)
+            all_items = await asyncio.to_thread(
+                self._storage.load_queue,
+                account_id=account_id,
+                status=status,
+            )
 
         total = len(all_items)
 
@@ -200,7 +206,7 @@ class QueueService:
         Returns:
             Queue item or None if not found
         """
-        return self._storage.get_item(item_id)
+        return await asyncio.to_thread(self._storage.get_item, item_id)
 
     async def get_stats(self) -> dict[str, Any]:
         """
@@ -209,7 +215,7 @@ class QueueService:
         Returns:
             Dictionary with queue stats
         """
-        return self._storage.get_stats()
+        return await asyncio.to_thread(self._storage.get_stats)
 
     async def approve_item(
         self,
