@@ -3,7 +3,7 @@ Tests for VectorStore (FAISS-based semantic search)
 
 Coverage:
 - Initialization and configuration
-- Add/remove documents  
+- Add/remove documents
 - Semantic search with filtering
 - Batch operations
 - Persistence (save/load)
@@ -168,7 +168,7 @@ class TestSearch:
         results = populated_store.search("Python", top_k=10, filter_fn=tutorial_filter)
 
         # Should only return documents with category=tutorial
-        for doc_id, score, metadata in results:
+        for _doc_id, _score, metadata in results:
             if "category" in metadata:
                 assert metadata["category"] == "tutorial"
 
@@ -376,3 +376,92 @@ class TestThreadSafety:
             t.join()
 
         assert len(errors) == 0
+
+
+class TestSearchBatch:
+    """Test batch search functionality"""
+
+    @pytest.fixture
+    def store_with_docs(self):
+        """Create store with multiple documents"""
+        embedder = Mock()
+        embedder.model_name = "mock-model"
+        # Different embeddings for different texts
+        embedder.embed_text.side_effect = lambda text, normalize=True: np.random.rand(384).astype(np.float32)
+        embedder.embed_batch.return_value = np.random.rand(3, 384).astype(np.float32)
+
+        store = VectorStore(dimension=384, embedder=embedder)
+        store.add("doc1", "Python programming", {"type": "tech"})
+        store.add("doc2", "Machine learning", {"type": "tech"})
+        store.add("doc3", "Cooking recipes", {"type": "food"})
+        return store
+
+    def test_search_batch_basic(self, store_with_docs):
+        """Test basic batch search"""
+        results = store_with_docs.search_batch(
+            queries=["Python", "cooking", "learning"],
+            top_k=2
+        )
+
+        assert len(results) == 3  # One result list per query
+        for result in results:
+            assert len(result) <= 2  # Respects top_k
+
+    def test_search_batch_empty_queries_raises(self):
+        """Test empty query list raises ValueError"""
+        embedder = Mock()
+        embedder.model_name = "mock-model"
+        store = VectorStore(dimension=384, embedder=embedder)
+
+        with pytest.raises(ValueError, match="empty"):
+            store.search_batch(queries=[])
+
+    def test_search_batch_all_empty_queries_raises(self):
+        """Test all empty queries raises ValueError"""
+        embedder = Mock()
+        embedder.model_name = "mock-model"
+        store = VectorStore(dimension=384, embedder=embedder)
+
+        with pytest.raises(ValueError, match="empty"):
+            store.search_batch(queries=["", "  ", ""])
+
+    def test_search_batch_with_filter(self, store_with_docs):
+        """Test batch search with filter function"""
+        def tech_only(metadata):
+            return metadata.get("type") == "tech"
+
+        results = store_with_docs.search_batch(
+            queries=["programming", "recipes"],
+            top_k=5,
+            filter_fn=tech_only
+        )
+
+        assert len(results) == 2
+        # All results should be tech type (filter applied)
+        for result in results:
+            for _doc_id, _score, metadata in result:
+                assert metadata.get("type") == "tech"
+
+    def test_search_batch_empty_store(self):
+        """Test batch search on empty store returns empty lists"""
+        embedder = Mock()
+        embedder.model_name = "mock-model"
+        embedder.embed_batch.return_value = np.random.rand(2, 384).astype(np.float32)
+        store = VectorStore(dimension=384, embedder=embedder)
+
+        results = store.search_batch(queries=["test1", "test2"], top_k=5)
+
+        assert len(results) == 2
+        assert results[0] == []
+        assert results[1] == []
+
+    def test_search_batch_uses_embed_batch(self, store_with_docs):
+        """Test that batch search uses embed_batch for efficiency"""
+        store_with_docs.embedder.embed_batch.reset_mock()
+
+        store_with_docs.search_batch(queries=["a", "b", "c"], top_k=2)
+
+        # Should call embed_batch once with all queries
+        store_with_docs.embedder.embed_batch.assert_called_once()
+        call_args = store_with_docs.embedder.embed_batch.call_args
+        assert len(call_args[0][0]) == 3  # 3 queries

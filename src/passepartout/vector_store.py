@@ -331,6 +331,107 @@ class VectorStore:
 
             return results
 
+    def search_batch(
+        self,
+        queries: list[str],
+        top_k: int = 10,
+        filter_fn: Optional[Callable[[dict[str, Any]], bool]] = None
+    ) -> list[list[tuple[str, float, dict[str, Any]]]]:
+        """
+        Search for similar documents with multiple queries (thread-safe)
+
+        More efficient than calling search() multiple times because embeddings
+        are generated in a single batch.
+
+        Args:
+            queries: List of search query texts
+            top_k: Number of results per query
+            filter_fn: Optional filter function on metadata (applied to all queries)
+
+        Returns:
+            List of results per query. Each result is a list of
+            (doc_id, score, metadata) tuples, sorted by relevance.
+
+        Raises:
+            ValueError: If queries is empty or top_k invalid
+        """
+        if not queries:
+            raise ValueError("Cannot search with empty query list")
+
+        if top_k <= 0:
+            raise ValueError(f"top_k must be positive, got {top_k}")
+
+        # Filter out empty queries
+        valid_queries = [(i, q) for i, q in enumerate(queries) if q and q.strip()]
+        if not valid_queries:
+            raise ValueError("All queries are empty")
+
+        # Generate all query embeddings in batch BEFORE lock (expensive operation)
+        try:
+            query_texts = [q for _, q in valid_queries]
+            query_embeddings = self.embedder.embed_batch(
+                query_texts,
+                normalize=(self.metric == "cosine")
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate batch query embeddings: {e}", exc_info=True)
+            raise RuntimeError(f"Batch query embedding generation failed: {e}") from e
+
+        # Acquire lock for reading store state and searching
+        with self._store_lock:
+            if len(self.id_to_doc) == 0:
+                logger.warning("Batch search called on empty vector store")
+                return [[] for _ in queries]
+
+            # Search for each query
+            all_results: list[list[tuple[str, float, dict[str, Any]]]] = [[] for _ in queries]
+
+            for (original_idx, _query), query_embedding in zip(valid_queries, query_embeddings):
+                # Search in FAISS
+                search_k = min(top_k * 3 if filter_fn else top_k, len(self.id_to_doc))
+
+                query_2d = query_embedding.reshape(1, -1).astype(np.float32)
+                distances, indices = self.index.search(query_2d, search_k)
+
+                # Convert to results
+                results = []
+                for distance, index_id in zip(distances[0], indices[0]):
+                    if index_id == -1:
+                        continue
+
+                    index_id = int(index_id)
+                    doc_info = self.id_to_doc.get(index_id)
+                    if doc_info is None:
+                        continue
+
+                    if doc_info.get("_deleted", False):
+                        continue
+
+                    if filter_fn and not filter_fn(doc_info["metadata"]):
+                        continue
+
+                    results.append((
+                        doc_info["doc_id"],
+                        float(distance),
+                        doc_info["metadata"]
+                    ))
+
+                    if len(results) >= top_k:
+                        break
+
+                all_results[original_idx] = results
+
+            logger.debug(
+                "Batch search completed",
+                extra={
+                    "num_queries": len(valid_queries),
+                    "total_results": sum(len(r) for r in all_results),
+                    "total_docs": len(self.id_to_doc)
+                }
+            )
+
+            return all_results
+
     def get_document(self, doc_id: str) -> Optional[dict[str, Any]]:
         """
         Get document by ID
