@@ -1,6 +1,8 @@
 # Plan : Retouche Fonctionnel
 
-**Branche** : `hygiene-des-notes`
+> **STATUT : COMPLET** | Mergé le 24 janvier 2026 | PR #56
+
+**Branche** : `hygiene-des-notes` (mergée dans `main`)
 **Date** : Janvier 2026
 **Objectif** : Système de Retouche IA complet pour l'hygiène des notes
 
