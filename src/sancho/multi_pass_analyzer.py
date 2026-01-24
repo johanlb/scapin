@@ -2208,7 +2208,7 @@ class MultiPassAnalyzer:
         # Note: Critical overrides ephemeral — we want careful analysis for legal docs
         is_critical, critical_reason = self._is_critical_content(event)
         if is_critical:
-            logger.info(f"Critical content detected: {critical_reason} → Opus escalation enabled")
+            logger.info(f"Critical content detected: {critical_reason} → Sonnet escalation enabled")
             is_ephemeral = False  # Critical content is never treated as ephemeral
 
         # === GRIMAUD (Pass 1) — Extraction silencieuse ===
@@ -2227,7 +2227,7 @@ class MultiPassAnalyzer:
         if grimaud_flagged_critical and not is_critical:
             is_critical = True
             critical_reason = "grimaud_flagged"
-            logger.info("Grimaud flagged content as critical → Opus escalation enabled")
+            logger.info("Grimaud flagged content as critical → Sonnet escalation enabled")
 
         # Check for early stop (ephemeral content at 95%+ confidence, or old newsletter)
         # Note: is_ephemeral from adapter lowers the threshold to 80%
@@ -2554,27 +2554,28 @@ class MultiPassAnalyzer:
         - If previous pass confidence < threshold (0.80), escalate to stronger model
         - Escalation map: haiku → sonnet → opus
 
-        Additionally, escalate directly to Opus for critical content:
-        - Legal/contractual documents (bail, contrat, facture, etc.)
-        - High amounts (> 1000€)
+        Critical content (legal, financial, sensitive, high amounts):
+        - Escalate to Sonnet (not Opus) for faster response
+        - Opus still available via adaptive escalation if confidence remains low
 
         Args:
             valet: Valet name (grimaud, bazin, planchet, mousqueton)
             previous_confidence: Confidence from the previous pass (triggers escalation if < threshold)
-            is_critical_content: If True, escalate directly to Opus (legal/contractual or high amount)
+            is_critical_content: If True, escalate to Sonnet (legal/contractual or high amount)
             is_ephemeral: If True, block escalation to Opus (save cost on spam/notifications)
 
         Returns:
             ModelTier to use for this valet
         """
-        # Critical content: escalate directly to Opus for Bazin onwards
-        # Legal/contractual documents and high amounts require careful analysis
+        # Critical content: escalate to Sonnet for Bazin onwards
+        # Legal/contractual documents and high amounts need careful analysis
+        # but Sonnet is sufficient; Opus only if adaptive escalation triggers
         if is_critical_content and valet in ("bazin", "planchet", "mousqueton"):
             logger.info(
-                f"Critical content escalation for {valet}: direct to Opus "
+                f"Critical content escalation for {valet}: direct to Sonnet "
                 f"(legal/contractual content or high amount)"
             )
-            return ModelTier.OPUS
+            return ModelTier.SONNET
 
         # Get default model for this valet
         model_name = self.config.four_valets.models.get(valet, "haiku")
