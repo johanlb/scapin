@@ -42,6 +42,24 @@ Optimisations backend pour réduire latence et overhead.
 
 ---
 
+**Optimisation is_ephemeral dans Sancho (✅ COMPLET — PR #55) :**
+
+Utilisation du flag `is_ephemeral` pour optimiser l'analyse des emails éphémères.
+
+| Optimisation | Description |
+|--------------|-------------|
+| Éviter escalade Opus | Emails éphémères restent sur Haiku/Sonnet |
+| Seuil convergence réduit | 80% au lieu de 95% |
+| Skip context search | Pas de recherche FAISS inutile |
+
+**Commit** : `e88b068`
+
+**Fichiers modifiés :**
+- `src/trivelin/v2_processor.py` — Propagation flag dans PerceivedEvent
+- `src/sancho/multi_pass_analyzer.py` — Utilisation flag pour optimiser
+
+---
+
 **Bug fix analyses incomplètes (`e6c71a7`) :**
 
 Items avec analyse incomplète (confidence=0 ou action=None) restent maintenant en état ANALYZING au lieu de passer en AWAITING_REVIEW.
@@ -121,13 +139,6 @@ Système complet d'amélioration automatique des notes par IA.
 - `9516cf0` — Normalisation message IDs dans ProcessedEmailTracker
 
 ### En attente
-
-- **Utiliser `is_ephemeral` dans Sancho** : Le flag est détecté mais pas encore utilisé
-  - Éviter escalade Opus pour emails éphémères
-  - Réduire seuil convergence (80% au lieu de 95%)
-  - Skip context search
-  - Fichiers à modifier : `v2_processor.py`, `multi_pass_analyzer.py`
-  - Voir `docs/architecture/performance.md` section "Travaux Futurs"
 
 - **Refactoring UI** : Plan de refactoring des composants volumineux
   - `QueueItemFocusView.svelte` (620 lignes → 9 sous-composants)

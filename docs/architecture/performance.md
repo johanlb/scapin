@@ -174,17 +174,16 @@ data/profiling/
 
 ## Travaux Futurs
 
-### Utiliser `is_ephemeral` dans Sancho
+### ~~Utiliser `is_ephemeral` dans Sancho~~ ✅ COMPLÉTÉ (PR #55)
 
-Le flag `is_ephemeral` est détecté mais pas utilisé. À implémenter :
+Implémenté dans `e88b068` :
+- ✅ Éviter escalade Opus pour emails éphémères
+- ✅ Réduire seuil convergence (80% au lieu de 95%)
+- ✅ Skip context search
 
-1. **Éviter escalade Opus** pour emails éphémères
-2. **Réduire seuil convergence** (80% au lieu de 95%)
-3. **Skip context search** (pas besoin de chercher dans les notes)
-
-**Fichiers à modifier** :
-- `src/trivelin/v2_processor.py` : Propager flag dans PerceivedEvent
-- `src/sancho/multi_pass_analyzer.py` : Utiliser flag pour éviter escalade
+**Fichiers modifiés** :
+- `src/trivelin/v2_processor.py` : Propagation flag dans PerceivedEvent
+- `src/sancho/multi_pass_analyzer.py` : Utilisation flag pour optimiser
 
 ### Autres optimisations possibles
 
@@ -202,3 +201,4 @@ Le flag `is_ephemeral` est détecté mais pas utilisé. À implémenter :
 | 2026-01-24 | Cache context search (TTL 60s) |
 | 2026-01-24 | Détection emails éphémères |
 | 2026-01-24 | Mesures finales Phase 5 (plan terminé) |
+| 2026-01-24 | is_ephemeral utilisé dans Sancho (PR #55) |
