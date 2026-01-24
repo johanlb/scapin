@@ -98,9 +98,14 @@ class LectureService:
         metadata = self.store.get(note_id)
         if metadata is None:
             # Create metadata if missing
-            from src.passepartout.note_types import detect_note_type_from_path
+            from src.passepartout.note_types import NoteType, detect_note_type_from_path
 
-            note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
+            # D'abord essayer avec le metadata.path du frontmatter (chemin logique)
+            logical_path = note.metadata.get("path", "") if note.metadata else ""
+            note_type = detect_note_type_from_path(logical_path)
+            if note_type == NoteType.AUTRE:
+                # Fallback sur le chemin physique
+                note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
             metadata = self.store.create_for_note(
                 note_id=note_id,
                 note_type=note_type,

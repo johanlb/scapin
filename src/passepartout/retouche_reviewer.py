@@ -105,6 +105,8 @@ class RetoucheAction(str, Enum):
     FORMAT = "format"  # Corrections formatage (espaces, headers)
     VALIDATE = "validate"  # Validation frontmatter
     FIX_LINKS = "fix_links"  # Corriger liens cassés
+    # Restructuration selon template
+    APPLY_TEMPLATE = "apply_template"  # Restructurer selon le template du type
 
 
 @dataclass
@@ -358,6 +360,213 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             logger.error(f"Failed to load template {template_path}: {e}")
             return None
 
+    def _check_template_needed(self, context: RetoucheContext) -> Optional[RetoucheActionResult]:
+        """
+        Check if note needs restructuring according to its type template.
+
+        Detects notes that have a known type but don't follow the template structure.
+        Returns an APPLY_TEMPLATE action if restructuring would help.
+
+        Criteria for suggesting template application:
+        - Note has a known type (not AUTRE)
+        - Quality score is low (< 50)
+        - Note has few sections compared to template
+        - Note doesn't contain expected section markers from template
+        """
+        if not context.metadata or not context.metadata.note_type:
+            return None
+
+        note_type = context.metadata.note_type
+        from src.passepartout.note_types import NoteType
+
+        # Skip notes without a specific type
+        if note_type == NoteType.AUTRE:
+            return None
+
+        # Load template for this type
+        template_content = self._load_template_for_type(note_type.value)
+        if not template_content:
+            return None
+
+        # Extract expected sections from template (lines starting with emoji or ##)
+        import re
+        template_sections = re.findall(r'^(?:##?\s+)?([🎯📍🏢🏷️📝👥📋📅💰🌡️📁🔗⚠️💡📖🔲✅💬⚖️🧠🏠📜📧📊][^\n]*)', template_content, re.MULTILINE)
+
+        if not template_sections:
+            return None
+
+        # Check how many template sections exist in the note
+        content = context.note.content
+        sections_found = 0
+        for section in template_sections:
+            # Check for section header (with emoji)
+            section_emoji = section[0] if section else ""
+            if section_emoji and section_emoji in content:
+                sections_found += 1
+
+        # Calculate coverage
+        coverage = sections_found / len(template_sections) if template_sections else 1.0
+
+        # Suggest template application if:
+        # - Coverage is very low (< 20%)
+        # - Quality score is low (< 50)
+        # - Note has actual content to restructure
+        quality_score = context.metadata.quality_score if context.metadata else 0
+        word_count = context.word_count
+
+        if coverage < 0.2 and quality_score < 50 and word_count > 20:
+            # Generate restructured content
+            restructured = self._apply_template_structure(
+                content=content,
+                template=template_content,
+                note_type=note_type.value,
+                title=context.note.title,
+            )
+
+            if restructured and restructured != content:
+                return RetoucheActionResult(
+                    action_type=RetoucheAction.APPLY_TEMPLATE,
+                    target="full_content",
+                    content=restructured,
+                    confidence=0.90,  # High confidence for template application
+                    reasoning=f"Note de type {note_type.value} ne suit pas le template ({coverage:.0%} des sections). Restructuration proposée.",
+                    applied=True,  # Auto-apply for template restructuring
+                    model_used="rules",
+                )
+
+        return None
+
+    def _apply_template_structure(
+        self,
+        content: str,
+        template: str,
+        note_type: str,
+        title: str,
+    ) -> Optional[str]:
+        """
+        Restructure note content according to the template.
+
+        Extracts information from existing content and maps it into
+        the template structure, preserving all original information.
+
+        Args:
+            content: Original note content
+            template: Template structure to apply
+            note_type: Type of note (entite, personne, etc.)
+            title: Note title
+
+        Returns:
+            Restructured content or None if restructuring not possible
+        """
+        import re
+
+        # Extract frontmatter if present
+        frontmatter = ""
+        body = content
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                frontmatter = f"---{parts[1]}---\n\n"
+                body = parts[2].strip()
+
+        # Remove the first H1 heading (which is the title, possibly different from frontmatter)
+        body = re.sub(r'^#\s+[^\n]+\n*', '', body, count=1, flags=re.MULTILINE)
+
+        # Extract existing content (everything that's not a section header)
+        # This is the "raw" info to redistribute
+        existing_info = body.strip()
+
+        # Parse template to get sections
+        # Template sections start with emoji headers like "📍 INFORMATIONS GÉNÉRALES"
+        section_pattern = r'^([🎯📍🏢🏷️📝👥📋📅💰🌡️📁🔗⚠️💡📖🔲✅💬⚖️🧠🏠📜📧📊][A-ZÉÈÊÀÂÔÙÛÎÏÇ\s/\[\]]+)$'
+        template_lines = template.split('\n')
+
+        # Build the restructured note
+        result_lines = []
+
+        # Add frontmatter
+        if frontmatter:
+            result_lines.append(frontmatter.strip())
+            result_lines.append("")
+
+        # Add title
+        result_lines.append(f"# {title}")
+        result_lines.append("")
+
+        # Find first section header (emoji) - skip all metadata before that
+        template_start = 0
+        for i, line in enumerate(template_lines):
+            stripped = line.strip()
+            # Skip metadata lines
+            if stripped.startswith("name:") or stripped.startswith("content:"):
+                continue
+            if stripped.startswith("━"):  # Skip separators
+                continue
+            if stripped.startswith("[") and stripped.endswith("]"):  # Skip placeholders like [Type — Lieu]
+                continue
+            # Found first section header (starts with emoji)
+            if stripped and stripped[0] in "🎯📍🏢🏷️📝👥📋📅💰🌡️📁🔗⚠️💡📖🔲✅💬⚖️🧠🏠📜📧📊":
+                template_start = i
+                break
+
+        # For a simple first implementation, we'll:
+        # 1. Put existing content as description at the start
+        # 2. Then add template sections for the user to fill
+
+        # Add existing content as description (first paragraph after title)
+        if existing_info:
+            result_lines.append(existing_info)
+            result_lines.append("")
+
+        # Add separator
+        result_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        result_lines.append("")
+
+        # Add template sections (empty, for user to complete)
+        in_section = False
+        current_section_lines = []
+
+        for line in template_lines[template_start:]:
+            # Check if this is a section header (emoji + caps)
+            if re.match(section_pattern, line.strip()):
+                # Add previous section if any
+                if current_section_lines:
+                    result_lines.extend(current_section_lines)
+                    result_lines.append("")
+
+                # Start new section
+                current_section_lines = [line.strip(), ""]
+                in_section = True
+            elif line.strip().startswith("━━━"):
+                # Skip template separators
+                continue
+            elif in_section and line.strip().startswith("["):
+                # Template placeholder - keep it as guidance
+                current_section_lines.append(line)
+            elif in_section and line.strip():
+                # Keep non-empty lines in current section
+                if not line.strip().startswith("#"):  # Skip tags
+                    current_section_lines.append(line)
+
+        # Add last section
+        if current_section_lines:
+            result_lines.extend(current_section_lines)
+            result_lines.append("")
+
+        # Add footer separator and tags
+        result_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        result_lines.append(f"#PKM #IA #{note_type.capitalize()}")
+        # Format date in French
+        mois_fr = {
+            1: "janvier", 2: "février", 3: "mars", 4: "avril",
+            5: "mai", 6: "juin", 7: "juillet", 8: "août",
+            9: "septembre", 10: "octobre", 11: "novembre", 12: "décembre"
+        }
+        now = datetime.now()
+        result_lines.append(f"Mise à jour : {now.day} {mois_fr[now.month]} {now.year}")
+
+        return "\n".join(result_lines)
+
     async def review_note(self, note_id: str) -> RetoucheResult:
         """
         Perform a Retouche review of a note
@@ -384,9 +593,16 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         # Load or create metadata
         metadata = self.store.get(note_id)
         if metadata is None:
-            from src.passepartout.note_types import detect_note_type_from_path
+            from src.passepartout.note_types import NoteType, detect_note_type_from_path
 
-            note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
+            # D'abord essayer avec le metadata.path du frontmatter (chemin logique)
+            # puis fallback sur le chemin physique du fichier
+            logical_path = note.metadata.get("path", "") if note.metadata else ""
+            note_type = detect_note_type_from_path(logical_path)
+            if note_type == NoteType.AUTRE:
+                # Fallback sur le chemin physique
+                note_type = detect_note_type_from_path(str(note.file_path) if note.file_path else "")
+
             metadata = self.store.create_for_note(
                 note_id=note_id,
                 note_type=note_type,
@@ -486,6 +702,7 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
                 RetoucheAction.CLEANUP,
                 RetoucheAction.PROFILE_INSIGHT,
                 RetoucheAction.INJECT_QUESTIONS,
+                RetoucheAction.APPLY_TEMPLATE,
             ):
                 updated_content = self._apply_action(updated_content, action)
 
@@ -1246,6 +1463,11 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
                 )
             )
 
+        # Check if note needs template restructuring
+        template_action = self._check_template_needed(context)
+        if template_action:
+            actions.append(template_action)
+
         # Always include quality scoring
         actions.append(
             RetoucheActionResult(
@@ -1461,6 +1683,13 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         if action.action_type == RetoucheAction.STRUCTURE:
             # For now, just log - full restructuring is complex
             logger.info(f"Structure suggestion: {action.reasoning}")
+            return content
+
+        if action.action_type == RetoucheAction.APPLY_TEMPLATE:
+            # Restructure note according to its type template
+            if action.content:
+                logger.info(f"Applying template structure: {action.reasoning}")
+                return action.content
             return content
 
         if action.action_type == RetoucheAction.INJECT_QUESTIONS:
