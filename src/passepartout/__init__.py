@@ -61,14 +61,6 @@ from src.passepartout.note_metadata import (
     NoteMetadata,
     NoteMetadataStore,
 )
-from src.passepartout.note_reviewer import (
-    ActionType,
-    NoteReviewer,
-    ReviewAction,
-    ReviewAnalysis,
-    ReviewContext,
-    ReviewResult,
-)
 from src.passepartout.note_scheduler import (
     NoteScheduler,
     SchedulingResult,
@@ -118,13 +110,6 @@ __all__ = [
     "NoteScheduler",
     "SchedulingResult",
     "create_scheduler",
-    # Reviewer (legacy - use RetoucheReviewer)
-    "NoteReviewer",
-    "ReviewAction",
-    "ReviewAnalysis",
-    "ReviewContext",
-    "ReviewResult",
-    "ActionType",
     # Retouche Reviewer (unified)
     "RetoucheReviewer",
     "RetoucheAction",
