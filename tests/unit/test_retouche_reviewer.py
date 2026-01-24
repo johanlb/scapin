@@ -935,3 +935,302 @@ class TestRetouchePhase7ErrorCases:
         ]
         # Rule-based should suggest splitting for very long notes
         assert len(restructure_actions) > 0 or result.quality_after < 70
+
+
+class TestRetoucheLifecycleActions:
+    """Tests for lifecycle actions: FLAG_OBSOLETE, MERGE_INTO, MOVE_TO_FOLDER."""
+
+    def test_lifecycle_actions_in_enum(self):
+        """Test that lifecycle action types exist in enum."""
+        assert hasattr(RetoucheAction, "FLAG_OBSOLETE")
+        assert hasattr(RetoucheAction, "MERGE_INTO")
+        assert hasattr(RetoucheAction, "MOVE_TO_FOLDER")
+
+        assert RetoucheAction.FLAG_OBSOLETE.value == "flag_obsolete"
+        assert RetoucheAction.MERGE_INTO.value == "merge_into"
+        assert RetoucheAction.MOVE_TO_FOLDER.value == "move_to_folder"
+
+    def test_retouche_action_result_has_lifecycle_fields(self):
+        """Test RetoucheActionResult has target_note fields for merge."""
+        result = RetoucheActionResult(
+            action_type=RetoucheAction.MERGE_INTO,
+            target="note",
+            content=None,
+            confidence=0.9,
+            reasoning="Duplicate content",
+            applied=False,
+            model_used="haiku",
+            target_note_id="target-001",
+            target_note_title="Target Note",
+            requires_confirmation=True,
+        )
+
+        assert result.target_note_id == "target-001"
+        assert result.target_note_title == "Target Note"
+        assert result.requires_confirmation is True
+
+    def test_flag_obsolete_always_requires_confirmation(self):
+        """Test FLAG_OBSOLETE never auto-applies."""
+        result = RetoucheActionResult(
+            action_type=RetoucheAction.FLAG_OBSOLETE,
+            target="note",
+            confidence=0.99,  # Even very high confidence
+            reasoning="Note is obsolete",
+            applied=False,
+            model_used="haiku",
+            requires_confirmation=True,
+        )
+
+        # FLAG_OBSOLETE should always require confirmation
+        assert result.requires_confirmation is True
+        assert result.applied is False
+
+    def test_merge_into_auto_applies_high_confidence(self):
+        """Test MERGE_INTO auto-applies at >= 0.85 confidence."""
+        high_conf = RetoucheActionResult(
+            action_type=RetoucheAction.MERGE_INTO,
+            target="note",
+            confidence=0.90,
+            target_note_id="target-001",
+            applied=True,  # Auto-applied
+            requires_confirmation=False,
+            model_used="haiku",
+        )
+        assert high_conf.applied is True
+        assert high_conf.requires_confirmation is False
+
+        low_conf = RetoucheActionResult(
+            action_type=RetoucheAction.MERGE_INTO,
+            target="note",
+            confidence=0.70,
+            target_note_id="target-001",
+            applied=False,  # Not auto-applied
+            requires_confirmation=True,
+            model_used="haiku",
+        )
+        assert low_conf.applied is False
+        assert low_conf.requires_confirmation is True
+
+    def test_move_to_folder_auto_applies_high_confidence(self):
+        """Test MOVE_TO_FOLDER auto-applies at >= 0.85 confidence."""
+        high_conf = RetoucheActionResult(
+            action_type=RetoucheAction.MOVE_TO_FOLDER,
+            target="folder",
+            content="Personnes",
+            confidence=0.90,
+            applied=True,
+            requires_confirmation=False,
+            model_used="haiku",
+        )
+        assert high_conf.applied is True
+        assert high_conf.requires_confirmation is False
+
+        low_conf = RetoucheActionResult(
+            action_type=RetoucheAction.MOVE_TO_FOLDER,
+            target="folder",
+            content="Projets",
+            confidence=0.70,
+            applied=False,
+            requires_confirmation=True,
+            model_used="haiku",
+        )
+        assert low_conf.applied is False
+        assert low_conf.requires_confirmation is True
+
+
+class TestQualityScoreV2:
+    """Tests for the new quality score formula (v2)."""
+
+    def test_quality_score_base_is_zero(self, reviewer):
+        """Test that quality score starts at 0 (not 50)."""
+        mock_note = MagicMock()
+        mock_note.title = "Empty"
+        mock_note.content = ""
+
+        context = RetoucheContext(
+            note=mock_note,
+            metadata=NoteMetadata(note_id="test-001"),
+            word_count=0,
+            has_summary=False,
+            section_count=0,
+        )
+
+        analysis = AnalysisResult(
+            actions=[
+                RetoucheActionResult(
+                    action_type=RetoucheAction.ENRICH,
+                    target="content",
+                    confidence=0.8,
+                    applied=False,
+                    model_used="rules",
+                ),
+                RetoucheActionResult(
+                    action_type=RetoucheAction.STRUCTURE,
+                    target="structure",
+                    confidence=0.8,
+                    applied=False,
+                    model_used="rules",
+                ),
+                RetoucheActionResult(
+                    action_type=RetoucheAction.SUMMARIZE,
+                    target="summary",
+                    confidence=0.8,
+                    applied=False,
+                    model_used="rules",
+                ),
+            ],
+            confidence=0.8,
+            model_used="rules",
+            escalated=False,
+            reasoning="Test",
+        )
+
+        score = reviewer._calculate_quality_score(context, analysis)
+        # 3 actions = 30 points penalty, so completeness bonus = 0
+        # No content, no summary, no sections, no links = 0
+        assert score == 0
+
+    def test_quality_score_word_thresholds(self, reviewer):
+        """Test word count thresholds: 50, 200, 500 words."""
+        mock_note = MagicMock()
+        mock_note.title = "Test"
+        mock_note.content = "x"
+
+        def get_score(word_count):
+            context = RetoucheContext(
+                note=mock_note,
+                metadata=NoteMetadata(note_id="test"),
+                word_count=word_count,
+                has_summary=False,
+                section_count=0,
+            )
+            analysis = AnalysisResult(actions=[], confidence=0.9, model_used="rules", escalated=False, reasoning="Test")
+            return reviewer._calculate_quality_score(context, analysis)
+
+        # 0 words: 0 from content, +30 completeness (no actions)
+        assert get_score(0) == 30
+
+        # 50 words: +10 from content, +30 completeness
+        assert get_score(50) == 40
+
+        # 200 words: +20 from content, +30 completeness
+        assert get_score(200) == 50
+
+        # 500 words: +30 from content, +30 completeness
+        assert get_score(500) == 60
+
+    def test_quality_score_summary_bonus(self, reviewer):
+        """Test summary adds +15 points."""
+        mock_note = MagicMock()
+        mock_note.title = "Test"
+        mock_note.content = "x"
+
+        context_no_summary = RetoucheContext(
+            note=mock_note,
+            metadata=NoteMetadata(note_id="test"),
+            word_count=50,
+            has_summary=False,
+            section_count=0,
+        )
+        context_with_summary = RetoucheContext(
+            note=mock_note,
+            metadata=NoteMetadata(note_id="test"),
+            word_count=50,
+            has_summary=True,
+            section_count=0,
+        )
+
+        analysis = AnalysisResult(actions=[], confidence=0.9, model_used="rules", escalated=False, reasoning="Test")
+
+        score_no_summary = reviewer._calculate_quality_score(context_no_summary, analysis)
+        score_with_summary = reviewer._calculate_quality_score(context_with_summary, analysis)
+
+        assert score_with_summary - score_no_summary == 15
+
+    def test_quality_score_sections_bonus(self, reviewer):
+        """Test sections add +3 each, max +10."""
+        mock_note = MagicMock()
+        mock_note.title = "Test"
+        mock_note.content = "x"
+
+        def get_score(section_count):
+            context = RetoucheContext(
+                note=mock_note,
+                metadata=NoteMetadata(note_id="test"),
+                word_count=50,
+                has_summary=False,
+                section_count=section_count,
+            )
+            analysis = AnalysisResult(actions=[], confidence=0.9, model_used="rules", escalated=False, reasoning="Test")
+            return reviewer._calculate_quality_score(context, analysis)
+
+        base = get_score(0)
+        assert get_score(1) == base + 3
+        assert get_score(2) == base + 6
+        assert get_score(3) == base + 9
+        assert get_score(4) == base + 10  # Capped at 10
+        assert get_score(10) == base + 10  # Still capped
+
+    def test_quality_score_completeness_bonus(self, reviewer):
+        """Test completeness bonus: max(0, 30 - actions*10)."""
+        mock_note = MagicMock()
+        mock_note.title = "Test"
+        mock_note.content = "x"
+
+        context = RetoucheContext(
+            note=mock_note,
+            metadata=NoteMetadata(note_id="test"),
+            word_count=50,
+            has_summary=False,
+            section_count=0,
+        )
+
+        def get_score(num_actions):
+            actions = [
+                RetoucheActionResult(
+                    action_type=RetoucheAction.ENRICH,
+                    target="content",
+                    confidence=0.8,
+                    applied=False,
+                    model_used="rules",
+                )
+                for _ in range(num_actions)
+            ]
+            # Exclude SCORE actions from penalty
+            analysis = AnalysisResult(actions=actions, confidence=0.9, model_used="rules", escalated=False, reasoning="Test")
+            return reviewer._calculate_quality_score(context, analysis)
+
+        # 0 actions: +30 completeness
+        base = 10  # 50 words
+        assert get_score(0) == base + 30  # = 40
+
+        # 1 action: +20 completeness
+        assert get_score(1) == base + 20  # = 30
+
+        # 3 actions: +0 completeness
+        assert get_score(3) == base + 0  # = 10
+
+        # 5 actions: +0 (can't go negative)
+        assert get_score(5) == base + 0  # = 10
+
+    def test_quality_score_max_100(self, reviewer):
+        """Test quality score is capped at 100."""
+        mock_note = MagicMock()
+        mock_note.title = "Perfect Note"
+        mock_note.content = "[[Link1]] [[Link2]] [[Link3]] [[Link4]] [[Link5]] [[Link6]]"
+
+        context = RetoucheContext(
+            note=mock_note,
+            metadata=NoteMetadata(note_id="test"),
+            word_count=1000,  # +30
+            has_summary=True,  # +15
+            section_count=10,  # +10 (capped)
+            linked_notes=[MagicMock() for _ in range(10)],
+        )
+
+        analysis = AnalysisResult(actions=[], confidence=0.95, model_used="rules", escalated=False, reasoning="Test")
+
+        score = reviewer._calculate_quality_score(context, analysis)
+
+        # Max possible: 30 + 15 + 10 + 15 + 30 = 100
+        assert score <= 100
