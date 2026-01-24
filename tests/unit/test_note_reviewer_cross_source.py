@@ -1,4 +1,4 @@
-"""Tests for NoteReviewer CrossSourceEngine integration"""
+"""Tests for RetoucheReviewer CrossSourceEngine integration"""
 
 import tempfile
 from datetime import datetime, timezone
@@ -10,13 +10,13 @@ import pytest
 from src.passepartout.cross_source.models import CrossSourceResult, SourceItem
 from src.passepartout.note_manager import Note, NoteManager
 from src.passepartout.note_metadata import NoteMetadata, NoteMetadataStore
-from src.passepartout.note_reviewer import NoteReviewer
 from src.passepartout.note_scheduler import NoteScheduler
 from src.passepartout.note_types import NoteType
+from src.passepartout.retouche_reviewer import RetoucheReviewer
 
 
-class TestNoteReviewerCrossSourceInit:
-    """Tests for NoteReviewer initialization with CrossSourceEngine"""
+class TestRetoucheReviewerCrossSourceInit:
+    """Tests for RetoucheReviewer initialization with CrossSourceEngine"""
 
     @pytest.fixture
     def temp_db(self):
@@ -44,7 +44,7 @@ class TestNoteReviewerCrossSourceInit:
 
     def test_init_without_cross_source(self, mock_note_manager, store, scheduler):
         """Should initialize without CrossSourceEngine"""
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -55,7 +55,7 @@ class TestNoteReviewerCrossSourceInit:
         """Should accept CrossSourceEngine parameter"""
         mock_engine = MagicMock()
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -140,7 +140,7 @@ class TestQueryCrossSource:
         self, mock_note_manager, store, scheduler, sample_note
     ):
         """Should return empty list when no cross_source_engine is set"""
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -159,7 +159,7 @@ class TestQueryCrossSource:
         mock_engine = MagicMock()
         mock_engine.search = AsyncMock(return_value=sample_cross_source_result)
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -186,7 +186,7 @@ class TestQueryCrossSource:
         mock_engine = MagicMock()
         mock_engine.search = AsyncMock(return_value=sample_cross_source_result)
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -216,7 +216,7 @@ class TestQueryCrossSource:
         mock_engine = MagicMock()
         mock_engine.search = AsyncMock(return_value=sample_cross_source_result)
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -236,7 +236,7 @@ class TestQueryCrossSource:
         mock_engine = MagicMock()
         mock_engine.search = AsyncMock(side_effect=Exception("Search failed"))
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -264,7 +264,7 @@ class TestQueryCrossSource:
         mock_engine = MagicMock()
         mock_engine.search = AsyncMock(return_value=sample_cross_source_result)
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -303,7 +303,7 @@ class TestQueryCrossSource:
         mock_engine = MagicMock()
         mock_engine.search = AsyncMock(return_value=result_with_long_content)
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -397,7 +397,7 @@ class TestLoadContextCrossSource:
             )
         )
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -415,7 +415,7 @@ class TestLoadContextCrossSource:
         self, mock_note_manager, store, scheduler, sample_note, sample_metadata
     ):
         """Should have empty related_entities without CrossSourceEngine"""
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=mock_note_manager,
             metadata_store=store,
             scheduler=scheduler,
@@ -496,7 +496,7 @@ class TestReviewWithCrossSource:
             )
         )
 
-        reviewer = NoteReviewer(
+        reviewer = RetoucheReviewer(
             note_manager=note_manager,
             metadata_store=store,
             scheduler=scheduler,

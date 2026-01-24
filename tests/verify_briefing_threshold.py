@@ -1,9 +1,9 @@
+import asyncio
 import sys
 import unittest
-from unittest.mock import MagicMock, patch
-from pathlib import Path
 from datetime import datetime, timezone
-import asyncio
+from pathlib import Path
+from unittest.mock import MagicMock
 
 # Add project root to path
 project_root = Path(__file__).resolve().parent.parent
@@ -33,11 +33,12 @@ class MockAIConfig:
 mock_config_manager.AIConfig = MockAIConfig
 sys.modules["src.core.config_manager"] = mock_config_manager
 
-from src.passepartout.note_reviewer import NoteReviewer, ActionType
-from src.passepartout.note_manager import Note
-from src.passepartout.note_metadata import NoteMetadata
-from src.passepartout.note_types import NoteType
-from src.core.schemas import NoteAnalysis
+# Imports après les mocks sys.modules (intentionnel)
+from src.core.schemas import NoteAnalysis  # noqa: E402
+from src.passepartout.note_manager import Note  # noqa: E402
+from src.passepartout.note_metadata import NoteMetadata  # noqa: E402
+from src.passepartout.note_types import NoteType  # noqa: E402
+from src.passepartout.retouche_reviewer import RetoucheReviewer  # noqa: E402
 
 
 class TestThresholdPolicy(unittest.TestCase):
@@ -47,7 +48,7 @@ class TestThresholdPolicy(unittest.TestCase):
         self.scheduler = MagicMock()
         self.ai_router = MagicMock()
 
-        self.reviewer = NoteReviewer(
+        self.reviewer = RetoucheReviewer(
             note_manager=self.note_manager,
             metadata_store=self.metadata_store,
             scheduler=self.scheduler,
