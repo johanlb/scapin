@@ -742,3 +742,196 @@ class TestRetouchePhase3:
 
         # Should return False if OmniFocus not available
         assert isinstance(result, bool)
+
+
+class TestRetouchePhase7ErrorCases:
+    """Phase 7 - Cas d'erreur obligatoires."""
+
+    @pytest.mark.asyncio
+    async def test_handles_empty_note(self, reviewer, mock_note_manager):
+        """Test avec note vide."""
+        mock_note = MagicMock()
+        mock_note.note_id = "empty-note"
+        mock_note.title = "Empty"
+        mock_note.content = ""
+        mock_note.file_path = "/test/notes/empty.md"
+        mock_note.tags = []
+        mock_note.metadata = {}
+
+        mock_note_manager.get_note.return_value = mock_note
+        mock_note_manager.search_notes.return_value = []
+
+        result = await reviewer.review_note("empty-note")
+
+        # Should succeed but with minimal/no actions
+        assert result.success is True
+        # Quality score should be low for empty note
+        assert result.quality_after <= 50
+
+    @pytest.mark.asyncio
+    async def test_handles_ai_timeout(self, mock_note_manager, metadata_store, scheduler):
+        """Test de timeout IA avec fallback rule-based."""
+        from asyncio import TimeoutError as AsyncTimeoutError
+
+        # Create mock AI router that times out
+        mock_router = MagicMock()
+
+        reviewer = RetoucheReviewer(
+            note_manager=mock_note_manager,
+            metadata_store=metadata_store,
+            scheduler=scheduler,
+            ai_router=mock_router,
+        )
+
+        # Mock the analysis engine to timeout
+        async def timeout_call(*args, **kwargs):
+            raise AsyncTimeoutError("AI call timeout")
+
+        reviewer._analysis_engine.call_ai = timeout_call
+
+        # Setup mock note
+        mock_note = MagicMock()
+        mock_note.note_id = "timeout-note"
+        mock_note.title = "Test Note"
+        mock_note.content = "Some content here " * 50  # Enough content
+        mock_note.file_path = "/test/notes/test.md"
+        mock_note.tags = []
+        mock_note.metadata = {}
+
+        mock_note_manager.get_note.return_value = mock_note
+        mock_note_manager.search_notes.return_value = []
+
+        result = await reviewer.review_note("timeout-note")
+
+        # Should still succeed with rule-based fallback
+        assert result.success is True
+        assert result.model_used == "rules"
+
+    @pytest.mark.asyncio
+    async def test_handles_invalid_json_response(self, mock_note_manager, metadata_store, scheduler):
+        """Test réponse JSON malformée."""
+        from src.sancho.analysis_engine import AICallResult, ModelTier
+
+        mock_router = MagicMock()
+
+        reviewer = RetoucheReviewer(
+            note_manager=mock_note_manager,
+            metadata_store=metadata_store,
+            scheduler=scheduler,
+            ai_router=mock_router,
+        )
+
+        # Mock AI to return invalid JSON
+        mock_result = AICallResult(
+            response="This is not valid JSON at all {broken",
+            model_used=ModelTier.HAIKU,
+            model_id="claude-3-haiku",
+            tokens_used=50,
+            duration_ms=200.0,
+        )
+        reviewer._analysis_engine.call_ai = AsyncMock(return_value=mock_result)
+
+        # Setup mock note
+        mock_note = MagicMock()
+        mock_note.note_id = "json-error-note"
+        mock_note.title = "Test Note"
+        mock_note.content = "Some content here " * 30
+        mock_note.file_path = "/test/notes/test.md"
+        mock_note.tags = []
+        mock_note.metadata = {}
+
+        mock_note_manager.get_note.return_value = mock_note
+        mock_note_manager.search_notes.return_value = []
+
+        result = await reviewer.review_note("json-error-note")
+
+        # Should fallback to rule-based
+        assert result.success is True
+        assert result.model_used == "rules"
+
+    @pytest.mark.asyncio
+    async def test_escalates_on_low_confidence(self, mock_note_manager, metadata_store, scheduler):
+        """Test escalade modèle si confiance < 70%."""
+        from src.sancho.analysis_engine import AICallResult, ModelTier
+
+        mock_router = MagicMock()
+
+        reviewer = RetoucheReviewer(
+            note_manager=mock_note_manager,
+            metadata_store=metadata_store,
+            scheduler=scheduler,
+            ai_router=mock_router,
+        )
+
+        # Track call count
+        call_count = 0
+
+        async def mock_call_ai(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+
+            # First call (Haiku) returns actions with low confidence
+            # Note: confidence is calculated as average of action confidences, not from JSON field
+            if call_count == 1:
+                return AICallResult(
+                    response='{"quality_score": 50, "reasoning": "Uncertain", "actions": [{"type": "enrich", "target": "content", "confidence": 0.5, "reasoning": "Low confidence action"}]}',
+                    model_used=ModelTier.HAIKU,
+                    model_id="claude-3-haiku",
+                    tokens_used=100,
+                    duration_ms=300.0,
+                )
+            # Second call (Sonnet) returns actions with higher confidence
+            else:
+                return AICallResult(
+                    response='{"quality_score": 70, "reasoning": "Better analysis", "actions": [{"type": "enrich", "target": "content", "confidence": 0.9, "reasoning": "High confidence"}]}',
+                    model_used=ModelTier.SONNET,
+                    model_id="claude-3-5-sonnet",
+                    tokens_used=200,
+                    duration_ms=500.0,
+                )
+
+        reviewer._analysis_engine.call_ai = mock_call_ai
+
+        # Setup mock note
+        mock_note = MagicMock()
+        mock_note.note_id = "escalate-note"
+        mock_note.title = "Complex Note"
+        mock_note.content = "Complex technical content " * 100
+        mock_note.file_path = "/test/notes/complex.md"
+        mock_note.tags = []
+        mock_note.metadata = {}
+
+        mock_note_manager.get_note.return_value = mock_note
+        mock_note_manager.search_notes.return_value = []
+
+        result = await reviewer.review_note("escalate-note")
+
+        # Should have escalated (called AI at least twice)
+        assert call_count >= 2
+        assert result.escalated is True
+
+    @pytest.mark.asyncio
+    async def test_handles_very_long_content(self, reviewer, mock_note_manager):
+        """Test avec contenu très long (> 10000 mots)."""
+        mock_note = MagicMock()
+        mock_note.note_id = "long-note"
+        mock_note.title = "Very Long Note"
+        mock_note.content = "Word " * 15000  # 15000 words
+        mock_note.file_path = "/test/notes/long.md"
+        mock_note.tags = []
+        mock_note.metadata = {}
+
+        mock_note_manager.get_note.return_value = mock_note
+        mock_note_manager.search_notes.return_value = []
+
+        result = await reviewer.review_note("long-note")
+
+        # Should handle gracefully
+        assert result.success is True
+        # Very long notes should suggest restructuring
+        restructure_actions = [
+            a for a in result.actions
+            if a.action_type == RetoucheAction.RESTRUCTURE_GRAPH
+        ]
+        # Rule-based should suggest splitting for very long notes
+        assert len(restructure_actions) > 0 or result.quality_after < 70
