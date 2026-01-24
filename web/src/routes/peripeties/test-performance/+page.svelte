@@ -191,7 +191,7 @@
 											escalation_triggered: true
 										}
 									],
-									briefing_status: null
+									canevas_status: null
 								}
 							: null
 				},
