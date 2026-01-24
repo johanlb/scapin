@@ -283,7 +283,12 @@ class AppleNotesClient:
         tell application "Notes"
             try
                 set n to note id "{escaped_id}"
-                set folderName to name of container of n
+
+                -- Get folder name with fallback for nested folders
+                set folderName to "Unknown"
+                try
+                    set folderName to name of container of n
+                end try
 
                 {date_extraction}
 
