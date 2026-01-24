@@ -427,14 +427,14 @@ class TestAsyncMethods:
 
 
 class TestContextInjection:
-    """Test injection of briefing context into AI prompts"""
+    """Test injection of canevas context into AI prompts"""
 
     @patch("anthropic.Anthropic")
     @patch("src.sancho.templates.get_template_manager")
-    def test_analyze_note_injects_briefing_context(
+    def test_analyze_note_injects_canevas_context(
         self, mock_template_manager, mock_anthropic, ai_config
     ):
-        """Test that briefing context is loaded and injected into note analysis prompt"""
+        """Test that canevas context is loaded and injected into note analysis prompt"""
         # Setup Router
         router = AIRouter(ai_config)
 

@@ -1,5 +1,6 @@
 export { uiState, openCommandPalette, closeCommandPalette } from './ui.svelte';
 export { briefingStore } from './briefing.svelte';
+export { canevasStore } from './canevas.svelte';
 export { authStore } from './auth.svelte';
 export { wsStore } from './websocket.svelte';
 export { notificationStore } from './notifications.svelte';

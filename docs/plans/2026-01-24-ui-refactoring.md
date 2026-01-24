@@ -285,21 +285,31 @@ interface Props {
 
 ### Flux de données:
 
-```
-QueueItemFocusView (state: showLevel3)
-│
-├── QueueItemHeader        ← item, showLevel3, onToggle, onSkip, onDelete
-│
-├── Card (conteneur principal)
-│   ├── ReasoningBox           ← item.analysis.reasoning
-│   ├── RetrievedContextSection ← item.analysis.retrieved_context
-│   ├── AnalysisDetailsSection  ← item, showLevel3
-│   ├── ProposedSideEffects     ← filteredNotes, filteredTasks
-│   ├── ActionOptionsSection    ← item.analysis.options, onSelectOption
-│   ├── EmailContentViewer      ← item.content
-│   └── AttachmentsSection      ← item.metadata.attachments, item.metadata.id
-│
-└── ReanalyzeButton         ← onReanalyze
+```mermaid
+flowchart TD
+    QIF["QueueItemFocusView<br/>(state: showLevel3)"]
+
+    QIF --> QIH["QueueItemHeader"]
+    QIF --> Card["Card (conteneur principal)"]
+    QIF --> RAB["ReanalyzeButton"]
+
+    Card --> RB["ReasoningBox"]
+    Card --> RCS["RetrievedContextSection"]
+    Card --> ADS["AnalysisDetailsSection"]
+    Card --> PSE["ProposedSideEffects"]
+    Card --> AOS["ActionOptionsSection"]
+    Card --> ECV["EmailContentViewer"]
+    Card --> AS["AttachmentsSection"]
+
+    QIH -.- P1["item, showLevel3, onToggle, onSkip, onDelete"]
+    RB -.- P2["item.analysis.reasoning"]
+    RCS -.- P3["item.analysis.retrieved_context"]
+    ADS -.- P4["item, showLevel3"]
+    PSE -.- P5["filteredNotes, filteredTasks"]
+    AOS -.- P6["item.analysis.options, onSelectOption"]
+    ECV -.- P7["item.content"]
+    AS -.- P8["item.metadata.attachments, item.metadata.id"]
+    RAB -.- P9["onReanalyze"]
 ```
 
 ---
@@ -324,22 +334,26 @@ web/src/lib/components/ui/folder-selector/
 
 ### Flux de données:
 
-```
-FolderSelector (state: suggestions, folderTree, expandedFolders, searchQuery, isLoading, error)
-│
-├── LoadingState / ErrorState (conditionnels)
-│
-├── SuggestionsSection     ← suggestions, onSelect
-│   └── getConfidenceColor(), getConfidenceLabel() (local ou utils)
-│
-├── RecentFoldersSection   ← recentFolders, onSelect
-│
-├── FolderSearchInput      ← bind:searchQuery
-│
-├── FolderTree             ← filteredTree, expandedFolders, onToggle, onSelect
-│   └── FolderNode (récursif) ← node, depth, expanded, onToggle, onSelect
-│
-└── CreateFolderForm       ← onCreate, onCancel (état local: newFolderPath, isCreating)
+```mermaid
+flowchart TD
+    FS["FolderSelector<br/>(state: suggestions, folderTree, expandedFolders, searchQuery, isLoading, error)"]
+
+    FS --> LSE["LoadingState / ErrorState"]
+    FS --> SS["SuggestionsSection"]
+    FS --> RFS["RecentFoldersSection"]
+    FS --> FSI["FolderSearchInput"]
+    FS --> FT["FolderTree"]
+    FS --> CFF["CreateFolderForm"]
+
+    SS --> Utils["getConfidenceColor(), getConfidenceLabel()"]
+    FT --> FN["FolderNode (récursif)"]
+
+    SS -.- P1["suggestions, onSelect"]
+    RFS -.- P2["recentFolders, onSelect"]
+    FSI -.- P3["bind:searchQuery"]
+    FT -.- P4["filteredTree, expandedFolders, onToggle, onSelect"]
+    FN -.- P5["node, depth, expanded, onToggle, onSelect"]
+    CFF -.- P6["onCreate, onCancel<br/>(état local: newFolderPath, isCreating)"]
 ```
 
 ---

@@ -312,26 +312,58 @@ def test_context_search_cached_performance(context_searcher):
 
 ## Dépendances
 
-```
-#12 (install py-spy)
- └── #11 (profiling CPU)
+```mermaid
+flowchart TD
+    subgraph Phase0["Phase 0 - Setup"]
+        T12["#12 install py-spy"]
+    end
 
-#10 (baseline) + #11 (profiling CPU)
- ├── #2 (thread pool) ← Quick win immédiat
- ├── #3 (early-stop adapters)
- └── #4 (cache context search) ← Plus gros impact
-      └── #5 (batch search)
+    subgraph Phase1["Phase 1 - Mesure"]
+        T10["#10 baseline"]
+        T11["#11 profiling CPU"]
+    end
 
-#2, #3, #4 (optimisations)
- ├── #16 (tests non-régression)
- └── #13 (tests performance)
-      └── #14 (doc technique)
-           └── #15 (guide utilisateur)
+    subgraph Phase2["Phase 2 - Optimisations"]
+        T2["#2 thread pool<br/>(Quick win)"]
+        T3["#3 early-stop adapters"]
+        T4["#4 cache context search<br/>(Plus gros impact)"]
+        T5["#5 batch search"]
+    end
 
-[REPORTÉ après refactoring UI]
-#1 (API client split)
-#6 (audit stores) → #7 (unify WebSocket)
-#9 (lazy-load charts)
+    subgraph Phase3["Phase 3 - Validation"]
+        T16["#16 tests non-régression"]
+        T13["#13 tests performance"]
+    end
+
+    subgraph Phase4["Phase 4 - Documentation"]
+        T14["#14 doc technique"]
+        T15["#15 guide utilisateur"]
+    end
+
+    subgraph Reporté["REPORTÉ après refactoring UI"]
+        T1["#1 API client split"]
+        T6["#6 audit stores"]
+        T7["#7 unify WebSocket"]
+        T9["#9 lazy-load charts"]
+    end
+
+    T12 --> T11
+    T10 --> T2
+    T10 --> T3
+    T10 --> T4
+    T11 --> T2
+    T11 --> T3
+    T11 --> T4
+    T4 --> T5
+    T2 --> T16
+    T3 --> T16
+    T4 --> T16
+    T2 --> T13
+    T3 --> T13
+    T4 --> T13
+    T13 --> T14
+    T14 --> T15
+    T6 --> T7
 ```
 
 ---

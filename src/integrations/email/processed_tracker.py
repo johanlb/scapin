@@ -101,6 +101,18 @@ class ProcessedEmailTracker:
 
             logger.debug("Database schema initialized")
 
+    def _normalize_message_id(self, message_id: str) -> str:
+        """
+        Normalize message_id for consistent deduplication.
+
+        Removes angle brackets and converts to lowercase to handle
+        variations like '<id@domain>' vs 'id@domain' or different casing.
+        """
+        if not message_id:
+            return ""
+        # Remove leading/trailing whitespace and angle brackets, lowercase
+        return message_id.strip().strip("<>").lower()
+
     def is_processed(self, message_id: str) -> bool:
         """
         Check if an email has been processed.
@@ -114,10 +126,12 @@ class ProcessedEmailTracker:
         if not message_id:
             return False
 
+        normalized = self._normalize_message_id(message_id)
+
         with self._get_cursor() as cursor:
             cursor.execute(
                 "SELECT 1 FROM processed_emails WHERE message_id = ?",
-                (message_id,)
+                (normalized,)
             )
             result = cursor.fetchone()
             return result is not None
@@ -145,6 +159,8 @@ class ProcessedEmailTracker:
             logger.warning("Cannot mark email without message_id")
             return False
 
+        normalized = self._normalize_message_id(message_id)
+
         try:
             with self._get_cursor() as cursor:
                 cursor.execute(
@@ -153,7 +169,7 @@ class ProcessedEmailTracker:
                     (message_id, account_id, subject, from_address)
                     VALUES (?, ?, ?, ?)
                     """,
-                    (message_id, account_id, subject, from_address)
+                    (normalized, account_id, subject, from_address)
                 )
 
                 if cursor.rowcount > 0:
@@ -213,17 +229,26 @@ class ProcessedEmailTracker:
         if not all_message_ids:
             return []
 
+        # Normalize all message IDs for consistent comparison
+        normalized_map = {self._normalize_message_id(mid): mid for mid in all_message_ids}
+        normalized_ids = list(normalized_map.keys())
+
         with self._get_cursor() as cursor:
             # Use parameterized query with placeholders
-            placeholders = ','.join('?' * len(all_message_ids))
+            placeholders = ','.join('?' * len(normalized_ids))
             cursor.execute(
                 f"SELECT message_id FROM processed_emails WHERE message_id IN ({placeholders})",
-                all_message_ids
+                normalized_ids
             )
 
             processed_set = {row[0] for row in cursor.fetchall()}
 
-        return [mid for mid in all_message_ids if mid not in processed_set]
+        # Return original message IDs for those not in processed set
+        return [
+            normalized_map[norm_id]
+            for norm_id in normalized_ids
+            if norm_id not in processed_set
+        ]
 
     def clear_old_entries(self, days: int = 365) -> int:
         """

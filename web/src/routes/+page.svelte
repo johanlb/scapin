@@ -4,7 +4,7 @@
 	import { Card, PullToRefresh } from '$lib/components/ui';
 	import ProgressRing from '$lib/components/ui/ProgressRing.svelte';
 	import { BriefingHeader, StatsGrid, EventList, PreMeetingModal } from '$lib/components/briefing';
-	import { briefingStore } from '$lib/stores';
+	import { briefingStore, canevasStore } from '$lib/stores';
 	import { notesReviewStore } from '$lib/stores/notes-review.svelte';
 	import { memoryCyclesStore } from '$lib/stores/memory-cycles.svelte';
 	import FilageWidget from '$lib/components/memory/FilageWidget.svelte';
@@ -44,7 +44,8 @@
 		await Promise.all([
 			loadBriefingData(),
 			notesReviewStore.fetchStats(),
-			memoryCyclesStore.fetchFilage(20)
+			memoryCyclesStore.fetchFilage(20),
+			canevasStore.fetch()
 		]);
 	});
 
@@ -96,7 +97,9 @@
 	const archiveEvent = (id: string) => {
 		events = events.filter((e) => e.id !== id);
 	};
-	const replyToEvent = (id: string) => console.log('Reply to:', id);
+	const replyToEvent = (_id: string) => {
+		// TODO: Implement reply action
+	};
 </script>
 
 <PullToRefresh onrefresh={handleRefresh}>
@@ -109,6 +112,33 @@
 		/>
 
 		<StatsGrid {stats} />
+
+		<!-- Canevas incomplet alert -->
+		{#if canevasStore.hasStatus && !canevasStore.isComplete}
+			<section class="mb-5" data-testid="canevas-widget">
+				<Card class="border-amber-500/30 bg-amber-500/5">
+					<div class="flex items-center justify-between p-3">
+						<div class="flex items-center gap-3">
+							<span class="text-2xl">📜</span>
+							<div>
+								<h3 class="font-medium text-[var(--color-text-primary)]">
+									Canevas {canevasStore.completenessLabel.toLowerCase()}
+								</h3>
+								<p class="text-xs text-[var(--color-text-secondary)]">
+									{canevasStore.status?.files_present ?? 0}/{(canevasStore.status?.files_present ?? 0) + (canevasStore.status?.files_missing ?? 0)} fichiers présents
+								</p>
+							</div>
+						</div>
+						<a
+							href="/memoires?folder=Canevas"
+							class="text-sm text-amber-600 dark:text-amber-400 hover:underline"
+						>
+							Compléter
+						</a>
+					</div>
+				</Card>
+			</section>
+		{/if}
 
 		{#if memoryCyclesStore.filage && memoryCyclesStore.totalLectures > 0}
 			<FilageWidget

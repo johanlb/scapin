@@ -9,7 +9,6 @@ const API_BASE = '/api';
 let authToken: string | null = null;
 
 export function setAuthToken(token: string | null): void {
-	console.log('[API] setAuthToken called:', token ? `${token.substring(0, 20)}...` : null);
 	authToken = token;
 	if (token) {
 		localStorage.setItem('scapin_token', token);
@@ -20,12 +19,10 @@ export function setAuthToken(token: string | null): void {
 
 export function getAuthToken(): string | null {
 	if (authToken) {
-		console.log('[API] getAuthToken: returning cached token');
 		return authToken;
 	}
 	if (typeof localStorage !== 'undefined') {
 		authToken = localStorage.getItem('scapin_token');
-		console.log('[API] getAuthToken: loaded from localStorage:', authToken ? 'present' : 'missing');
 	}
 	return authToken;
 }
@@ -369,22 +366,17 @@ async function fetchPaginatedApi<T>(
 
 // Auth endpoints
 export async function login(pin: string): Promise<TokenResponse> {
-	console.log('[API] login() called');
 	const response = await fetchApi<TokenResponse>('/auth/login', {
 		method: 'POST',
 		body: JSON.stringify({ pin })
 	});
-	console.log('[API] login() response:', response);
 	// Store the token
 	setAuthToken(response.access_token);
 	return response;
 }
 
 export async function checkAuth(): Promise<AuthCheckResponse> {
-	console.log('[API] checkAuth() called, token:', getAuthToken() ? 'present' : 'missing');
-	const result = await fetchApi<AuthCheckResponse>('/auth/check');
-	console.log('[API] checkAuth() result:', result);
-	return result;
+	return fetchApi<AuthCheckResponse>('/auth/check');
 }
 
 export function logout(): void {
@@ -428,6 +420,11 @@ export async function getPreMeetingBriefing(
 	return fetchApi<PreMeetingBriefing>(`/briefing/meeting/${encodeURIComponent(eventId)}`, {
 		signal
 	});
+}
+
+// Canevas endpoints
+export async function getCanevasStatus(): Promise<CanevasStatus | null> {
+	return fetchApi<CanevasStatus | null>('/canevas/status');
 }
 
 // ============================================================================
@@ -841,8 +838,8 @@ export interface PassHistoryEntry {
 	questions?: string[];
 }
 
-// v3.2: Briefing status visibility
-export interface BriefingFileStatus {
+// v3.2: Canevas status visibility
+export interface CanevasFileStatus {
 	/** File name without extension (e.g., 'Profile') */
 	name: string;
 	/** File status: present, partial, missing, empty */
@@ -851,17 +848,17 @@ export interface BriefingFileStatus {
 	char_count: number;
 	/** Line count of file content */
 	line_count: number;
-	/** Whether this file is required for complete briefing */
+	/** Whether this file is required for complete canevas */
 	required: boolean;
 	/** Actual filename loaded (primary or alternative) */
 	loaded_from: string | null;
 }
 
-export interface BriefingStatus {
+export interface CanevasStatus {
 	/** Overall completeness: complete, partial, incomplete */
 	completeness: 'complete' | 'partial' | 'incomplete';
-	/** Status of each briefing file */
-	files: BriefingFileStatus[];
+	/** Status of each canevas file */
+	files: CanevasFileStatus[];
 	/** Total characters across all present files */
 	total_chars: number;
 	/** Count of files with substantial content */
@@ -870,7 +867,7 @@ export interface BriefingStatus {
 	files_missing: number;
 	/** Count of files with insufficient content */
 	files_partial: number;
-	/** Timestamp when briefing was loaded (ISO format) */
+	/** Timestamp when canevas was loaded (ISO format) */
 	loaded_at: string | null;
 }
 
@@ -893,8 +890,8 @@ export interface MultiPassMetadata {
 	total_duration_ms: number;
 	/** Detailed history of each pass */
 	pass_history: PassHistoryEntry[];
-	/** v3.2: Briefing status visibility */
-	briefing_status: BriefingStatus | null;
+	/** v3.2: Canevas status visibility */
+	canevas_status: CanevasStatus | null;
 }
 
 // v3.1: Strategic questions requiring human decision
