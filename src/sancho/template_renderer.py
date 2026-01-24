@@ -18,7 +18,7 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoe
 from src.monitoring.logger import get_logger
 
 if TYPE_CHECKING:
-    from src.passepartout.context_loader import BriefingStatus
+    from src.passepartout.context_loader import CanevasStatus
 
 logger = get_logger("template_renderer")
 
@@ -87,25 +87,25 @@ class TemplateRenderer:
         self._env.filters["format_date"] = self._format_date
         self._env.filters["format_confidence"] = self._format_confidence
 
-        # Initialize ContextLoader for briefing injection (v2.5)
-        # v3.2: Also store briefing status for visibility
-        self._briefing_context: Optional[str] = None
-        self._briefing_status: Optional[BriefingStatus] = None
+        # Initialize ContextLoader for canevas injection (v2.5)
+        # v3.2: Also store canevas status for visibility
+        self._canevas_context: Optional[str] = None
+        self._canevas_status: Optional[CanevasStatus] = None
         try:
             from src.passepartout.context_loader import ContextLoader
 
             context_loader = ContextLoader()
-            self._briefing_context, self._briefing_status = context_loader.load_context_with_status()
-            if self._briefing_context:
+            self._canevas_context, self._canevas_status = context_loader.load_context_with_status()
+            if self._canevas_context:
                 logger.info(
-                    "Briefing context loaded (%d chars, status: %s)",
-                    len(self._briefing_context),
-                    self._briefing_status.completeness.value if self._briefing_status else "unknown",
+                    "Canevas context loaded (%d chars, status: %s)",
+                    len(self._canevas_context),
+                    self._canevas_status.completeness.value if self._canevas_status else "unknown",
                 )
             else:
-                logger.warning("No briefing context found")
+                logger.warning("No canevas context found")
         except Exception as e:
-            logger.warning("Failed to load briefing context: %s", e)
+            logger.warning("Failed to load canevas context: %s", e)
 
         logger.info(
             "TemplateRenderer initialized (dir=%s, auto_reload=%s)",
@@ -147,9 +147,10 @@ class TemplateRenderer:
         # Add 'now' to context for age calculations
         context["now"] = datetime.now(timezone.utc)
 
-        # Add briefing context if available (v2.5)
-        if self._briefing_context and "briefing" not in context:
-            context["briefing"] = self._briefing_context
+        # Add canevas context if available (v2.5)
+        # Note: Variable name in templates remains 'briefing' until templates are migrated
+        if self._canevas_context and "briefing" not in context:
+            context["briefing"] = self._canevas_context
 
         try:
             template = self._env.get_template(template_name)
@@ -166,23 +167,23 @@ class TemplateRenderer:
 
     # ==================== Four Valets v3.0 ====================
 
-    def _get_briefing(self) -> str:
+    def _get_canevas(self) -> str:
         """
-        Get briefing context for Four Valets prompts.
+        Get canevas context for Four Valets prompts.
 
         Returns:
-            Briefing string or empty string if not available.
+            Canevas string or empty string if not available.
         """
-        return self._briefing_context or ""
+        return self._canevas_context or ""
 
-    def get_briefing_status(self) -> Optional["BriefingStatus"]:
+    def get_canevas_status(self) -> Optional["CanevasStatus"]:
         """
-        Get the briefing status (v3.2).
+        Get the canevas status (v3.2).
 
         Returns:
-            BriefingStatus with completeness and file details, or None if not loaded.
+            CanevasStatus with completeness and file details, or None if not loaded.
         """
-        return self._briefing_status
+        return self._canevas_status
 
     def render_grimaud(
         self,
@@ -206,7 +207,7 @@ class TemplateRenderer:
             "pass1_grimaud",
             event=event,
             max_content_chars=max_content_chars,
-            briefing=self._get_briefing(),
+            briefing=self._get_canevas(),
         )
 
     def render_bazin(
@@ -240,7 +241,7 @@ class TemplateRenderer:
             context=context,
             max_content_chars=max_content_chars,
             max_context_notes=max_context_notes,
-            briefing=self._get_briefing(),
+            briefing=self._get_canevas(),
         )
 
     def render_planchet(
@@ -273,7 +274,7 @@ class TemplateRenderer:
             previous_passes=[grimaud_result, bazin_result],  # Template expects previous_passes
             context=context,
             max_content_chars=max_content_chars,
-            briefing=self._get_briefing(),
+            briefing=self._get_canevas(),
         )
 
     def render_mousqueton(
@@ -309,7 +310,7 @@ class TemplateRenderer:
                 planchet_result,
             ],  # Template expects previous_passes
             full_context=context,  # Template expects full_context
-            briefing=self._get_briefing(),
+            briefing=self._get_canevas(),
         )
 
     # ==================== Cache-Optimized Rendering (v3.1) ====================
@@ -342,7 +343,7 @@ class TemplateRenderer:
             "pass1_grimaud_user",
             event=event,
             max_content_chars=max_content_chars,
-            briefing=self._get_briefing(),
+            briefing=self._get_canevas(),
         )
         return SplitPrompt(system=system, user=user)
 
@@ -377,7 +378,7 @@ class TemplateRenderer:
             context=context,
             max_content_chars=max_content_chars,
             max_context_notes=max_context_notes,
-            briefing=self._get_briefing(),
+            briefing=self._get_canevas(),
         )
         return SplitPrompt(system=system, user=user)
 
@@ -411,7 +412,7 @@ class TemplateRenderer:
             previous_passes=[grimaud_result, bazin_result],
             context=context,
             max_content_chars=max_content_chars,
-            briefing=self._get_briefing(),
+            briefing=self._get_canevas(),
         )
         return SplitPrompt(system=system, user=user)
 
@@ -444,7 +445,7 @@ class TemplateRenderer:
             event=event,
             previous_passes=[grimaud_result, bazin_result, planchet_result],
             full_context=context,
-            briefing=self._get_briefing(),
+            briefing=self._get_canevas(),
         )
         return SplitPrompt(system=system, user=user)
 

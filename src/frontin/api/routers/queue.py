@@ -15,9 +15,9 @@ from src.frontin.api.models.queue import (
     ActionOptionResponse,
     ApproveRequest,
     AttachmentResponse,
-    BriefingFileStatusResponse,
-    BriefingStatusResponse,
     BulkReanalyzeResponse,
+    CanevasFileStatusResponse,
+    CanevasStatusResponse,
     ContextCalendarResponse,
     ContextInfluenceResponse,
     ContextNoteResponse,
@@ -902,14 +902,14 @@ def _convert_multi_pass_metadata(
             )
         )
 
-    # v3.2: Convert briefing_status
-    briefing_status = None
-    raw_briefing = multi_pass.get("briefing_status")
-    if raw_briefing:
-        briefing_status = BriefingStatusResponse(
-            completeness=raw_briefing.get("completeness", "incomplete"),
+    # v3.2: Convert canevas_status
+    canevas_status = None
+    raw_canevas = multi_pass.get("canevas_status")
+    if raw_canevas:
+        canevas_status = CanevasStatusResponse(
+            completeness=raw_canevas.get("completeness", "incomplete"),
             files=[
-                BriefingFileStatusResponse(
+                CanevasFileStatusResponse(
                     name=f.get("name", ""),
                     status=f.get("status", "missing"),
                     char_count=f.get("char_count", 0),
@@ -917,13 +917,13 @@ def _convert_multi_pass_metadata(
                     required=f.get("required", True),
                     loaded_from=f.get("loaded_from"),
                 )
-                for f in raw_briefing.get("files", [])
+                for f in raw_canevas.get("files", [])
             ],
-            total_chars=raw_briefing.get("total_chars", 0),
-            files_present=raw_briefing.get("files_present", 0),
-            files_missing=raw_briefing.get("files_missing", 0),
-            files_partial=raw_briefing.get("files_partial", 0),
-            loaded_at=raw_briefing.get("loaded_at"),
+            total_chars=raw_canevas.get("total_chars", 0),
+            files_present=raw_canevas.get("files_present", 0),
+            files_missing=raw_canevas.get("files_missing", 0),
+            files_partial=raw_canevas.get("files_partial", 0),
+            loaded_at=raw_canevas.get("loaded_at"),
         )
 
     return MultiPassMetadataResponse(
@@ -936,7 +936,7 @@ def _convert_multi_pass_metadata(
         total_tokens=multi_pass.get("total_tokens", 0),
         total_duration_ms=multi_pass.get("total_duration_ms", 0.0),
         pass_history=pass_history,
-        briefing_status=briefing_status,
+        canevas_status=canevas_status,
     )
 
 

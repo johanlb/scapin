@@ -1,8 +1,11 @@
 """
-Context Loader for Dynamic Briefing.
+Context Loader for Canevas (Dynamic Context).
 
-Responsible for loading, caching, and formatting "Global Context" files
-(Profile, Projects, Goals) to be injected into AI prompts.
+Responsible for loading, caching, and formatting "Canevas" files
+(Profile, Projects, Goals, Preferences) to be injected into AI prompts.
+
+The Canevas is Johan's permanent context - the scenario that guides
+the AI valets' improvisation, like in Commedia dell'arte.
 """
 
 from dataclasses import dataclass, field
@@ -17,19 +20,19 @@ from src.monitoring.logger import get_logger
 logger = get_logger("passepartout.context_loader")
 
 # ============================================================================
-# BRIEFING STATUS STRUCTURES (v3.2)
+# CANEVAS STATUS STRUCTURES (v3.2)
 # ============================================================================
 
 # Seuils de contenu substantiel
 MIN_CHARS_SUBSTANTIAL = 100  # Minimum 100 caractères
 MIN_LINES_SUBSTANTIAL = 5  # Minimum 5 lignes
 
-# Fichiers obligatoires pour un briefing complet
+# Fichiers obligatoires pour un canevas complet
 REQUIRED_FILES = ["Profile", "Projects", "Goals"]
 
 
-class BriefingFileStatus(str, Enum):
-    """Statut d'un fichier de briefing individuel."""
+class CanevasFileStatus(str, Enum):
+    """Statut d'un fichier de canevas individuel."""
 
     PRESENT = "present"  # Fichier existe avec contenu substantiel (≥100 chars, ≥5 lignes)
     PARTIAL = "partial"  # Fichier existe mais contenu insuffisant
@@ -37,8 +40,8 @@ class BriefingFileStatus(str, Enum):
     MISSING = "missing"  # Fichier n'existe pas
 
 
-class BriefingCompleteness(str, Enum):
-    """Niveau de complétude global du briefing."""
+class CanevasCompleteness(str, Enum):
+    """Niveau de complétude global du canevas."""
 
     COMPLETE = "complete"  # Tous les fichiers obligatoires sont PRESENT
     PARTIAL = "partial"  # Au moins un fichier obligatoire est PARTIAL/EMPTY
@@ -46,11 +49,11 @@ class BriefingCompleteness(str, Enum):
 
 
 @dataclass
-class BriefingFileInfo:
-    """Information sur un fichier de briefing individuel."""
+class CanevasFileInfo:
+    """Information sur un fichier de canevas individuel."""
 
     name: str
-    status: BriefingFileStatus
+    status: CanevasFileStatus
     char_count: int = 0
     line_count: int = 0
     required: bool = True
@@ -58,11 +61,11 @@ class BriefingFileInfo:
 
 
 @dataclass
-class BriefingStatus:
-    """Statut global du briefing avec détails par fichier."""
+class CanevasStatus:
+    """Statut global du canevas avec détails par fichier."""
 
-    completeness: BriefingCompleteness
-    files: list[BriefingFileInfo] = field(default_factory=list)
+    completeness: CanevasCompleteness
+    files: list[CanevasFileInfo] = field(default_factory=list)
     total_chars: int = 0
     files_present: int = 0
     files_missing: int = 0
@@ -94,15 +97,18 @@ class BriefingStatus:
 
 class ContextLoader:
     """
-    Loads and manages the Global Context for AI analysis.
+    Loads and manages the Canevas (Global Context) for AI analysis.
 
-    It reads specific markdown files (Briefing Roots), caches them in memory,
+    It reads specific markdown files (Canevas files), caches them in memory,
     and returns a formatted string suitable for system prompts.
+
+    The Canevas is the permanent context that guides the AI valets,
+    like the scenario in Commedia dell'arte.
     """
 
-    # Files to look for in the briefing directory
+    # Files to look for in the canevas directory
     # Support both standard names and Apple Notes sync names (with -AppleNotes suffix)
-    BRIEFING_FILES = [
+    CANEVAS_FILES = [
         ("Profile.md", "Profile-AppleNotes.md"),
         ("Projects.md", "Projects-AppleNotes.md"),
         ("Goals.md", "Goals-AppleNotes.md"),
@@ -122,28 +128,28 @@ class ContextLoader:
             config = get_config()
             self.notes_dir = config.storage.notes_dir
 
-        # Determine where briefing files live.
-        # We look in a 'Briefing' subdirectory, or root if preferred.
-        # Strategy: explicit 'Briefing' folder is cleaner.
-        self.briefing_dir = self.notes_dir / "Briefing"
+        # Determine where canevas files live.
+        # We look in a 'Briefing' subdirectory (will be renamed to 'Canevas' later).
+        # Strategy: explicit folder is cleaner.
+        self.canevas_dir = self.notes_dir / "Briefing"
 
         # Cache structure: {filename: {'content': str, 'mtime': float}}
         self._cache: dict[str, dict] = {}
 
     def load_context(self) -> str:
         """
-        Load and concatenate all valid briefing files.
+        Load and concatenate all valid canevas files.
 
         Returns:
             A single string containing the formatted context.
         """
-        if not self.briefing_dir.exists():
-            logger.debug(f"Briefing directory not found at {self.briefing_dir}")
+        if not self.canevas_dir.exists():
+            logger.debug(f"Canevas directory not found at {self.canevas_dir}")
             return ""
 
         context_parts = []
 
-        for file_options in self.BRIEFING_FILES:
+        for file_options in self.CANEVAS_FILES:
             # Each entry is a tuple of (primary_name, alternative_name)
             primary, alternative = file_options
             content = self._read_file_cached(primary)
@@ -160,7 +166,7 @@ class ContextLoader:
 
     def _read_file_cached(self, filename: str) -> Optional[str]:
         """Read a file with simple mtime caching."""
-        file_path = self.briefing_dir / filename
+        file_path = self.canevas_dir / filename
 
         if not file_path.exists():
             return None
@@ -184,46 +190,46 @@ class ContextLoader:
             return content
 
         except Exception as e:
-            logger.error(f"Failed to read briefing file {filename}: {e}")
+            logger.error(f"Failed to read canevas file {filename}: {e}")
             return None
 
     def get_loaded_files(self) -> list[str]:
         """Return list of currently loaded context files."""
         return list(self._cache)
 
-    def load_context_with_status(self) -> tuple[str, BriefingStatus]:
+    def load_context_with_status(self) -> tuple[str, CanevasStatus]:
         """
-        Load the briefing context and return both content and status.
+        Load the canevas context and return both content and status.
 
         Returns:
-            Tuple of (content string, BriefingStatus with file details)
+            Tuple of (content string, CanevasStatus with file details)
         """
-        file_infos: list[BriefingFileInfo] = []
+        file_infos: list[CanevasFileInfo] = []
         context_parts: list[str] = []
         total_chars = 0
         files_present = 0
         files_missing = 0
         files_partial = 0
 
-        if not self.briefing_dir.exists():
-            logger.debug(f"Briefing directory not found at {self.briefing_dir}")
+        if not self.canevas_dir.exists():
+            logger.debug(f"Canevas directory not found at {self.canevas_dir}")
             # All files are missing
-            for file_options in self.BRIEFING_FILES:
+            for file_options in self.CANEVAS_FILES:
                 primary, _ = file_options
                 name = primary.replace(".md", "")
                 is_required = name in REQUIRED_FILES
                 file_infos.append(
-                    BriefingFileInfo(
+                    CanevasFileInfo(
                         name=name,
-                        status=BriefingFileStatus.MISSING,
+                        status=CanevasFileStatus.MISSING,
                         required=is_required,
                     )
                 )
                 if is_required:
                     files_missing += 1
 
-            return "", BriefingStatus(
-                completeness=BriefingCompleteness.INCOMPLETE,
+            return "", CanevasStatus(
+                completeness=CanevasCompleteness.INCOMPLETE,
                 files=file_infos,
                 total_chars=0,
                 files_present=0,
@@ -232,7 +238,7 @@ class ContextLoader:
                 loaded_at=datetime.now(timezone.utc).isoformat(),
             )
 
-        for file_options in self.BRIEFING_FILES:
+        for file_options in self.CANEVAS_FILES:
             primary, alternative = file_options
             name = primary.replace(".md", "")
             is_required = name in REQUIRED_FILES
@@ -247,14 +253,14 @@ class ContextLoader:
             # Determine file status
             if content is None:
                 # File doesn't exist
-                status = BriefingFileStatus.MISSING
+                status = CanevasFileStatus.MISSING
                 char_count = 0
                 line_count = 0
                 if is_required:
                     files_missing += 1
             elif len(content.strip()) == 0:
                 # File exists but empty
-                status = BriefingFileStatus.EMPTY
+                status = CanevasFileStatus.EMPTY
                 char_count = 0
                 line_count = 0
                 if is_required:
@@ -264,7 +270,7 @@ class ContextLoader:
                 line_count = len(content.strip().split("\n"))
 
                 if char_count >= MIN_CHARS_SUBSTANTIAL and line_count >= MIN_LINES_SUBSTANTIAL:
-                    status = BriefingFileStatus.PRESENT
+                    status = CanevasFileStatus.PRESENT
                     files_present += 1
                     total_chars += char_count
                     # Add to context
@@ -273,7 +279,7 @@ class ContextLoader:
                     context_parts.append(content)
                     context_parts.append("")
                 else:
-                    status = BriefingFileStatus.PARTIAL
+                    status = CanevasFileStatus.PARTIAL
                     if is_required:
                         files_partial += 1
                     total_chars += char_count
@@ -284,7 +290,7 @@ class ContextLoader:
                     context_parts.append("")
 
             file_infos.append(
-                BriefingFileInfo(
+                CanevasFileInfo(
                     name=name,
                     status=status,
                     char_count=char_count,
@@ -296,15 +302,15 @@ class ContextLoader:
 
         # Determine overall completeness based on required files
         required_files_status = [f for f in file_infos if f.required]
-        if all(f.status == BriefingFileStatus.PRESENT for f in required_files_status):
-            completeness = BriefingCompleteness.COMPLETE
-        elif any(f.status == BriefingFileStatus.MISSING for f in required_files_status):
-            completeness = BriefingCompleteness.INCOMPLETE
+        if all(f.status == CanevasFileStatus.PRESENT for f in required_files_status):
+            completeness = CanevasCompleteness.COMPLETE
+        elif any(f.status == CanevasFileStatus.MISSING for f in required_files_status):
+            completeness = CanevasCompleteness.INCOMPLETE
         else:
-            completeness = BriefingCompleteness.PARTIAL
+            completeness = CanevasCompleteness.PARTIAL
 
         context_str = "\n".join(context_parts).strip()
-        status = BriefingStatus(
+        status = CanevasStatus(
             completeness=completeness,
             files=file_infos,
             total_chars=total_chars,
@@ -315,7 +321,7 @@ class ContextLoader:
         )
 
         logger.info(
-            f"Briefing loaded: {completeness.value}, "
+            f"Canevas loaded: {completeness.value}, "
             f"{files_present} present, {files_missing} missing, {files_partial} partial, "
             f"{total_chars} chars total"
         )
