@@ -885,6 +885,11 @@ class QueueStorage:
                 by_resolution[res_type] = by_resolution.get(res_type, 0) + 1
 
         # v2.4: Count by UI tab
+        # History tab counter is limited to last 24 hours for relevance
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        cutoff_24h = now - timedelta(hours=24)
+
         by_tab: dict[str, int] = {}
         snoozed_count = 0
         error_count = 0
@@ -892,6 +897,23 @@ class QueueStorage:
             state = self._get_item_state(item)
             has_snooze = item.get("snooze") is not None
             tab = state_to_tab(PeripetieState(state), has_snooze)
+
+            # For history tab, only count items resolved in last 24h
+            if tab == "history":
+                resolved_at = None
+                if item.get("resolution"):
+                    resolved_at = item["resolution"].get("resolved_at")
+                elif item.get("reviewed_at"):
+                    resolved_at = item["reviewed_at"]
+
+                if resolved_at:
+                    try:
+                        resolved_dt = datetime.fromisoformat(resolved_at.replace("Z", "+00:00"))
+                        if resolved_dt < cutoff_24h:
+                            continue  # Skip old history items in counter
+                    except (ValueError, AttributeError):
+                        pass  # Include if date parsing fails
+
             by_tab[tab] = by_tab.get(tab, 0) + 1
             if has_snooze:
                 snoozed_count += 1

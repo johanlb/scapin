@@ -92,6 +92,15 @@ async function fetchQueue(status = 'pending', page = 1): Promise<void> {
 	}
 }
 
+// Page sizes per tab - history loads less initially for performance
+const TAB_PAGE_SIZES: Record<TabFilter, number> = {
+	to_process: 50,
+	in_progress: 50,
+	snoozed: 50,
+	history: 10,  // Load less initially, use infinite scroll
+	errors: 50
+};
+
 // v2.4: Fetch queue by tab (new method)
 async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
 	// Increment request ID to track this specific request
@@ -101,25 +110,24 @@ async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
 	state.error = null;
 	state.tabFilter = tab;
 
+	const pageSize = TAB_PAGE_SIZES[tab];
+
 	try {
 		const [response, stats] = await Promise.all([
-			listQueueItems(page, 50, 'pending', undefined, tab),
+			listQueueItems(page, pageSize, 'pending', undefined, tab),
 			getQueueStats()
 		]);
 
 		// Check if a newer request was made while we were waiting
 		// If so, discard this response to avoid race conditions
 		if (thisRequestId !== fetchRequestId) {
-			console.log(`[QueueStore] Discarding stale response for tab ${tab} (request ${thisRequestId}, current ${fetchRequestId})`);
 			return;
 		}
 
 		if (page === 1) {
 			state.items = response.data;
-			console.log(`[QueueStore] Loaded ${response.data.length} items for tab ${tab} (total: ${response.total})`);
 		} else {
 			state.items = [...state.items, ...response.data];
-			console.log(`[QueueStore] Loaded ${response.data.length} more items for tab ${tab}, now ${state.items.length} total`);
 		}
 
 		state.stats = stats;
@@ -154,6 +162,13 @@ async function fetchQueueByTab(tab: TabFilter, page = 1): Promise<void> {
 async function loadMore(): Promise<void> {
 	if (state.hasMore && !state.loading) {
 		await fetchQueue(state.statusFilter, state.currentPage + 1);
+	}
+}
+
+// Load more items for current tab (infinite scroll)
+async function loadMoreByTab(): Promise<void> {
+	if (state.hasMore && !state.loading) {
+		await fetchQueueByTab(state.tabFilter, state.currentPage + 1);
 	}
 }
 
@@ -316,6 +331,7 @@ export const queueStore = {
 	fetchQueueByTab,
 	fetchStats,
 	loadMore,
+	loadMoreByTab,
 	approve,
 	reject,
 	removeFromList,
