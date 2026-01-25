@@ -49,6 +49,23 @@ Voici la structure type pour une fiche **{{ note_type }}**. Utilise ce modèle c
 **Important** : Adapte les sections à ce modèle lors d'une action "structure". Les sections entre crochets [exemple] sont à remplacer par le contenu réel.
 {% endif %}
 
+## Sections d'enrichissement automatique (NE PAS SUPPRIMER)
+
+Ces sections sont ajoutées automatiquement par Scapin lors du traitement des emails. Elles contiennent des informations traçables avec leur source. **Ne jamais les supprimer ni les déplacer dans d'autres sections.**
+
+**Formats reconnus :**
+- `## Engagements` / `## Informations` / `## Faits` / `## Décisions` / `## Jalons`
+  Format : `- 🔴 **YYYY-MM-DD** : [contenu] — [source](scapin://event/xxx)`
+  (🔴 = haute importance, 🟡 = moyenne, ⚪ = basse)
+
+- `## Questions ouvertes`
+  Format : `### ❓ [Question]\n- **Catégorie** : ...\n- **Source** : ...\n- **Ajoutée le** : ...`
+
+- `## Recherche Web`
+  Format : `**[Titre]**\n[Contenu...]\n> Source: [URL]`
+
+**Règle critique** : Si tu vois ces sections dans la note, préserve-les intégralement. Tu peux suggérer de compléter les autres sections de la fiche, mais ne touche JAMAIS aux enrichissements automatiques.
+
 ## Instructions spécifiques
 
 {% if note_type == 'inconnu' %}

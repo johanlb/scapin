@@ -360,18 +360,15 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             logger.error(f"Failed to load template {template_path}: {e}")
             return None
 
-    def _check_template_needed(self, context: RetoucheContext) -> Optional[RetoucheActionResult]:
+    async def _check_template_needed(self, context: RetoucheContext) -> Optional[RetoucheActionResult]:
         """
         Check if note needs restructuring according to its type template.
 
         Detects notes that have a known type but don't follow the template structure.
         Returns an APPLY_TEMPLATE action if restructuring would help.
 
-        Criteria for suggesting template application:
-        - Note has a known type (not AUTRE)
-        - Quality score is low (< 50)
-        - Note has few sections compared to template
-        - Note doesn't contain expected section markers from template
+        Uses AI (Haiku) for intelligent content mapping when available.
+        Falls back to basic cleanup if AI is unavailable.
         """
         if not context.metadata or not context.metadata.note_type:
             return None
@@ -389,7 +386,6 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             return None
 
         # Extract expected sections from template (lines starting with emoji or ##)
-        import re
         template_sections = re.findall(r'^(?:##?\s+)?([🎯📍🏢🏷️📝👥📋📅💰🌡️📁🔗⚠️💡📖🔲✅💬⚖️🧠🏠📜📧📊][^\n]*)', template_content, re.MULTILINE)
 
         if not template_sections:
@@ -415,13 +411,24 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         word_count = context.word_count
 
         if coverage < 0.2 and quality_score < 50 and word_count > 20:
-            # Generate restructured content
-            restructured = self._apply_template_structure(
-                content=content,
-                template=template_content,
-                note_type=note_type.value,
-                title=context.note.title,
-            )
+            # Use AI for intelligent mapping if available
+            if self._analysis_engine is not None:
+                restructured = await self._restructure_with_ai(
+                    content=content,
+                    template=template_content,
+                    note_type=note_type.value,
+                    title=context.note.title,
+                )
+                model_used = "haiku"
+            else:
+                # Fallback to basic cleanup without AI
+                restructured = self._apply_template_structure(
+                    content=content,
+                    template=template_content,
+                    note_type=note_type.value,
+                    title=context.note.title,
+                )
+                model_used = "rules"
 
             if restructured and restructured != content:
                 return RetoucheActionResult(
@@ -429,9 +436,9 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
                     target="full_content",
                     content=restructured,
                     confidence=0.90,  # High confidence for template application
-                    reasoning=f"Note de type {note_type.value} ne suit pas le template ({coverage:.0%} des sections). Restructuration proposée.",
+                    reasoning=f"Note de type {note_type.value} ne suit pas le template ({coverage:.0%} des sections). Restructuration intelligente avec mapping IA.",
                     applied=True,  # Auto-apply for template restructuring
-                    model_used="rules",
+                    model_used=model_used,
                 )
 
         return None
@@ -439,19 +446,22 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
     def _apply_template_structure(
         self,
         content: str,
-        template: str,
+        _template: str,  # Unused in rules mode, needed for API compatibility
         note_type: str,
         title: str,
     ) -> Optional[str]:
         """
-        Restructure note content according to the template.
+        Restructure note content according to the template (fallback sans IA).
 
-        Extracts information from existing content and maps it into
-        the template structure, preserving all original information.
+        En mode "rules" (sans IA), on ne peut pas faire de mapping intelligent.
+        On garde donc le contenu original proprement formaté, sans ajouter
+        de sections vides ou de placeholders qui nuiraient à la lisibilité.
+
+        Pour le mapping intelligent, utiliser _restructure_with_ai() à la place.
 
         Args:
             content: Original note content
-            template: Template structure to apply
+            template: Template structure to apply (utilisé pour référence future)
             note_type: Type of note (entite, personne, etc.)
             title: Note title
 
@@ -472,16 +482,14 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         # Remove the first H1 heading (which is the title, possibly different from frontmatter)
         body = re.sub(r'^#\s+[^\n]+\n*', '', body, count=1, flags=re.MULTILINE)
 
-        # Extract existing content (everything that's not a section header)
-        # This is the "raw" info to redistribute
+        # Clean up the body - remove any existing placeholders [...] and empty sections
+        # Remove lines that are just placeholders
+        body = re.sub(r'^\s*\[[^\]]+\]\s*$', '', body, flags=re.MULTILINE)
+        # Remove multiple consecutive blank lines
+        body = re.sub(r'\n{3,}', '\n\n', body)
         existing_info = body.strip()
 
-        # Parse template to get sections
-        # Template sections start with emoji headers like "📍 INFORMATIONS GÉNÉRALES"
-        section_pattern = r'^([🎯📍🏢🏷️📝👥📋📅💰🌡️📁🔗⚠️💡📖🔲✅💬⚖️🧠🏠📜📧📊][A-ZÉÈÊÀÂÔÙÛÎÏÇ\s/\[\]]+)$'
-        template_lines = template.split('\n')
-
-        # Build the restructured note
+        # Build the restructured note - keep it clean and minimal
         result_lines = []
 
         # Add frontmatter
@@ -493,69 +501,14 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         result_lines.append(f"# {title}")
         result_lines.append("")
 
-        # Find first section header (emoji) - skip all metadata before that
-        template_start = 0
-        for i, line in enumerate(template_lines):
-            stripped = line.strip()
-            # Skip metadata lines
-            if stripped.startswith("name:") or stripped.startswith("content:"):
-                continue
-            if stripped.startswith("━"):  # Skip separators
-                continue
-            if stripped.startswith("[") and stripped.endswith("]"):  # Skip placeholders like [Type — Lieu]
-                continue
-            # Found first section header (starts with emoji)
-            if stripped and stripped[0] in "🎯📍🏢🏷️📝👥📋📅💰🌡️📁🔗⚠️💡📖🔲✅💬⚖️🧠🏠📜📧📊":
-                template_start = i
-                break
-
-        # For a simple first implementation, we'll:
-        # 1. Put existing content as description at the start
-        # 2. Then add template sections for the user to fill
-
-        # Add existing content as description (first paragraph after title)
+        # Add existing content (the actual information)
         if existing_info:
             result_lines.append(existing_info)
             result_lines.append("")
 
-        # Add separator
+        # Add minimal footer with type tag and date
         result_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        result_lines.append("")
-
-        # Add template sections (empty, for user to complete)
-        in_section = False
-        current_section_lines = []
-
-        for line in template_lines[template_start:]:
-            # Check if this is a section header (emoji + caps)
-            if re.match(section_pattern, line.strip()):
-                # Add previous section if any
-                if current_section_lines:
-                    result_lines.extend(current_section_lines)
-                    result_lines.append("")
-
-                # Start new section
-                current_section_lines = [line.strip(), ""]
-                in_section = True
-            elif line.strip().startswith("━━━"):
-                # Skip template separators
-                continue
-            elif in_section and line.strip().startswith("["):
-                # Template placeholder - keep it as guidance
-                current_section_lines.append(line)
-            elif in_section and line.strip():
-                # Keep non-empty lines in current section
-                if not line.strip().startswith("#"):  # Skip tags
-                    current_section_lines.append(line)
-
-        # Add last section
-        if current_section_lines:
-            result_lines.extend(current_section_lines)
-            result_lines.append("")
-
-        # Add footer separator and tags
-        result_lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        result_lines.append(f"#PKM #IA #{note_type.capitalize()}")
+        result_lines.append(f"#PKM #{note_type.capitalize()}")
         # Format date in French
         mois_fr = {
             1: "janvier", 2: "février", 3: "mars", 4: "avril",
@@ -566,6 +519,248 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
         result_lines.append(f"Mise à jour : {now.day} {mois_fr[now.month]} {now.year}")
 
         return "\n".join(result_lines)
+
+    async def _restructure_with_ai(
+        self,
+        content: str,
+        template: str,
+        note_type: str,
+        title: str,
+    ) -> Optional[str]:
+        """
+        Use AI to intelligently map note content to template sections.
+
+        Calls Haiku to analyze the note content and place information
+        in the appropriate template sections. Only populated sections
+        are included (no placeholders, no empty sections).
+
+        Args:
+            content: Original note content
+            template: Template structure with sections
+            note_type: Type of note (entite, personne, etc.)
+            title: Note title
+
+        Returns:
+            Restructured content with intelligent mapping, or None if failed
+        """
+        if self._analysis_engine is None:
+            logger.warning("AI not available for restructuring, falling back to rules")
+            return self._apply_template_structure(content, template, note_type, title)
+
+        # Extract frontmatter from original content
+        original_frontmatter = ""
+        body_content = content
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                original_frontmatter = f"---{parts[1]}---"
+                body_content = parts[2].strip()
+
+        # Clean placeholder lines from existing content
+        placeholder_patterns = [
+            r'^.*:\s*À compléter\s*$',
+            r'^.*:\s*À préciser\s*$',
+            r'^.*:\s*À renseigner\s*$',
+            r'^.*:\s*À rechercher\s*$',
+            r'^.*:\s*À déterminer\s*$',
+            r'^.*:\s*À définir\s*$',
+            r'^.*:\s*\[\.\.\.?\]\s*$',
+            r'^.*:\s*Non renseigné\s*$',
+            r'^.*:\s*Non défini\s*$',
+            r'^.*:\s*Inconnu\s*$',
+        ]
+        for pattern in placeholder_patterns:
+            body_content = re.sub(pattern, '', body_content, flags=re.MULTILINE | re.IGNORECASE)
+
+        # Fix common typos
+        body_content = re.sub(r'\bContextte\b', 'Contexte', body_content)
+
+        # Clean up multiple blank lines
+        body_content = re.sub(r'\n{3,}', '\n\n', body_content).strip()
+
+        # Build the restructuring prompt
+        prompt = f"""Tu dois restructurer cette note selon le template de type "{note_type}".
+
+## Règles ABSOLUES
+1. **UTILISER LES EMOJIS DU TEMPLATE** : Chaque section DOIT commencer par l'emoji correspondant (ex: 👤 COORDONNÉES, 🏢 ORGANISATION)
+2. **JAMAIS DE PLACEHOLDERS** : INTERDIT d'écrire "À compléter", "À préciser", "À renseigner", "À rechercher", "[...]", ou tout texte indiquant une info manquante
+3. **SECTIONS REMPLIES UNIQUEMENT** : N'inclure que les sections ET les champs qui ont du contenu RÉEL
+4. **OMETTRE LES CHAMPS INCONNUS** : Si une info n'est pas dans le contenu original, NE PAS créer de champ pour elle
+5. **CONSERVER TOUTES LES INFOS** : Ne rien perdre du contenu original
+6. **WIKILINKS** : Formater les liens vers d'autres notes avec [[Nom de la note]]
+7. **PAS DE RÉSUMÉ** : Ne pas ajouter de section "Résumé"
+8. **FOOTER MINIMAL** : Le footer ne contient QUE les tags et la date, JAMAIS de champs vides
+9. **PRÉSERVER LES ENRICHISSEMENTS** : Les sections "## Engagements", "## Informations", "## Faits", "## Questions ouvertes", "## Recherche Web" sont des enrichissements automatiques. Les recopier INTÉGRALEMENT après le footer, sans modification
+
+## Mapping intelligent - exemples
+| Information | Section cible |
+|-------------|---------------|
+| Téléphone, email, adresse | 👤 COORDONNÉES |
+| Entreprise, poste, rôle | 🏢 ORGANISATION |
+| Propriétaire de X, voisin de Y | 🏠 BIENS/VOISINAGE |
+| Dates importantes, événements | 📅 DATES CLÉS |
+| Transactions, montants | 💰 HISTORIQUE (ou équivalent) |
+| Notes de personnalité | 🧠 PROFIL RELATIONNEL |
+
+## Contenu original à restructurer
+{body_content}
+
+## Template de référence (RESPECTER les emojis et noms de sections)
+{template}
+
+## Format de sortie STRICT
+```markdown
+# {title}
+
+[emoji] SECTION 1
+Contenu réel uniquement...
+
+[emoji] SECTION 2
+Contenu réel uniquement...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#PKM #{note_type.capitalize()}
+Mise à jour : 25 janvier 2026
+
+[SECTIONS ENRICHISSEMENT SI PRÉSENTES - recopier intégralement]
+## Engagements
+- 🔴 **YYYY-MM-DD** : ... — [source](scapin://event/xxx)
+
+## Informations
+- 🟡 **YYYY-MM-DD** : ... — [source](scapin://event/xxx)
+
+## Questions ouvertes
+### ❓ Question
+- **Catégorie** : ...
+```
+
+⚠️ INTERDIT dans le footer :
+- Nationalité : À compléter ❌
+- Langues : À préciser ❌
+- LinkedIn : À rechercher ❌
+- Tout champ avec valeur manquante ❌
+
+Le footer = UNIQUEMENT la ligne de séparation + tags + date. RIEN D'AUTRE.
+
+Réponds UNIQUEMENT avec le contenu markdown restructuré, sans commentaires."""
+
+        try:
+            # Call AI using Haiku (fast and cheap)
+            result = await self._analysis_engine.call_ai(
+                prompt=prompt,
+                model=ModelTier.HAIKU,
+                max_tokens=4096,
+                system_prompt="Tu es Scapin, l'assistant cognitif de Johan. Tu restructures ses notes de manière intelligente.",
+            )
+
+            restructured = result.response.strip()
+
+            # === VALIDATION STRICTE ===
+
+            # 1. Résultat non vide
+            if not restructured or len(restructured) < 50:
+                logger.warning("AI returned empty or too short restructured content")
+                return None
+
+            # 2. DOIT commencer par "# Titre" (format markdown de note)
+            if not restructured.strip().startswith(f"# {title}"):
+                logger.warning(f"AI result doesn't start with '# {title}' - rejecting")
+                return None
+
+            # 3. DOIT contenir au moins une section avec emoji
+            has_emoji_section = bool(re.search(r'^[👤🏢💼💰🔗🤝📍🏷️📝👥📋📅🌡️📁⚠️💡📖🔲✅💬⚖️🧠🏠📜📧📊]', restructured, re.MULTILINE))
+            if not has_emoji_section:
+                logger.warning("AI result has no emoji sections - rejecting")
+                return None
+
+            # 4. NE DOIT PAS contenir des instructions/actions (l'IA doit restructurer, pas suggérer)
+            instruction_patterns = [
+                r'supprimer',
+                r'fusionner',
+                r'déplacer',
+                r'ajouter.*section',
+                r'section en double',
+                r'doublons',
+            ]
+            for pattern in instruction_patterns:
+                if re.search(pattern, restructured, re.IGNORECASE):
+                    logger.warning(f"AI result contains instruction '{pattern}' - rejecting")
+                    return None
+
+            # 5. Taille minimale : pas plus de 50% de perte
+            original_length = len(body_content)
+            if original_length > 100 and len(restructured) < original_length * 0.5:
+                logger.warning(
+                    f"AI restructuring lost too much content: {original_length} -> {len(restructured)} chars"
+                )
+                return None
+
+            # 6. Termes clés préservés (noms, emails, numéros)
+            key_terms = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', body_content)
+            key_terms += re.findall(r'\b\d{4,}\b', body_content)
+            key_terms += re.findall(r'[\w\.-]+@[\w\.-]+', body_content)
+
+            if len(key_terms) >= 3:
+                preserved_count = sum(1 for term in key_terms if term in restructured)
+                preservation_ratio = preserved_count / len(key_terms)
+                if preservation_ratio < 0.5:
+                    logger.warning(
+                        f"AI restructuring lost key terms: {preservation_ratio:.0%} preserved"
+                    )
+                    return None
+
+            # Check for unwanted placeholders
+            if "[...]" in restructured or "[à compléter]" in restructured:
+                logger.warning("AI included placeholders, cleaning them")
+                restructured = re.sub(r'\[[^\]]*\.\.\.[^\]]*\]', '', restructured)
+                restructured = re.sub(r'\[à compléter\]', '', restructured)
+                restructured = re.sub(r'\n{3,}', '\n\n', restructured)
+
+            # 7. Préserver les sections d'enrichissement automatique
+            enrichment_sections = [
+                "## Engagements",
+                "## Informations",
+                "## Faits",
+                "## Décisions",
+                "## Jalons",
+                "## Questions ouvertes",
+                "## Recherche Web",
+            ]
+            for section in enrichment_sections:
+                if section in body_content and section not in restructured:
+                    # Section d'enrichissement perdue - l'ajouter à la fin
+                    section_start = body_content.find(section)
+                    # Trouver la fin de cette section (prochaine section ## ou fin)
+                    next_section = len(body_content)
+                    for next_sec in enrichment_sections:
+                        if next_sec != section:
+                            pos = body_content.find(next_sec, section_start + len(section))
+                            if pos != -1 and pos < next_section:
+                                next_section = pos
+                    # Aussi chercher les sections structurées (avec emoji)
+                    for emoji in "👤🏢💼💰🔗🤝📍🏷️📝👥📋📅🌡️📁⚠️💡📖🔲✅💬⚖️🧠🏠📜📧📊":
+                        pos = body_content.find(f"\n{emoji}", section_start + len(section))
+                        if pos != -1 and pos < next_section:
+                            next_section = pos
+                    section_content = body_content[section_start:next_section].strip()
+                    if section_content:
+                        restructured = f"{restructured.rstrip()}\n\n{section_content}\n"
+                        logger.info(f"Preserved enrichment section: {section}")
+
+            # Re-add frontmatter if original had one
+            if original_frontmatter:
+                restructured = f"{original_frontmatter}\n\n{restructured}"
+
+            logger.info(
+                f"AI restructuring complete: {len(content)} → {len(restructured)} chars, "
+                f"tokens={result.tokens_used}"
+            )
+
+            return restructured
+
+        except Exception as e:
+            logger.warning(f"AI restructuring failed: {e}, falling back to rules")
+            return self._apply_template_structure(content, template, note_type, title)
 
     async def review_note(self, note_id: str) -> RetoucheResult:
         """
@@ -1347,6 +1542,12 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
             # Parse response into actions
             actions = self._parse_ai_response(response, model)
 
+            # Check if template restructuring is needed (async, uses AI)
+            template_action = await self._check_template_needed(context)
+            if template_action:
+                # Add template restructuring as first action
+                actions.insert(0, template_action)
+
             # Calculate overall confidence
             confidence = sum(a.confidence for a in actions) / len(actions) if actions else 0.8
 
@@ -1463,10 +1664,8 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
                 )
             )
 
-        # Check if note needs template restructuring
-        template_action = self._check_template_needed(context)
-        if template_action:
-            actions.append(template_action)
+        # Note: Template restructuring requires AI for intelligent mapping
+        # It's handled in _analyze_with_model when AI is available
 
         # Always include quality scoring
         actions.append(
@@ -1666,7 +1865,15 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
 
         if action.action_type == RetoucheAction.SUMMARIZE:
             # Add summary at the beginning after frontmatter
-            summary = f"\n> **Résumé**: {action.content or 'À compléter'}\n"
+            summary_content = action.content or "À compléter"
+            # Remove any existing "Résumé" prefix to avoid duplication
+            summary_content = re.sub(
+                r'^(?:>?\s*\*?\*?)?(?:Résumé|Summary)\s*[:\-]\s*',
+                '',
+                summary_content,
+                flags=re.IGNORECASE,
+            ).strip()
+            summary = f"\n> **Résumé** : {summary_content}\n"
             if content.startswith("---"):
                 # Insert after frontmatter
                 parts = content.split("---", 2)
@@ -1687,7 +1894,20 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
 
         if action.action_type == RetoucheAction.APPLY_TEMPLATE:
             # Restructure note according to its type template
+            # Double validation: content must be valid restructured note
             if action.content:
+                # Must start with "# Title"
+                if not action.content.strip().startswith("#"):
+                    logger.warning("APPLY_TEMPLATE rejected: doesn't start with # title")
+                    return content
+                # Must not be instructions
+                if re.search(r'supprimer|fusionner|doublons', action.content, re.IGNORECASE):
+                    logger.warning("APPLY_TEMPLATE rejected: contains instructions")
+                    return content
+                # Must not be drastically shorter
+                if len(action.content) < len(content) * 0.5:
+                    logger.warning("APPLY_TEMPLATE rejected: too short")
+                    return content
                 logger.info(f"Applying template structure: {action.reasoning}")
                 return action.content
             return content
@@ -1708,15 +1928,9 @@ Une note fragmentaire n'est JAMAIS supprimée sans avoir évalué un merge.
 
         if action.action_type == RetoucheAction.CLEANUP:
             # Content cleanup - mark obsolete sections or remove them
-            # The AI provides the cleaned content directly
-            if action.content:
-                # If confidence is high enough, replace content
-                if action.confidence >= self.AUTO_APPLY_THRESHOLD:
-                    logger.info(f"Cleanup applied: {action.reasoning}")
-                    return action.content
-                # Otherwise, add a warning comment
-                warning = f"\n\n<!-- CLEANUP SUGGÉRÉ ({action.confidence:.0%}): {action.reasoning} -->\n"
-                return f"{content.rstrip()}{warning}"
+            # DISABLED: Too dangerous - can corrupt notes
+            # The AI tends to suggest removing content instead of cleaning it
+            logger.info(f"Cleanup suggested but not applied: {action.reasoning}")
             return content
 
         if action.action_type == RetoucheAction.PROFILE_INSIGHT:

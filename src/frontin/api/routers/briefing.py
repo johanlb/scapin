@@ -604,11 +604,21 @@ async def trigger_retouche(
         metadata = metadata_store.get(note_id)
         quality_before = metadata.quality_score if metadata else None
 
+        # Initialize AI router for intelligent analysis
+        from src.core.config_manager import ConfigManager
+        from src.sancho.router import AIRouter
+        try:
+            config = ConfigManager.load()
+            ai_router = AIRouter(config.ai)
+        except Exception:
+            ai_router = None
+
         # Create reviewer and execute retouche
         reviewer = RetoucheReviewer(
             note_manager=note_manager,
             metadata_store=metadata_store,
             scheduler=scheduler,
+            ai_router=ai_router,
         )
 
         result = await reviewer.review_note(note_id)
