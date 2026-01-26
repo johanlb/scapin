@@ -6,6 +6,29 @@
 
 ---
 
+## Skills à consulter par phase
+
+| Phase | Skills |
+|-------|--------|
+| 0 | `/db` (migration), `/valets` (Passepartout) |
+| 1 | `/valets` (Grimaud), `/api`, `/ui`, `/tests` |
+| 2-3 | `/valets` (Trivelin, Sancho), `/workflow` |
+| 4 | `/workflow` |
+| 5 | `/valets`, `/api`, `/ui`, `/tests` |
+
+---
+
+## Fichiers critiques (CLAUDE.md)
+
+Les phases 0-3 peuvent toucher des fichiers critiques nécessitant confirmation Johan :
+
+| Fichier | Phase | Modification |
+|---------|-------|--------------|
+| `src/passepartout/note_manager.py` | 0 | Migration note_id |
+| `src/trivelin/v2_processor.py` | 2-3 | Flag `--historical` |
+
+---
+
 ## Vision
 
 Transformer Scapin d'un prototype fonctionnel en un assistant cognitif complet :
@@ -47,11 +70,11 @@ Transformer Scapin d'un prototype fonctionnel en un assistant cognitif complet :
 
 **Objectif** : Préparer le terrain pour les phases suivantes.
 
-| Tâche | Détail | Plan source |
-|-------|--------|-------------|
-| Migration note_id | Éliminer 14 collisions de noms | `migration-note-id-format.md` |
-| Prompt caching | Activer cache Anthropic (-50% coût) | `prompt-architecture-design.md` |
-| Injecter Canevas | Corriger gap critique dans retouche | `prompt-architecture-design.md` |
+| Tâche | Détail | Statut | Plan source |
+|-------|--------|--------|-------------|
+| Migration note_id | Éliminer 14 collisions de noms | À faire | `migration-note-id-format.md` |
+| Prompt caching | Cache Anthropic (-50% coût) | ✅ Fait | `router.py:_call_claude_with_cache()` |
+| Injecter Canevas | Corriger gap dans retouche | À faire | `prompt-architecture-design.md` |
 
 **Critère de succès** : 855 notes indexées (au lieu de 841), coût API réduit.
 
@@ -308,9 +331,38 @@ flowchart TD
 ## Prochaine Action
 
 **Démarrer Phase 0** :
-1. Implémenter migration note_id
-2. Activer prompt caching
+1. Implémenter migration note_id (plan détaillé prêt)
+2. ~~Activer prompt caching~~ ✅ Déjà implémenté
 3. Injecter Canevas dans retouche
+
+---
+
+## Checklist de livraison par phase (CLAUDE.md)
+
+Appliquer pour **chaque phase** avant de passer à la suivante :
+
+```
+□ Documentation mise à jour (ARCHITECTURE.md, CLAUDE.md si nouveaux valets)
+□ User guide mis à jour si comportement utilisateur modifié
+□ Tests backend passants (pytest)
+□ Tests E2E passants si UI modifiée (Playwright)
+□ Logs vérifiés — aucun ERROR/WARNING nouveau
+□ Test manuel documenté (décrire exactement ce qui a été vérifié)
+□ Ruff : 0 warning
+□ TypeScript : npm run check passe (si frontend modifié)
+□ Commit atomique avec message conforme /workflow
+```
+
+---
+
+## Documentation à mettre à jour (global)
+
+| Phase | Documents |
+|-------|-----------|
+| 0 | `ARCHITECTURE.md` (format note_id) |
+| 1 | `ARCHITECTURE.md` (Grimaud), `CLAUDE.md` (valets → 9) |
+| 2-3 | Aucune doc technique (opérationnel) |
+| 5 | `ARCHITECTURE.md` (Chat, Bazin, OmniFocus), user guides |
 
 ---
 

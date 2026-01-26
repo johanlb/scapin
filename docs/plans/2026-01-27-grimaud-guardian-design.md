@@ -3,6 +3,30 @@
 **Date** : 27 janvier 2026
 **Statut** : Design validé
 **Auteur** : Johan + Claude
+**Phase Master Roadmap** : Phase 1
+
+---
+
+## Skills à consulter
+
+| Skill | Usage |
+|-------|-------|
+| `/valets` | Architecture des valets, où implémenter |
+| `/db` | SQLite pour snapshots, requêtes FAISS |
+| `/api` | Endpoints FastAPI pour Grimaud |
+| `/ui` | Composants Svelte pour dashboard |
+| `/tests` | Patterns pytest + Playwright |
+| `/perf` | Throttling, scan continu |
+
+---
+
+## Fichiers critiques (CLAUDE.md)
+
+Ce plan **ne modifie pas** de fichiers critiques. Il crée un nouveau module `src/grimaud/`.
+
+Cependant, Grimaud **interagit** avec :
+- `src/passepartout/note_manager.py` (lecture seule)
+- `src/sancho/router.py` (appels IA)
 
 ---
 
@@ -147,33 +171,29 @@ Directeur Innovation chez TechCorp (depuis 2024)
 
 ### Fonctionnement
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  GRIMAUD — Scan continu temps réel                                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  BOUCLE (toutes les X minutes quand idle)                                   │
-│                                                                             │
-│  1. Sélectionner la note avec le plus haut score de priorité                │
-│     (non scannée depuis > 7 jours)                                          │
-│                                                                             │
-│  2. Pré-analyse locale (sans IA)                                            │
-│     ├─ Détecter fragments similaires (FAISS)                                │
-│     ├─ Vérifier structure vs template                                       │
-│     └─ Si aucun problème détecté → marquer scannée, passer à la suivante    │
-│                                                                             │
-│  3. Analyse IA (si problèmes détectés)                                      │
-│     ├─ Appel Sonnet avec contexte (template, notes liées, Canevas)          │
-│     ├─ Recevoir propositions d'actions                                      │
-│     └─ Coût : ~$0.05/note                                                   │
-│                                                                             │
-│  4. Exécution immédiate                                                     │
-│     ├─ Actions confidence > seuil → Appliquer + snapshot                    │
-│     └─ Actions confidence < seuil → Queue "À valider"                       │
-│                                                                             │
-│  5. Répéter                                                                 │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    START[Boucle toutes les X min] --> SELECT[1. Sélectionner note prioritaire<br/>non scannée depuis 7j]
+    SELECT --> PRESCAN[2. Pré-analyse locale sans IA]
+
+    subgraph PRESCAN_DETAIL[Pré-analyse]
+        FAISS[Détecter fragments similaires FAISS]
+        STRUCT[Vérifier structure vs template]
+    end
+
+    PRESCAN --> CHECK{Problèmes détectés?}
+    CHECK -->|Non| MARK[Marquer scannée]
+    MARK --> START
+
+    CHECK -->|Oui| AI[3. Analyse IA Sonnet<br/>~$0.05/note]
+    AI --> ACTIONS[Recevoir propositions actions]
+
+    ACTIONS --> CONF{Confidence > seuil?}
+    CONF -->|Oui ≥0.85| APPLY[4a. Appliquer + snapshot]
+    CONF -->|Non <0.85| QUEUE[4b. Queue À valider]
+
+    APPLY --> START
+    QUEUE --> START
 ```
 
 ### Score de priorité
@@ -343,11 +363,63 @@ Dans le budget global Scapin (~$117/mois haute capacité).
 
 Lors de l'implémentation :
 
-- [ ] `ARCHITECTURE.md` — Section Grimaud réécrite
-- [ ] `CLAUDE.md` — Glossaire mis à jour (Grimaud = Gardien)
-- [ ] `/valets` skill — Description du nouveau rôle
-- [ ] Commentaires dans `src/grimaud/` — Header expliquant la transition
-- [ ] `src/passepartout/note_types.py` — Mettre à jour `web_search_default`
+| Document | Section | Changement |
+|----------|---------|------------|
+| `ARCHITECTURE.md` | Valets | Section Grimaud (8ème valet) |
+| `CLAUDE.md` | Glossaire | Grimaud = Gardien PKM |
+| `CLAUDE.md` | Les 7 Valets | → Les 9 Valets (ajouter Grimaud, Bazin) |
+| `.claude/skills/valets.md` | Description | Nouveau rôle de Grimaud |
+| `src/grimaud/__init__.py` | Docstring | Header expliquant la transition depuis Retouche |
+| `docs/user-guide/` | Nouveau fichier | Guide utilisateur Grimaud |
+
+---
+
+## Tests requis (CLAUDE.md)
+
+### Backend (pytest)
+
+| Test | Fichier | Type |
+|------|---------|------|
+| Scanner sélection priorité | `tests/unit/test_grimaud_scanner.py` | Unitaire |
+| Détection fragmentation FAISS | `tests/unit/test_grimaud_analyzer.py` | Unitaire |
+| Détection structure vs template | `tests/unit/test_grimaud_analyzer.py` | Unitaire |
+| Création snapshot | `tests/unit/test_grimaud_executor.py` | Unitaire |
+| Restauration snapshot | `tests/unit/test_grimaud_executor.py` | Unitaire |
+| Action fusion | `tests/integration/test_grimaud_actions.py` | Intégration |
+| Action liaison | `tests/integration/test_grimaud_actions.py` | Intégration |
+| Throttling respecté | `tests/unit/test_grimaud_scanner.py` | Unitaire |
+| **Cas limites** | | |
+| Note vide | `test_grimaud_analyzer.py` | Edge case |
+| Template inexistant | `test_grimaud_analyzer.py` | Edge case |
+| Snapshot corrompu | `test_grimaud_history.py` | Error case |
+
+### Frontend (Playwright E2E)
+
+| Test | Fichier | Parcours |
+|------|---------|----------|
+| Dashboard affiche stats | `grimaud.spec.ts` | Ouvrir `/memoires/grimaud` → Stats visibles |
+| Appliquer action | `grimaud.spec.ts` | Cliquer Appliquer → Toast confirmation |
+| Annuler action | `grimaud.spec.ts` | Cliquer Annuler → Note restaurée |
+| Voir diff | `grimaud.spec.ts` | Cliquer Voir diff → Modal avec avant/après |
+| Corbeille | `grimaud.spec.ts` | Ouvrir corbeille → Notes fusionnées listées |
+
+---
+
+## Checklist de livraison (CLAUDE.md)
+
+```
+□ Documentation ARCHITECTURE.md mise à jour (section Grimaud)
+□ CLAUDE.md mis à jour (glossaire + valets)
+□ User guide créé dans docs/user-guide/
+□ Tests unitaires backend passants (≥80% coverage grimaud/)
+□ Tests E2E Playwright passants
+□ Logs vérifiés — aucun ERROR/WARNING
+□ Test manuel : scan une note, vérifier snapshot créé
+□ Test manuel : annuler une action, vérifier restauration
+□ Ruff : 0 warning
+□ TypeScript : npm run check passe
+□ Pas de TODO, code commenté, ou console.log
+```
 
 ---
 

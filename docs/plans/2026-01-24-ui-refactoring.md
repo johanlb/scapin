@@ -3,6 +3,30 @@
 **Créé** : 24 janvier 2026
 **Mis à jour** : 27 janvier 2026
 **Statut** : En cours
+**Dépendances Master Roadmap** : Phases 1-5 (voir tableau phases)
+
+---
+
+## Skills à consulter
+
+| Skill | Usage |
+|-------|-------|
+| `/ui` | Patterns Svelte 5, design tokens, accessibilité |
+| `/tests` | Patterns Playwright E2E |
+| `/workflow` | Conventions de commit |
+
+---
+
+## Fichiers critiques (CLAUDE.md)
+
+Ce plan **ne modifie pas** de fichiers critiques backend.
+
+Modifications frontend majeures :
+- Refactoring `QueueItemFocusView.svelte` (620 lignes → ~100)
+- Refactoring `FolderSelector.svelte` (675 lignes → ~120)
+- Suppression de fichiers après migration
+
+---
 
 ## Objectif
 
@@ -914,6 +938,45 @@ cd web && npm run lint
 - [ ] OmniFocus: Création tâche depuis email
 - [ ] OmniFocus: Tâches du jour dans briefing
 - [ ] Mobile responsive: Tous composants sur 375px
+
+---
+
+---
+
+## Documentation à mettre à jour
+
+| Document | Section | Changement |
+|----------|---------|------------|
+| `ARCHITECTURE.md` | Frontend | Nouveaux composants documentés |
+| `web/src/lib/components/*/README.md` | Nouveaux | Guide par catégorie |
+| `docs/dev/ui-component-migration.md` | Nouveau | Guide migration |
+
+---
+
+## Checklist de livraison par phase (CLAUDE.md)
+
+### Pour chaque nouvelle feature UI (Chat, Grimaud, Bazin, OF)
+
+```
+□ Composants Svelte créés avec TypeScript strict (pas de any)
+□ Tests unitaires Vitest pour logique
+□ Tests E2E Playwright pour parcours utilisateur
+□ Accessibilité vérifiée (aria-labels, focus, keyboard)
+□ Responsive testé 375px, 768px, 1024px
+□ TypeScript : npm run check passe
+□ Pas de console.log laissé
+□ README.md dans le dossier composants
+```
+
+### Pour chaque refactoring (QueueItemFocusView, FolderSelector)
+
+```
+□ Tests E2E existants passent toujours
+□ Pas de régression visuelle
+□ Fichier original supprimé (pas de code mort)
+□ Index.ts mis à jour
+□ TypeScript : npm run check passe
+```
 
 ---
 

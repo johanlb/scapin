@@ -3,6 +3,29 @@
 **Date** : 27 janvier 2026
 **Statut** : Design validé
 **Auteur** : Johan + Claude
+**Phase Master Roadmap** : Phase 5 (Optionnel)
+
+---
+
+## Skills à consulter
+
+| Skill | Usage |
+|-------|-------|
+| `/valets` | Trivelin héberge l'intégration OF |
+| `/api` | Endpoints pour création tâches |
+| `/ui` | Composants Svelte TaskCreator |
+| `/tests` | Patterns pytest + Playwright |
+
+---
+
+## Fichiers critiques (CLAUDE.md)
+
+Ce plan **ne modifie pas** de fichiers critiques. Il crée `src/trivelin/omnifocus/`.
+
+Interactions avec :
+- `src/sancho/` (détection actions dans emails)
+- `src/bazin/` (tâches du jour, météo projets)
+- `src/passepartout/` (mapping notes ↔ OF)
 
 ---
 
@@ -362,6 +385,62 @@ OmniFocus Automation API est locale (pas de cloud), donc :
 | **Sancho** | Détecte les actions dans les emails → déclenche création OF |
 | **Bazin** | Affiche tâches du jour et météo projets enrichie |
 | **Passepartout** | Stocke le mapping notes ↔ OF, met à jour engagements |
+
+---
+
+---
+
+## Documentation à mettre à jour
+
+| Document | Section | Changement |
+|----------|---------|------------|
+| `ARCHITECTURE.md` | Trivelin | Section OmniFocus ajoutée |
+| `docs/user-guide/` | Nouveau fichier | Guide utilisateur intégration OF |
+
+---
+
+## Tests requis (CLAUDE.md)
+
+### Backend (pytest)
+
+| Test | Fichier | Type |
+|------|---------|------|
+| Client OmniFocus Automation | `tests/unit/test_omnifocus_client.py` | Unitaire |
+| Création tâche | `tests/unit/test_omnifocus_task_creator.py` | Unitaire |
+| Mapping auto projet | `tests/unit/test_omnifocus_mapper.py` | Unitaire |
+| Sync périodique | `tests/unit/test_omnifocus_sync.py` | Unitaire |
+| Mise à jour engagement sur complétion | `tests/integration/test_omnifocus_sync.py` | Intégration |
+| **Cas limites** | | |
+| Projet OF inexistant | `test_omnifocus_mapper.py` | Edge case |
+| Tag personne homonyme | `test_omnifocus_mapper.py` | Edge case |
+| OmniFocus non installé | `test_omnifocus_client.py` | Error case |
+
+### Frontend (Playwright E2E)
+
+| Test | Fichier | Parcours |
+|------|---------|----------|
+| Bouton Créer tâche OF sur email | `omnifocus.spec.ts` | Email → Cliquer bouton → Modal |
+| Formulaire création pré-rempli | `omnifocus.spec.ts` | Modal → Champs suggérés visibles |
+| Soumettre création | `omnifocus.spec.ts` | Cliquer Créer → Toast confirmation |
+| Mapping dans settings | `omnifocus.spec.ts` | `/settings/omnifocus` → Table mapping |
+
+---
+
+## Checklist de livraison (CLAUDE.md)
+
+```
+□ Documentation ARCHITECTURE.md mise à jour (section OmniFocus)
+□ User guide créé dans docs/user-guide/
+□ Tests unitaires backend passants
+□ Tests E2E Playwright passants
+□ Logs vérifiés — aucun ERROR/WARNING
+□ Test manuel : créer tâche depuis email
+□ Test manuel : tâche apparaît dans OmniFocus
+□ Test manuel : sync détecte complétion
+□ Ruff : 0 warning
+□ TypeScript : npm run check passe
+□ Pas de TODO, code commenté, ou console.log
+```
 
 ---
 

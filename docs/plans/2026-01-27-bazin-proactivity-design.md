@@ -3,6 +3,30 @@
 **Date** : 27 janvier 2026
 **Statut** : Design validé
 **Auteur** : Johan + Claude
+**Phase Master Roadmap** : Phase 5 (Optionnel)
+
+---
+
+## Skills à consulter
+
+| Skill | Usage |
+|-------|-------|
+| `/valets` | Architecture des valets, où implémenter |
+| `/api` | Endpoints FastAPI pour briefings |
+| `/ui` | Composants Svelte pour briefings |
+| `/tests` | Patterns pytest + Playwright |
+
+---
+
+## Fichiers critiques (CLAUDE.md)
+
+Ce plan **ne modifie pas** de fichiers critiques. Il crée un nouveau module `src/bazin/`.
+
+Bazin **interagit** avec :
+- `src/trivelin/` (lecture calendrier, emails)
+- `src/passepartout/` (fiches personnes, notes réunion)
+- `src/grimaud/` (actualités fraîches si implémenté)
+- `src/sancho/router.py` (génération questions/quick wins)
 
 ---
 
@@ -310,27 +334,33 @@ src/bazin/                         # Préparation & Anticipation
 
 ### Sources de données
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  BAZIN — Sources de données                                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  Trivelin ─────→ Agenda (Apple Calendar)                                    │
-│                  Emails en attente                                          │
-│                                                                             │
-│  Passepartout ─→ Fiches Personne                                            │
-│                  Notes Réunion (historique)                                 │
-│                  Notes Projet (météo)                                       │
-│                  Engagements extraits                                       │
-│                                                                             │
-│  Grimaud ──────→ Actualités fraîches (recherche web)                        │
-│                  État des actions en attente                                │
-│                                                                             │
-│  Sancho ───────→ Génération questions/quick wins (IA)                       │
-│                                                                             │
-│  Frontin ──────→ Affichage dans l'UI                                        │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Sources
+        TRIV[Trivelin]
+        PASS[Passepartout]
+        GRIM[Grimaud]
+        SANC[Sancho]
+    end
+
+    subgraph Bazin
+        BRIEF[Briefing Engine]
+    end
+
+    subgraph Output
+        FRONT[Frontin UI]
+    end
+
+    TRIV -->|Agenda Apple Calendar| BRIEF
+    TRIV -->|Emails en attente| BRIEF
+    PASS -->|Fiches Personne| BRIEF
+    PASS -->|Notes Réunion| BRIEF
+    PASS -->|Notes Projet| BRIEF
+    PASS -->|Engagements| BRIEF
+    GRIM -->|Actualités web| BRIEF
+    GRIM -->|Actions en attente| BRIEF
+    SANC -->|Questions/Quick wins| BRIEF
+    BRIEF --> FRONT
 ```
 
 ### Flux de génération
@@ -445,6 +475,66 @@ Bazin **consomme** le travail de Grimaud :
 - Actualités fraîches → intégrées dans briefings contextuels
 - Fiches enrichies → utilisées pour style relationnel, historique
 - État Grimaud → affiché dans briefing matinal
+
+---
+
+---
+
+## Documentation à mettre à jour
+
+| Document | Section | Changement |
+|----------|---------|------------|
+| `ARCHITECTURE.md` | Valets | Section Bazin (9ème valet) |
+| `CLAUDE.md` | Glossaire | Briefing = Résumé matinal ou pré-réunion |
+| `CLAUDE.md` | Les 9 Valets | Ajouter Bazin |
+| `.claude/skills/valets.md` | Description | Rôle de Bazin |
+| `docs/user-guide/` | Nouveau fichier | Guide utilisateur Briefings |
+
+---
+
+## Tests requis (CLAUDE.md)
+
+### Backend (pytest)
+
+| Test | Fichier | Type |
+|------|---------|------|
+| Génération briefing matinal | `tests/unit/test_bazin_morning.py` | Unitaire |
+| Génération briefing contextuel | `tests/unit/test_bazin_meeting.py` | Unitaire |
+| Calcul charge cognitive | `tests/unit/test_bazin_morning.py` | Unitaire |
+| Score de préparation | `tests/unit/test_bazin_meeting.py` | Unitaire |
+| Alertes engagements | `tests/unit/test_bazin_alerts.py` | Unitaire |
+| Suggestions d'actions | `tests/unit/test_bazin_suggestions.py` | Unitaire |
+| **Cas limites** | | |
+| Jour sans RDV | `test_bazin_morning.py` | Edge case |
+| Participant inconnu PKM | `test_bazin_meeting.py` | Edge case |
+| Calendrier vide | `test_bazin_morning.py` | Error case |
+
+### Frontend (Playwright E2E)
+
+| Test | Fichier | Parcours |
+|------|---------|----------|
+| Briefing matinal complet | `bazin-briefing.spec.ts` | Ouvrir `/briefing` → Toutes sections visibles |
+| Briefing contextuel | `bazin-briefing.spec.ts` | Cliquer RDV → Briefing avec participant |
+| Action depuis briefing | `bazin-briefing.spec.ts` | Cliquer [Traiter] → Email s'ouvre |
+| Score préparation | `bazin-briefing.spec.ts` | Vérifier score et facteurs affichés |
+
+---
+
+## Checklist de livraison (CLAUDE.md)
+
+```
+□ Documentation ARCHITECTURE.md mise à jour (section Bazin)
+□ CLAUDE.md mis à jour (glossaire + valets)
+□ User guide créé dans docs/user-guide/
+□ Tests unitaires backend passants
+□ Tests E2E Playwright passants
+□ Logs vérifiés — aucun ERROR/WARNING
+□ Test manuel : briefing matinal à 6h généré
+□ Test manuel : briefing contextuel 2h avant RDV
+□ Ruff : 0 warning
+□ TypeScript : npm run check passe
+□ Pas de TODO, code commenté, ou console.log
+```
 
 ---
 

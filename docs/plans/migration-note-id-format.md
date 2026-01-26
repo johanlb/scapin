@@ -4,6 +4,72 @@
 
 **Contexte** : 855 fichiers .md synchronisés, mais seulement 841 dans l'index car 14 notes ont le même nom dans des dossiers différents (ex: "AFRASIA BANK.md" dans 2 dossiers).
 
+**Phase Master Roadmap** : Phase 0 (Fondations)
+
+---
+
+## Skills à consulter
+
+| Skill | Usage |
+|-------|-------|
+| `/db` | Migration SQLite v3→v4, schéma |
+| `/valets` | Comprendre Passepartout (mémoire) |
+| `/workflow` | Conventions de commit |
+| `/tests` | Patterns pytest, fixtures |
+
+---
+
+## Fichiers critiques (CLAUDE.md)
+
+Ce plan **modifie un fichier critique** nécessitant confirmation Johan :
+
+| Fichier | Modification |
+|---------|--------------|
+| `src/passepartout/note_manager.py` | Nouvelle fonction `_path_to_note_id()`, modifications `get_note()` |
+
+Les autres fichiers (`note_metadata.py`, frontend) ne sont pas dans la liste critique.
+
+---
+
+## Diagramme de flux
+
+```mermaid
+flowchart TD
+    subgraph Phase0[Phase 0 - Diagnostic]
+        A[Backup SQLite + JSON] --> B[Script diagnostic collisions]
+        B --> C{14 collisions trouvées?}
+        C -->|Non| STOP[Arrêter - revoir analyse]
+        C -->|Oui| D[Générer mapping old→new]
+    end
+
+    subgraph Phase1[Phase 1 - NoteManager]
+        D --> E[Ajouter _path_to_note_id]
+        E --> F[Modifier get_note avec fallback]
+        F --> G[Tests unitaires]
+    end
+
+    subgraph Phase2[Phase 2 - SQLite]
+        G --> H[Incrémenter SCHEMA_VERSION=4]
+        H --> I[Migration v3→v4]
+        I --> J[UPDATE note_id + FK]
+    end
+
+    subgraph Phase3[Phase 3 - FAISS]
+        J --> K[Rebuild index complet]
+    end
+
+    subgraph Phase4[Phase 4 - Apple Notes]
+        K --> L[Vérifier extraction note_id]
+    end
+
+    subgraph Phase5[Phase 5 - Frontend]
+        L --> M[Vérifier routes [...path]]
+        M --> N[Tests E2E]
+    end
+
+    N --> O[Validation manuelle]
+```
+
 ---
 
 ## Analyse des Risques
@@ -447,3 +513,68 @@ Format conforme à `/workflow` :
 | `scripts/migration/note_id_diagnostic.py` | Script | Nouveau - diagnostic |
 | `tests/unit/test_note_id_migration.py` | Test | Nouveau - tests migration |
 | `web/e2e/pages/memoires.spec.ts` | Test E2E | Test navigation imbriquée |
+
+---
+
+## Tests requis (CLAUDE.md)
+
+### Backend (pytest)
+
+| Test | Fichier | Type |
+|------|---------|------|
+| Conversion simple `path_to_note_id` | `test_note_id_migration.py` | Unitaire |
+| Conversion nested `path_to_note_id` | `test_note_id_migration.py` | Unitaire |
+| `get_note` nouveau format | `test_note_id_migration.py` | Unitaire |
+| `get_note` fallback ancien format | `test_note_id_migration.py` | Unitaire |
+| Résolution collision | `test_note_id_migration.py` | Intégration |
+| Migration v3→v4 SQLite | `test_note_metadata.py` | Intégration |
+| **Cas limites** | | |
+| Note à la racine (pas de `/`) | `test_note_id_migration.py` | Edge case |
+| Caractères spéciaux dans chemin | `test_note_id_migration.py` | Edge case |
+| Note inexistante | `test_note_id_migration.py` | Error case |
+
+### Frontend (Playwright E2E)
+
+| Test | Fichier | Parcours |
+|------|---------|----------|
+| Navigation vers note imbriquée | `memoires.spec.ts` | Clic dossier → Clic note → Vérifier URL |
+| URL avec slashes encodés | `memoires.spec.ts` | Naviguer directement vers URL encodée |
+| Recherche retourne nouveau format | `memoires.spec.ts` | Rechercher → Cliquer résultat |
+
+---
+
+## Documentation à mettre à jour
+
+| Document | Section | Changement |
+|----------|---------|------------|
+| `ARCHITECTURE.md` | Passepartout | Nouveau format `note_id` documenté |
+| `docs/user-guide/notes.md` | (si existe) | Mention du format de chemin |
+| `CLAUDE.md` | Glossaire | Définition `note_id` mise à jour |
+
+---
+
+## Checklist de livraison (CLAUDE.md)
+
+Avant chaque commit de phase :
+
+```
+□ Documentation technique mise à jour (ARCHITECTURE.md)
+□ Tests unitaires écrits et passants
+□ Tests E2E écrits et passants (Phase 5)
+□ Logs vérifiés — aucun ERROR/WARNING nouveau
+□ Test manuel effectué — décrire exactement ce qui a été vérifié
+□ Ruff : 0 warning
+□ TypeScript : npm run check passe
+□ Pas de TODO, code commenté, ou console.log laissé
+```
+
+### Vérifications manuelles par phase
+
+| Phase | Vérification manuelle |
+|-------|----------------------|
+| 0 | Script diagnostic retourne 14 collisions |
+| 1 | `get_note("Projets/Test")` fonctionne en console Python |
+| 2 | SQLite version = 4, `note_id` contient des `/` |
+| 3 | FAISS search retourne des IDs avec `/` |
+| 5 | Navigation UI `/memoires/Projets%2FTest` affiche la bonne note |
+| 6 | Compteur UI = 855 notes (pas 841) |

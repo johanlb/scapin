@@ -3,6 +3,30 @@
 **Date** : 27 janvier 2026
 **Statut** : Design validé
 **Auteur** : Johan + Claude
+**Phase Master Roadmap** : Phase 5 (Optionnel)
+
+---
+
+## Skills à consulter
+
+| Skill | Usage |
+|-------|-------|
+| `/valets` | Frontin héberge le chat |
+| `/api` | Endpoints FastAPI pour chat |
+| `/db` | Table `chat_memories` SQLite |
+| `/ui` | Composants Svelte panel/fullscreen |
+| `/tests` | Patterns pytest + Playwright |
+
+---
+
+## Fichiers critiques (CLAUDE.md)
+
+Ce plan **ne modifie pas** de fichiers critiques. Il ajoute du code dans `src/frontin/`.
+
+Interactions avec :
+- `src/sancho/router.py` (appels IA)
+- `src/passepartout/` (RAG PKM, stockage mémoires)
+- `src/figaro/` (exécution actions)
 
 ---
 
@@ -326,6 +350,65 @@ Dans le budget global Scapin (~$117/mois haute capacité).
 | **Passepartout** | RAG PKM, stockage mémoires, accès notes |
 | **Figaro** | Exécute les actions (email, tâches) |
 | **Bazin** | Le chat peut demander un briefing à la demande |
+
+---
+
+---
+
+## Documentation à mettre à jour
+
+| Document | Section | Changement |
+|----------|---------|------------|
+| `ARCHITECTURE.md` | Frontin | Section Chat ajoutée |
+| `docs/user-guide/` | Nouveau fichier | Guide utilisateur Chat |
+
+---
+
+## Tests requis (CLAUDE.md)
+
+### Backend (pytest)
+
+| Test | Fichier | Type |
+|------|---------|------|
+| Endpoint POST /chat/message | `tests/api/test_chat.py` | Intégration |
+| Liste conversations | `tests/api/test_chat.py` | Intégration |
+| Extraction mémoire préférence | `tests/unit/test_memory_extractor.py` | Unitaire |
+| Extraction mémoire décision | `tests/unit/test_memory_extractor.py` | Unitaire |
+| Exécution action créer note | `tests/unit/test_action_executor.py` | Unitaire |
+| Auto-escalade modèle | `tests/unit/test_chat_manager.py` | Unitaire |
+| **Cas limites** | | |
+| Message vide | `test_chat.py` | Edge case |
+| Contexte page inexistante | `test_chat_manager.py` | Edge case |
+| Action avec confirmation refusée | `test_action_executor.py` | Edge case |
+
+### Frontend (Playwright E2E)
+
+| Test | Fichier | Parcours |
+|------|---------|----------|
+| Ouvrir panel Cmd+K | `chat.spec.ts` | Raccourci → Panel visible |
+| Envoyer message | `chat.spec.ts` | Taper → Envoyer → Réponse affichée |
+| Mode plein écran | `chat.spec.ts` | Cliquer expand → Fullscreen |
+| Exécuter action | `chat.spec.ts` | Cliquer bouton action → Toast confirmation |
+| Historique | `chat.spec.ts` | Ouvrir historique → Conversations listées |
+| Gérer mémoires | `chat.spec.ts` | Settings → Voir/supprimer mémoire |
+
+---
+
+## Checklist de livraison (CLAUDE.md)
+
+```
+□ Documentation ARCHITECTURE.md mise à jour (section Chat)
+□ User guide créé dans docs/user-guide/
+□ Tests unitaires backend passants
+□ Tests E2E Playwright passants
+□ Logs vérifiés — aucun ERROR/WARNING
+□ Test manuel : Cmd+K ouvre le panel
+□ Test manuel : conversation simple fonctionne
+□ Test manuel : action exécutable (créer note)
+□ Ruff : 0 warning
+□ TypeScript : npm run check passe
+□ Pas de TODO, code commenté, ou console.log
+```
 
 ---
 
