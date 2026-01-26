@@ -1,8 +1,12 @@
-# Plan de Refactoring UI - Session 24 Janvier 2026
+# Plan de Refactoring UI - Scapin v4
+
+**Créé** : 24 janvier 2026
+**Mis à jour** : 27 janvier 2026
+**Statut** : En cours
 
 ## Objectif
 
-Refactoriser les composants UI volumineux et éliminer les duplications de code pour améliorer la maintenabilité, testabilité et réutilisabilité.
+Refactoriser les composants UI volumineux, éliminer les duplications, et créer les composants pour les nouvelles features (Grimaud, Bazin, Chat, OmniFocus).
 
 ## Décisions Clés
 
@@ -11,7 +15,26 @@ Refactoriser les composants UI volumineux et éliminer les duplications de code 
 | **Stratégie migration** | Directe (pas de période de transition) |
 | **Tests** | Unitaires Vitest + E2E existants |
 | **Cards** | BaseCard complet + utilitaires |
-| **Priorité** | QueueItemFocusView en premier |
+| **Priorité** | Fondations génériques → Nouvelles features → Refactoring existant |
+
+---
+
+## Vue d'Ensemble des Phases
+
+> **Note** : Ce plan UI dépend de la [Master Roadmap](./2026-01-27-master-roadmap.md). Les phases 3-6 (nouvelles features) ne peuvent être implémentées qu'après leur backend respectif.
+
+| Phase | Contenu | Priorité | Dépendance Backend |
+|-------|---------|----------|-------------------|
+| 1 | Utilitaires communs | 🔴 Haute | Aucune |
+| 2 | Composants génériques (Timeline, Card) | 🔴 Haute | Aucune |
+| 3 | **Grimaud** — Dashboard, actions, historique | 🔴 Haute | Master Phase 1 |
+| 4 | **Chat** — Panel, messages, mémoire | 🟢 Optionnel | Master Phase 5 |
+| 5 | **Bazin** — Briefings, alertes | 🟢 Optionnel | Master Phase 5 |
+| 6 | **OmniFocus** — Tâches, météo projets | 🟢 Optionnel | Master Phase 5 |
+| 7 | Refactoring QueueItemFocusView | 🟡 Moyenne | Aucune |
+| 8 | Refactoring FolderSelector | 🟡 Moyenne | Aucune |
+| 9 | Consolidation Timelines & Cards | 🟢 Basse | Aucune |
+| 10 | Tests & Documentation | 🔴 Haute | Aucune |
 
 ---
 
@@ -55,10 +78,18 @@ export const ENTITY_CLASSES: Record<string, string> = {
   default: 'bg-[var(--glass-subtle)] text-[var(--color-text-secondary)]'
 };
 
+export const HEALTH_COLORS: Record<string, string> = {
+  excellent: 'text-green-500',
+  good: 'text-blue-500',
+  warning: 'text-yellow-500',
+  critical: 'text-red-500'
+};
+
 export function getNoteTypeIcon(type: string): string;
 export function getModelColor(model: string): { bg: string; text: string };
 export function getEntityClass(type: string): string;
 export function getQualityColor(score: number | null): 'success' | 'warning' | 'danger' | 'primary';
+export function getHealthColor(score: number): string;
 ```
 
 ### 1.2 `web/src/lib/utils/formatters.ts`
@@ -69,14 +100,16 @@ export function formatDate(dateStr: string, format?: 'short' | 'time' | 'full'):
 export function formatDuration(ms: number | null): string;
 export function formatDelta(before: number | null, after: number | null): string;
 export function formatRelativeTime(date: Date | string): string;
+export function formatConfidence(score: number): string; // "96%"
+export function formatCognitiveLoad(hours: number): string; // "3h de réunions"
 ```
 
 ### 1.3 Tests unitaires: `web/src/lib/utils/__tests__/`
 
 ```
 web/src/lib/utils/__tests__/
-├── iconMappings.test.ts    (~50 lignes)
-└── formatters.test.ts      (~80 lignes)
+├── iconMappings.test.ts    (~60 lignes)
+└── formatters.test.ts      (~100 lignes)
 ```
 
 ---
@@ -98,9 +131,10 @@ interface Props<T> {
 ```
 
 **Remplace la structure commune de:**
-- `RetoucheTimeline.svelte` (164 lignes)
-- `PassTimeline.svelte` (180 lignes)
-- `ActivityTimeline.svelte` (172 lignes)
+- `GrimaudTimeline.svelte` (ex-RetoucheTimeline)
+- `PassTimeline.svelte`
+- `ActivityTimeline.svelte`
+- `ChatHistory.svelte` (nouvelle)
 
 ### 2.2 TimelineEntry (`web/src/lib/components/ui/TimelineEntry.svelte`)
 
@@ -131,66 +165,434 @@ interface Props {
   selected?: boolean;
   showQuality?: boolean;
   onclick?: () => void;
-  children?: Snippet;      // Zone contenu principal
-  actions?: Snippet;       // Zone boutons/liens
+  children?: Snippet;
+  actions?: Snippet;
 }
 ```
 
-**Structure:**
-```svelte
-<Card variant="glass" {interactive} {onclick}>
-  <!-- Header: icon + title + badges + quality -->
-  <div class="flex items-start justify-between mb-4">
-    <div class="flex items-center gap-3">
-      {#if icon}
-        <div class="w-12 h-12 rounded-xl bg-[var(--glass-subtle)] flex items-center justify-center text-2xl">
-          {icon}
-        </div>
-      {/if}
-      <div>
-        <h2 class="font-semibold">{title}</h2>
-        {#if badges?.length}
-          <div class="flex gap-2 mt-1">
-            {#each badges as badge}
-              <Badge class={badge.variant}>...</Badge>
-            {/each}
-          </div>
-        {/if}
-      </div>
-    </div>
-    {#if showQuality && quality !== null}
-      <QualityScoreDisplay score={quality} />
-    {/if}
-  </div>
+### 2.4 SidePanel (`web/src/lib/components/ui/SidePanel.svelte`)
 
-  <!-- Content slot -->
-  {@render children?.()}
+**Nouveau** — Pour le chat et autres panels latéraux.
 
-  <!-- Actions slot -->
-  {#if actions}
-    <div class="mt-4 flex justify-end">
-      {@render actions()}
-    </div>
-  {/if}
-</Card>
+**Props:**
+```typescript
+interface Props {
+  open: boolean;
+  title?: string;
+  width?: 'sm' | 'md' | 'lg'; // 320px, 400px, 500px
+  position?: 'left' | 'right';
+  expandable?: boolean; // Bouton plein écran
+  onClose: () => void;
+  header?: Snippet;
+  children: Snippet;
+  footer?: Snippet;
+}
 ```
 
-### 2.4 Tests: `web/src/lib/components/ui/__tests__/`
+### 2.5 Tests: `web/src/lib/components/ui/__tests__/`
 
 ```
 web/src/lib/components/ui/__tests__/
 ├── GenericTimeline.test.ts   (~60 lignes)
 ├── TimelineEntry.test.ts     (~40 lignes)
-└── BaseCard.test.ts          (~50 lignes)
+├── BaseCard.test.ts          (~50 lignes)
+└── SidePanel.test.ts         (~40 lignes)
 ```
 
 ---
 
-## Phase 3 : Refactoring QueueItemFocusView (PRIORITÉ 1)
+## Phase 3 : Grimaud (Gardien PKM)
+
+> **Anciennement Phase 4** — Réordonné pour aligner avec Master Roadmap Phase 1.
+
+Voir section "Grimaud (Gardien PKM)" ci-dessous.
+
+---
+
+## Phase 4 : Chat (Frontin) — Optionnel
+
+> **Anciennement Phase 3** — Déplacé car dépend de Master Roadmap Phase 5 (nice-to-have).
+
+### Architecture
+
+```
+web/src/lib/components/chat/
+├── ChatPanel.svelte           (~120 lignes) - Orchestrateur panel/fullscreen
+├── ChatHeader.svelte          (~40 lignes)  - Titre, modèle, boutons
+├── ChatMessages.svelte        (~80 lignes)  - Liste des messages
+├── ChatMessage.svelte         (~60 lignes)  - Message individuel (user/assistant)
+├── ChatInput.svelte           (~70 lignes)  - Input + bouton envoi
+├── ChatActions.svelte         (~50 lignes)  - Boutons d'action dans les réponses
+├── ChatHistory.svelte         (~60 lignes)  - Liste conversations passées
+├── ChatMemoryManager.svelte   (~80 lignes)  - Gestion mémoires sélectives
+├── ModelSelector.svelte       (~40 lignes)  - Dropdown Haiku/Sonnet/Opus
+└── index.ts
+```
+
+### Composants détaillés
+
+#### ChatPanel.svelte
+```typescript
+interface Props {
+  open: boolean;
+  fullscreen?: boolean;
+  onClose: () => void;
+}
+// État: messages, isLoading, selectedModel, currentConversationId
+// Utilise: SidePanel ou mode fullscreen
+```
+
+#### ChatMessage.svelte
+```typescript
+interface Props {
+  message: {
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+    model?: string;
+    actions?: ActionButton[];
+  };
+  onAction?: (action: ActionButton) => void;
+}
+// Actions: "Créer tâche OF", "Ajouter à la note", etc.
+```
+
+#### ChatActions.svelte
+```typescript
+interface Props {
+  actions: Array<{
+    type: 'create_note' | 'create_task' | 'draft_email' | 'modify_note';
+    label: string;
+    data: Record<string, unknown>;
+    requiresConfirmation: boolean;
+  }>;
+  onExecute: (action) => void;
+}
+```
+
+#### ChatMemoryManager.svelte
+```typescript
+interface Props {
+  memories: ChatMemory[];
+  onDelete: (id: string) => void;
+  onEdit: (id: string, content: string) => void;
+}
+// Affiche: préférences, décisions, faits, instructions
+// Filtres par type
+```
+
+### Route
+
+- **Panel**: Accessible depuis toutes les pages via `Cmd+K` ou bouton fixe
+- **Fullscreen**: `/chat` ou bouton expand dans le panel
+- **Historique**: `/chat/history`
+- **Mémoires**: `/settings/chat-memory`
+
+---
+
+### Grimaud — Détails (Phase 3)
+
+### Architecture
+
+```
+web/src/lib/components/grimaud/
+├── GrimaudDashboard.svelte     (~150 lignes) - Vue principale santé PKM
+├── GrimaudStats.svelte         (~60 lignes)  - Métriques globales
+├── GrimaudActionCard.svelte    (~80 lignes)  - Action proposée/exécutée
+├── GrimaudActionList.svelte    (~50 lignes)  - Liste filtrée d'actions
+├── GrimaudHistory.svelte       (~70 lignes)  - Historique par note
+├── GrimaudHealthBadge.svelte   (~30 lignes)  - Badge santé sur les notes
+├── GrimaudDiff.svelte          (~60 lignes)  - Diff avant/après
+├── GrimaudTrashbin.svelte      (~50 lignes)  - Corbeille notes fusionnées
+├── GrimaudFilters.svelte       (~40 lignes)  - Filtres: type, statut, date
+└── index.ts
+```
+
+### Composants détaillés
+
+#### GrimaudDashboard.svelte
+```typescript
+interface Props {
+  // Données chargées via API
+}
+// Sections:
+// - Stats globales (notes total, santé %, à valider, fusions/enrichissements ce mois)
+// - Filtres
+// - Liste d'actions (récentes, à valider)
+// - Liens: Corbeille, Historique complet
+```
+
+#### GrimaudActionCard.svelte
+```typescript
+interface Props {
+  action: {
+    id: string;
+    type: 'fusion' | 'liaison' | 'restructuration' | 'enrichissement_texte' | 'enrichissement_web' | 'metadonnees' | 'archivage';
+    noteTitle: string;
+    noteId: string;
+    confidence: number;
+    status: 'pending' | 'applied' | 'rejected';
+    detail: string;
+    timestamp: string;
+    canUndo: boolean;
+  };
+  onApply?: () => void;
+  onReject?: () => void;
+  onUndo?: () => void;
+  onViewDiff?: () => void;
+}
+// Icônes par type: 🔀 fusion, 🔗 liaison, 📐 restructuration, 📝 enrichissement, 🌐 web, 🏷️ meta, 📦 archivage
+```
+
+#### GrimaudHealthBadge.svelte
+```typescript
+interface Props {
+  score: number; // 0-100
+  lastScan?: string;
+  issues?: number;
+  size?: 'sm' | 'md';
+}
+// Couleurs: vert (>80), bleu (60-80), jaune (40-60), rouge (<40)
+// Affichage: score + icône ou juste icône (sm)
+```
+
+#### GrimaudHistory.svelte
+```typescript
+interface Props {
+  noteId: string;
+  actions: GrimaudAction[];
+  onRestore: (snapshotId: string) => void;
+}
+// Timeline des actions Grimaud sur une note spécifique
+// Boutons: Voir avant, Restaurer
+```
+
+### Route
+
+- **Dashboard**: `/memoires/grimaud`
+- **Corbeille**: `/memoires/grimaud/trash`
+- **Badge santé**: Affiché sur chaque note dans `/notes/[id]`
+
+### Migration Retouche → Grimaud
+
+| Ancien | Nouveau |
+|--------|---------|
+| `RetoucheTimeline.svelte` | `GrimaudHistory.svelte` |
+| `PendingActionCard.svelte` | `GrimaudActionCard.svelte` |
+| `MergeModal.svelte` | Réutilisé (fusion) |
+| `RetoucheDiff.svelte` | `GrimaudDiff.svelte` |
+| `/memoires/retouche` | `/memoires/grimaud` |
+
+---
+
+## Phase 5 : Bazin (Proactivité)
+
+### Architecture
+
+```
+web/src/lib/components/bazin/
+├── MorningBriefing.svelte       (~200 lignes) - Briefing matinal complet
+├── ContextualBriefing.svelte    (~180 lignes) - Briefing pré-réunion
+├── BriefingSection.svelte       (~50 lignes)  - Section générique du briefing
+├── AgendaPreview.svelte         (~60 lignes)  - Aperçu agenda du jour
+├── CognitiveLoadMeter.svelte    (~40 lignes)  - Jauge charge cognitive
+├── FreeSlots.svelte             (~50 lignes)  - Créneaux libres
+├── PriorityEmails.svelte        (~70 lignes)  - Emails prioritaires
+├── EngagementsList.svelte       (~60 lignes)  - Engagements J/J+1
+├── ProjectWeather.svelte        (~80 lignes)  - Météo projets
+├── NoteOfTheDay.svelte          (~40 lignes)  - Note à revoir
+├── ParticipantCard.svelte       (~70 lignes)  - Fiche participant réunion
+├── PreparationScore.svelte      (~50 lignes)  - Score de préparation
+├── AlertsPanel.svelte           (~60 lignes)  - Alertes et notifications
+├── SuggestionsPanel.svelte      (~70 lignes)  - Suggestions proactives
+└── index.ts
+```
+
+### Composants détaillés
+
+#### MorningBriefing.svelte
+```typescript
+interface Props {
+  date?: string; // Par défaut: aujourd'hui
+}
+// Sections:
+// 1. Charge cognitive (heures de réunion)
+// 2. Agenda (RDV du jour avec participants)
+// 3. Emails prioritaires (haute importance ou personnes clés)
+// 4. Engagements (promesses à tenir)
+// 5. Créneaux libres
+// 6. Note du jour (révision suggérée)
+// 7. Météo projets
+```
+
+#### ContextualBriefing.svelte
+```typescript
+interface Props {
+  meetingId: string;
+  // ou
+  meeting: {
+    title: string;
+    startTime: string;
+    participants: Participant[];
+    context?: string;
+  };
+}
+// Sections:
+// 1. Score de préparation
+// 2. Participants (fiches PKM enrichies)
+// 3. Historique réunions avec ces personnes
+// 4. Points de vigilance
+// 5. Questions suggérées
+// 6. Actualité fraîche (si pertinent)
+// 7. Quick win suggéré
+```
+
+#### PreparationScore.svelte
+```typescript
+interface Props {
+  score: number; // 0-100
+  factors: Array<{
+    name: string;
+    status: 'ok' | 'warning' | 'missing';
+    detail?: string;
+  }>;
+}
+// Facteurs: participants connus, objectif clair, documents prêts, contexte récent
+```
+
+#### ProjectWeather.svelte
+```typescript
+interface Props {
+  projects: Array<{
+    id: string;
+    name: string;
+    health: 'sunny' | 'cloudy' | 'rainy' | 'stormy';
+    tasksRemaining?: number;
+    nextAction?: string;
+    lastActivity?: string;
+    context?: string; // Depuis Scapin
+  }>;
+  showOmniFocus?: boolean;
+}
+// Icônes météo: ☀️ 🌤️ 🌧️ ⛈️
+// Combine données Scapin + OmniFocus si activé
+```
+
+#### AlertsPanel.svelte
+```typescript
+interface Props {
+  alerts: Array<{
+    type: 'engagement' | 'contact' | 'anniversary' | 'deadline';
+    priority: 'high' | 'medium' | 'low';
+    title: string;
+    detail: string;
+    actionUrl?: string;
+  }>;
+}
+// Filtrable, triable par priorité
+```
+
+### Routes
+
+- **Briefing matinal**: `/` (page d'accueil) ou `/briefing`
+- **Briefing contextuel**: Modal avant réunion ou `/briefing/meeting/[id]`
+- **Alertes**: Section dans briefing + `/alerts`
+
+---
+
+## Phase 6 : OmniFocus Integration
+
+### Architecture
+
+```
+web/src/lib/components/omnifocus/
+├── OmniFocusTasks.svelte        (~100 lignes) - Liste tâches du jour
+├── OmniFocusTaskCard.svelte     (~50 lignes)  - Tâche individuelle
+├── TaskCreatorModal.svelte      (~120 lignes) - Création tâche OF
+├── TaskCreatorForm.svelte       (~80 lignes)  - Formulaire création
+├── ProjectMappingList.svelte    (~60 lignes)  - Mapping notes ↔ projets
+├── ProjectMappingRow.svelte     (~40 lignes)  - Ligne de mapping
+├── OmniFocusStatus.svelte       (~30 lignes)  - Statut sync
+└── index.ts
+```
+
+### Composants détaillés
+
+#### OmniFocusTasks.svelte
+```typescript
+interface Props {
+  filter?: 'today' | 'flagged' | 'available';
+  limit?: number;
+  showProject?: boolean;
+}
+// Affiche les tâches OF avec liens vers Scapin si liées
+```
+
+#### TaskCreatorModal.svelte
+```typescript
+interface Props {
+  open: boolean;
+  prefill?: {
+    title?: string;
+    project?: string;
+    tags?: string[];
+    dueDate?: string;
+    note?: string;
+    sourceEmailId?: string;
+    sourceNoteId?: string;
+  };
+  onClose: () => void;
+  onCreate: (task: NewTask) => void;
+}
+// Modal avec formulaire pré-rempli depuis email ou note
+```
+
+#### TaskCreatorForm.svelte
+```typescript
+interface Props {
+  initialValues?: Partial<TaskFormValues>;
+  projects: OFProject[];
+  tags: OFTag[];
+  onSubmit: (values: TaskFormValues) => void;
+}
+// Champs: titre, projet (dropdown), tags (multi-select), due date, notes
+```
+
+#### ProjectMappingList.svelte
+```typescript
+interface Props {
+  mappings: Array<{
+    scapinNoteId: string;
+    scapinNoteTitle: string;
+    omnifocusProjectId?: string;
+    omnifocusProjectName?: string;
+    autoMatched: boolean;
+  }>;
+  onUpdateMapping: (noteId: string, projectId: string) => void;
+}
+// Table de mapping avec auto-match et override manuel
+```
+
+### Routes
+
+- **Tâches du jour**: Section dans briefing Bazin
+- **Création tâche**: Modal accessible depuis emails et notes
+- **Mapping**: `/settings/omnifocus`
+
+### Boutons d'action
+
+Ajouter `[Créer tâche OF]` sur:
+- `EmailDetailView` (emails analysés)
+- `NoteDetailView` (notes)
+- `ChatActions` (dans les réponses du chat)
+
+---
+
+## Phase 7 : Refactoring QueueItemFocusView
 
 **Fichier actuel:** `web/src/lib/components/peripeties/QueueItemFocusView.svelte` (620 lignes)
 
-### Architecture cible:
+### Architecture cible
 
 ```
 web/src/lib/components/peripeties/queue-item/
@@ -203,122 +605,21 @@ web/src/lib/components/peripeties/queue-item/
 ├── ActionOptionsSection.svelte     (~50 lignes)  - Boutons décisions
 ├── EmailContentViewer.svelte       (~70 lignes)  - HTML/Text toggle
 ├── AttachmentsSection.svelte       (~35 lignes)  - Pièces jointes
-└── index.ts                        - Barrel export
+└── index.ts
 ```
 
-### Détail des sous-composants:
+### Intégration nouvelles features
 
-#### QueueItemHeader.svelte
-```typescript
-interface Props {
-  item: QueueItem;
-  showLevel3: boolean;
-  onToggleDetails: () => void;
-  onSkip: () => void;
-  onDelete: (item: QueueItem) => void;
-}
-// Inclut: Avatar, subject, dates, complexity badges, briefing status, sparkline, PassTimeline (header)
-```
-
-#### ReasoningBox.svelte
-```typescript
-interface Props {
-  reasoning: string;
-}
-// Simple citation stylisée
-```
-
-#### RetrievedContextSection.svelte
-```typescript
-interface Props {
-  retrievedContext?: RetrievedContext;
-}
-// <details> collapsible avec entités, notes, événements, tâches
-```
-
-#### AnalysisDetailsSection.svelte
-```typescript
-interface Props {
-  item: QueueItem;
-  visible: boolean;  // showLevel3
-}
-// Entités extraites, context used, analysis transparency, metadata
-// Utilise: ConfidenceSparkline, PassTimeline (full), iconMappings
-```
-
-#### ProposedSideEffects.svelte
-```typescript
-interface Props {
-  notes: ProposedNote[];
-  tasks: ProposedTask[];
-}
-// Grid layout avec cards pour notes (créer/enrichir) et tâches
-```
-
-#### ActionOptionsSection.svelte
-```typescript
-interface Props {
-  options: ActionOption[];
-  onSelectOption: (option: ActionOption) => void;
-  isProcessing?: boolean;
-}
-// Grid de boutons avec styling recommandé vs normal
-```
-
-#### EmailContentViewer.svelte
-```typescript
-interface Props {
-  content: { html_body?: string; full_text?: string; preview?: string };
-}
-// État local: showHtmlContent
-// Toggle HTML/Text + DOMPurify
-```
-
-#### AttachmentsSection.svelte
-```typescript
-interface Props {
-  attachments?: Attachment[];
-  emailId: string;
-}
-// Loop FileAttachment components
-```
-
-### Flux de données:
-
-```mermaid
-flowchart TD
-    QIF["QueueItemFocusView<br/>(state: showLevel3)"]
-
-    QIF --> QIH["QueueItemHeader"]
-    QIF --> Card["Card (conteneur principal)"]
-    QIF --> RAB["ReanalyzeButton"]
-
-    Card --> RB["ReasoningBox"]
-    Card --> RCS["RetrievedContextSection"]
-    Card --> ADS["AnalysisDetailsSection"]
-    Card --> PSE["ProposedSideEffects"]
-    Card --> AOS["ActionOptionsSection"]
-    Card --> ECV["EmailContentViewer"]
-    Card --> AS["AttachmentsSection"]
-
-    QIH -.- P1["item, showLevel3, onToggle, onSkip, onDelete"]
-    RB -.- P2["item.analysis.reasoning"]
-    RCS -.- P3["item.analysis.retrieved_context"]
-    ADS -.- P4["item, showLevel3"]
-    PSE -.- P5["filteredNotes, filteredTasks"]
-    AOS -.- P6["item.analysis.options, onSelectOption"]
-    ECV -.- P7["item.content"]
-    AS -.- P8["item.metadata.attachments, item.metadata.id"]
-    RAB -.- P9["onReanalyze"]
-```
+- Ajouter bouton `[Créer tâche OF]` dans `ActionOptionsSection`
+- Ajouter bouton `[Demander à Scapin]` pour ouvrir le chat avec contexte de l'email
 
 ---
 
-## Phase 4 : Refactoring FolderSelector
+## Phase 8 : Refactoring FolderSelector
 
 **Fichier actuel:** `web/src/lib/components/ui/FolderSelector.svelte` (675 lignes)
 
-### Architecture cible:
+### Architecture cible
 
 ```
 web/src/lib/components/ui/folder-selector/
@@ -329,984 +630,238 @@ web/src/lib/components/ui/folder-selector/
 ├── FolderTree.svelte            (~90 lignes)  - Conteneur arbre filtré
 ├── FolderNode.svelte            (~55 lignes)  - Nœud récursif
 ├── CreateFolderForm.svelte      (~70 lignes)  - Formulaire création
-└── index.ts                     - Barrel export
-```
-
-### Flux de données:
-
-```mermaid
-flowchart TD
-    FS["FolderSelector<br/>(state: suggestions, folderTree, expandedFolders, searchQuery, isLoading, error)"]
-
-    FS --> LSE["LoadingState / ErrorState"]
-    FS --> SS["SuggestionsSection"]
-    FS --> RFS["RecentFoldersSection"]
-    FS --> FSI["FolderSearchInput"]
-    FS --> FT["FolderTree"]
-    FS --> CFF["CreateFolderForm"]
-
-    SS --> Utils["getConfidenceColor(), getConfidenceLabel()"]
-    FT --> FN["FolderNode (récursif)"]
-
-    SS -.- P1["suggestions, onSelect"]
-    RFS -.- P2["recentFolders, onSelect"]
-    FSI -.- P3["bind:searchQuery"]
-    FT -.- P4["filteredTree, expandedFolders, onToggle, onSelect"]
-    FN -.- P5["node, depth, expanded, onToggle, onSelect"]
-    CFF -.- P6["onCreate, onCancel<br/>(état local: newFolderPath, isCreating)"]
+└── index.ts
 ```
 
 ---
 
-## Phase 5 : Consolidation Timelines
+## Phase 9 : Consolidation Timelines & Cards
 
-### 5.1 Refactorer RetoucheTimeline → GenericTimeline
+### 9.1 Migration Timelines
 
-```svelte
-<script lang="ts">
-  import { GenericTimeline, TimelineEntry } from '$lib/components/ui';
-  import { getModelColor, MODEL_LABELS } from '$lib/utils/iconMappings';
-  import { formatDate, formatDuration } from '$lib/utils/formatters';
-</script>
+| Avant | Après |
+|-------|-------|
+| `RetoucheTimeline.svelte` | → `GrimaudHistory.svelte` (Phase 3) |
+| `PassTimeline.svelte` | Utilise `GenericTimeline` |
+| `ActivityTimeline.svelte` | Utilise `GenericTimeline` |
 
-<GenericTimeline items={retouches} emptyText="Aucune retouche enregistrée">
-  {#snippet node(item)}
-    <div class="w-8 h-8 rounded-full {getModelColor(item.model).bg} flex items-center justify-center">
-      <span class={getModelColor(item.model).text}>{MODEL_LABELS[item.model]?.[0] || '?'}</span>
-    </div>
-  {/snippet}
-  {#snippet content(item)}
-    <TimelineEntry
-      title={item.summary}
-      timestamp={item.created_at}
-      duration={item.duration_ms}
-      badges={[{ label: MODEL_LABELS[item.model] || item.model }]}
-    >
-      {#if item.quality_delta}
-        <span class="text-sm {item.quality_delta > 0 ? 'text-green-500' : 'text-red-500'}">
-          {item.quality_delta > 0 ? '+' : ''}{item.quality_delta}
-        </span>
-      {/if}
-    </TimelineEntry>
-  {/snippet}
-</GenericTimeline>
-```
+### 9.2 Migration Cards
 
-### 5.2 Refactorer PassTimeline → GenericTimeline
-
-Même structure, avec badges spécifiques: escalation, questions, context_used.
-
-### 5.3 Refactorer ActivityTimeline → GenericTimeline
-
-Même structure, conserve les classes CSS spécifiques (.error, .success).
+| Avant | Après |
+|-------|-------|
+| `LectureReviewCard.svelte` | Utilise `BaseCard` |
+| `FilageLectureCard.svelte` | Utilise `BaseCard` |
+| `PendingActionCard.svelte` | → `GrimaudActionCard.svelte` (Phase 3) |
 
 ---
 
-## Phase 6 : Consolidation Cards
+## Phase 10 : Tests & Documentation
 
-### 6.1 Refactorer LectureReviewCard → BaseCard
+### 10.1 Tests Unitaires Vitest
 
-```svelte
-<script lang="ts">
-  import { BaseCard } from '$lib/components/ui';
-  import { getNoteTypeIcon } from '$lib/utils/iconMappings';
-  import MarkdownPreview from '$lib/components/notes/MarkdownPreview.svelte';
-  import QuestionsForm from './QuestionsForm.svelte';
-</script>
-
-<div class="space-y-4">
-  <BaseCard
-    title={session.note_title}
-    icon={getNoteTypeIcon(noteType)}
-    quality={session.quality_score}
-    showQuality
-    badges={[
-      ...(recentlyImproved ? [{ label: 'Améliorée', icon: '✨', variant: 'purple' }] : []),
-      ...(session.questions.length > 0 ? [{ label: `${session.questions.length} questions`, icon: '❓', variant: 'warning' }] : [])
-    ]}
-  >
-    <div class="p-4 bg-[var(--glass-subtle)] rounded-xl max-h-[300px] overflow-y-auto">
-      <MarkdownPreview content={session.note_content} />
-    </div>
-
-    {#snippet actions()}
-      {#if onViewNote}
-        <button onclick={onViewNote} class="text-sm text-[var(--color-accent)]">
-          Voir la note complète →
-        </button>
-      {/if}
-    {/snippet}
-  </BaseCard>
-
-  {#if session.questions.length > 0}
-    <QuestionsForm questions={session.questions} onAnswer={onAnswerQuestions} />
-  {/if}
-</div>
-```
-
-### 6.2 Refactorer FilageLectureCard → BaseCard
-
-### 6.3 Refactorer QuestionCard → BaseCard (si applicable)
-
----
-
-## Ordre d'Implémentation
-
-| Étape | Tâche | Fichiers | Tests |
-|-------|-------|----------|-------|
-| 1 | Créer utilitaires | `iconMappings.ts`, `formatters.ts` | `__tests__/*.test.ts` |
-| 2 | Créer GenericTimeline | `GenericTimeline.svelte`, `TimelineEntry.svelte` | `__tests__/*.test.ts` |
-| 3 | Créer BaseCard | `BaseCard.svelte` | `__tests__/BaseCard.test.ts` |
-| 4 | Créer dossier queue-item | 9 nouveaux fichiers | - |
-| 5 | Migrer QueueItemFocusView | Déplacer + découper | - |
-| 6 | Créer dossier folder-selector | 7 nouveaux fichiers | - |
-| 7 | Migrer FolderSelector | Déplacer + découper | - |
-| 8 | Refactorer Timelines | 3 fichiers timeline | - |
-| 9 | Refactorer Cards | 3 fichiers card | - |
-| 10 | Mettre à jour imports | index.ts, pages | - |
-| 11 | Tests E2E | Vérifier non-régression | `playwright test` |
-
----
-
-## Fichiers Critiques
-
-### Nouveaux fichiers à créer (31 fichiers):
-
-**Utilitaires:**
-- `web/src/lib/utils/iconMappings.ts`
-- `web/src/lib/utils/formatters.ts`
-- `web/src/lib/utils/__tests__/iconMappings.test.ts`
-- `web/src/lib/utils/__tests__/formatters.test.ts`
-
-**Composants génériques:**
-- `web/src/lib/components/ui/GenericTimeline.svelte`
-- `web/src/lib/components/ui/TimelineEntry.svelte`
-- `web/src/lib/components/ui/BaseCard.svelte`
-- `web/src/lib/components/ui/__tests__/GenericTimeline.test.ts`
-- `web/src/lib/components/ui/__tests__/TimelineEntry.test.ts`
-- `web/src/lib/components/ui/__tests__/BaseCard.test.ts`
-
-**QueueItem (9 fichiers):**
-- `web/src/lib/components/peripeties/queue-item/QueueItemFocusView.svelte`
-- `web/src/lib/components/peripeties/queue-item/QueueItemHeader.svelte`
-- `web/src/lib/components/peripeties/queue-item/ReasoningBox.svelte`
-- `web/src/lib/components/peripeties/queue-item/RetrievedContextSection.svelte`
-- `web/src/lib/components/peripeties/queue-item/AnalysisDetailsSection.svelte`
-- `web/src/lib/components/peripeties/queue-item/ProposedSideEffects.svelte`
-- `web/src/lib/components/peripeties/queue-item/ActionOptionsSection.svelte`
-- `web/src/lib/components/peripeties/queue-item/EmailContentViewer.svelte`
-- `web/src/lib/components/peripeties/queue-item/AttachmentsSection.svelte`
-- `web/src/lib/components/peripeties/queue-item/index.ts`
-
-**FolderSelector (7 fichiers):**
-- `web/src/lib/components/ui/folder-selector/FolderSelector.svelte`
-- `web/src/lib/components/ui/folder-selector/SuggestionsSection.svelte`
-- `web/src/lib/components/ui/folder-selector/RecentFoldersSection.svelte`
-- `web/src/lib/components/ui/folder-selector/FolderSearchInput.svelte`
-- `web/src/lib/components/ui/folder-selector/FolderTree.svelte`
-- `web/src/lib/components/ui/folder-selector/FolderNode.svelte`
-- `web/src/lib/components/ui/folder-selector/CreateFolderForm.svelte`
-- `web/src/lib/components/ui/folder-selector/index.ts`
-
-### Fichiers à supprimer après migration:
-- `web/src/lib/components/ui/FolderSelector.svelte`
-- `web/src/lib/components/peripeties/QueueItemFocusView.svelte`
-
-### Fichiers à modifier:
-- `web/src/lib/components/memory/RetoucheTimeline.svelte`
-- `web/src/lib/components/flux/PassTimeline.svelte`
-- `web/src/lib/components/valets/ActivityTimeline.svelte`
-- `web/src/lib/components/memory/LectureReviewCard.svelte`
-- `web/src/lib/components/memory/FilageLectureCard.svelte`
-- `web/src/lib/components/ui/index.ts`
-- `web/src/lib/components/peripeties/index.ts`
-
-### Pages impactées:
-- `web/src/routes/flux/+page.svelte`
-- `web/src/routes/notes/[id]/+page.svelte`
-- `web/src/routes/valets/+page.svelte`
-- `web/src/routes/memoires/+page.svelte`
-
----
-
-## Vérification
-
-### Tests à exécuter:
-```bash
-# Tests unitaires Vitest
-cd web && npm run test
-
-# Tests E2E complets
-cd web && npx playwright test
-
-# Tests spécifiques aux composants modifiés
-npx playwright test flux.spec.ts notes.spec.ts valets.spec.ts memoires.spec.ts
-
-# Vérification types
-npm run check
-
-# Lint
-npm run lint
-```
-
-### Vérification manuelle:
-1. **Flux page**: Ouvrir un élément, vérifier header/reasoning/actions
-2. **Flux page**: Tester FolderSelector (suggestions, recherche, création)
-3. **Note detail**: Vérifier RetoucheTimeline s'affiche correctement
-4. **Valets page**: Vérifier ActivityTimeline fonctionne
-5. **Mémoires page**: Vérifier LectureReviewCard, FilageLectureCard
-6. **Mobile responsive**: Vérifier tous les composants sur 375px
-
----
-
----
-
-## Phase 7 : Tests
-
-### 7.1 Tests Unitaires Vitest
-
-**Structure des tests:**
 ```
 web/src/lib/
 ├── utils/__tests__/
 │   ├── iconMappings.test.ts
 │   └── formatters.test.ts
-└── components/ui/__tests__/
-    ├── GenericTimeline.test.ts
-    ├── TimelineEntry.test.ts
-    └── BaseCard.test.ts
+├── components/ui/__tests__/
+│   ├── GenericTimeline.test.ts
+│   ├── TimelineEntry.test.ts
+│   ├── BaseCard.test.ts
+│   └── SidePanel.test.ts
+├── components/chat/__tests__/
+│   ├── ChatPanel.test.ts
+│   ├── ChatMessage.test.ts
+│   └── ChatActions.test.ts
+├── components/grimaud/__tests__/
+│   ├── GrimaudActionCard.test.ts
+│   └── GrimaudHealthBadge.test.ts
+└── components/bazin/__tests__/
+    ├── PreparationScore.test.ts
+    └── CognitiveLoadMeter.test.ts
 ```
 
-#### `iconMappings.test.ts` (~50 lignes)
-```typescript
-import { describe, it, expect } from 'vitest';
-import {
-  NOTE_TYPE_ICONS,
-  MODEL_COLORS,
-  getNoteTypeIcon,
-  getModelColor,
-  getEntityClass,
-  getQualityColor
-} from '../iconMappings';
+### 10.2 Tests E2E Playwright
 
-describe('iconMappings', () => {
-  describe('getNoteTypeIcon', () => {
-    it('should return correct icon for known types', () => {
-      expect(getNoteTypeIcon('personne')).toBe('👤');
-      expect(getNoteTypeIcon('projet')).toBe('📁');
-    });
-
-    it('should return default icon for unknown types', () => {
-      expect(getNoteTypeIcon('unknown')).toBe('📝');
-      expect(getNoteTypeIcon('')).toBe('📝');
-    });
-
-    it('should be case-insensitive', () => {
-      expect(getNoteTypeIcon('PERSONNE')).toBe('👤');
-      expect(getNoteTypeIcon('Projet')).toBe('📁');
-    });
-  });
-
-  describe('getModelColor', () => {
-    it('should return correct colors for known models', () => {
-      expect(getModelColor('haiku')).toEqual({ bg: 'bg-green-500/20', text: 'text-green-500' });
-      expect(getModelColor('sonnet')).toEqual({ bg: 'bg-blue-500/20', text: 'text-blue-500' });
-      expect(getModelColor('opus')).toEqual({ bg: 'bg-purple-500/20', text: 'text-purple-500' });
-    });
-
-    it('should return default for unknown models', () => {
-      const result = getModelColor('unknown');
-      expect(result).toBeDefined();
-    });
-  });
-
-  describe('getQualityColor', () => {
-    it('should return success for high scores', () => {
-      expect(getQualityColor(80)).toBe('success');
-      expect(getQualityColor(100)).toBe('success');
-    });
-
-    it('should return warning for medium scores', () => {
-      expect(getQualityColor(60)).toBe('warning');
-      expect(getQualityColor(79)).toBe('warning');
-    });
-
-    it('should return danger for low scores', () => {
-      expect(getQualityColor(0)).toBe('danger');
-      expect(getQualityColor(59)).toBe('danger');
-    });
-
-    it('should return primary for null', () => {
-      expect(getQualityColor(null)).toBe('primary');
-    });
-  });
-});
+```
+web/e2e/
+├── chat.spec.ts              - Parcours chat complet
+├── grimaud.spec.ts           - Dashboard, actions, historique
+├── bazin-briefing.spec.ts    - Briefing matinal et contextuel
+├── omnifocus.spec.ts         - Création tâche, mapping
+├── peripeties.spec.ts        - QueueItemFocusView refactorisé
+└── folder-selector.spec.ts   - FolderSelector refactorisé
 ```
 
-#### `formatters.test.ts` (~80 lignes)
-```typescript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { formatDate, formatDuration, formatDelta, formatRelativeTime } from '../formatters';
+### 10.3 Documentation
 
-describe('formatters', () => {
-  describe('formatDate', () => {
-    it('should format date in short format', () => {
-      const result = formatDate('2026-01-24T10:30:00Z', 'short');
-      expect(result).toContain('24');
-      expect(result).toContain('janv');
-    });
-
-    it('should format date in time format', () => {
-      const result = formatDate('2026-01-24T10:30:00Z', 'time');
-      expect(result).toMatch(/\d{2}:\d{2}/);
-    });
-
-    it('should format date in full format', () => {
-      const result = formatDate('2026-01-24T10:30:00Z', 'full');
-      expect(result).toContain('2026');
-    });
-
-    it('should handle invalid dates gracefully', () => {
-      expect(() => formatDate('invalid')).not.toThrow();
-    });
-  });
-
-  describe('formatDuration', () => {
-    it('should format milliseconds', () => {
-      expect(formatDuration(500)).toBe('500ms');
-      expect(formatDuration(999)).toBe('999ms');
-    });
-
-    it('should format seconds', () => {
-      expect(formatDuration(1000)).toBe('1.0s');
-      expect(formatDuration(1500)).toBe('1.5s');
-      expect(formatDuration(60000)).toBe('60.0s');
-    });
-
-    it('should handle null', () => {
-      expect(formatDuration(null)).toBe('');
-    });
-
-    it('should handle zero', () => {
-      expect(formatDuration(0)).toBe('0ms');
-    });
-  });
-
-  describe('formatDelta', () => {
-    it('should format positive delta with plus sign', () => {
-      expect(formatDelta(50, 75)).toBe('+25');
-    });
-
-    it('should format negative delta', () => {
-      expect(formatDelta(75, 50)).toBe('-25');
-    });
-
-    it('should format zero delta', () => {
-      expect(formatDelta(50, 50)).toBe('=');
-    });
-
-    it('should handle null values', () => {
-      expect(formatDelta(null, 50)).toBe('');
-      expect(formatDelta(50, null)).toBe('');
-      expect(formatDelta(null, null)).toBe('');
-    });
-  });
-
-  describe('formatRelativeTime', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date('2026-01-24T12:00:00Z'));
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('should format recent times', () => {
-      expect(formatRelativeTime('2026-01-24T11:59:00Z')).toContain('minute');
-    });
-
-    it('should format hours ago', () => {
-      expect(formatRelativeTime('2026-01-24T10:00:00Z')).toContain('heure');
-    });
-
-    it('should format days ago', () => {
-      expect(formatRelativeTime('2026-01-22T12:00:00Z')).toContain('jour');
-    });
-  });
-});
-```
-
-#### `GenericTimeline.test.ts` (~60 lignes)
-```typescript
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
-import GenericTimeline from '../GenericTimeline.svelte';
-
-describe('GenericTimeline', () => {
-  it('should render empty state when no items', () => {
-    render(GenericTimeline, {
-      props: {
-        items: [],
-        emptyText: 'Aucun élément'
-      }
-    });
-
-    expect(screen.getByText('Aucun élément')).toBeInTheDocument();
-  });
-
-  it('should render items when provided', () => {
-    const items = [
-      { id: '1', title: 'Item 1' },
-      { id: '2', title: 'Item 2' }
-    ];
-
-    render(GenericTimeline, {
-      props: {
-        items,
-        // Note: snippets are tested via integration tests
-      }
-    });
-
-    // Verify container structure exists
-    expect(document.querySelector('.timeline-container')).toBeInTheDocument();
-  });
-
-  it('should show connector lines between items', () => {
-    const items = [
-      { id: '1', title: 'Item 1' },
-      { id: '2', title: 'Item 2' }
-    ];
-
-    render(GenericTimeline, {
-      props: {
-        items,
-        showConnector: true
-      }
-    });
-
-    const connectors = document.querySelectorAll('.timeline-connector');
-    expect(connectors.length).toBeGreaterThan(0);
-  });
-
-  it('should hide connector lines when disabled', () => {
-    const items = [{ id: '1', title: 'Item 1' }];
-
-    render(GenericTimeline, {
-      props: {
-        items,
-        showConnector: false
-      }
-    });
-
-    const connectors = document.querySelectorAll('.timeline-connector');
-    expect(connectors.length).toBe(0);
-  });
-});
-```
-
-#### `BaseCard.test.ts` (~50 lignes)
-```typescript
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/svelte';
-import BaseCard from '../BaseCard.svelte';
-
-describe('BaseCard', () => {
-  it('should render title', () => {
-    render(BaseCard, { props: { title: 'Test Card' } });
-    expect(screen.getByText('Test Card')).toBeInTheDocument();
-  });
-
-  it('should render icon when provided', () => {
-    render(BaseCard, { props: { title: 'Test', icon: '📝' } });
-    expect(screen.getByText('📝')).toBeInTheDocument();
-  });
-
-  it('should render badges when provided', () => {
-    render(BaseCard, {
-      props: {
-        title: 'Test',
-        badges: [
-          { label: 'Badge 1', icon: '✨' },
-          { label: 'Badge 2' }
-        ]
-      }
-    });
-
-    expect(screen.getByText('Badge 1')).toBeInTheDocument();
-    expect(screen.getByText('Badge 2')).toBeInTheDocument();
-  });
-
-  it('should call onclick when clicked', async () => {
-    const handleClick = vi.fn();
-    render(BaseCard, {
-      props: {
-        title: 'Clickable Card',
-        interactive: true,
-        onclick: handleClick
-      }
-    });
-
-    const card = screen.getByRole('button');
-    await fireEvent.click(card);
-
-    expect(handleClick).toHaveBeenCalledOnce();
-  });
-
-  it('should not be clickable when not interactive', () => {
-    render(BaseCard, {
-      props: {
-        title: 'Static Card',
-        interactive: false
-      }
-    });
-
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-  });
-});
-```
-
-### 7.2 Tests E2E Playwright
-
-**Fichiers E2E existants à vérifier:**
-- `web/e2e/pages/peripeties.spec.ts` - QueueItemFocusView
-- `web/e2e/pages/peripeties-detail.spec.ts` - QueueItemFocusView détaillé
-- `web/e2e/pages/notes.spec.ts` - RetoucheTimeline
-- `web/e2e/pages/valets.spec.ts` - ActivityTimeline
-- `web/e2e/pages/memoires.spec.ts` - Cards mémoire
-
-**Nouveaux tests E2E à ajouter (optionnel):**
-
-```typescript
-// web/e2e/components/folder-selector.spec.ts
-import { test, expect } from '@playwright/test';
-
-test.describe('FolderSelector', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/flux');
-    // Ouvrir un élément pour afficher FolderSelector
-  });
-
-  test('should display suggestions', async ({ page }) => {
-    await page.click('[data-testid="open-folder-selector"]');
-    await expect(page.locator('[data-testid="suggestions-section"]')).toBeVisible();
-  });
-
-  test('should filter tree on search', async ({ page }) => {
-    await page.click('[data-testid="open-folder-selector"]');
-    await page.fill('[data-testid="folder-search"]', 'projets');
-    await expect(page.locator('[data-testid="folder-tree"]')).toContainText('projets');
-  });
-
-  test('should create new folder', async ({ page }) => {
-    await page.click('[data-testid="open-folder-selector"]');
-    await page.click('[data-testid="create-folder-btn"]');
-    await page.fill('[data-testid="new-folder-input"]', 'Nouveau Dossier');
-    await page.click('[data-testid="confirm-create"]');
-    await expect(page.locator('[data-testid="folder-tree"]')).toContainText('Nouveau Dossier');
-  });
-});
-```
-
-### 7.3 Stratégie de Tests
-
-| Type | Scope | Outils | Couverture Cible |
-|------|-------|--------|------------------|
-| **Unitaires** | Utilitaires (pure functions) | Vitest | 100% |
-| **Unitaires** | Composants génériques | Vitest + Testing Library | 80% |
-| **Intégration** | Sous-composants avec props | Vitest + Testing Library | 60% |
-| **E2E** | Workflows utilisateur | Playwright | Scénarios critiques |
-
-**Commandes:**
-```bash
-# Tests unitaires
-cd web && npm run test
-
-# Tests unitaires avec couverture
-cd web && npm run test -- --coverage
-
-# Tests E2E
-cd web && npx playwright test
-
-# Tests E2E en mode debug
-cd web && npx playwright test --debug
-```
+- [ ] `web/src/lib/components/ui/README.md` — Composants génériques
+- [ ] `web/src/lib/components/chat/README.md` — Composants chat
+- [ ] `web/src/lib/components/grimaud/README.md` — Composants Grimaud
+- [ ] `web/src/lib/components/bazin/README.md` — Composants Bazin
+- [ ] `docs/dev/ui-component-migration.md` — Guide migration
+- [ ] `ARCHITECTURE.md` — Section Frontend mise à jour
 
 ---
 
-## Phase 8 : Documentation Technique
+## Ordre d'Implémentation Recommandé
 
-### 8.1 JSDoc pour Utilitaires
+### Sprint 1 : Fondations (Phase 1-2)
 
-```typescript
-// web/src/lib/utils/iconMappings.ts
+| # | Tâche | Fichiers |
+|---|-------|----------|
+| 1.1 | Créer `iconMappings.ts` | 1 fichier + tests |
+| 1.2 | Créer `formatters.ts` | 1 fichier + tests |
+| 2.1 | Créer `GenericTimeline` | 1 fichier + tests |
+| 2.2 | Créer `TimelineEntry` | 1 fichier + tests |
+| 2.3 | Créer `BaseCard` | 1 fichier + tests |
+| 2.4 | Créer `SidePanel` | 1 fichier + tests |
 
-/**
- * Mapping des types de notes vers leurs icônes emoji
- * @example
- * NOTE_TYPE_ICONS['personne'] // '👤'
- */
-export const NOTE_TYPE_ICONS: Record<string, string> = { ... };
+### Sprint 2 : Grimaud (Phase 3)
 
-/**
- * Retourne l'icône emoji correspondant à un type de note
- * @param type - Le type de note (personne, projet, concept, etc.)
- * @returns L'emoji correspondant ou l'emoji par défaut (📝)
- * @example
- * getNoteTypeIcon('personne') // '👤'
- * getNoteTypeIcon('unknown') // '📝'
- */
-export function getNoteTypeIcon(type: string): string { ... }
+> **Priorité haute** — Aligne avec Master Roadmap Phase 1.
 
-/**
- * Retourne les classes CSS de couleur pour un modèle IA
- * @param model - Le nom du modèle (haiku, sonnet, opus)
- * @returns Un objet avec les classes bg et text
- * @example
- * getModelColor('haiku') // { bg: 'bg-green-500/20', text: 'text-green-500' }
- */
-export function getModelColor(model: string): { bg: string; text: string } { ... }
+| # | Tâche | Fichiers |
+|---|-------|----------|
+| 3.1 | Créer structure `grimaud/` | 10 fichiers |
+| 3.2 | Implémenter `GrimaudDashboard` | Vue principale |
+| 3.3 | Implémenter `GrimaudActionCard` | Actions |
+| 3.4 | Implémenter `GrimaudHistory` | Timeline par note |
+| 3.5 | Implémenter `GrimaudHealthBadge` | Badge sur notes |
+| 3.6 | Route `/memoires/grimaud` | Remplace retouche |
+| 3.7 | Tests E2E grimaud | `grimaud.spec.ts` |
 
-/**
- * Détermine la variante de couleur en fonction d'un score de qualité
- * @param score - Score de 0 à 100, ou null
- * @returns La variante de couleur pour le composant Badge/Progress
- * @example
- * getQualityColor(85) // 'success'
- * getQualityColor(65) // 'warning'
- * getQualityColor(null) // 'primary'
- */
-export function getQualityColor(score: number | null): 'success' | 'warning' | 'danger' | 'primary' { ... }
-```
+### Sprint 3 : Chat (Phase 3) — Optionnel
 
-### 8.2 JSDoc pour Composants
+> **Nice-to-have** — Dépend de Master Roadmap Phase 5.
 
-```svelte
-<!-- web/src/lib/components/ui/GenericTimeline.svelte -->
-<script lang="ts">
-  /**
-   * GenericTimeline - Composant de timeline réutilisable
-   *
-   * @component
-   * @example
-   * <GenericTimeline items={myItems} emptyText="Aucun élément">
-   *   {#snippet node(item)}
-   *     <div class="node">{item.icon}</div>
-   *   {/snippet}
-   *   {#snippet content(item)}
-   *     <div>{item.title}</div>
-   *   {/snippet}
-   * </GenericTimeline>
-   */
+| # | Tâche | Fichiers |
+|---|-------|----------|
+| 4.1 | Créer structure `chat/` | 10 fichiers |
+| 4.2 | Implémenter `ChatPanel` | Avec SidePanel |
+| 4.3 | Implémenter `ChatMessage` + `ChatActions` | Actions exécutables |
+| 4.4 | Implémenter `ChatHistory` | Avec GenericTimeline |
+| 4.5 | Implémenter `ChatMemoryManager` | Settings |
+| 4.6 | Route `/chat` + raccourci `Cmd+K` | Integration |
+| 4.7 | Tests E2E chat | `chat.spec.ts` |
 
-  import type { Snippet } from 'svelte';
+### Sprint 4 : Bazin (Phase 5) — Optionnel
 
-  interface Props<T> {
-    /** Liste des éléments à afficher dans la timeline */
-    items: T[];
-    /** Message affiché quand la liste est vide */
-    emptyText?: string;
-    /** Icône affichée avec le message vide */
-    emptyIcon?: string;
-    /** Afficher les lignes de connexion entre les éléments */
-    showConnector?: boolean;
-    /** Snippet pour le rendu du nœud (point/icône) de chaque élément */
-    node: Snippet<[item: T, index: number]>;
-    /** Snippet pour le rendu du contenu de chaque élément */
-    content: Snippet<[item: T, index: number]>;
-  }
-</script>
-```
+> **Nice-to-have** — Dépend de Master Roadmap Phase 5.
 
-### 8.3 README Composants
+| # | Tâche | Fichiers |
+|---|-------|----------|
+| 5.1 | Créer structure `bazin/` | 14 fichiers |
+| 5.2 | Implémenter `MorningBriefing` | Briefing matinal |
+| 5.3 | Implémenter `ContextualBriefing` | Pré-réunion |
+| 5.4 | Implémenter composants support | Agenda, Load, etc. |
+| 5.5 | Route `/briefing` | Page d'accueil |
+| 5.6 | Tests E2E briefing | `bazin-briefing.spec.ts` |
 
-**Créer `web/src/lib/components/ui/README.md`:**
+### Sprint 5 : OmniFocus (Phase 6) — Optionnel
 
-```markdown
-# Composants UI Scapin
+> **Nice-to-have** — Dépend de Master Roadmap Phase 5.
 
-## Composants Génériques
+| # | Tâche | Fichiers |
+|---|-------|----------|
+| 6.1 | Créer structure `omnifocus/` | 7 fichiers |
+| 6.2 | Implémenter `TaskCreatorModal` | Création tâche |
+| 6.3 | Implémenter `OmniFocusTasks` | Liste tâches |
+| 6.4 | Intégrer dans Bazin | ProjectWeather |
+| 6.5 | Route `/settings/omnifocus` | Mapping |
+| 6.6 | Tests E2E | `omnifocus.spec.ts` |
 
-### GenericTimeline
+### Sprint 6 : Refactoring (Phase 7-9)
 
-Timeline verticale réutilisable avec slots pour personnalisation.
-
-**Props:**
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `items` | `T[]` | required | Éléments à afficher |
-| `emptyText` | `string` | `undefined` | Message si liste vide |
-| `emptyIcon` | `string` | `undefined` | Icône pour état vide |
-| `showConnector` | `boolean` | `true` | Lignes entre éléments |
-| `node` | `Snippet` | required | Rendu du point/icône |
-| `content` | `Snippet` | required | Rendu du contenu |
-
-**Exemple:**
-```svelte
-<GenericTimeline items={events} emptyText="Aucun événement">
-  {#snippet node(item)}
-    <div class="w-8 h-8 rounded-full bg-blue-500">{item.icon}</div>
-  {/snippet}
-  {#snippet content(item)}
-    <TimelineEntry title={item.title} timestamp={item.date}>
-      <p>{item.description}</p>
-    </TimelineEntry>
-  {/snippet}
-</GenericTimeline>
-```
-
-### TimelineEntry
-
-Entrée de timeline avec header, badges et contenu expandable.
-
-**Props:**
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `title` | `string` | `undefined` | Titre de l'entrée |
-| `timestamp` | `string` | `undefined` | Date/heure ISO |
-| `duration` | `number` | `undefined` | Durée en ms |
-| `badges` | `Badge[]` | `[]` | Badges à afficher |
-| `expandable` | `boolean` | `false` | Section détails |
-| `children` | `Snippet` | required | Contenu principal |
-| `details` | `Snippet` | `undefined` | Contenu expandable |
-
-### BaseCard
-
-Card avec header structuré (icon, title, badges, quality).
-
-**Props:**
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `title` | `string` | required | Titre de la card |
-| `icon` | `string` | `undefined` | Emoji/icône |
-| `subtitle` | `string` | `undefined` | Sous-titre |
-| `quality` | `number` | `undefined` | Score 0-100 |
-| `badges` | `Badge[]` | `[]` | Badges header |
-| `showQuality` | `boolean` | `false` | Afficher score |
-| `interactive` | `boolean` | `false` | Clickable |
-| `onclick` | `() => void` | `undefined` | Handler click |
-| `children` | `Snippet` | `undefined` | Contenu |
-| `actions` | `Snippet` | `undefined` | Zone actions |
-
-## Utilitaires
-
-### iconMappings.ts
-
-Mappings centralisés pour icônes et couleurs.
-
-```typescript
-import { getNoteTypeIcon, getModelColor, getQualityColor } from '$lib/utils/iconMappings';
-
-getNoteTypeIcon('personne')  // '👤'
-getModelColor('haiku')       // { bg: '...', text: '...' }
-getQualityColor(85)          // 'success'
-```
-
-### formatters.ts
-
-Fonctions de formatage pour dates et durées.
-
-```typescript
-import { formatDate, formatDuration, formatDelta } from '$lib/utils/formatters';
-
-formatDate('2026-01-24T10:00:00Z', 'short')  // '24 janv. 10:00'
-formatDuration(1500)                          // '1.5s'
-formatDelta(50, 75)                           // '+25'
-```
-```
-
-### 8.4 Mise à jour ARCHITECTURE.md
-
-**Ajouter section dans `ARCHITECTURE.md`:**
-
-```markdown
-## Frontend - Composants UI
-
-### Composants Génériques (Phase 3.2+)
-
-| Composant | Fichier | Usage |
-|-----------|---------|-------|
-| `GenericTimeline` | `ui/GenericTimeline.svelte` | Timeline verticale réutilisable |
-| `TimelineEntry` | `ui/TimelineEntry.svelte` | Entrée de timeline |
-| `BaseCard` | `ui/BaseCard.svelte` | Card avec header structuré |
-
-### Organisation des Composants
-
-```
-web/src/lib/components/
-├── ui/                          # Composants primitifs
-│   ├── folder-selector/         # FolderSelector refactorisé
-│   ├── GenericTimeline.svelte   # Timeline générique
-│   ├── TimelineEntry.svelte     # Entrée timeline
-│   ├── BaseCard.svelte          # Card avec header
-│   ├── Card.svelte              # Card de base
-│   └── ...
-├── peripeties/                  # Composants flux/queue
-│   ├── queue-item/              # QueueItemFocusView refactorisé
-│   └── ...
-└── memory/                      # Composants mémoire
-    └── ...
-```
-
-### Utilitaires Partagés
-
-```
-web/src/lib/utils/
-├── iconMappings.ts              # Icônes et couleurs
-├── formatters.ts                # Formatage dates/durées
-└── __tests__/                   # Tests unitaires
-```
-```
+| # | Tâche | Fichiers |
+|---|-------|----------|
+| 7.1 | Refactorer `QueueItemFocusView` | 10 fichiers |
+| 8.1 | Refactorer `FolderSelector` | 8 fichiers |
+| 9.1 | Migrer Timelines vers `GenericTimeline` | 3 fichiers |
+| 9.2 | Migrer Cards vers `BaseCard` | 2 fichiers |
 
 ---
 
-## Phase 9 : Guide Utilisateur (Interne)
+## Fichiers Créés/Modifiés (Total)
 
-### 9.1 Guide Migration pour Développeurs
+### Nouveaux fichiers (~80 fichiers)
 
-**Créer `docs/dev/ui-component-migration.md`:**
+**Utilitaires (4):**
+- `web/src/lib/utils/iconMappings.ts`
+- `web/src/lib/utils/formatters.ts`
+- `web/src/lib/utils/__tests__/iconMappings.test.ts`
+- `web/src/lib/utils/__tests__/formatters.test.ts`
 
-```markdown
-# Guide de Migration UI Components
+**Composants génériques (8):**
+- `web/src/lib/components/ui/GenericTimeline.svelte`
+- `web/src/lib/components/ui/TimelineEntry.svelte`
+- `web/src/lib/components/ui/BaseCard.svelte`
+- `web/src/lib/components/ui/SidePanel.svelte`
+- + 4 fichiers tests
 
-## Contexte
+**Chat (11):**
+- 9 composants + index.ts
+- 3 fichiers tests
 
-Suite au refactoring UI de janvier 2026, plusieurs composants ont été découpés
-et des utilitaires partagés ont été créés.
+**Grimaud (11):**
+- 9 composants + index.ts
+- 2 fichiers tests
 
-## Changements Majeurs
+**Bazin (15):**
+- 14 composants + index.ts
 
-### 1. QueueItemFocusView
+**OmniFocus (8):**
+- 7 composants + index.ts
 
-**Avant:**
-```svelte
-import QueueItemFocusView from '$lib/components/peripeties/QueueItemFocusView.svelte';
-```
+**QueueItem refactorisé (10):**
+- 9 composants + index.ts
 
-**Après:**
-```svelte
-import { QueueItemFocusView } from '$lib/components/peripeties/queue-item';
-```
+**FolderSelector refactorisé (8):**
+- 7 composants + index.ts
 
-L'API reste identique, seul l'import change.
+**Tests E2E (5):**
+- `chat.spec.ts`
+- `grimaud.spec.ts`
+- `bazin-briefing.spec.ts`
+- `omnifocus.spec.ts`
+- `folder-selector.spec.ts`
 
-### 2. FolderSelector
+### Fichiers à supprimer
 
-**Avant:**
-```svelte
-import FolderSelector from '$lib/components/ui/FolderSelector.svelte';
-```
+- `web/src/lib/components/ui/FolderSelector.svelte` (après migration)
+- `web/src/lib/components/peripeties/QueueItemFocusView.svelte` (après migration)
+- `web/src/lib/components/memory/RetoucheTimeline.svelte` (remplacé par Grimaud)
+- `web/src/lib/components/retouche/PendingActionCard.svelte` (remplacé par Grimaud)
 
-**Après:**
-```svelte
-import { FolderSelector } from '$lib/components/ui/folder-selector';
-```
+### Fichiers à modifier
 
-L'API reste identique.
+- `web/src/lib/components/ui/index.ts`
+- `web/src/lib/components/peripeties/index.ts`
+- `web/src/lib/components/memory/index.ts`
+- Routes diverses pour intégrer les nouvelles features
 
-### 3. Nouveaux Utilitaires
+---
 
-Pour les mappings d'icônes et couleurs, utiliser les utilitaires centralisés :
+## Routes Finales
 
-```svelte
-<script>
-  // Avant (dupliqué dans chaque composant)
-  const typeIcons = { personne: '👤', projet: '📁', ... };
+> **Note** : La homepage (`/`) reste sur le flux actuel jusqu'à l'implémentation de Bazin (Phase 5 Master Roadmap).
 
-  // Après
-  import { getNoteTypeIcon, getQualityColor } from '$lib/utils/iconMappings';
-</script>
-```
-
-### 4. Utiliser GenericTimeline
-
-Pour créer une nouvelle timeline, utiliser le composant générique :
-
-```svelte
-<script>
-  import { GenericTimeline, TimelineEntry } from '$lib/components/ui';
-</script>
-
-<GenericTimeline items={myItems} emptyText="Aucun élément">
-  {#snippet node(item)}
-    <MyNodeComponent {item} />
-  {/snippet}
-  {#snippet content(item)}
-    <TimelineEntry title={item.title}>
-      <MyContent {item} />
-    </TimelineEntry>
-  {/snippet}
-</GenericTimeline>
-```
-
-### 5. Utiliser BaseCard
-
-Pour les cards avec header structuré :
-
-```svelte
-<script>
-  import { BaseCard } from '$lib/components/ui';
-</script>
-
-<BaseCard
-  title="Ma Card"
-  icon="📝"
-  quality={85}
-  showQuality
-  badges={[{ label: 'Tag', icon: '🏷️' }]}
->
-  <p>Contenu de la card</p>
-
-  {#snippet actions()}
-    <button>Action</button>
-  {/snippet}
-</BaseCard>
-```
-
-## Tests
-
-Après toute modification de ces composants, exécuter :
-
-```bash
-cd web
-npm run test           # Tests unitaires
-npm run check          # Vérification types
-npx playwright test    # Tests E2E
-```
-```
-
-### 9.2 Changelog
-
-**Ajouter dans `CHANGELOG.md` (ou créer si inexistant):**
-
-```markdown
-## [3.3.0] - 2026-01-24
-
-### Added
-- `GenericTimeline` - Composant timeline réutilisable avec slots
-- `TimelineEntry` - Composant d'entrée de timeline
-- `BaseCard` - Composant card avec header structuré
-- `iconMappings.ts` - Utilitaires centralisés pour icônes et couleurs
-- `formatters.ts` - Utilitaires de formatage dates/durées
-- Tests unitaires Vitest pour utilitaires et composants génériques
-
-### Changed
-- `QueueItemFocusView` découpé en 9 sous-composants (queue-item/)
-- `FolderSelector` découpé en 7 sous-composants (folder-selector/)
-- `RetoucheTimeline` utilise maintenant `GenericTimeline`
-- `PassTimeline` utilise maintenant `GenericTimeline`
-- `ActivityTimeline` utilise maintenant `GenericTimeline`
-- `LectureReviewCard` utilise maintenant `BaseCard`
-- `FilageLectureCard` utilise maintenant `BaseCard`
-
-### Removed
-- Ancien fichier monolithique `QueueItemFocusView.svelte`
-- Ancien fichier monolithique `FolderSelector.svelte`
-- Duplications de `typeIcons` dans les composants
-
-### Migration
-Voir `docs/dev/ui-component-migration.md` pour le guide de migration.
-```
+| Route | Composant Principal | Description |
+|-------|---------------------|-------------|
+| `/` | `QueueView` → `MorningBriefing` (après Bazin) | Page d'accueil (flux puis briefing) |
+| `/briefing` | `MorningBriefing` | Briefing matinal (quand disponible) |
+| `/briefing/meeting/[id]` | `ContextualBriefing` | Briefing pré-réunion |
+| `/chat` | `ChatPanel` (fullscreen) | Chat plein écran |
+| `/chat/history` | `ChatHistory` | Historique conversations |
+| `/flux` | `QueueItemFocusView` | Péripéties |
+| `/memoires/grimaud` | `GrimaudDashboard` | Santé PKM |
+| `/memoires/grimaud/trash` | `GrimaudTrashbin` | Corbeille |
+| `/memoires/review` | `LectureReviewCard` | Révision SM-2 |
+| `/memoires/filage` | `FilageLectureCard` | Filage |
+| `/notes/[id]` | `NoteDetail` + `GrimaudHealthBadge` | Détail note |
+| `/settings/omnifocus` | `ProjectMappingList` | Mapping OF |
+| `/settings/chat-memory` | `ChatMemoryManager` | Mémoires chat |
+| `/alerts` | `AlertsPanel` | Alertes |
 
 ---
 
@@ -1314,14 +869,52 @@ Voir `docs/dev/ui-component-migration.md` pour le guide de migration.
 
 | Métrique | Avant | Après (cible) |
 |----------|-------|---------------|
-| Lignes QueueItemFocusView | 620 | ~100 (orchestrateur) |
-| Lignes FolderSelector | 675 | ~120 (orchestrateur) |
-| Lignes dupliquées Timelines | ~500 | ~100 (shared) |
-| Lignes dupliquées Cards | ~300 | ~50 (shared via BaseCard) |
-| Composants réutilisables | 0 | 4 (GenericTimeline, TimelineEntry, BaseCard, utilitaires) |
+| Lignes QueueItemFocusView | 620 | ~100 |
+| Lignes FolderSelector | 675 | ~120 |
+| Composants réutilisables | 0 | 4+ |
 | Fichiers > 300 lignes | 4 | 0 |
-| Tests unitaires | 1 fichier | 7 fichiers |
-| Couverture utilitaires | 0% | 100% |
-| Documentation JSDoc | Partielle | Complète |
-| README composants | 0 | 1 |
-| Guide migration | 0 | 1 |
+| Nouvelles features UI | 0 | 4 (Chat, Grimaud, Bazin, OF) |
+| Tests unitaires | 1 fichier | 15+ fichiers |
+| Tests E2E nouvelles features | 0 | 5 fichiers |
+| Documentation composants | Partielle | Complète |
+
+---
+
+## Vérification Finale
+
+### Commandes
+
+```bash
+# Tests unitaires
+cd web && npm run test
+
+# Tests unitaires avec couverture
+cd web && npm run test -- --coverage
+
+# Vérification types
+cd web && npm run check
+
+# Tests E2E
+cd web && npx playwright test
+
+# Lint
+cd web && npm run lint
+```
+
+### Checklist manuelle
+
+- [ ] Chat: Panel s'ouvre avec Cmd+K
+- [ ] Chat: Historique consultable
+- [ ] Chat: Actions exécutables
+- [ ] Grimaud: Dashboard affiche santé
+- [ ] Grimaud: Actions appliquer/rejeter/annuler
+- [ ] Grimaud: Badge santé sur notes
+- [ ] Bazin: Briefing matinal complet
+- [ ] Bazin: Briefing contextuel 2h avant RDV
+- [ ] OmniFocus: Création tâche depuis email
+- [ ] OmniFocus: Tâches du jour dans briefing
+- [ ] Mobile responsive: Tous composants sur 375px
+
+---
+
+*Plan créé le 24 janvier 2026, mis à jour le 27 janvier 2026 (alignement Master Roadmap)*

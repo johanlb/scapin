@@ -293,15 +293,15 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         max_interval_days=90,
         easiness_factor=2.5,
         auto_enrich=True,  # Enrichir avec sources externes utile
-        web_search_default=False,
+        web_search_default=True,  # Définitions, état de l'art, articles référence
         skip_revision=False,
     ),
     NoteType.DECISION: ReviewConfig(
         base_interval_hours=720.0,  # 30 jours - décisions à revoir périodiquement
         max_interval_days=365,
         easiness_factor=2.5,
-        auto_enrich=False,  # Décisions sont personnelles
-        web_search_default=False,
+        auto_enrich=True,  # Contexte + suivi des conséquences
+        web_search_default=False,  # Pas de recherche web (décisions internes)
         skip_revision=False,
     ),
     NoteType.ENTITE: ReviewConfig(
@@ -309,14 +309,14 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         max_interval_days=90,
         easiness_factor=2.5,
         auto_enrich=True,
-        web_search_default=False,
+        web_search_default=True,  # Kbis, actualités, contacts officiels
     ),
     NoteType.EVENEMENT: ReviewConfig(
         base_interval_hours=24.0,  # Événements passés changent rarement
         max_interval_days=180,
         easiness_factor=2.5,
-        auto_enrich=False,  # Préserver les événements tels quels
-        web_search_default=False,
+        auto_enrich=True,  # Suites, liens vers participants
+        web_search_default=True,  # CR officiels, photos, articles
     ),
     NoteType.LIEU: ReviewConfig(
         base_interval_hours=720.0,  # 30 jours - lieux changent peu
@@ -330,8 +330,8 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         base_interval_hours=168.0,  # 1 semaine - objectifs à revoir régulièrement
         max_interval_days=30,  # Max 1 mois entre révisions
         easiness_factor=2.0,  # Plus exigeant
-        auto_enrich=False,  # Objectifs sont personnels
-        web_search_default=False,
+        auto_enrich=True,  # Lier aux projets, suivre progression
+        web_search_default=True,  # Ressources, méthodologies suggérées
         skip_revision=False,
     ),
     NoteType.PERSONNE: ReviewConfig(
@@ -339,14 +339,14 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         max_interval_days=30,  # Max 1 mois entre révisions
         easiness_factor=2.3,  # Légèrement plus exigeant
         auto_enrich=True,
-        web_search_default=False,  # Désactivé par défaut (vie privée)
+        web_search_default=True,  # LinkedIn, parcours, actualités
     ),
     NoteType.PROCESSUS: ReviewConfig(
         base_interval_hours=48.0,  # Processus changent sur demande
         max_interval_days=120,
         easiness_factor=2.5,
         auto_enrich=True,
-        web_search_default=False,
+        web_search_default=True,  # Bonnes pratiques, alternatives méthodologiques
     ),
     NoteType.PRODUIT: ReviewConfig(
         base_interval_hours=336.0,  # 2 semaines
@@ -361,7 +361,7 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         max_interval_days=14,  # Max 2 semaines
         easiness_factor=2.0,  # Plus exigeant
         auto_enrich=True,
-        web_search_default=False,
+        web_search_default=True,  # Contexte marché, tendances sectorielles
     ),
     NoteType.RESSOURCE: ReviewConfig(
         base_interval_hours=168.0,  # 1 semaine - ressources stables
@@ -382,8 +382,8 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         base_interval_hours=0.0,  # Jamais réviser automatiquement
         max_interval_days=0,
         easiness_factor=2.5,
-        auto_enrich=False,  # Ne jamais modifier
-        web_search_default=False,
+        auto_enrich=True,  # ATTENTION: lier aux notes uniquement, JAMAIS modifier le texte
+        web_search_default=False,  # Pas de recherche web (personnel)
         skip_revision=True,  # Flag explicite
     ),
     NoteType.AUTRE: ReviewConfig(
