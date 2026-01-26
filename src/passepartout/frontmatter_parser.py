@@ -17,11 +17,16 @@ from src.passepartout.frontmatter_schema import (
     BaseFrontmatter,
     ConceptFrontmatter,
     Contact,
+    DecisionFrontmatter,
     EntiteFrontmatter,
+    LieuFrontmatter,
     LinkedSource,
+    ObjectifFrontmatter,
     PendingUpdate,
     PersonneFrontmatter,
+    ProduitFrontmatter,
     ProjetFrontmatter,
+    RessourceFrontmatter,
     ReunionFrontmatter,
     Stakeholder,
 )
@@ -77,6 +82,16 @@ class FrontmatterParser:
                 return self._parse_reunion(yaml_dict)
             elif note_type == NoteType.CONCEPT:
                 return self._parse_concept(yaml_dict)
+            elif note_type == NoteType.RESSOURCE:
+                return self._parse_ressource(yaml_dict)
+            elif note_type == NoteType.LIEU:
+                return self._parse_lieu(yaml_dict)
+            elif note_type == NoteType.PRODUIT:
+                return self._parse_produit(yaml_dict)
+            elif note_type == NoteType.DECISION:
+                return self._parse_decision(yaml_dict)
+            elif note_type == NoteType.OBJECTIF:
+                return self._parse_objectif(yaml_dict)
             else:
                 return self._parse_base(yaml_dict)
         except Exception as e:
@@ -111,6 +126,16 @@ class FrontmatterParser:
             return NoteType.REUNION
         elif "concepts" in path_lower:
             return NoteType.CONCEPT
+        elif "ressources" in path_lower:
+            return NoteType.RESSOURCE
+        elif "lieux" in path_lower:
+            return NoteType.LIEU
+        elif "produits" in path_lower:
+            return NoteType.PRODUIT
+        elif "décisions" in path_lower or "decisions" in path_lower:
+            return NoteType.DECISION
+        elif "objectifs" in path_lower:
+            return NoteType.OBJECTIF
 
         return NoteType.AUTRE
 
@@ -335,6 +360,176 @@ class FrontmatterParser:
             inspired_by=d.get("inspired_by"),
             duration=d.get("duration"),
             prerequisites=self._parse_list(d.get("prerequisites")),
+        )
+
+    def _parse_ressource(self, d: dict[str, Any]) -> RessourceFrontmatter:
+        """Parse un frontmatter RESSOURCE."""
+        base = self._parse_base(d)
+        return RessourceFrontmatter(
+            # Base fields
+            title=base.title,
+            type=NoteType.RESSOURCE,
+            aliases=base.aliases,
+            created_at=base.created_at,
+            updated_at=base.updated_at,
+            source=base.source,
+            source_id=base.source_id,
+            importance=base.importance,
+            tags=base.tags,
+            category=base.category,
+            related=base.related,
+            linked_sources=base.linked_sources,
+            pending_updates=base.pending_updates,
+            _raw_metadata=base._raw_metadata,
+            # Ressource-specific fields
+            resource_type=d.get("resource_type"),
+            author=d.get("author"),
+            publisher=d.get("publisher"),
+            year=int(d["year"]) if d.get("year") else None,
+            url=d.get("url"),
+            isbn=d.get("isbn"),
+            status=d.get("status"),
+            started_at=self._parse_datetime(d.get("started_at")),
+            finished_at=self._parse_datetime(d.get("finished_at")),
+            rating=int(d["rating"]) if d.get("rating") else None,
+            topics=self._parse_list(d.get("topics")),
+            recommended_by=d.get("recommended_by"),
+        )
+
+    def _parse_lieu(self, d: dict[str, Any]) -> LieuFrontmatter:
+        """Parse un frontmatter LIEU."""
+        base = self._parse_base(d)
+        return LieuFrontmatter(
+            # Base fields
+            title=base.title,
+            type=NoteType.LIEU,
+            aliases=base.aliases,
+            created_at=base.created_at,
+            updated_at=base.updated_at,
+            source=base.source,
+            source_id=base.source_id,
+            importance=base.importance,
+            tags=base.tags,
+            category=base.category,
+            related=base.related,
+            linked_sources=base.linked_sources,
+            pending_updates=base.pending_updates,
+            _raw_metadata=base._raw_metadata,
+            # Lieu-specific fields
+            lieu_type=d.get("lieu_type"),
+            address=d.get("address"),
+            city=d.get("city"),
+            country=d.get("country"),
+            gps=d.get("gps"),
+            maps_url=d.get("maps_url"),
+            phone=d.get("phone"),
+            website=d.get("website"),
+            email=d.get("email"),
+            rating=int(d["rating"]) if d.get("rating") else None,
+            price_range=d.get("price_range"),
+            last_visit=self._parse_datetime(d.get("last_visit")),
+            recommended_by=d.get("recommended_by"),
+            visited_with=self._parse_list(d.get("visited_with")),
+        )
+
+    def _parse_produit(self, d: dict[str, Any]) -> ProduitFrontmatter:
+        """Parse un frontmatter PRODUIT."""
+        base = self._parse_base(d)
+        return ProduitFrontmatter(
+            # Base fields
+            title=base.title,
+            type=NoteType.PRODUIT,
+            aliases=base.aliases,
+            created_at=base.created_at,
+            updated_at=base.updated_at,
+            source=base.source,
+            source_id=base.source_id,
+            importance=base.importance,
+            tags=base.tags,
+            category=base.category,
+            related=base.related,
+            linked_sources=base.linked_sources,
+            pending_updates=base.pending_updates,
+            _raw_metadata=base._raw_metadata,
+            # Produit-specific fields
+            product_type=d.get("product_type"),
+            brand=d.get("brand"),
+            model=d.get("model"),
+            version=d.get("version"),
+            purchase_date=self._parse_datetime(d.get("purchase_date")),
+            purchase_price=d.get("purchase_price"),
+            purchase_location=d.get("purchase_location"),
+            warranty_until=self._parse_datetime(d.get("warranty_until")),
+            status=d.get("status"),
+            rating=int(d["rating"]) if d.get("rating") else None,
+            website=d.get("website"),
+            documentation=d.get("documentation"),
+            related_products=self._parse_list(d.get("related_products")),
+        )
+
+    def _parse_decision(self, d: dict[str, Any]) -> DecisionFrontmatter:
+        """Parse un frontmatter DECISION."""
+        base = self._parse_base(d)
+        return DecisionFrontmatter(
+            # Base fields
+            title=base.title,
+            type=NoteType.DECISION,
+            aliases=base.aliases,
+            created_at=base.created_at,
+            updated_at=base.updated_at,
+            source=base.source,
+            source_id=base.source_id,
+            importance=base.importance,
+            tags=base.tags,
+            category=base.category,
+            related=base.related,
+            linked_sources=base.linked_sources,
+            pending_updates=base.pending_updates,
+            _raw_metadata=base._raw_metadata,
+            # Decision-specific fields
+            decision_date=self._parse_datetime(d.get("decision_date")),
+            decision_maker=d.get("decision_maker"),
+            domain=d.get("domain"),
+            reversible=d.get("reversible"),
+            impact=d.get("impact"),
+            confidence=d.get("confidence"),
+            outcome=d.get("outcome"),
+            reviewed_at=self._parse_datetime(d.get("reviewed_at")),
+            related_project=d.get("related_project"),
+            stakeholders=self._parse_list(d.get("stakeholders")),
+        )
+
+    def _parse_objectif(self, d: dict[str, Any]) -> ObjectifFrontmatter:
+        """Parse un frontmatter OBJECTIF."""
+        base = self._parse_base(d)
+        return ObjectifFrontmatter(
+            # Base fields
+            title=base.title,
+            type=NoteType.OBJECTIF,
+            aliases=base.aliases,
+            created_at=base.created_at,
+            updated_at=base.updated_at,
+            source=base.source,
+            source_id=base.source_id,
+            importance=base.importance,
+            tags=base.tags,
+            category=base.category,
+            related=base.related,
+            linked_sources=base.linked_sources,
+            pending_updates=base.pending_updates,
+            _raw_metadata=base._raw_metadata,
+            # Objectif-specific fields
+            horizon=d.get("horizon"),
+            domain=d.get("domain"),
+            target_date=self._parse_datetime(d.get("target_date")),
+            started_at=self._parse_datetime(d.get("started_at")),
+            status=d.get("status"),
+            progress=int(d["progress"]) if d.get("progress") is not None else None,
+            kpis=self._parse_list(d.get("kpis")),
+            current_value=d.get("current_value"),
+            target_value=d.get("target_value"),
+            parent_objective=d.get("parent_objective"),
+            contributing_projects=self._parse_list(d.get("contributing_projects")),
         )
 
     # === HELPER METHODS ===

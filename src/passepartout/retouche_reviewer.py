@@ -57,12 +57,17 @@ MAX_REGEX_MATCHES = 100
 TEMPLATE_FOLDER = "Personal Knowledge Management/Modèles"
 TEMPLATE_TYPE_MAP = {
     "concept": "Modèle — Fiche Concept.md",
-    "personne": "Modèle — Fiche Personne.md",
-    "projet": "Modèle — Fiche Projet.md",
-    "reunion": "Modèle — Fiche Réunion.md",
+    "decision": "Modèle — Fiche Décision.md",
     "entite": "Modèle — Fiche Entité.md",
-    "processus": "Modèle — Fiche Processus.md",
     "evenement": "Modèle — Fiche Événement.md",
+    "lieu": "Modèle — Fiche Lieu.md",
+    "objectif": "Modèle — Fiche Objectif.md",
+    "personne": "Modèle — Fiche Personne.md",
+    "processus": "Modèle — Fiche Processus.md",
+    "produit": "Modèle — Fiche Produit.md",
+    "projet": "Modèle — Fiche Projet.md",
+    "ressource": "Modèle — Fiche Ressource.md",
+    "reunion": "Modèle — Fiche Réunion.md",
 }
 
 

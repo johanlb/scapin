@@ -29,12 +29,17 @@ class NoteType(str, Enum):
     et possède des caractéristiques de révision spécifiques.
     """
 
-    CONCEPT = "concept"  # Idées, sujets, recettes, instructions
+    CONCEPT = "concept"  # Savoirs de référence, principes, méthodologies
+    DECISION = "decision"  # Choix importants documentés
     ENTITE = "entite"  # Organisations, entreprises
     EVENEMENT = "evenement"  # Événements ponctuels importants
+    LIEU = "lieu"  # Restaurants, hôtels, destinations, adresses
+    OBJECTIF = "objectif"  # Goals 1-5 ans, areas of focus
     PERSONNE = "personne"  # Fiches contacts enrichies
     PROCESSUS = "processus"  # Procédures, workflows
+    PRODUIT = "produit"  # Outils, équipements, logiciels
     PROJET = "projet"  # Projets actifs ou archivés
+    RESSOURCE = "ressource"  # Livres, articles, cours, podcasts
     REUNION = "reunion"  # Comptes-rendus de réunions
     SOUVENIR = "souvenir"  # Mémoires personnelles
     AUTRE = "autre"  # Notes non catégorisées
@@ -52,13 +57,19 @@ class NoteType(str, Enum):
         """
         mapping = {
             "concepts": cls.CONCEPT,
+            "decisions": cls.DECISION,
+            "décisions": cls.DECISION,
             "entites": cls.ENTITE,
             "entités": cls.ENTITE,
             "evenements": cls.EVENEMENT,
             "événements": cls.EVENEMENT,
+            "lieux": cls.LIEU,
+            "objectifs": cls.OBJECTIF,
             "personnes": cls.PERSONNE,
             "processus": cls.PROCESSUS,
+            "produits": cls.PRODUIT,
             "projets": cls.PROJET,
+            "ressources": cls.RESSOURCE,
             "reunions": cls.REUNION,
             "réunions": cls.REUNION,
             "souvenirs": cls.SOUVENIR,
@@ -70,11 +81,16 @@ class NoteType(str, Enum):
         """Retourne le nom de dossier standard pour ce type"""
         names = {
             NoteType.CONCEPT: "Concepts",
+            NoteType.DECISION: "Décisions",
             NoteType.ENTITE: "Entités",
             NoteType.EVENEMENT: "Événements",
+            NoteType.LIEU: "Lieux",
+            NoteType.OBJECTIF: "Objectifs",
             NoteType.PERSONNE: "Personnes",
             NoteType.PROCESSUS: "Processus",
+            NoteType.PRODUIT: "Produits",
             NoteType.PROJET: "Projets",
+            NoteType.RESSOURCE: "Ressources",
             NoteType.REUNION: "Réunions",
             NoteType.SOUVENIR: "Souvenirs",
             NoteType.AUTRE: "Notes",
@@ -280,6 +296,14 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         web_search_default=False,
         skip_revision=False,
     ),
+    NoteType.DECISION: ReviewConfig(
+        base_interval_hours=720.0,  # 30 jours - décisions à revoir périodiquement
+        max_interval_days=365,
+        easiness_factor=2.5,
+        auto_enrich=False,  # Décisions sont personnelles
+        web_search_default=False,
+        skip_revision=False,
+    ),
     NoteType.ENTITE: ReviewConfig(
         base_interval_hours=12.0,  # Entités changent peu
         max_interval_days=90,
@@ -293,6 +317,22 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         easiness_factor=2.5,
         auto_enrich=False,  # Préserver les événements tels quels
         web_search_default=False,
+    ),
+    NoteType.LIEU: ReviewConfig(
+        base_interval_hours=720.0,  # 30 jours - lieux changent peu
+        max_interval_days=365,
+        easiness_factor=2.5,
+        auto_enrich=True,
+        web_search_default=True,  # Infos pratiques, horaires, avis
+        skip_revision=False,
+    ),
+    NoteType.OBJECTIF: ReviewConfig(
+        base_interval_hours=168.0,  # 1 semaine - objectifs à revoir régulièrement
+        max_interval_days=30,  # Max 1 mois entre révisions
+        easiness_factor=2.0,  # Plus exigeant
+        auto_enrich=False,  # Objectifs sont personnels
+        web_search_default=False,
+        skip_revision=False,
     ),
     NoteType.PERSONNE: ReviewConfig(
         base_interval_hours=2.0,  # Personnes : révision fréquente
@@ -308,12 +348,28 @@ NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
         auto_enrich=True,
         web_search_default=False,
     ),
+    NoteType.PRODUIT: ReviewConfig(
+        base_interval_hours=336.0,  # 2 semaines
+        max_interval_days=180,
+        easiness_factor=2.5,
+        auto_enrich=True,
+        web_search_default=True,  # Specs, alternatives, mises à jour
+        skip_revision=False,
+    ),
     NoteType.PROJET: ReviewConfig(
         base_interval_hours=2.0,  # Projets actifs : très fréquent
         max_interval_days=14,  # Max 2 semaines
         easiness_factor=2.0,  # Plus exigeant
         auto_enrich=True,
         web_search_default=False,
+    ),
+    NoteType.RESSOURCE: ReviewConfig(
+        base_interval_hours=168.0,  # 1 semaine - ressources stables
+        max_interval_days=180,
+        easiness_factor=2.5,
+        auto_enrich=True,  # Recherche web utile
+        web_search_default=True,  # Enrichir avec infos sur l'auteur/contenu
+        skip_revision=False,
     ),
     NoteType.REUNION: ReviewConfig(
         base_interval_hours=12.0,  # Réunions : révision modérée

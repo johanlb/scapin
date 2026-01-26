@@ -21,11 +21,16 @@ class TestNoteType:
         """All expected types should exist"""
         expected = [
             "CONCEPT",
+            "DECISION",
             "ENTITE",
             "EVENEMENT",
+            "LIEU",
+            "OBJECTIF",
             "PERSONNE",
             "PROCESSUS",
+            "PRODUIT",
             "PROJET",
+            "RESSOURCE",
             "REUNION",
             "SOUVENIR",
             "AUTRE",
@@ -36,10 +41,15 @@ class TestNoteType:
     def test_from_folder_standard_names(self):
         """Standard folder names should map correctly"""
         assert NoteType.from_folder("Concepts") == NoteType.CONCEPT
-        assert NoteType.from_folder("Personnes") == NoteType.PERSONNE
-        assert NoteType.from_folder("Projets") == NoteType.PROJET
-        assert NoteType.from_folder("Réunions") == NoteType.REUNION
+        assert NoteType.from_folder("Décisions") == NoteType.DECISION
         assert NoteType.from_folder("Entités") == NoteType.ENTITE
+        assert NoteType.from_folder("Lieux") == NoteType.LIEU
+        assert NoteType.from_folder("Objectifs") == NoteType.OBJECTIF
+        assert NoteType.from_folder("Personnes") == NoteType.PERSONNE
+        assert NoteType.from_folder("Produits") == NoteType.PRODUIT
+        assert NoteType.from_folder("Projets") == NoteType.PROJET
+        assert NoteType.from_folder("Ressources") == NoteType.RESSOURCE
+        assert NoteType.from_folder("Réunions") == NoteType.REUNION
 
     def test_from_folder_case_insensitive(self):
         """Folder matching should be case insensitive"""
@@ -54,8 +64,13 @@ class TestNoteType:
     def test_folder_name_property(self):
         """Each type should have a folder name"""
         assert NoteType.CONCEPT.folder_name == "Concepts"
+        assert NoteType.DECISION.folder_name == "Décisions"
+        assert NoteType.LIEU.folder_name == "Lieux"
+        assert NoteType.OBJECTIF.folder_name == "Objectifs"
         assert NoteType.PERSONNE.folder_name == "Personnes"
+        assert NoteType.PRODUIT.folder_name == "Produits"
         assert NoteType.PROJET.folder_name == "Projets"
+        assert NoteType.RESSOURCE.folder_name == "Ressources"
         assert NoteType.AUTRE.folder_name == "Notes"
 
 
@@ -124,6 +139,39 @@ class TestNoteTypeConfigs:
         config = NOTE_TYPE_CONFIGS[NoteType.CONCEPT]
         assert config.base_interval_hours == 48.0
         assert config.auto_enrich is True
+
+    def test_ressource_web_search_enabled(self):
+        """Ressource type should have web search enabled by default"""
+        config = NOTE_TYPE_CONFIGS[NoteType.RESSOURCE]
+        assert config.base_interval_hours == 168.0  # 1 semaine
+        assert config.web_search_default is True
+        assert config.auto_enrich is True
+
+    def test_lieu_web_search_enabled(self):
+        """Lieu type should have web search enabled by default"""
+        config = NOTE_TYPE_CONFIGS[NoteType.LIEU]
+        assert config.base_interval_hours == 720.0  # 30 jours
+        assert config.web_search_default is True
+
+    def test_produit_web_search_enabled(self):
+        """Produit type should have web search enabled by default"""
+        config = NOTE_TYPE_CONFIGS[NoteType.PRODUIT]
+        assert config.base_interval_hours == 336.0  # 2 semaines
+        assert config.web_search_default is True
+
+    def test_decision_no_auto_enrich(self):
+        """Decision type should not auto-enrich (personal)"""
+        config = NOTE_TYPE_CONFIGS[NoteType.DECISION]
+        assert config.base_interval_hours == 720.0  # 30 jours
+        assert config.auto_enrich is False
+        assert config.web_search_default is False
+
+    def test_objectif_frequent_revision(self):
+        """Objectif type should have frequent revision"""
+        config = NOTE_TYPE_CONFIGS[NoteType.OBJECTIF]
+        assert config.base_interval_hours == 168.0  # 1 semaine
+        assert config.max_interval_days == 30
+        assert config.auto_enrich is False  # Personal goals
 
 
 class TestGetReviewConfig:

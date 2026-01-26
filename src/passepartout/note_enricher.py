@@ -337,6 +337,40 @@ class NoteEnricher:
                 ("Applications", "Quand et comment utiliser"),
                 ("Sources", "Références et liens utiles"),
             ],
+            NoteType.RESSOURCE: [
+                ("Résumé", "Points clés et enseignements"),
+                ("Citations", "Passages marquants"),
+                ("Applications", "Comment appliquer ces idées"),
+                ("Critique", "Points forts et limites"),
+                ("Source", "Où trouver cette ressource"),
+            ],
+            NoteType.LIEU: [
+                ("Localisation", "Adresse et accès"),
+                ("Description", "Ce qu'on y trouve"),
+                ("Avis", "Expérience personnelle"),
+                ("Pratique", "Horaires, prix, contact"),
+                ("Recommandations", "Ce qu'il faut essayer"),
+            ],
+            NoteType.PRODUIT: [
+                ("Description", "Ce que c'est et à quoi ça sert"),
+                ("Caractéristiques", "Specs et fonctionnalités"),
+                ("Avis", "Expérience d'utilisation"),
+                ("Alternatives", "Produits comparables"),
+                ("Achat", "Où acheter, prix payé"),
+            ],
+            NoteType.DECISION: [
+                ("Contexte", "Situation qui a mené à cette décision"),
+                ("Options", "Alternatives considérées"),
+                ("Décision", "Le choix fait et pourquoi"),
+                ("Conséquences", "Résultats observés"),
+            ],
+            NoteType.OBJECTIF: [
+                ("Définition", "Qu'est-ce que cet objectif signifie"),
+                ("Pourquoi", "Motivation profonde"),
+                ("Indicateurs", "Comment mesurer le progrès"),
+                ("Projets", "Initiatives qui contribuent"),
+                ("Revue", "État actuel et prochaines étapes"),
+            ],
         }
         return sections_by_type.get(note_type, [])
 
