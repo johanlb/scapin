@@ -29,7 +29,8 @@ class NoteType(str, Enum):
     et possède des caractéristiques de révision spécifiques.
     """
 
-    ENTITE = "entite"  # Organisations, entreprises, concepts
+    CONCEPT = "concept"  # Idées, sujets, recettes, instructions
+    ENTITE = "entite"  # Organisations, entreprises
     EVENEMENT = "evenement"  # Événements ponctuels importants
     PERSONNE = "personne"  # Fiches contacts enrichies
     PROCESSUS = "processus"  # Procédures, workflows
@@ -50,6 +51,7 @@ class NoteType(str, Enum):
             NoteType correspondant ou AUTRE si non reconnu
         """
         mapping = {
+            "concepts": cls.CONCEPT,
             "entites": cls.ENTITE,
             "entités": cls.ENTITE,
             "evenements": cls.EVENEMENT,
@@ -67,6 +69,7 @@ class NoteType(str, Enum):
     def folder_name(self) -> str:
         """Retourne le nom de dossier standard pour ce type"""
         names = {
+            NoteType.CONCEPT: "Concepts",
             NoteType.ENTITE: "Entités",
             NoteType.EVENEMENT: "Événements",
             NoteType.PERSONNE: "Personnes",
@@ -269,6 +272,14 @@ class ReviewConfig:
 
 # Configuration par défaut pour chaque type de note
 NOTE_TYPE_CONFIGS: dict[NoteType, ReviewConfig] = {
+    NoteType.CONCEPT: ReviewConfig(
+        base_interval_hours=48.0,  # Concepts changent rarement
+        max_interval_days=90,
+        easiness_factor=2.5,
+        auto_enrich=True,  # Enrichir avec sources externes utile
+        web_search_default=False,
+        skip_revision=False,
+    ),
     NoteType.ENTITE: ReviewConfig(
         base_interval_hours=12.0,  # Entités changent peu
         max_interval_days=90,

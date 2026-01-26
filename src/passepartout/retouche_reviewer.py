@@ -56,6 +56,7 @@ MAX_REGEX_MATCHES = 100
 # Path relative to notes_dir: Personal Knowledge Management/Modèles/
 TEMPLATE_FOLDER = "Personal Knowledge Management/Modèles"
 TEMPLATE_TYPE_MAP = {
+    "concept": "Modèle — Fiche Concept.md",
     "personne": "Modèle — Fiche Personne.md",
     "projet": "Modèle — Fiche Projet.md",
     "reunion": "Modèle — Fiche Réunion.md",

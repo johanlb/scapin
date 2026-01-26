@@ -330,6 +330,13 @@ class NoteEnricher:
                 ("Participants", "Personnes présentes"),
                 ("Notes", "Points importants"),
             ],
+            NoteType.CONCEPT: [
+                ("Définition", "Explication claire du concept"),
+                ("Principes clés", "Idées fondamentales à retenir"),
+                ("Exemples", "Illustrations concrètes"),
+                ("Applications", "Quand et comment utiliser"),
+                ("Sources", "Références et liens utiles"),
+            ],
         }
         return sections_by_type.get(note_type, [])
 

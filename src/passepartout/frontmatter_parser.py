@@ -15,6 +15,7 @@ from src.passepartout.frontmatter_schema import (
     ActifFrontmatter,
     AnyFrontmatter,
     BaseFrontmatter,
+    ConceptFrontmatter,
     Contact,
     EntiteFrontmatter,
     LinkedSource,
@@ -74,6 +75,8 @@ class FrontmatterParser:
                 return self._parse_entite(yaml_dict)
             elif note_type == NoteType.REUNION:
                 return self._parse_reunion(yaml_dict)
+            elif note_type == NoteType.CONCEPT:
+                return self._parse_concept(yaml_dict)
             else:
                 return self._parse_base(yaml_dict)
         except Exception as e:
@@ -106,6 +109,8 @@ class FrontmatterParser:
             return NoteType.ENTITE
         elif "réunions" in path_lower or "reunions" in path_lower:
             return NoteType.REUNION
+        elif "concepts" in path_lower:
+            return NoteType.CONCEPT
 
         return NoteType.AUTRE
 
@@ -299,6 +304,37 @@ class FrontmatterParser:
             current_status=d.get("current_status"),
             contacts=self._parse_contacts(d.get("contacts")),
             projects=self._parse_list(d.get("projects")),
+        )
+
+    def _parse_concept(self, d: dict[str, Any]) -> ConceptFrontmatter:
+        """Parse un frontmatter CONCEPT."""
+        base = self._parse_base(d)
+        return ConceptFrontmatter(
+            # Base fields
+            title=base.title,
+            type=NoteType.CONCEPT,
+            aliases=base.aliases,
+            created_at=base.created_at,
+            updated_at=base.updated_at,
+            source=base.source,
+            source_id=base.source_id,
+            importance=base.importance,
+            tags=base.tags,
+            category=base.category,
+            related=base.related,
+            linked_sources=base.linked_sources,
+            pending_updates=base.pending_updates,
+            _raw_metadata=base._raw_metadata,
+            # Concept-specific fields
+            concept_type=d.get("concept_type"),
+            domain=d.get("domain"),
+            difficulty=d.get("difficulty"),
+            maturity=d.get("maturity"),
+            last_reviewed=self._parse_datetime(d.get("last_reviewed")),
+            sources=self._parse_list(d.get("sources")),
+            inspired_by=d.get("inspired_by"),
+            duration=d.get("duration"),
+            prerequisites=self._parse_list(d.get("prerequisites")),
         )
 
     # === HELPER METHODS ===

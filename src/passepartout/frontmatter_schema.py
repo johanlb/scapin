@@ -541,6 +541,59 @@ class ActifFrontmatter(BaseFrontmatter):
         return result
 
 
+@dataclass
+class ConceptFrontmatter(BaseFrontmatter):
+    """
+    Frontmatter pour une note de type CONCEPT.
+
+    Contient les informations sur une idée, un sujet, une recette ou des instructions.
+    """
+
+    type: NoteType = NoteType.CONCEPT
+
+    # === CLASSIFICATION ===
+    concept_type: Optional[str] = None  # idée, sujet, recette, instruction, technique
+    domain: Optional[str] = None  # cuisine, informatique, philosophie, etc.
+    difficulty: Optional[str] = None  # facile, moyen, avancé
+
+    # === ÉTAT ===
+    maturity: Optional[str] = None  # brouillon, en_cours, mature, validé
+    last_reviewed: Optional[datetime] = None
+
+    # === RÉFÉRENCES ===
+    sources: list[str] = field(default_factory=list)  # URLs, livres, articles
+    inspired_by: Optional[str] = None  # Wikilink [[Note]]
+
+    # === POUR RECETTES/INSTRUCTIONS ===
+    duration: Optional[str] = None  # "30 min", "2h", etc.
+    prerequisites: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convertit en dict pour sérialisation YAML."""
+        result = super().to_dict()
+
+        if self.concept_type:
+            result["concept_type"] = self.concept_type
+        if self.domain:
+            result["domain"] = self.domain
+        if self.difficulty:
+            result["difficulty"] = self.difficulty
+        if self.maturity:
+            result["maturity"] = self.maturity
+        if self.last_reviewed:
+            result["last_reviewed"] = self.last_reviewed.isoformat()
+        if self.sources:
+            result["sources"] = self.sources
+        if self.inspired_by:
+            result["inspired_by"] = self.inspired_by
+        if self.duration:
+            result["duration"] = self.duration
+        if self.prerequisites:
+            result["prerequisites"] = self.prerequisites
+
+        return result
+
+
 # === TYPE ALIAS ===
 
 # Union de tous les types de frontmatter
@@ -551,4 +604,5 @@ AnyFrontmatter = Union[
     EntiteFrontmatter,
     ReunionFrontmatter,
     ActifFrontmatter,
+    ConceptFrontmatter,
 ]

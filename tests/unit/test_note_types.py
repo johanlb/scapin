@@ -20,6 +20,7 @@ class TestNoteType:
     def test_all_types_exist(self):
         """All expected types should exist"""
         expected = [
+            "CONCEPT",
             "ENTITE",
             "EVENEMENT",
             "PERSONNE",
@@ -34,6 +35,7 @@ class TestNoteType:
 
     def test_from_folder_standard_names(self):
         """Standard folder names should map correctly"""
+        assert NoteType.from_folder("Concepts") == NoteType.CONCEPT
         assert NoteType.from_folder("Personnes") == NoteType.PERSONNE
         assert NoteType.from_folder("Projets") == NoteType.PROJET
         assert NoteType.from_folder("Réunions") == NoteType.REUNION
@@ -51,6 +53,7 @@ class TestNoteType:
 
     def test_folder_name_property(self):
         """Each type should have a folder name"""
+        assert NoteType.CONCEPT.folder_name == "Concepts"
         assert NoteType.PERSONNE.folder_name == "Personnes"
         assert NoteType.PROJET.folder_name == "Projets"
         assert NoteType.AUTRE.folder_name == "Notes"
@@ -115,6 +118,12 @@ class TestNoteTypeConfigs:
         """Personne type should not have web search by default"""
         config = NOTE_TYPE_CONFIGS[NoteType.PERSONNE]
         assert config.web_search_default is False
+
+    def test_concept_moderate_revision(self):
+        """Concept type should have moderate revision"""
+        config = NOTE_TYPE_CONFIGS[NoteType.CONCEPT]
+        assert config.base_interval_hours == 48.0
+        assert config.auto_enrich is True
 
 
 class TestGetReviewConfig:
