@@ -14,6 +14,12 @@ Composants:
 - History: Gestion des snapshots et de la corbeille (30 jours)
 """
 
+from src.grimaud.analyzer import (
+    DetectedProblem,
+    GrimaudAnalyzer,
+    ProblemType,
+    Severity,
+)
 from src.grimaud.history import GrimaudHistoryManager
 from src.grimaud.models import (
     CONFIDENCE_THRESHOLDS,
@@ -39,4 +45,9 @@ __all__ = [
     # Scanner
     "GrimaudScanner",
     "NotePriority",
+    # Analyzer
+    "GrimaudAnalyzer",
+    "DetectedProblem",
+    "ProblemType",
+    "Severity",
 ]
