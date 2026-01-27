@@ -23,6 +23,7 @@ from src.grimaud.models import (
     GrimaudSnapshot,
     GrimaudStats,
 )
+from src.grimaud.scanner import GrimaudScanner, NotePriority
 
 __all__ = [
     # Constants
@@ -35,4 +36,7 @@ __all__ = [
     "GrimaudStats",
     # History
     "GrimaudHistoryManager",
+    # Scanner
+    "GrimaudScanner",
+    "NotePriority",
 ]
