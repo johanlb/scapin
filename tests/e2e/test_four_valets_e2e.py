@@ -239,6 +239,8 @@ def mock_ai_router():
         return (response_str, mock_usage)
 
     router._call_claude = MagicMock(side_effect=_call_claude)
+    # Also setup _call_claude_with_cache with same behavior
+    router._call_claude_with_cache = MagicMock(side_effect=_call_claude)
     return router
 
 
@@ -354,14 +356,14 @@ async def test_e2e_otp_email_early_stop(mock_ai_router, mock_template_renderer, 
     )
 
     # Run analysis
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     # Verify early stop
     assert result.stopped_at == "grimaud"
     assert result.action == "delete"
     assert len(result.pass_history) == 1
     assert result.pass_history[0].early_stop is True
-    assert mock_ai_router._call_claude.call_count == 1  # Only Grimaud called
+    assert mock_ai_router._call_claude_with_cache.call_count == 1  # Only Grimaud called
 
 
 @pytest.mark.asyncio
@@ -385,7 +387,7 @@ async def test_e2e_spam_email_early_stop(mock_ai_router, mock_template_renderer,
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "grimaud"
     assert result.action == "delete"
@@ -418,7 +420,7 @@ async def test_e2e_newsletter_early_stop(mock_ai_router, mock_template_renderer,
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "grimaud"
     assert result.action == "delete"
@@ -446,7 +448,7 @@ async def test_e2e_calendar_reminder_early_stop(mock_ai_router, mock_template_re
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "grimaud"
     assert result.action == "delete"
@@ -495,12 +497,12 @@ async def test_e2e_business_meeting_full_pipeline(mock_ai_router, mock_template_
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "planchet"
     assert result.action == "archive"
     assert len(result.pass_history) == 3  # Grimaud, Bazin, Planchet
-    assert mock_ai_router._call_claude.call_count == 3
+    assert mock_ai_router._call_claude_with_cache.call_count == 3
 
 
 @pytest.mark.asyncio
@@ -537,7 +539,7 @@ async def test_e2e_invoice_full_pipeline(mock_ai_router, mock_template_renderer,
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "planchet"
     assert len(result.pass_history) == 3
@@ -578,7 +580,7 @@ async def test_e2e_project_update_with_context(mock_ai_router, mock_template_ren
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "planchet"
     assert len(result.pass_history) == 3
@@ -629,11 +631,11 @@ async def test_e2e_urgent_deadline_mousqueton(mock_ai_router, mock_template_rend
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "mousqueton"
     assert len(result.pass_history) == 4  # All four valets
-    assert mock_ai_router._call_claude.call_count == 4
+    assert mock_ai_router._call_claude_with_cache.call_count == 4
 
 
 @pytest.mark.asyncio
@@ -674,7 +676,7 @@ async def test_e2e_conflict_requires_mousqueton(mock_ai_router, mock_template_re
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "mousqueton"
     assert len(result.pass_history) == 4
@@ -688,6 +690,7 @@ async def test_e2e_conflict_requires_mousqueton(mock_ai_router, mock_template_re
 # ============================================================================
 
 
+@pytest.mark.skip(reason="Legacy fallback removed - Four Valets is always used")
 @pytest.mark.asyncio
 async def test_e2e_fallback_to_legacy_on_error(mock_ai_router, mock_template_renderer, mock_context_searcher, multi_pass_config):
     """Test fallback to legacy pipeline when Four Valets fails."""
@@ -718,6 +721,7 @@ async def test_e2e_fallback_to_legacy_on_error(mock_ai_router, mock_template_ren
         return (legacy_response_str, mock_usage)
 
     mock_ai_router._call_claude = MagicMock(side_effect=_call_claude_with_error)
+    mock_ai_router._call_claude_with_cache = MagicMock(side_effect=_call_claude_with_error)
 
     analyzer = MultiPassAnalyzer(
         ai_router=mock_ai_router,
@@ -727,7 +731,7 @@ async def test_e2e_fallback_to_legacy_on_error(mock_ai_router, mock_template_ren
     )
 
     # Should not raise, should fall back to legacy
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     # Verify fallback occurred
     assert result.four_valets_mode is False
@@ -758,7 +762,7 @@ async def test_e2e_shipping_notification_no_extraction(mock_ai_router, mock_temp
         config=multi_pass_config,
     )
 
-    result = await analyzer.analyze(event, use_four_valets=True)
+    result = await analyzer.analyze(event)
 
     assert result.stopped_at == "grimaud"
     assert result.action == "delete"
@@ -810,21 +814,6 @@ async def test_e2e_four_valets_mode_detection(mock_ai_router, mock_template_rend
         config=multi_pass_config,
     )
 
-    # With Four Valets
-    result = await analyzer.analyze(event, use_four_valets=True)
+    # Four Valets is now always used
+    result = await analyzer.analyze(event)
     assert result.four_valets_mode is True
-
-    # Configure for legacy response
-    legacy_response = MagicMock()
-    legacy_response.content = json.dumps({
-        "action": "delete",
-        "confidence": 95,
-        "extractions": [],
-        "reasoning": "OTP code"
-    })
-    legacy_response.model_id = "claude-3-5-haiku-20241022"
-    setup_ai_responses(mock_ai_router, [legacy_response])
-
-    # Without Four Valets
-    result_legacy = await analyzer.analyze(event, use_four_valets=False)
-    assert result_legacy.four_valets_mode is False

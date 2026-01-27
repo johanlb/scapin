@@ -38,6 +38,7 @@ class MockMetadata:
         self.interval_hours = 24.0
         self.last_quality = None
         self.review_count = 0
+        self.last_synced_at = None  # v4 field
 
     @property
     def note_type(self):

@@ -162,7 +162,7 @@ class TestLastSyncedAtField:
             version = cursor.fetchone()[0]
             conn.close()
 
-            assert version == 4
+            assert version == 5  # v5 after note_id path format migration
 
     def test_batch_save_with_last_synced_at(self) -> None:
         """Batch save works with last_synced_at field."""
