@@ -75,6 +75,25 @@ class GrimaudAction:
             "applied_at": self.applied_at.isoformat() if self.applied_at else None,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "GrimaudAction":
+        """Cree depuis un dictionnaire."""
+        return cls(
+            action_id=data["action_id"],
+            action_type=GrimaudActionType(data["action_type"]),
+            note_id=data["note_id"],
+            note_title=data["note_title"],
+            confidence=float(data["confidence"]),
+            reasoning=data["reasoning"],
+            target_note_id=data.get("target_note_id"),
+            target_note_title=data.get("target_note_title"),
+            content_diff=data.get("content_diff"),
+            new_content=data.get("new_content"),
+            created_at=datetime.fromisoformat(data["created_at"]),
+            applied=data["applied"],
+            applied_at=datetime.fromisoformat(data["applied_at"]) if data.get("applied_at") else None,
+        )
+
 
 @dataclass
 class GrimaudSnapshot:

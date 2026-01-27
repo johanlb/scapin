@@ -68,6 +68,27 @@ class TestGrimaudAction:
         assert data["confidence"] == 0.92
         assert "created_at" in data
 
+    def test_to_dict_and_from_dict_roundtrip(self):
+        """Conversion dict -> Action -> dict conserve les donnees."""
+        original = GrimaudAction(
+            action_type=GrimaudActionType.FUSION,
+            note_id="note-source",
+            note_title="Note Source",
+            confidence=0.96,
+            reasoning="Notes similaires detectees",
+            target_note_id="note-target",
+            target_note_title="Note Target",
+        )
+
+        data = original.to_dict()
+        restored = GrimaudAction.from_dict(data)
+
+        assert restored.action_id == original.action_id
+        assert restored.action_type == original.action_type
+        assert restored.note_id == original.note_id
+        assert restored.confidence == original.confidence
+        assert restored.target_note_id == original.target_note_id
+
 
 class TestGrimaudSnapshot:
     """Tests for GrimaudSnapshot dataclass."""
