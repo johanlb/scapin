@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from src.monitoring.logger import get_logger
 from src.sancho.cost_calculator import AIModel
-from src.sancho.router import _repair_json_with_library, clean_json_string
+from src.sancho.json_utils import clean_json_string, repair_json_with_library
 
 if TYPE_CHECKING:
     from src.sancho.router import AIRouter
@@ -345,7 +345,7 @@ class AnalysisEngine(ABC):
             pass
 
         # Level 2: Try json-repair library
-        repaired, repair_success = _repair_json_with_library(json_str)
+        repaired, repair_success = repair_json_with_library(json_str)
         if repair_success:
             try:
                 result = json.loads(repaired)
@@ -364,7 +364,7 @@ class AnalysisEngine(ABC):
             pass
 
         # Last resort: json-repair on cleaned string
-        repaired2, _ = _repair_json_with_library(cleaned)
+        repaired2, _ = repair_json_with_library(cleaned)
         try:
             result = json.loads(repaired2)
             logger.debug("JSON repaired using regex + json-repair")

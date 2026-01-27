@@ -41,8 +41,9 @@ from src.sancho.convergence import (
     ValetType,
     is_high_stakes,
 )
+from src.sancho.json_utils import clean_json_string, repair_json_with_library
 from src.sancho.model_selector import ModelTier
-from src.sancho.router import AIModel, AIRouter, _repair_json_with_library, clean_json_string
+from src.sancho.router import AIModel, AIRouter
 from src.sancho.template_renderer import TemplateRenderer, get_template_renderer
 
 if TYPE_CHECKING:
@@ -948,7 +949,7 @@ class MultiPassAnalyzer:
                 data = json.loads(json_str)
             except json.JSONDecodeError:
                 # Level 2: Try json-repair library first
-                repaired, repair_success = _repair_json_with_library(json_str)
+                repaired, repair_success = repair_json_with_library(json_str)
                 if repair_success:
                     try:
                         data = json.loads(repaired)
@@ -966,7 +967,7 @@ class MultiPassAnalyzer:
                         logger.debug("JSON parsed after regex cleaning")
                     except json.JSONDecodeError:
                         # Last resort: json-repair on regex-cleaned string
-                        repaired2, _ = _repair_json_with_library(cleaned)
+                        repaired2, _ = repair_json_with_library(cleaned)
                         try:
                             data = json.loads(repaired2)
                             parse_method = "regex+json-repair"

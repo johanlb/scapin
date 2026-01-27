@@ -74,7 +74,7 @@ Transformer Scapin d'un prototype fonctionnel en un assistant cognitif complet :
 |-------|--------|--------|-------------|
 | Migration note_id | Éliminer 14 collisions de noms | À faire | `migration-note-id-format.md` |
 | Prompt caching | Cache Anthropic (-50% coût) | ✅ Fait | `router.py:_call_claude_with_cache()` |
-| Injecter Canevas | Corriger gap dans retouche | À faire | `prompt-architecture-design.md` |
+| Injecter Canevas | Corriger gap dans retouche | ✅ Fait | `retouche_user.j2` |
 
 **Critère de succès** : 855 notes indexées (au lieu de 841), coût API réduit.
 
@@ -330,10 +330,10 @@ flowchart TD
 
 ## Prochaine Action
 
-**Démarrer Phase 0** :
+**Finaliser Phase 0** :
 1. Implémenter migration note_id (plan détaillé prêt)
 2. ~~Activer prompt caching~~ ✅ Déjà implémenté
-3. Injecter Canevas dans retouche
+3. ~~Injecter Canevas dans retouche~~ ✅ Fait
 
 ---
 

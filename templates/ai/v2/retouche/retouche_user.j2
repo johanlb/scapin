@@ -9,6 +9,16 @@
 **Dernière modification** : {{ updated_at | default('Non disponible') }}
 **Score actuel** : {{ quality_score | default('Non évalué') }}
 
+{% if canevas %}
+## Contexte permanent de Johan (Canevas)
+
+Tu dois garder en tête le profil, les projets et objectifs de Johan pour évaluer la pertinence et prioriser les actions :
+
+{{ canevas }}
+
+---
+{% endif %}
+
 {% if frontmatter %}
 ## Frontmatter
 
