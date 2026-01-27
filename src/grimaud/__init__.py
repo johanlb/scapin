@@ -20,6 +20,7 @@ from src.grimaud.analyzer import (
     ProblemType,
     Severity,
 )
+from src.grimaud.executor import GrimaudExecutor
 from src.grimaud.history import GrimaudHistoryManager
 from src.grimaud.models import (
     CONFIDENCE_THRESHOLDS,
@@ -50,4 +51,6 @@ __all__ = [
     "DetectedProblem",
     "ProblemType",
     "Severity",
+    # Executor
+    "GrimaudExecutor",
 ]
