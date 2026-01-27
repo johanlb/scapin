@@ -1452,8 +1452,11 @@ class NoteManager:
             return 0
 
         deleted_count = 0
-        for file_path in trash_dir.glob("*.md"):
-            note_id = file_path.stem
+        for file_path in trash_dir.rglob("*.md"):
+            note_id = self._path_to_note_id(file_path)
+            # Remove the trash folder prefix from note_id
+            if note_id.startswith(f"{TRASH_FOLDER}/"):
+                note_id = note_id[len(TRASH_FOLDER) + 1:]
             if self.permanently_delete_note(note_id):
                 deleted_count += 1
 
@@ -1787,7 +1790,7 @@ class NoteManager:
         # OPTIMIZATION: Check cache first for each file
         with self._cache_lock:
             for file_path in visible_files:
-                note_id = file_path.stem
+                note_id = self._path_to_note_id(file_path)
                 if note_id in self._note_cache:
                     # Move to end (most recently used)
                     self._note_cache.move_to_end(note_id)
@@ -2073,12 +2076,12 @@ class NoteManager:
         """
         Get file path for note with safety checks
 
+        Supports both new format (path/to/note) and old format (filename).
         Ensures the resolved path is within notes_dir to prevent
-        directory traversal attacks. Uses metadata index to find notes
-        in subfolders.
+        directory traversal attacks.
 
         Args:
-            note_id: Note identifier
+            note_id: Note identifier (new format: "path/to/note", old format: "note")
 
         Returns:
             Absolute path to note file
@@ -2086,6 +2089,20 @@ class NoteManager:
         Raises:
             ValueError: If resolved path is outside notes_dir
         """
+        # NEW FORMAT: If note_id contains '/', it's the full relative path
+        if "/" in note_id:
+            file_path = (self.notes_dir / f"{note_id}.md").resolve()
+            # Security check before returning
+            notes_dir_resolved = self.notes_dir.resolve()
+            try:
+                file_path.relative_to(notes_dir_resolved)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid note path: {file_path} is outside notes directory {notes_dir_resolved}"
+                ) from e
+            return file_path
+
+        # OLD FORMAT: Backward compatibility for filename-only note_id
         # Check metadata index for the note's folder path
         folder_path = ""
         if note_id in self._notes_metadata:
@@ -2126,6 +2143,35 @@ class NoteManager:
             ) from e
 
         return file_path
+
+    def _path_to_note_id(self, file_path: Path) -> str:
+        """
+        Convert a file path to a note_id.
+
+        The note_id format is: relative/path/without/extension
+        Example: "Projets/Scapin/Architecture" for "Projets/Scapin/Architecture.md"
+
+        This format eliminates collisions when files have the same name
+        in different folders.
+
+        Args:
+            file_path: Absolute or relative path to the note file
+
+        Returns:
+            Note identifier string
+        """
+        # Make path relative to notes_dir if it's absolute
+        if file_path.is_absolute():
+            try:
+                rel_path = file_path.relative_to(self.notes_dir.resolve())
+            except ValueError:
+                # Path is not under notes_dir, use just the stem
+                return file_path.stem
+        else:
+            rel_path = file_path
+
+        # Remove .md extension and normalize separators
+        return str(rel_path.with_suffix("")).replace("\\", "/")
 
     def get_relative_path(self, note_id: str) -> Optional[str]:
         """
@@ -2230,8 +2276,8 @@ class NoteManager:
                     )
                     frontmatter = {}
 
-            # Extract note ID from filename
-            note_id = file_path.stem
+            # Extract note ID from file path (new format: path/to/note)
+            note_id = self._path_to_note_id(file_path)
 
             # Parse entities
             entities = []

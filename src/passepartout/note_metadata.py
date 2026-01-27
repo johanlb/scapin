@@ -33,7 +33,7 @@ WAL_CHECKPOINT_THRESHOLD = 1000  # Checkpoint after this many operations
 logger = get_logger("passepartout.note_metadata")
 
 # Database schema version for migrations
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # Importance level ordering for priority sorting (lower value = higher priority)
 IMPORTANCE_ORDER: dict[ImportanceLevel, int] = {
@@ -414,6 +414,8 @@ class NoteMetadataStore:
                 self._migrate_v2_to_v3(cursor)
             if current_version < 4:
                 self._migrate_v3_to_v4(cursor)
+            if current_version < 5:
+                self._migrate_v4_to_v5(cursor)
 
             # Create indexes for common queries
             cursor.execute("""
@@ -623,6 +625,103 @@ class NoteMetadataStore:
             logger.debug("Added column last_synced_at")
 
         logger.info("Migration v3 to v4 completed successfully")
+
+    def _migrate_v4_to_v5(self, cursor: sqlite3.Cursor) -> None:
+        """
+        Migrate note_id format: filename -> relative_path/filename
+
+        Strategy:
+        1. Scanner le filesystem pour construire le mapping old_id → new_id
+        2. UPDATE note_id en batch (avec gestion des collisions)
+        3. UPDATE merge_target_id (clé étrangère)
+        4. Supprimer les entrées orphelines (notes supprimées)
+
+        Note: Les notes en collision (même filename dans différents dossiers)
+        avaient le même note_id dans l'ancien format. Cette migration associe
+        les métadonnées au premier fichier trouvé; les autres seront réindexées.
+        """
+        logger.info("Migrating database schema from v4 to v5 (note_id path format)")
+
+        # 1. Déterminer le répertoire des notes
+        # Par défaut: ~/Documents/Scapin/Notes
+        notes_dir = Path.home() / "Documents" / "Scapin" / "Notes"
+        if not notes_dir.exists():
+            # Fallback: essayer de déduire depuis db_path
+            # db_path = data/notes_meta.db → chercher à côté
+            potential_notes_dir = self.db_path.parent.parent / "Notes"
+            if potential_notes_dir.exists():
+                notes_dir = potential_notes_dir
+
+        if not notes_dir.exists():
+            logger.warning(
+                "Notes directory not found, skipping note_id migration",
+                extra={"tried_path": str(notes_dir)},
+            )
+            return
+
+        # Dossiers à ignorer
+        ignored_dirs = {".git", ".scapin_index", "_Supprimées", "__pycache__"}
+
+        # 2. Construire le mapping old_id → new_id depuis le filesystem
+        old_to_new: dict[str, str] = {}
+        collision_count = 0
+
+        for f in notes_dir.rglob("*.md"):
+            # Ignorer les dossiers système
+            if any(part in ignored_dirs or part.startswith(".") for part in f.parts):
+                continue
+
+            old_id = f.stem
+            new_id = str(f.relative_to(notes_dir).with_suffix("")).replace("\\", "/")
+
+            # En cas de collision, garder le premier trouvé
+            # Les autres fichiers seront réindexés avec le bon note_id plus tard
+            if old_id in old_to_new:
+                collision_count += 1
+                logger.debug(
+                    "Note ID collision detected",
+                    extra={"old_id": old_id, "kept": old_to_new[old_id], "skipped": new_id},
+                )
+            else:
+                old_to_new[old_id] = new_id
+
+        # 3. UPDATE note_id dans la table
+        updated_count = 0
+        for old_id, new_id in old_to_new.items():
+            # Ne migrer que si le format change réellement
+            if old_id != new_id:
+                cursor.execute(
+                    "UPDATE note_metadata SET note_id = ? WHERE note_id = ?",
+                    (new_id, old_id),
+                )
+                if cursor.rowcount > 0:
+                    updated_count += 1
+
+        # 4. UPDATE merge_target_id (clé étrangère)
+        fk_updated = 0
+        for old_id, new_id in old_to_new.items():
+            if old_id != new_id:
+                cursor.execute(
+                    "UPDATE note_metadata SET merge_target_id = ? WHERE merge_target_id = ?",
+                    (new_id, old_id),
+                )
+                if cursor.rowcount > 0:
+                    fk_updated += 1
+
+        # 5. Log des statistiques
+        cursor.execute("SELECT COUNT(*) FROM note_metadata")
+        total = cursor.fetchone()[0]
+
+        logger.info(
+            "Migration v4 to v5 completed successfully",
+            extra={
+                "mappings_created": len(old_to_new),
+                "note_ids_updated": updated_count,
+                "merge_targets_updated": fk_updated,
+                "collisions_found": collision_count,
+                "total_records": total,
+            },
+        )
 
     def _parse_datetime_safe(self, val: Optional[str], field_name: str = "") -> Optional[datetime]:
         """

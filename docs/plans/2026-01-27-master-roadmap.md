@@ -72,11 +72,13 @@ Transformer Scapin d'un prototype fonctionnel en un assistant cognitif complet :
 
 | Tâche | Détail | Statut | Plan source |
 |-------|--------|--------|-------------|
-| Migration note_id | Éliminer 14 collisions de noms | À faire | `migration-note-id-format.md` |
+| Migration note_id | Éliminer 15 collisions de noms | ✅ Fait | `migration-note-id-format.md` |
 | Prompt caching | Cache Anthropic (-50% coût) | ✅ Fait | `router.py:_call_claude_with_cache()` |
 | Injecter Canevas | Corriger gap dans retouche | ✅ Fait | `retouche_user.j2` |
 
-**Critère de succès** : 855 notes indexées (au lieu de 841), coût API réduit.
+**Critère de succès** : 857 notes indexées (au lieu de 842), coût API réduit.
+
+**Phase 0 complète** ✅
 
 ---
 
